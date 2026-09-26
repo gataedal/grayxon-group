@@ -772,23 +772,119 @@ async function managerTpl(){
 }
 
 async function managerCreatorModal(id){
-  const [{data:d},{data:pm},{data:p},{data:missions}]=await Promise.all([
+  const [{data:d},{data:pm},{data:p},{data:missions},{data:progress}]=await Promise.all([
     sb.from('profile_details').select('*').eq('user_id',id).maybeSingle(),
     sb.from('payment_methods').select('*').eq('user_id',id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
     sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('id',id).single(),
-    sb.from('missions').select('id,title,description,type,target,week_start,week_end,published,link_url,created_at').eq('assigned_to',id).order('week_start',{ascending:false}).order('created_at',{ascending:false})
+    sb.from('missions').select('id,title,description,type,target,week_start,week_end,published,link_url,created_at').eq('assigned_to',id).order('week_start',{ascending:false}).order('created_at',{ascending:false}),
+    sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',id)
   ]);
   if(!p)return toast('No se encontró el creador.');
+
   const [{data:team},{data:manager}]=await Promise.all([
     p.team_id?sb.from('teams').select('name').eq('id',p.team_id).maybeSingle():{data:null},
     p.manager_id?sb.from('managers').select('name').eq('id',p.manager_id).maybeSingle():{data:null}
   ]);
+
   const el=document.createElement('div');el.className='modal-backdrop';
   const safe=x=>x?esc(x):'—';
+  const today=new Date().toISOString().slice(0,10);
+  const prog=new Map((progress||[]).map(x=>[x.mission_id,x]));
+  const missionPct=m=>{
+    const x=prog.get(m.id);
+    if(!x)return 0;
+    if(m.type==='checkbox')return x.completed?100:0;
+    return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0;
+  };
+  const groupedWeeks=(()=>{
+    const map=new Map();
+    for(const m of (missions||[])){
+      const key=`${m.week_start||'sin-inicio'}|${m.week_end||'sin-fin'}`;
+      if(!map.has(key))map.set(key,{start:m.week_start||'',end:m.week_end||'',items:[]});
+      map.get(key).items.push(m);
+    }
+    return Array.from(map.values()).sort((a,b)=>String(b.start||'').localeCompare(String(a.start||'')));
+  })();
+  const weekLabel=(start,end)=>start||end?`${start||'—'} → ${end||'—'}`:'Sin semana';
+  const missionRow=m=>{
+    const pct=missionPct(m);
+    const expired=!!m.week_end&&m.week_end<today&&pct<100;
+    return `<div class="item creator-mission-row ${pct>=100?'creator-mission-done':''}">
+      <div class="row">
+        <div style="min-width:0">
+          <b>${esc(m.title)}</b>
+          ${m.description?`<div class="muted small">${esc(m.description)}</div>`:''}
+          <div class="muted small" style="margin-top:5px">${m.type==='checkbox'?'Marcable':'Meta numérica'}${m.type==='numeric'?` · Meta: ${Number(m.target||0).toLocaleString('es-CO')}`:''}</div>
+          ${m.link_url?`<a class="mission-admin-link" href="${esc(m.link_url)}" target="_blank" rel="noopener noreferrer">🔗 Ver enlace</a>`:''}
+        </div>
+        <div class="inline creator-mission-actions">
+          <span class="pill ${m.published?'ok':''}">${m.published?'Publicada':'Oculta'}</span>
+          <span class="pill ${pct>=100?'ok':''}">${pct}%</span>
+          ${pct>=100?'<span class="pill ok">✓ Completada</span>':expired?'<span class="pill">Semana finalizada</span>':'<span class="pill">En progreso</span>'}
+          <button class="secondary small" data-manager-edit-mission="${m.id}">Editar</button>
+          <button class="secondary small ${m.published?'danger':'ok'}" data-manager-toggle-mission="${m.id}">${m.published?'Ocultar':'Publicar'}</button>
+          <button class="secondary small danger" data-manager-delete-mission="${m.id}">Eliminar</button>
+        </div>
+      </div>
+      <div class="space-progress" style="margin-top:10px"><span style="width:${pct}%"></span></div>
+    </div>`;
+  };
+  const weekCards=groupedWeeks.map((g,i)=>{
+    const panelId=`managerMissionWeek-${id}-${i}`;
+    const done=g.items.filter(m=>missionPct(m)>=100).length;
+    const avg=g.items.length?Math.round(g.items.reduce((sum,m)=>sum+missionPct(m),0)/g.items.length):0;
+    const current=today>=g.start&&today<=g.end;
+    return `<div class="mission-week-group admin-mission-week-group">
+      <button type="button" class="mission-week-card admin-mission-week-card" data-manager-mission-week="${panelId}" aria-expanded="false">
+        <div class="mission-week-icon">🎯</div>
+        <div class="mission-week-main">
+          <div class="mission-week-top"><strong>Misiones ${esc(weekLabel(g.start,g.end))}</strong><span>${avg}%</span></div>
+          <p>${g.items.length} ${g.items.length===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}${current?' · Semana actual':''}</p>
+          <div class="space-progress"><span style="width:${avg}%"></span></div>
+        </div>
+        <b class="mission-week-arrow">›</b>
+      </button>
+      <div class="mission-week-details hidden" id="${panelId}">${g.items.map(missionRow).join('')}</div>
+    </div>`;
+  }).join('');
+
   const avatar=d?.avatar_url?`<img class="creator-profile-modal-avatar" src="${esc(d.avatar_url)}" alt="Foto de ${safe(p.full_name||p.username)}">`:`<div class="creator-profile-modal-avatar creator-profile-modal-avatar-fallback">${esc((p.full_name||p.username||'C').trim().charAt(0).toUpperCase())}</div>`;
-  el.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div class="creator-profile-modal-head">${avatar}<div><div class="eyebrow">CREADOR</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div></div><button class="secondary" id="closeManagerCreator">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(team?.name)} · <b>Manager:</b> ${safe(manager?.name)}</div></div>`;
+  el.innerHTML=`<div class="card modal creator-profile-modal">
+    <div class="row"><div class="creator-profile-modal-head">${avatar}<div><div class="eyebrow">CREADOR</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div></div><button class="secondary" id="closeManagerCreator">Cerrar</button></div>
+    <div class="hr"></div>
+    <h3>Información personal</h3>
+    <div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div>
+    <h3 style="margin-top:22px">Pago</h3>
+    <div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div>
+    <div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(team?.name)} · <b>Manager:</b> ${safe(manager?.name)}</div>
+    <div class="creator-missions-section" style="margin-top:22px">
+      <div class="row"><div><h3 style="margin-bottom:3px">🎯 Misiones del creador</h3><p class="muted small" style="margin:0">Aquí puedes ver las misiones que le has asignado, su progreso y cuáles ya completó.</p></div><button class="primary small" id="newManagerCreatorMission">+ Agregar misión</button></div>
+      <div class="creator-mission-group" style="margin-top:14px"><div class="row"><div><h3 style="margin-bottom:3px">📅 Misiones por semana</h3><p class="muted small" style="margin:0">Abre una semana para revisar cada misión y su progreso.</p></div><span class="mission-count">${groupedWeeks.length}</span></div>
+      <div class="mission-weeks-list" style="margin-top:12px">${weekCards||'<div class="item"><p class="muted small" style="margin:0">Aún no has asignado misiones a este creador.</p></div>'}</div></div>
+    </div>
+  </div>`;
   document.body.appendChild(el);
   $('#closeManagerCreator').onclick=()=>el.remove();
+  $('#newManagerCreatorMission').onclick=()=>creatorMissionModal(id,null,'manager');
+  el.querySelectorAll('[data-manager-mission-week]').forEach(b=>b.onclick=()=>{
+    const panel=$('#'+b.dataset.managerMissionWeek);
+    if(panel){const open=panel.classList.toggle('hidden')===false;b.classList.toggle('open',open);b.setAttribute('aria-expanded',String(open));}
+  });
+  el.querySelectorAll('[data-manager-edit-mission]').forEach(b=>b.onclick=()=>creatorMissionModal(id,b.dataset.managerEditMission,'manager'));
+  el.querySelectorAll('[data-manager-toggle-mission]').forEach(b=>b.onclick=async()=>{
+    const {data,error}=await sb.from('missions').select('published').eq('id',b.dataset.managerToggleMission).single();
+    if(error)return toast(error.message);
+    const {error:e}=await sb.from('missions').update({published:!data.published}).eq('id',b.dataset.managerToggleMission);
+    if(e)return toast(e.message);
+    toast(data.published?'Misión ocultada':'Misión publicada ✓');
+    el.remove();await managerCreatorModal(id);
+  });
+  el.querySelectorAll('[data-manager-delete-mission]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Eliminar esta misión y su progreso?'))return;
+    const {error}=await sb.from('missions').delete().eq('id',b.dataset.managerDeleteMission);
+    if(error)return toast(error.message);
+    toast('Misión eliminada');el.remove();await managerCreatorModal(id);
+  });
 }
 
 async function adminManagerTasks(){
@@ -796,17 +892,9 @@ async function adminManagerTasks(){
     sb.from('managers').select('id,name,username,user_id,active').order('name'),
     sb.from('manager_tasks').select('id,manager_id,title,description,due_at,assigned_at,assigned_by,completed,completed_at').order('assigned_at',{ascending:false})
   ]);
-  if(me||te)return `<div class="card"><h2>Asignar tareas</h2><div class="error">${esc((me||te)?.message||'No se pudieron cargar las tareas.')}</div></div>`;
+  if(me||te)return `<div class="card"><h2>Tareas de managers</h2><div class="error">${esc((me||te)?.message||'No se pudieron cargar las tareas.')}</div></div>`;
   const mm=new Map((managers||[]).map(m=>[m.id,m]));
-  return `<div class="card"><div class="row"><div><h2>Asignar tareas</h2><p class="muted small">Asigna tareas a un manager. La fecha de asignación se genera en la base de datos y la fecha de finalización se sella al marcarla como lista.</p></div><button class="primary" id="newManagerTask">+ Asignar tarea</button></div><div class="list" style="margin-top:18px">${(tasks||[]).map(t=>`<div class="item"><div class="row"><div><b>${esc(t.title)}</b><div class="muted small">Manager: ${esc(mm.get(t.manager_id)?.name||'Sin manager')}</div>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><div class="inline"><span class="pill ${t.completed?'ok':''}">${t.completed?'✓ Lista':'Pendiente'}</span><button class="secondary small danger" data-delete-manager-task="${t.id}">🗑 Eliminar tarea</button></div></div></div>`).join('')||'<div class="item"><span class="muted small">Aún no hay tareas.</span></div>'}</div></div>`;
-}
-
-async function deleteManagerTask(id){
-  if(!confirm('¿Eliminar esta tarea del manager? Esta acción no se puede deshacer.')) return;
-  const {error}=await sb.from('manager_tasks').delete().eq('id',id);
-  if(error){toast(error.message);return;}
-  toast('Tarea eliminada ✓');
-  render();
+  return `<div class="card"><div class="row"><div><h2>Tareas de managers</h2><p class="muted small">Asigna tareas a un manager. La fecha de asignación se genera en la base de datos y la fecha de finalización se sella al marcarla como lista.</p></div><button class="primary" id="newManagerTask">+ Asignar tarea</button></div><div class="list" style="margin-top:18px">${(tasks||[]).map(t=>`<div class="item"><div class="row"><div><b>${esc(t.title)}</b><div class="muted small">Manager: ${esc(mm.get(t.manager_id)?.name||'Sin manager')}</div>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><span class="pill ${t.completed?'ok':''}">${t.completed?'✓ Lista':'Pendiente'}</span></div></div>`).join('')||'<div class="item"><span class="muted small">Aún no hay tareas.</span></div>'}</div></div>`;
 }
 
 function managerTaskModal(){
@@ -845,7 +933,7 @@ async function adminTpl(c) {
   else if (adminView === 'teams') body = await adminTeams();
   else if (adminView === 'manager_tasks') body = await adminManagerTasks();
   else body = await adminFormation();
-  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['teams','Equipos y managers'],['manager_tasks','Asignar tareas'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
+  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['teams','Equipos y managers'],['manager_tasks','Tareas de managers'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
 }
 
 function field(id, label, val, area = false) {
@@ -873,55 +961,7 @@ async function adminCreators() {
 async function adminTeams(){
   const [{data:teams,error:te},{data:managers,error:me}] = await Promise.all([sb.from('teams').select('*').order('name'),sb.from('managers').select('*').order('name')]);
   if(te||me) return `<div class="card"><h2>Equipos y managers</h2><div class="error">${esc((te||me)?.message||'No se pudo cargar la configuración.')}</div></div>`;
-  return `<div class="card"><div class="row"><div><h2>Equipos y managers</h2><p class="muted small">Crea equipos, asigna su manager y revisa los creadores y tareas que gestiona cada equipo.</p></div><button class="primary" id="newTeamManager">+ Crear equipo</button></div><div class="list" style="margin-top:18px">${(teams||[]).map(t=>{const m=(managers||[]).find(x=>x.id===t.manager_id);return `<div class="item"><div class="row"><div><b>${esc(t.name)}</b><div class="muted small">Manager: ${esc(m?.name||'Sin asignar')}</div><div class="muted small">${m?.phone?`WhatsApp: ${esc(m.phone)}`:'Sin teléfono'}${m?.email?` · ${esc(m.email)}`:''}</div></div><div class="inline"><button class="secondary small" data-view-team="${t.id}">👥 Ver equipo</button><button class="secondary small" data-edit-team="${t.id}">✏️ Editar</button><button class="secondary small danger" data-delete-team="${t.id}">Eliminar</button></div></div></div>`}).join('')||'<p class="muted">Aún no hay equipos.</p>'}</div></div>`;
-}
-
-async function viewTeam(id){
-  const [{data:team,error:te},{data:creators,error:ce},{data:missions,error:me},{data:progress,error:pe},{data:manager,error:mge}] = await Promise.all([
-    sb.from('teams').select('id,name,manager_id').eq('id',id).single(),
-    sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('role','creator').eq('team_id',id).order('full_name'),
-    sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at').order('week_start',{ascending:false}).order('created_at',{ascending:false}),
-    sb.from('mission_progress').select('mission_id,user_id,value,completed'),
-    sb.from('managers').select('id,name,phone,email').eq('id',id ? (await sb.from('teams').select('manager_id').eq('id',id).single()).data?.manager_id || '__none__' : '__none__').maybeSingle()
-  ]);
-  if(te||ce||me||pe) return toast((te||ce||me||pe)?.message||'No se pudo cargar el equipo.');
-
-  // Re-resolve the manager cleanly from the already loaded team to avoid exposing unrelated data.
-  let teamManager=manager||null;
-  if(!teamManager && team?.manager_id){
-    const r=await sb.from('managers').select('id,name,phone,email').eq('id',team.manager_id).maybeSingle();
-    teamManager=r.data||null;
-  }
-
-  const creatorIds=new Set((creators||[]).map(c=>c.id));
-  const teamMissions=(missions||[]).filter(m=>creatorIds.has(m.assigned_to));
-  const progressMap=new Map((progress||[]).map(x=>[`${x.user_id}:${x.mission_id}`,x]));
-  const missionPct=m=>{const x=progressMap.get(`${m.assigned_to}:${m.id}`);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0;};
-  const today=new Date().toISOString().slice(0,10);
-  const creatorMissions=c=>teamMissions.filter(m=>m.assigned_to===c.id);
-  const withTasks=(creators||[]).filter(c=>creatorMissions(c).length).length;
-  const withoutTasks=(creators||[]).length-withTasks;
-  const allCompleted=teamMissions.filter(m=>missionPct(m)>=100).length;
-  const pending=teamMissions.length-allCompleted;
-  const escDate=v=>esc(v||'—');
-
-  const missionRow=m=>{
-    const pct=missionPct(m);
-    const expired=!!m.week_end&&m.week_end<today&&pct<100;
-    const status=pct>=100?'✓ Completada':expired?'⚠️ Semana finalizada':'Pendiente';
-    return `<div class="item" style="margin-top:8px;padding:12px"><div class="row"><div><b>${esc(m.title)}</b>${m.description?`<div class="muted small" style="margin-top:4px">${esc(m.description)}</div>`:''}<div class="muted small" style="margin-top:5px">${escDate(m.week_start)} → ${escDate(m.week_end)} · ${m.type==='checkbox'?'Marcable':`Meta: ${Number(m.target||0).toLocaleString('es-CO')}`}</div></div><span class="pill ${pct>=100?'ok':''}">${status}</span></div><div class="space-progress" style="margin-top:9px"><span style="width:${pct}%"></span></div><div class="muted small" style="margin-top:5px">Progreso: <b>${pct}%</b>${m.published?' · Publicada':' · Oculta'}</div></div>`;
-  };
-
-  const creatorBlock=c=>{
-    const ms=creatorMissions(c);
-    const done=ms.filter(m=>missionPct(m)>=100).length;
-    return `<div class="item" style="padding:15px;margin-top:10px"><div class="row"><div><b>${esc(c.full_name||c.username)}</b><div class="muted small">@${esc(c.username)} · ${c.active?'Activo':'Inactivo'}</div></div><span class="pill ${ms.length?'ok':''}">${ms.length?`${ms.length} tarea${ms.length===1?'':'s'}`:'Sin tareas'}</span></div>${ms.length?`<div class="muted small" style="margin-top:8px">${done} completada${done===1?'':'s'} · ${ms.length-done} pendiente${ms.length-done===1?'':'s'}</div><div style="margin-top:10px">${ms.map(missionRow).join('')}</div>`:`<div class="muted small" style="margin-top:9px">Este creador pertenece al equipo, pero su manager todavía no le ha asignado tareas/misiones.</div>`}</div>`;
-  };
-
-  const el=document.createElement('div');el.className='modal-backdrop';
-  el.innerHTML=`<div class="card modal" style="width:min(900px,100%);max-height:92vh;overflow:auto"><div class="row"><div><div class="eyebrow">EQUIPO</div><h2>${esc(team?.name||'Equipo')}</h2><div class="muted small">Manager: ${esc(teamManager?.name||'Sin manager')} ${teamManager?.phone?` · ${esc(teamManager.phone)}`:''}</div></div><button class="secondary" id="closeTeamView">Cerrar</button></div><div class="grid" style="margin-top:18px"><div class="item"><b>${(creators||[]).length}</b><div class="muted small">Creadores</div></div><div class="item"><b>${withTasks}</b><div class="muted small">Con tareas asignadas</div></div><div class="item"><b>${withoutTasks}</b><div class="muted small">Sin tareas asignadas</div></div><div class="item"><b>${allCompleted}</b><div class="muted small">Tareas completadas</div></div><div class="item"><b>${pending}</b><div class="muted small">Tareas pendientes</div></div></div><div class="hr"></div><h3>Creadores y tareas</h3><p class="muted small">Aquí puedes revisar tanto los creadores que tienen tareas/misiones como los que todavía no tienen ninguna asignada. El progreso se toma de lo que el creador ha registrado en la plataforma.</p><div>${(creators||[]).map(creatorBlock).join('')||'<div class="item"><span class="muted small">Este equipo todavía no tiene creadores asignados.</span></div>'}</div></div>`;
-  document.body.appendChild(el);
-  $('#closeTeamView').onclick=()=>el.remove();
+  return `<div class="card"><div class="row"><div><h2>Equipos y managers</h2><p class="muted small">Crea equipos, asigna su manager y guarda su WhatsApp con indicativo para que los creadores puedan contactarlo directamente.</p></div><button class="primary" id="newTeamManager">+ Crear equipo</button></div><div class="list" style="margin-top:18px">${(teams||[]).map(t=>{const m=(managers||[]).find(x=>x.id===t.manager_id);return `<div class="item"><div class="row"><div><b>${esc(t.name)}</b><div class="muted small">Manager: ${esc(m?.name||'Sin asignar')}</div><div class="muted small">${m?.phone?`WhatsApp: ${esc(m.phone)}`:'Sin teléfono'}${m?.email?` · ${esc(m.email)}`:''}</div></div><div class="inline"><button class="secondary small" data-edit-team="${t.id}">✏️ Editar</button><button class="secondary small danger" data-delete-team="${t.id}">Eliminar</button></div></div></div>`}).join('')||'<p class="muted">Aún no hay equipos.</p>'}</div></div>`;
 }
 function teamManagerModal(existing=null){
   const el=document.createElement('div'); el.className='modal-backdrop';
@@ -1494,9 +1534,7 @@ function bind() {
   $('#newManagerTask')?.addEventListener('click',managerTaskModal);
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
-  $$('[data-delete-manager-task]').forEach(b => b.onclick = () => deleteManagerTask(b.dataset.deleteManagerTask));
   $('#newTeamManager')?.addEventListener('click',()=>teamManagerModal());
-  $$('[data-view-team]').forEach(b=>b.onclick=()=>viewTeam(b.dataset.viewTeam));
   $$('[data-edit-team]').forEach(b=>b.onclick=()=>editTeam(b.dataset.editTeam));
   $$('[data-delete-team]').forEach(b=>b.onclick=()=>deleteTeam(b.dataset.deleteTeam));
   // Account menu is wired once globally below. Do not bind it here on every render.
