@@ -180,11 +180,51 @@ async function content() {
 }
 
 function nav(p, push = true) {
+  const pages = ['home', 'benefits', 'auth', 'space', 'training', 'missions', 'profile', 'admin'];
+  if (!pages.includes(p)) p = 'home';
   if (push && current !== p) history.pushState({ page: p }, '', window.location.href);
   current = p;
-  ['home', 'benefits', 'auth', 'space', 'training', 'missions', 'profile', 'admin'].forEach(id => $('#' + id).classList.toggle('hidden', id !== p));
-  render();
+
+  // Navegación inmediata: mostrar/ocultar la pantalla ANTES de cualquier consulta
+  // o render asíncrono. Esto evita que una promesa de Supabase pueda bloquear
+  // el acceso a Tu espacio.
+  pages.forEach(id => {
+    const el = $('#' + id);
+    if (el) el.classList.toggle('hidden', id !== p);
+  });
   window.scrollTo(0, 0);
+
+  // Pintamos Tu espacio inmediatamente con un shell mínimo.
+  if (p === 'space') {
+    renderSpaceShell();
+  }
+
+  // El resto de contenido se enriquece de forma asíncrona y nunca debe bloquear
+  // la navegación.
+  Promise.resolve(render()).catch(err => console.warn('Render de página falló:', err));
+}
+
+function renderSpaceShell() {
+  const el = $('#space');
+  if (!el) return;
+  if (!session) {
+    el.innerHTML = authTpl('creator');
+    return;
+  }
+  const base = profile || {
+    full_name: session.user.user_metadata?.full_name || '',
+    username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador'
+  };
+  el.innerHTML = `<div class="space-page">
+    <div class="space-hero"><div><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.full_name || base.username)} 👋</h1><p class="muted">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong>0%</strong></div></div>
+    <div class="space-grid">
+      ${card('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando...')}
+      ${card('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando...')}
+      ${card('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando...')}
+    </div>
+    <div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">Cargando equipo...</h2><p class="muted" style="margin:0">Estamos consultando tu equipo y manager.</p></div></div>
+  </div>`;
+  bind();
 }
 
 async function render() {
@@ -371,8 +411,8 @@ function managerWhatsapp(phone){
 async function spaceTpl() {
   if (!session) { $('#space').innerHTML = authTpl('creator'); return; }
 
-  // Renderiza una versión mínima inmediatamente. Nunca dejamos Tu espacio
-  // esperando consultas de Supabase.
+  // El shell ya fue pintado por nav(). Solo lo pintamos aquí si la función
+  // fue invocada directamente por otro flujo.
   const baseProfile = profile || {
     id: session.user.id,
     username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador',
@@ -381,15 +421,7 @@ async function spaceTpl() {
   };
   profile = baseProfile;
 
-  $('#space').innerHTML = `<div class="space-page">
-    <div class="space-hero"><div><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(baseProfile.full_name || baseProfile.username)} 👋</h1><p class="muted">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong>0%</strong></div></div>
-    <div class="space-grid">
-      ${card('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando...')}
-      ${card('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando...')}
-      ${card('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando...')}
-    </div>
-    <div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">Cargando equipo...</h2><p class="muted" style="margin:0">Estamos consultando tu equipo y manager.</p></div></div>
-  </div>`;
+  if (!$('#space')?.innerHTML.trim()) renderSpaceShell();
 
   // Enriquecemos la pantalla después de pintarla. Ninguna consulta puede impedir
   // que el usuario vea Tu espacio.
