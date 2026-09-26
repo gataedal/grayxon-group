@@ -90,7 +90,7 @@ function homeTpl(h) {
       <div class="modern-hero-copy">
         <div class="modern-title-block">
           <h1>Crea, aprende y conecta con <em>Grayxon.</em></h1>
-          <div class="brand-connection-inline" aria-label="Grayxon">
+                    <div class="brand-connection-inline" aria-label="Grayxon">
             <img class="brand-connection-grayxon" src="assets/grayxon-logo.png" alt="Grayxon">
           </div>
         </div>
