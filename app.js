@@ -142,16 +142,28 @@ async function notifyCreators(title, message, linkPage='space') {
 }
 
 async function notifyCreator(userId, title, message, linkPage='space', weekStart=null, weekEnd=null) {
-  const payload = { user_id:userId, type:'mission', title, message, link_page:linkPage, related_week_start:weekStart, related_week_end:weekEnd };
-  // Primero usamos INSERT directo: el admin tiene permiso explícito y así la
-  // notificación queda creada inmediatamente para el creador.
-  const direct = await sb.from('notifications').insert(payload);
-  if (!direct.error) return true;
-  // Compatibilidad con instalaciones donde el RPC sea la vía disponible.
+  // La vía principal es el RPC protegido para evitar problemas de RLS.
   const rpc = await sb.rpc('create_notification', { p_user_id: userId, p_type: 'mission', p_title: title, p_message: message, p_link_page: linkPage, p_week_start: weekStart, p_week_end: weekEnd });
   if (!rpc.error) return true;
-  console.warn('No se pudo crear la notificación:', direct.error.message, rpc.error.message);
+  // Respaldo para instalaciones donde el RPC aún no esté disponible.
+  const payload = { user_id:userId, type:'mission', title, message, link_page:linkPage, related_week_start:weekStart, related_week_end:weekEnd };
+  const direct = await sb.from('notifications').insert(payload);
+  if (!direct.error) return true;
+  console.warn('No se pudo crear la notificación:', rpc.error.message, direct.error.message);
   return false;
+}
+
+async function notifyMissionWeek(creatorId, start, end, count) {
+  if (!creatorId || !start || !end) return false;
+  const message = `Se te han asignado ${count} ${count===1?'misión':'misiones'} para esta semana (${start} → ${end}).`;
+  const ok = await notifyCreator(creatorId, 'Tienes una notificación nueva', message, 'missions', start, end);
+  if (ok) {
+    if (session?.user?.id === creatorId) await loadNotifications();
+    toast('Notificación enviada ✓');
+  } else {
+    toast('No se pudo enviar la notificación. Revisa la configuración de Supabase.');
+  }
+  return ok;
 }
 
 async function content() {
@@ -720,7 +732,8 @@ async function adminProfileModal(id){
     const done=g.items.filter(m=>missionPct(m)>=100).length;
     const avg=g.items.length?Math.round(g.items.reduce((sum,m)=>sum+missionPct(m),0)/g.items.length):0;
     const current=today>=g.start && today<=g.end;
-    return `<div class="mission-week-group admin-mission-week-group"><button type="button" class="mission-week-card admin-mission-week-card" data-admin-mission-week="${id}" aria-expanded="false"><div class="mission-week-icon">🎯</div><div class="mission-week-main"><div class="mission-week-top"><strong>Misiones ${esc(adminWeekLabel(g.start,g.end))}</strong><span>${avg}%</span></div><p>${g.items.length} ${g.items.length===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}${current?' · Semana actual':''}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b></button><div class="mission-week-details hidden" id="${id}">${g.items.map(renderMissionRow).join('')}</div></div>`;
+    const publishedCount=g.items.filter(m=>m.published).length;
+    return `<div class="mission-week-group admin-mission-week-group"><button type="button" class="mission-week-card admin-mission-week-card" data-admin-mission-week="${id}" aria-expanded="false"><div class="mission-week-icon">🎯</div><div class="mission-week-main"><div class="mission-week-top"><strong>Misiones ${esc(adminWeekLabel(g.start,g.end))}</strong><span>${avg}%</span></div><p>${g.items.length} ${g.items.length===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}${current?' · Semana actual':''}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b></button><div class="mission-week-details hidden" id="${id}"><div class="admin-week-actions"><span class="muted small">${publishedCount} ${publishedCount===1?'misión publicada':'misiones publicadas'}</span>${publishedCount?`<button type="button" class="secondary small mission-notify-btn" data-notify-mission-week="${esc(g.start)}|${esc(g.end)}" data-creator-id="${esc(id)}">🔔 Notificar</button>`:'<span class="muted small">Publica al menos una misión para notificar.</span>'}</div>${g.items.map(renderMissionRow).join('')}</div></div>`;
   };
   const missionWeeksHtml=groupedWeeks.map(adminWeekCard).join('') || `<div class="item"><p class="muted small" style="margin:0">Aún no hay misiones asignadas a este creador.</p></div>`;
   modalEl.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div><button class="secondary" id="closeProfileModal">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type==='savings'?'Ahorros':pm?.account_type==='checking'?'Corriente':pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="creator-missions-section"><div class="row"><div><h3 style="margin-bottom:3px">🎯 Misiones del creador</h3><p class="muted small" style="margin:0">Agrega todas las misiones que necesites directamente aquí. Puedes tener varias por semana.</p></div><button class="primary small" id="newCreatorMission">+ Agregar misión</button></div><div class="creator-mission-group"><div class="row"><div><h3 style="margin-bottom:3px">📅 Misiones por semana</h3><p class="muted small" style="margin:0">Abre una semana para ver todas las misiones de ese periodo, junto con su progreso y estado.</p></div><span class="mission-count">${groupedWeeks.length}</span></div><div class="mission-weeks-list" style="margin-top:12px">${missionWeeksHtml}</div></div></div></div>`;
@@ -731,6 +744,17 @@ async function adminProfileModal(id){
   modalEl.querySelectorAll('[data-toggle-creator-mission]').forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from('missions').select('published').eq('id',b.dataset.toggleCreatorMission).single();if(error)return toast(error.message);const {error:e}=await sb.from('missions').update({published:!data.published}).eq('id',b.dataset.toggleCreatorMission);if(e)return toast(e.message);toast(data.published?'Misión ocultada':'Misión publicada ✓');modalEl.remove();await adminProfileModal(id);});
   modalEl.querySelectorAll('[data-delete-creator-mission]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Eliminar esta misión y su progreso?'))return;const {error}=await sb.from('missions').delete().eq('id',b.dataset.deleteCreatorMission);if(error)return toast(error.message);toast('Misión eliminada');modalEl.remove();await adminProfileModal(id);});
   modalEl.querySelectorAll('[data-admin-mission-week]').forEach(b=>b.onclick=()=>{const panel=$('#'+b.dataset.adminMissionWeek);if(panel){const open=panel.classList.toggle('hidden')===false;b.classList.toggle('open',open);b.setAttribute('aria-expanded',String(open));}});
+  modalEl.querySelectorAll('[data-notify-mission-week]').forEach(b=>b.onclick=async(e)=>{
+    e.stopPropagation();
+    const [start,end]=String(b.dataset.notifyMissionWeek||'').split('|');
+    const group=groupedWeeks.find(g=>g.start===start&&g.end===end);
+    if(!group) return;
+    const publishedCount=group.items.filter(m=>m.published).length;
+    if(!publishedCount) return toast('No hay misiones publicadas para notificar.');
+    b.disabled=true; b.textContent='Enviando…';
+    const ok=await notifyMissionWeek(id,start,end,publishedCount);
+    b.disabled=false; b.textContent=ok?'✓ Notificado':'🔔 Notificar';
+  });
 }
 
 async function creatorMissionModal(creatorId, existingId=null){
@@ -783,11 +807,7 @@ async function creatorMissionModal(creatorId, existingId=null){
     if(existing){ result=await sb.from('missions').update(payloads[0]).eq('id',existingId); }
     else { result=await sb.from('missions').insert(payloads); }
     if(result.error){err.textContent=result.error.message;btn.disabled=false;return;}
-    let notificationOk = true;
-    if(!existing){
-      notificationOk = await notifyCreator(creatorId, 'Tienes una notificación nueva', `Se te han asignado ${payloads.length} ${payloads.length===1?'misión':'misiones'} para esta semana.`, 'missions', start, endDate);
-    }
-    toast(existing?'Misión actualizada ✓':`${payloads.length} misión${payloads.length===1?'':'es'} enviada${payloads.length===1?'':'s'} ✓${notificationOk?'':' · revisa notificaciones'}`);
+    toast(existing?'Misión actualizada ✓':`${payloads.length} misión${payloads.length===1?'':'es'} enviada${payloads.length===1?'':'s'} ✓`);
     el.remove();
     const old=document.querySelector('.creator-profile-modal')?.parentElement;if(old)old.remove();
     await adminProfileModal(creatorId);
