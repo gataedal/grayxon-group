@@ -115,13 +115,28 @@ body{min-height:100svh!important;}
   .modern-hero-copy{align-items:flex-start;}
 }
 </style>
+
+<style>
+/* v15 profile */
+.mobile-profile{overflow:hidden!important;padding:0!important}
+.mobile-profile img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.profile-page{max-width:760px;margin:0 auto;padding-bottom:30px}
+.profile-head{display:flex;align-items:center;gap:18px;margin-top:8px}
+.profile-head h1{margin:5px 0 2px;font-size:28px}
+.profile-avatar-wrap{width:74px;height:74px;flex:0 0 74px;border-radius:50%;border:1px solid #d45c85;background:#111319;display:grid;place-items:center;overflow:hidden;color:#fff;font-weight:900;font-size:25px}
+.profile-avatar-img{width:100%;height:100%;object-fit:cover}
+.profile-page .card{margin-top:14px}
+.profile-page .field span{display:block;color:#999;font-size:12px;margin-bottom:6px}
+.sensitive-value{letter-spacing:.05em}
+@media(max-width:600px){.profile-head{padding:18px}.profile-head h1{font-size:22px}.profile-avatar-wrap{width:62px;height:62px;flex-basis:62px}}
+</style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
 <header class="top"><button class="brand" id="homeBrand" type="button" aria-label="Ir al inicio"><img class="logo" src="assets/grayxon-logo.png" alt="Grayxon"><b>GRAYXON</b><span class="brand-live">LIVE</span></button><nav class="nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="auth" data-auth-mode="creator">Mi espacio</button></nav><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><button id="mobileProfile" class="mobile-profile" aria-label="Mi espacio">G</button></div></header>
-<main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="training" class="page hidden"></section><section id="admin" class="page hidden"></section></main>
+<main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="training" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section></main>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 
 <style>
 /* v11 final home refinements */

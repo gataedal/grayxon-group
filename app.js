@@ -7,6 +7,8 @@ let profile = null;
 let adminView = 'dashboard';
 let selectedLesson = null;
 let authMode = 'creator';
+let profileDetails = null;
+let paymentMethod = null;
 
 const fallback = {
   home: {
@@ -66,7 +68,7 @@ async function content() {
 function nav(p, push = true) {
   if (push && current !== p) history.pushState({ page: p }, '', window.location.href);
   current = p;
-  ['home', 'benefits', 'auth', 'training', 'admin'].forEach(id => $('#' + id).classList.toggle('hidden', id !== p));
+  ['home', 'benefits', 'auth', 'training', 'profile', 'admin'].forEach(id => $('#' + id).classList.toggle('hidden', id !== p));
   render();
   window.scrollTo(0, 0);
 }
@@ -77,8 +79,10 @@ async function render() {
   if (current === 'benefits') $('#benefits').innerHTML = benefitsTpl(c.benefits);
   if (current === 'auth') $('#auth').innerHTML = authTpl(authMode);
   if (current === 'training') await trainingTpl();
+  if (current === 'profile') $('#profile').innerHTML = await profileTpl();
   if (current === 'admin') await adminTpl(c);
   bind();
+  updateProfileBadge();
   $$('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === current));
 }
 
@@ -156,6 +160,63 @@ function benefitsTpl(b) {
   </div>`;
 }
 
+
+const profileCountries = [
+  ['CO','Colombia'],['MX','México'],['AR','Argentina'],['CL','Chile'],['PE','Perú'],['EC','Ecuador'],['VE','Venezuela'],['PA','Panamá'],['CR','Costa Rica'],['GT','Guatemala'],['SV','El Salvador'],['HN','Honduras'],['NI','Nicaragua'],['DO','República Dominicana'],['BO','Bolivia'],['PY','Paraguay'],['UY','Uruguay'],['CU','Cuba'],['HT','Haití']
+];
+const bankSeed = {
+  CO:['Bancolombia','Banco de Bogotá','Davivienda','BBVA Colombia','Banco de Occidente','Banco Popular','Banco AV Villas','Scotiabank Colpatria','Itaú Colombia','Banco Caja Social','Banco Falabella','Banco W','Lulo Bank','Nu Colombia'],
+  MX:['BBVA México','Santander México','Banorte','Citibanamex','HSBC México','Scotiabank México','Banco Azteca','BanCoppel','Inbursa','Afirme','Banregio','Hey Banco'],
+  AR:['Banco Nación','Banco Provincia','Banco Galicia','Santander Argentina','BBVA Argentina','Banco Macro','ICBC Argentina','HSBC Argentina','Banco Credicoop','Brubank'],
+  CL:['Banco de Chile','BancoEstado','Santander Chile','BCI','Scotiabank Chile','Itaú Chile','Banco Falabella','Banco Ripley','Tenpo'],
+  PE:['BCP','Interbank','BBVA Perú','Scotiabank Perú','Banco de la Nación','BanBif','Banco Pichincha','Mibanco','Caja Arequipa'],
+  EC:['Banco Pichincha','Banco del Pacífico','Produbanco','Banco Guayaquil','Banco Bolivariano','Banco Internacional','Banco Machala','Banco Solidario'],
+  VE:['Banco de Venezuela','Banesco','Mercantil Banco Universal','BBVA Provincial','Banco Nacional de Crédito','Banco del Tesoro','Bancamiga','Banco Exterior'],
+  PA:['Banco General','Global Bank','Banistmo','BAC Credomatic Panamá','Caja de Ahorros','Multibank','Towerbank'],
+  CR:['Banco Nacional de Costa Rica','Banco de Costa Rica','BAC Credomatic','Banco Popular','Scotiabank Costa Rica','Promerica Costa Rica'],
+  GT:['Banco Industrial','Banrural','G&T Continental','BAC Guatemala','Promerica Guatemala','Banco de los Trabajadores'],
+  SV:['Banco Agrícola','Banco Cuscatlán','BAC Credomatic El Salvador','Banco Davivienda Salvadoreño','Promerica El Salvador','Banco Hipotecario'],
+  HN:['Banco Atlántida','BAC Honduras','Ficohsa','Banpaís','Davivienda Honduras','Banco de Occidente Honduras'],
+  NI:['Banpro','BAC Nicaragua','LAFISE Bancentro','Ficohsa Nicaragua','Banco Avanz','Banco Atlántida Nicaragua'],
+  DO:['BanReservas','Banco Popular Dominicano','Banco BHD','Scotiabank República Dominicana','Banco Santa Cruz','Banco Caribe','Asociación Popular de Ahorros y Préstamos'],
+  BO:['Banco Nacional de Bolivia','Banco Mercantil Santa Cruz','Banco Bisa','Banco Unión','Banco de Crédito de Bolivia','Banco Económico','Banco Ganadero'],
+  PY:['Banco Nacional de Fomento','Banco Continental','Banco GNB Paraguay','Banco Familiar','Sudameris Paraguay','Itaú Paraguay'],
+  UY:['Banco República','Santander Uruguay','BBVA Uruguay','Scotiabank Uruguay','Itaú Uruguay','HSBC Uruguay','BROU'],
+  CU:['Banco Nacional de Cuba','Banco Metropolitano','Banco Popular de Ahorro'],
+  HT:['Sogebank','Unibank','BUH','Capital Bank']
+};
+function profileInitial(p = profile){
+  const n = (p?.full_name || p?.username || 'G').trim();
+  return (n.charAt(0) || 'G').toUpperCase();
+}
+async function loadProfileDetails(){
+  if (!session?.user?.id) return { details:null, payment:null };
+  const [{data: d}, {data: pm}] = await Promise.all([
+    sb.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(),
+    sb.from('payment_methods').select('*').eq('user_id', session.user.id).order('is_primary',{ascending:false}).order('updated_at',{ascending:false}).limit(1).maybeSingle()
+  ]);
+  profileDetails=d||null; paymentMethod=pm||null; return {details:profileDetails,payment:paymentMethod};
+}
+function profileTpl(){
+  if (!session || !profile) return authTpl('creator');
+  const d=profileDetails||{}; const pm=paymentMethod||{};
+  const avatar = d.avatar_url ? `<img class="profile-avatar-img" src="${esc(d.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
+  const countries=profileCountries.map(([c,n])=>`<option value="${c}" ${d.country===c?'selected':''}>${n}</option>`).join('');
+  const banks=(bankSeed[pm.bank_country || d.country]||[]).map(b=>`<option value="${esc(b)}" ${pm.bank_name===b?'selected':''}>${esc(b)}</option>`).join('');
+  return `<div class="profile-page">
+    <div class="profile-head card"><div class="profile-avatar-wrap">${avatar}</div><div><div class="eyebrow">MI PERFIL</div><h1>${esc(profile.full_name||profile.username)}</h1><p class="muted">@${esc(profile.username)} · ${profile.role==='admin'?'Administrador':'Creador'}</p></div></div>
+    <div class="card"><h2>Foto de perfil</h2><p class="muted small">Puedes subir una foto para reemplazar la inicial del círculo superior.</p><input id="profileAvatar" type="file" accept="image/png,image/jpeg,image/webp"><div id="profileAvatarStatus" class="muted small"></div></div>
+    <div class="card"><h2>Información personal</h2>${field('pEmail','Correo electrónico',d.email||'')}${field('pPhone','Número de teléfono',d.phone||'')}
+      <label class="field"><span>País</span><select id="pCountry">${countries}</select></label>${field('pState','Estado / Departamento / Provincia',d.state_region||'')}${field('pCity','Ciudad',d.city||'')}${field('pAddress','Dirección',d.address||'',true)}
+    </div>
+    <div class="card"><h2>Información de pagos</h2><label class="field"><span>Método de pago</span><select id="pMethod"><option value="bank" ${pm.method_type!=='paypal'?'selected':''}>Cuenta bancaria</option><option value="paypal" ${pm.method_type==='paypal'?'selected':''}>PayPal</option></select></label>
+      <div id="bankFields" ${pm.method_type==='paypal'?'style="display:none"':''}><label class="field"><span>País del banco</span><select id="pBankCountry">${profileCountries.map(([c,n])=>`<option value="${c}" ${pm.bank_country===c?'selected':''}>${n}</option>`).join('')}</select></label><label class="field"><span>Banco</span><select id="pBank"><option value="">Selecciona tu banco</option>${banks}</select></label><label class="field"><span>Tipo de cuenta</span><select id="pAccountType"><option value="savings" ${pm.account_type==='savings'?'selected':''}>Ahorros</option><option value="checking" ${pm.account_type==='checking'?'selected':''}>Corriente</option><option value="other" ${pm.account_type==='other'?'selected':''}>Otro</option></select></label>${field('pAccountNumber','Número de cuenta',pm.account_number||'')}</div>
+      <div id="paypalFields" ${pm.method_type==='paypal'?'':'style="display:none"'}>${field('pPaypal','Correo de PayPal',pm.paypal_email||'')}</div>
+      <label class="field"><span>Preferencia</span><label style="display:flex;gap:8px;align-items:center;color:#ddd"><input id="pPrimary" type="checkbox" ${pm.is_primary!==false?'checked':''}> Usar como método principal de pago</label></label>
+    </div>
+    <div class="inline"><button class="primary" id="saveProfile">Guardar perfil</button><button class="secondary" id="backHomeProfile">Volver al inicio</button></div><div id="profileErr" class="error"></div>
+  </div>`;
+}
 function authTpl(mode = 'creator') {
   const isAdmin = mode === 'admin';
   return `<div class="login"><h2>${isAdmin ? 'Acceso administrativo' : 'Mi formación'}</h2><p class="muted">${isAdmin ? 'Ingresa con tu usuario o correo y contraseña de administrador.' : 'Ingresa con el usuario y contraseña asignados por Grayxon.'}</p><div class="field"><label>${isAdmin ? 'Usuario o correo' : 'Usuario'}</label><input id="loginUser" autocomplete="username" placeholder="${isAdmin ? 'Ej. edwar o correo@ejemplo.com' : 'Ej. maria123'}"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button>${isAdmin ? '<button class="ghost" id="creatorLoginLink" style="display:block;width:100%;margin-top:10px">← Volver a acceso de creador</button>' : '<button class="ghost" id="adminLoginLink" style="display:block;width:100%;margin-top:10px">Acceso administrativo</button>'}</div>`;
@@ -327,9 +388,22 @@ function adminBenefits(b) {
 async function adminCreators() {
   const { data, error } = await sb.from('profiles').select('id,username,full_name,active,role').eq('role','creator').order('full_name');
   if (error) return `<div class="card"><h2>Creadores</h2><div class="error">${esc(error.message)}</div></div>`;
-  return `<div class="card"><div class="row"><div><h2>Creadores</h2><p class="muted small">Cada creador entra con usuario + contraseña. El correo técnico nunca se muestra.</p></div><button class="primary" id="newCreator">+ Crear creador</button></div><div class="list" style="margin-top:18px">${(data || []).map(x => `<div class="item creator-admin-row"><div class="row"><div><b>${esc(x.full_name || x.username)}</b><div class="muted small">@${esc(x.username)}</div></div><div class="inline creator-access-actions"><span class="pill ${x.active ? 'ok' : ''}">${x.active ? 'Activo · acceso permitido' : 'Inactivo · acceso bloqueado'}</span><button class="secondary small creator-toggle ${x.active ? 'danger' : 'ok'}" data-toggle-creator="${x.id}">${x.active ? '🔒 Desactivar acceso' : '🔓 Activar acceso'}</button></div></div></div>`).join('') || '<p class="muted">Aún no hay creadores.</p>'}</div></div>`;
+  return `<div class="card"><div class="row"><div><h2>Creadores</h2><p class="muted small">Cada creador entra con usuario + contraseña. El correo técnico nunca se muestra.</p></div><button class="primary" id="newCreator">+ Crear creador</button></div><div class="list" style="margin-top:18px">${(data || []).map(x => `<div class="item creator-admin-row"><div class="row"><div><b>${esc(x.full_name || x.username)}</b><div class="muted small">@${esc(x.username)}</div></div><div class="inline creator-access-actions"><span class="pill ${x.active ? 'ok' : ''}">${x.active ? 'Activo · acceso permitido' : 'Inactivo · acceso bloqueado'}</span><button class="secondary small creator-toggle ${x.active ? 'danger' : 'ok'}" data-toggle-creator="${x.id}">${x.active ? '🔒 Desactivar acceso' : '🔓 Activar acceso'}</button><button class="secondary small" data-view-profile="${x.id}">👤 Ver perfil</button></div></div></div>`).join('') || '<p class="muted">Aún no hay creadores.</p>'}</div></div>`;
 }
 
+
+async function adminProfileModal(id){
+  const [{data:d,error:de},{data:pm,error:pe},{data:p,error:pr}] = await Promise.all([
+    sb.from('profile_details').select('*').eq('user_id',id).maybeSingle(),
+    sb.from('payment_methods').select('*').eq('user_id',id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
+    sb.from('profiles').select('username,full_name').eq('id',id).single()
+  ]);
+  if(pr) return toast(pr.message);
+  const modalEl=document.createElement('div'); modalEl.className='modal-backdrop';
+  const safe=x=>x?esc(x):'—';
+  modalEl.innerHTML=`<div class="card modal"><div class="row"><div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)}</div></div><button class="secondary" id="closeProfileModal">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:18px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type==='savings'?'Ahorros':pm?.account_type==='checking'?'Corriente':pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div></div>`;
+  document.body.appendChild(modalEl); $('#closeProfileModal').onclick=()=>modalEl.remove();
+}
 async function toggleCreator(id) {
   const { data: cur, error: readError } = await sb.from('profiles').select('id,username,full_name,active').eq('id', id).single();
   if (readError || !cur) return toast(readError?.message || 'No se encontró el creador.');
@@ -619,7 +693,6 @@ function bind() {
   $('#adminLoginLink')?.addEventListener('click', () => { authMode = 'admin'; render(); });
   $('#creatorLoginLink')?.addEventListener('click', () => { authMode = 'creator'; render(); });
   $('#mobileMenuBtn')?.addEventListener('click', () => { const m = $('#mobileNav'); const open = m?.classList.toggle('open'); $('#mobileMenuBtn')?.setAttribute('aria-expanded', open ? 'true' : 'false'); });
-  $('#mobileProfile')?.addEventListener('click', () => { if (session && profile?.role === 'creator') nav('training'); else nav('auth'); });
   $('#mobileAdminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
   $$('#mobileNav [data-page]').forEach(b => b.addEventListener('click', () => $('#mobileNav')?.classList.remove('open')));
   $('#loginBtn')?.addEventListener('click', login);
@@ -628,6 +701,14 @@ function bind() {
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
+  $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
+  $('#mobileProfile')?.addEventListener('click', () => { if (session) nav('profile'); else nav('auth'); });
+  $('#saveProfile')?.addEventListener('click', saveProfile);
+  $('#pMethod')?.addEventListener('change', togglePaymentFields);
+  $('#pCountry')?.addEventListener('change', () => {});
+  $('#pBankCountry')?.addEventListener('change', populateBanks);
+  $('#profileAvatar')?.addEventListener('change', uploadProfileAvatar);
+  $('#backHomeProfile')?.addEventListener('click', () => nav('home'));
   $('#saveHome')?.addEventListener('click', saveHome);
   $('#saveBenefits')?.addEventListener('click', saveBenefits);
   $('#bImage')?.addEventListener('change', previewBenefitsImage);
@@ -651,6 +732,33 @@ async function editLesson(id) {
   bindLessonForm(el, l, l.module_id);
 }
 
+
+function togglePaymentFields(){ const paypal=$('#pMethod')?.value==='paypal'; if($('#bankFields')) $('#bankFields').style.display=paypal?'none':''; if($('#paypalFields')) $('#paypalFields').style.display=paypal?'':'none'; }
+function populateBanks(){ const c=$('#pBankCountry')?.value; const sel=$('#pBank'); if(!sel) return; const banks=bankSeed[c]||[]; sel.innerHTML='<option value="">Selecciona tu banco</option>'+banks.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join(''); }
+async function uploadProfileAvatar(){
+  const file=$('#profileAvatar')?.files?.[0]; if(!file||!session) return; const status=$('#profileAvatarStatus');
+  if(file.size>5*1024*1024){ if(status) status.textContent='La foto debe pesar menos de 5 MB.'; return; }
+  const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg'; const path=`${session.user.id}/${Date.now()}.${ext}`;
+  if(status) status.textContent='Subiendo foto…';
+  const {error}=await sb.storage.from('profile-avatars').upload(path,file,{upsert:false,contentType:file.type});
+  if(error){ if(status) status.textContent=error.message; return; }
+  const url=sb.storage.from('profile-avatars').getPublicUrl(path).data.publicUrl;
+  const {error:saveErr}=await sb.from('profile_details').upsert({user_id:session.user.id,avatar_path:path,avatar_url:url,updated_at:new Date().toISOString()});
+  if(saveErr){ if(status) status.textContent=saveErr.message; return; }
+  profileDetails={...(profileDetails||{}),avatar_path:path,avatar_url:url}; updateProfileBadge(); if(status) status.textContent='Foto actualizada ✓';
+}
+async function saveProfile(){
+  const err=$('#profileErr'); if(err) err.textContent=''; if(!session) return;
+  const d={user_id:session.user.id,email:$('#pEmail')?.value.trim()||null,phone:$('#pPhone')?.value.trim()||null,country:$('#pCountry')?.value||null,state_region:$('#pState')?.value.trim()||null,city:$('#pCity')?.value.trim()||null,address:$('#pAddress')?.value.trim()||null,updated_at:new Date().toISOString()};
+  const {error:de}=await sb.from('profile_details').upsert(d); if(de){if(err)err.textContent=de.message;return;}
+  const method=$('#pMethod')?.value==='paypal'?'paypal':'bank'; const pm={user_id:session.user.id,method_type:method,is_primary:$('#pPrimary')?.checked,updated_at:new Date().toISOString()};
+  if(method==='paypal'){pm.paypal_email=$('#pPaypal')?.value.trim()||null;pm.bank_country=null;pm.bank_name=null;pm.account_type=null;pm.account_number=null;} else {pm.bank_country=$('#pBankCountry')?.value||null;pm.bank_name=$('#pBank')?.value||null;pm.account_type=$('#pAccountType')?.value||null;pm.account_number=$('#pAccountNumber')?.value.trim()||null;pm.paypal_email=null;}
+  const {data:existing}=await sb.from('payment_methods').select('id').eq('user_id',session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle();
+  const {error:pe}=existing?.id ? await sb.from('payment_methods').update(pm).eq('id',existing.id) : await sb.from('payment_methods').insert(pm);
+  if(pe){if(err)err.textContent=pe.message;return;}
+  toast('Perfil guardado ✓'); await loadProfileDetails(); updateProfileBadge(); render();
+}
+function updateProfileBadge(){ const b=$('#mobileProfile'); if(!b)return; if(profileDetails?.avatar_url)b.innerHTML=`<img src="${esc(profileDetails.avatar_url)}" alt="Perfil">`; else b.textContent=profileInitial(); }
 async function login() {
   const input = $('#loginUser').value.trim();
   const p = $('#loginPass').value;
@@ -676,6 +784,7 @@ async function login() {
 
   session = data.session;
   profile = await getProfile();
+  await loadProfileDetails();
   if (!profile?.active) {
     await sb.auth.signOut();
     session = null;
@@ -700,7 +809,7 @@ async function login() {
 }
 
 async function logout() {
-  await sb.auth.signOut(); session = null; profile = null; nav('home');
+  await sb.auth.signOut(); session = null; profile = null; profileDetails = null; paymentMethod = null; updateProfileBadge(); nav('home');
 }
 
 async function saveHome() {
@@ -757,7 +866,7 @@ async function saveBenefits() {
 async function init() {
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (session) profile = await getProfile();
+  if (session) { profile = await getProfile(); await loadProfileDetails(); }
   nav('home');
 }
 
@@ -765,7 +874,7 @@ init();
 
 window.addEventListener('popstate', () => {
   const page = history.state?.page || 'home';
-  current = ['home','benefits','auth','training','admin'].includes(page) ? page : 'home';
+  current = ['home','benefits','auth','training','profile','admin'].includes(page) ? page : 'home';
   render();
   window.scrollTo(0, 0);
 });
