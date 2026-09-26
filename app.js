@@ -9,6 +9,7 @@ let selectedLesson = null;
 let authMode = 'creator';
 let profileDetails = null;
 let paymentMethod = null;
+let notifications = [];
 
 const fallback = {
   home: {
@@ -58,6 +59,101 @@ function errorText(error, fallbackText = 'Ocurrió un error.') {
   return error?.message || fallbackText;
 }
 
+async function loadNotifications() {
+  if (!session?.user?.id) { notifications = []; updateNotificationsUI(); return; }
+  const { data, error } = await sb.from('notifications').select('id,type,title,message,link_page,related_week_start,related_week_end,read_at,created_at').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(30);
+  if (error) { notifications = []; updateNotificationsUI(); return; }
+  notifications = data || [];
+  updateNotificationsUI();
+}
+
+function notificationIcon(type) { return type === 'mission' ? '🎯' : type === 'formation' ? '🎓' : '🔔'; }
+
+function updateNotificationsUI() {
+  const btn = $('#notificationsBtn');
+  const badge = $('#notificationsBadge');
+  if (!btn || !badge) return;
+  const unread = notifications.filter(n => !n.read_at).length;
+  badge.textContent = unread > 9 ? '9+' : String(unread);
+  badge.classList.toggle('hidden', unread === 0 || !session);
+  btn.setAttribute('aria-label', session ? `Notificaciones${unread ? `: ${unread} nuevas` : ''}` : 'Iniciar sesión');
+  const panel = $('#notificationsPanel');
+  if (panel && !panel.classList.contains('hidden')) renderNotificationsPanel();
+}
+
+function renderNotificationsPanel() {
+  const panel = $('#notificationsPanel');
+  if (!panel) return;
+  if (!session) {
+    panel.innerHTML = `<div class="notification-empty"><strong>Inicia sesión</strong><span>Entra a tu cuenta para ver tus notificaciones.</span></div>`;
+    return;
+  }
+  const unread = notifications.filter(n => !n.read_at).length;
+  panel.innerHTML = `<div class="notification-panel-head"><div><strong>Notificaciones</strong><span>${unread ? `${unread} nueva${unread===1?'':'s'}` : 'Todo al día'}</span></div>${unread ? '<button type="button" id="markAllNotifications">Marcar como leídas</button>' : ''}</div><div class="notification-list">${notifications.length ? notifications.map(n => `<button type="button" class="notification-item ${n.read_at?'read':'unread'}" data-notification-id="${esc(n.id)}"><span class="notification-icon">${notificationIcon(n.type)}</span><span class="notification-copy"><strong>${esc(n.title)}</strong><span>${esc(n.message)}</span><small>${formatNotificationDate(n.created_at)}</small></span>${!n.read_at?'<i class="notification-dot"></i>':''}</button>`).join('') : '<div class="notification-empty"><strong>No tienes notificaciones.</strong><span>Cuando Grayxon te asigne algo nuevo, aparecerá aquí.</span></div>'}</div>`;
+  $('#markAllNotifications')?.addEventListener('click', async (e) => { e.stopPropagation(); await markAllNotifications(); });
+  panel.querySelectorAll('[data-notification-id]').forEach(b => b.addEventListener('click', () => openNotification(b.dataset.notificationId)));
+}
+
+function formatNotificationDate(value) {
+  if (!value) return '';
+  try { return new Date(value).toLocaleString('es-CO', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }); } catch { return ''; }
+}
+
+async function markNotificationRead(id) {
+  const n = notifications.find(x => x.id === id);
+  if (!n || n.read_at) return;
+  const now = new Date().toISOString();
+  const { error } = await sb.from('notifications').update({ read_at: now }).eq('id', id).eq('user_id', session.user.id);
+  if (!error) { n.read_at = now; updateNotificationsUI(); }
+}
+
+async function markAllNotifications() {
+  if (!session?.user?.id) return;
+  const unread = notifications.filter(n => !n.read_at);
+  if (!unread.length) return;
+  const { error } = await sb.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', session.user.id).is('read_at', null);
+  if (error) return toast(error.message);
+  notifications.forEach(n => { if (!n.read_at) n.read_at = new Date().toISOString(); });
+  updateNotificationsUI();
+  toast('Notificaciones marcadas como leídas ✓');
+}
+
+async function openNotification(id) {
+  const n = notifications.find(x => x.id === id);
+  if (!n) return;
+  await markNotificationRead(id);
+  $('#notificationsPanel')?.classList.add('hidden');
+  if (n.link_page === 'missions') nav('missions');
+  else if (n.link_page === 'training') nav('training');
+  else nav('space');
+}
+
+function toggleNotifications() {
+  const panel = $('#notificationsPanel');
+  if (!panel) return;
+  closeProfileMenu();
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) renderNotificationsPanel();
+}
+
+async function notifyCreators(title, message, linkPage='space') {
+  const { error } = await sb.rpc('notify_all_creators', { p_type: 'formation', p_title: title, p_message: message, p_link_page: linkPage });
+  if (error) console.warn('No se pudo crear la notificación:', error.message);
+}
+
+async function notifyCreator(userId, title, message, linkPage='space', weekStart=null, weekEnd=null) {
+  const payload = { user_id:userId, type:'mission', title, message, link_page:linkPage, related_week_start:weekStart, related_week_end:weekEnd };
+  // Primero usamos INSERT directo: el admin tiene permiso explícito y así la
+  // notificación queda creada inmediatamente para el creador.
+  const direct = await sb.from('notifications').insert(payload);
+  if (!direct.error) return true;
+  // Compatibilidad con instalaciones donde el RPC sea la vía disponible.
+  const rpc = await sb.rpc('create_notification', { p_user_id: userId, p_type: 'mission', p_title: title, p_message: message, p_link_page: linkPage, p_week_start: weekStart, p_week_end: weekEnd });
+  if (!rpc.error) return true;
+  console.warn('No se pudo crear la notificación:', direct.error.message, rpc.error.message);
+  return false;
+}
+
 async function content() {
   const { data } = await sb.from('site_content').select('id,content').in('id', ['home', 'benefits']);
   const c = structuredClone(fallback);
@@ -85,6 +181,7 @@ async function render() {
   if (current === 'admin') await adminTpl(c);
   bind();
   updateProfileBadge();
+  updateNotificationsUI();
   $$('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === current));
 }
 
@@ -245,7 +342,11 @@ async function spaceTpl() {
     sb.from('modules').select('id').eq('published', true),
     sb.from('lessons').select('id,module_id').eq('published', true),
     sb.from('lesson_progress').select('lesson_id').eq('user_id', session.user.id),
-    sb.rpc('get_my_published_missions'),
+    // Consultamos la tabla directamente para que las nuevas misiones asignadas
+    // aparezcan inmediatamente y nunca hereden el progreso de otra misión.
+    sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at')
+      .eq('published', true).or(`assigned_to.is.null,assigned_to.eq.${session.user.id}`)
+      .order('week_start',{ascending:false}).order('created_at',{ascending:false}),
     sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id)
   ]);
 
@@ -281,8 +382,15 @@ async function spaceTpl() {
 
 async function missionsTpl() {
   if (!session) { $('#missions').innerHTML = authTpl('creator'); return; }
-  const { data: ms, error } = await sb.rpc('get_my_published_missions');
-  if (error) { $('#missions').innerHTML = `<div class="card"><h2>Tus misiones</h2><div class="error">${esc(error.message)}</div><p class="muted small">Si acabas de activar las misiones, ejecuta el SQL de la carpeta del proyecto en Supabase.</p></div>`; return; }
+  // Leemos directamente las misiones publicadas asignadas a este creador.
+  // Esto garantiza que cada nueva misión tenga su propio progreso 0% hasta que
+  // el creador la guarde, incluso cuando ya haya completado misiones anteriores.
+  const { data: ms, error } = await sb.from('missions')
+    .select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at')
+    .eq('published', true)
+    .or(`assigned_to.is.null,assigned_to.eq.${session.user.id}`)
+    .order('week_start',{ascending:false}).order('created_at',{ascending:false});
+  if (error) { $('#missions').innerHTML = `<div class="card"><h2>Tus misiones</h2><div class="error">${esc(error.message)}</div></div>`; return; }
   const today = new Date().toISOString().slice(0,10);
   const { data: ps } = await sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id);
   const progress = new Map((ps || []).map(x => [x.mission_id, x]));
@@ -292,7 +400,7 @@ async function missionsTpl() {
   const weekKey = m => `${m.week_start||'sin-inicio'}__${m.week_end||'sin-fin'}`;
   const weekLabel = (start,end) => start || end ? `${dateLabel(start)}${end ? ' · '+dateLabel(end) : ''}` : 'Sin semana definida';
   const isCurrentWeek = (start,end) => (!start || start<=today) && (!end || end>=today);
-  const isFinished = m => pct(m) >= 100 || (!!m.week_end && m.week_end < today);
+  const isFinished = m => { const p = progress.get(m.id); return !!p?.completed || (!!m.week_end && m.week_end < today); };
   const visible = (ms || []).filter(m => !m.assigned_to || m.assigned_to === session.user.id);
   const assignedMissions = visible.filter(m => !isFinished(m));
   const completedMissions = visible.filter(m => isFinished(m));
@@ -301,14 +409,15 @@ async function missionsTpl() {
     const p=progress.get(m.id)||{value:0,completed:false};
     const v=pct(m);
     const expired=!!m.week_end && m.week_end < today && v<100;
-    return `<div class="mission-card ${v>=100?'mission-complete':''} ${expired?'mission-expired':''}">
+    const submitted = !!p.completed;
+    return `<div class="mission-card ${submitted?'mission-complete':''} ${expired?'mission-expired':''}" data-mission-card-id="${m.id}">
       <div class="mission-head"><div class="mission-icon">${v>=100?'✓':expired?'⌁':m.type==='checkbox'?'✓':'↗'}</div><div><strong>${esc(m.title)}</strong><p class="muted small">${esc(m.description||'')}</p><small>${esc(weekLabel(m.week_start,m.week_end))}${expired?' · Semana finalizada':''}</small></div><span class="mission-pct">${v}%</span></div>
       <div class="space-progress mission-progress"><span style="width:${v}%"></span></div>
       <div class="mission-actions">
         ${m.link_url?`<a class="mission-link" href="${esc(m.link_url)}" target="_blank" rel="noopener noreferrer">🔗 Abrir recurso</a>`:''}
-        ${!historical && !expired && m.type==='checkbox'?`<button class="mission-check ${p.completed?'checked':''}" data-complete-mission="${m.id}">${p.completed?'✓ Misión realizada':'Marcar como realizada'}</button>`:''}
-        ${!historical && !expired && m.type==='numeric'?`<div class="mission-number-wrap"><input type="number" min="0" step="1" value="${esc(p.value||0)}" id="missionValue-${m.id}" placeholder="0"><span>/ ${fmt(m.target)}</span></div><button class="mission-save" data-save-mission="${m.id}">Guardar avance</button>`:''}
-        ${historical?`<span class="mission-status-pill ${expired?'expired':''}">${expired?'Semana finalizada':'✓ Completada'}</span>`:''}
+        ${!historical && !expired && m.type==='checkbox'?`<button class="mission-check ${p.completed?'checked':''}" data-complete-mission="${m.id}">${p.completed?'✓ Guardado':'Guardar'}</button>`:''}
+        ${!historical && !expired && m.type==='numeric'?`<div class="mission-number-wrap"><input type="number" min="0" step="1" value="${esc(p.value||0)}" id="missionValue-${m.id}" placeholder="0"><span>/ ${fmt(m.target)}</span></div><button class="mission-save" data-save-mission="${m.id}">Guardar</button>`:''}
+        ${historical?`<span class="mission-status-pill ${expired?'expired':''}">${expired?'Semana finalizada':(p.completed && v<100?'✓ Guardada':'✓ Completada')}</span>`:''}
       </div>
     </div>`;
   };
@@ -342,24 +451,57 @@ async function missionsTpl() {
 
   const assignedGroups = groupByWeek(assignedMissions);
   const completedGroups = groupByWeek(completedMissions);
+  const currentWeekItems = visible.filter(m => isCurrentWeek(m.week_start, m.week_end));
+  const currentWeekComplete = currentWeekItems.length > 0 && currentWeekItems.every(m => progress.get(m.id)?.completed === true);
+  const congratulations = currentWeekComplete ? `<div class="card mission-congrats"><div style="font-size:34px">🎉</div><div><h3 style="margin:0 0 5px">¡Felicidades!</h3><p class="muted" style="margin:0">Has completado todas las misiones para esta semana. 🖤</p></div></div>` : '';
   const section = (title,icon,groups,type,emptyText) => `<section class="mission-section"><div class="mission-section-head"><div><div class="eyebrow">${icon} ${title.toUpperCase()}</div><p class="muted small">${type==='assigned'?'Abre una semana para ver todas sus misiones y completar tus objetivos.':'Abre una semana para consultar las misiones que completaste o cuya semana ya terminó.'}</p></div><span class="mission-count">${groups.length}</span></div><div class="mission-weeks-list">${groupDetails(groups,type) || `<div class="card mission-empty compact"><h3>${emptyText}</h3><p class="muted small">${type==='assigned'?'Cuando Grayxon te asigne nuevas misiones aparecerán aquí.':'Cuando completes misiones o termine una semana, aparecerán aquí.'}</p></div>`}</div></section>`;
 
-  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Tus objetivos 🎯</h1><p class="muted">Tus misiones están organizadas por semanas. Toca una semana para ver todas las misiones que contiene.</p></div><button class="secondary" data-space-action="space">← Tu espacio</button></div>${section('Misiones asignadas','🎯',assignedGroups,'assigned','No tienes misiones asignadas')}${section('Misiones completadas','✓',completedGroups,'completed','Aún no tienes historial de misiones')}</div>`;
+  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Tus objetivos 🎯</h1><p class="muted">Tus misiones están organizadas por semanas. Toca una semana para ver todas las misiones que contiene.</p></div><button class="secondary" data-space-action="space">← Tu espacio</button></div>${congratulations}${section('Misiones asignadas','🎯',assignedGroups,'assigned','No tienes misiones asignadas')}${section('Misiones completadas','✓',completedGroups,'completed','Aún no tienes historial de misiones')}</div>`;
+}
+
+async function focusNextPendingMission(currentId=null){
+  const pending = [...document.querySelectorAll('#missions .mission-week-details:not(.hidden) [data-complete-mission], #missions .mission-week-details:not(.hidden) [data-save-mission]')]
+    .filter(b => b.dataset.completeMission !== currentId && b.dataset.saveMission !== currentId);
+  if (pending.length) { pending[0].scrollIntoView({behavior:'smooth', block:'center'}); return; }
+  // If the current week was collapsed after re-render, open the first week with pending missions.
+  const weekCards = [...document.querySelectorAll('#missions [data-mission-week]')];
+  for (const card of weekCards) {
+    const panel = $('#details-' + card.dataset.missionWeek);
+    if (panel?.querySelector('[data-complete-mission], [data-save-mission]')) {
+      if (panel.classList.contains('hidden')) { panel.classList.remove('hidden'); card.classList.add('open'); }
+      const next = panel.querySelector('[data-complete-mission], [data-save-mission]');
+      if (next) { next.scrollIntoView({behavior:'smooth', block:'center'}); return; }
+    }
+  }
+}
+
+async function refreshAfterMissionSave(id){
+  await missionsTpl(); bind();
+  const currentWeekPending = [...document.querySelectorAll('#missions [data-complete-mission], #missions [data-save-mission]')]
+    .filter(b => b.dataset.completeMission !== id && b.dataset.saveMission !== id);
+  if (currentWeekPending.length) { 
+    const panel = currentWeekPending[0].closest('.mission-week-details');
+    if (panel?.classList.contains('hidden')) {
+      const card = panel.previousElementSibling?.querySelector('[data-mission-week]');
+      panel.classList.remove('hidden'); card?.classList.add('open');
+    }
+    currentWeekPending[0].scrollIntoView({behavior:'smooth', block:'center'});
+  }
 }
 
 async function completeMission(id){
   if(!session)return;
   const {error}=await sb.from('mission_progress').upsert({user_id:session.user.id,mission_id:id,value:1,completed:true,updated_at:new Date().toISOString()},{onConflict:'user_id,mission_id'});
   if(error)return toast(error.message);
-  toast('Misión completada ✓'); await missionsTpl(); bind();
+  toast('Misión guardada ✓'); await refreshAfterMissionSave(id);
 }
 async function saveMissionProgress(id){
   if(!session)return;
   const input=$(`#missionValue-${id}`); const value=Math.max(0,Number(input?.value||0));
   const {data:m,error:me}=await sb.from('missions').select('target').eq('id',id).single(); if(me)return toast(me.message);
-  const completed=Number(value)>=Number(m?.target||0);
+  const completed=true; // Guardar cierra la misión aunque la meta no se haya alcanzado; el porcentaje conserva el avance real.
   const {error}=await sb.from('mission_progress').upsert({user_id:session.user.id,mission_id:id,value,completed,updated_at:new Date().toISOString()},{onConflict:'user_id,mission_id'});
-  if(error)return toast(error.message); toast(completed?'Misión completada ✓':'Avance guardado ✓'); await missionsTpl(); bind();
+  if(error)return toast(error.message); toast(completed?'Misión guardada ✓':'Avance guardado ✓'); await refreshAfterMissionSave(id);
 }
 
 async function trainingTpl() {
@@ -578,7 +720,7 @@ async function adminProfileModal(id){
     const done=g.items.filter(m=>missionPct(m)>=100).length;
     const avg=g.items.length?Math.round(g.items.reduce((sum,m)=>sum+missionPct(m),0)/g.items.length):0;
     const current=today>=g.start && today<=g.end;
-    return `<div class="mission-week-group"><button type="button" class="mission-week-card admin-mission-week-card" data-admin-mission-week="${id}"><div class="mission-week-icon">🎯</div><div class="mission-week-main"><div class="mission-week-top"><strong>Misiones ${esc(adminWeekLabel(g.start,g.end))}</strong><span>${avg}%</span></div><p>${g.items.length} ${g.items.length===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}${current?' · Semana actual':''}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b></button><div class="mission-week-details hidden" id="${id}">${g.items.map(renderMissionRow).join('')}</div></div>`;
+    return `<div class="mission-week-group admin-mission-week-group"><button type="button" class="mission-week-card admin-mission-week-card" data-admin-mission-week="${id}" aria-expanded="false"><div class="mission-week-icon">🎯</div><div class="mission-week-main"><div class="mission-week-top"><strong>Misiones ${esc(adminWeekLabel(g.start,g.end))}</strong><span>${avg}%</span></div><p>${g.items.length} ${g.items.length===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}${current?' · Semana actual':''}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b></button><div class="mission-week-details hidden" id="${id}">${g.items.map(renderMissionRow).join('')}</div></div>`;
   };
   const missionWeeksHtml=groupedWeeks.map(adminWeekCard).join('') || `<div class="item"><p class="muted small" style="margin:0">Aún no hay misiones asignadas a este creador.</p></div>`;
   modalEl.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div><button class="secondary" id="closeProfileModal">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type==='savings'?'Ahorros':pm?.account_type==='checking'?'Corriente':pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="creator-missions-section"><div class="row"><div><h3 style="margin-bottom:3px">🎯 Misiones del creador</h3><p class="muted small" style="margin:0">Agrega todas las misiones que necesites directamente aquí. Puedes tener varias por semana.</p></div><button class="primary small" id="newCreatorMission">+ Agregar misión</button></div><div class="creator-mission-group"><div class="row"><div><h3 style="margin-bottom:3px">📅 Misiones por semana</h3><p class="muted small" style="margin:0">Abre una semana para ver todas las misiones de ese periodo, junto con su progreso y estado.</p></div><span class="mission-count">${groupedWeeks.length}</span></div><div class="mission-weeks-list" style="margin-top:12px">${missionWeeksHtml}</div></div></div></div>`;
@@ -588,7 +730,7 @@ async function adminProfileModal(id){
   modalEl.querySelectorAll('[data-edit-creator-mission]').forEach(b=>b.onclick=()=>creatorMissionModal(id,b.dataset.editCreatorMission));
   modalEl.querySelectorAll('[data-toggle-creator-mission]').forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from('missions').select('published').eq('id',b.dataset.toggleCreatorMission).single();if(error)return toast(error.message);const {error:e}=await sb.from('missions').update({published:!data.published}).eq('id',b.dataset.toggleCreatorMission);if(e)return toast(e.message);toast(data.published?'Misión ocultada':'Misión publicada ✓');modalEl.remove();await adminProfileModal(id);});
   modalEl.querySelectorAll('[data-delete-creator-mission]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Eliminar esta misión y su progreso?'))return;const {error}=await sb.from('missions').delete().eq('id',b.dataset.deleteCreatorMission);if(error)return toast(error.message);toast('Misión eliminada');modalEl.remove();await adminProfileModal(id);});
-  modalEl.querySelectorAll('[data-admin-mission-week]').forEach(b=>b.onclick=()=>{const panel=$('#'+b.dataset.adminMissionWeek);if(panel) panel.classList.toggle('hidden');b.classList.toggle('open');});
+  modalEl.querySelectorAll('[data-admin-mission-week]').forEach(b=>b.onclick=()=>{const panel=$('#'+b.dataset.adminMissionWeek);if(panel){const open=panel.classList.toggle('hidden')===false;b.classList.toggle('open',open);b.setAttribute('aria-expanded',String(open));}});
 }
 
 async function creatorMissionModal(creatorId, existingId=null){
@@ -641,7 +783,11 @@ async function creatorMissionModal(creatorId, existingId=null){
     if(existing){ result=await sb.from('missions').update(payloads[0]).eq('id',existingId); }
     else { result=await sb.from('missions').insert(payloads); }
     if(result.error){err.textContent=result.error.message;btn.disabled=false;return;}
-    toast(existing?'Misión actualizada ✓':`${payloads.length} misión${payloads.length===1?'':'es'} enviada${payloads.length===1?'':'s'} ✓`);
+    let notificationOk = true;
+    if(!existing){
+      notificationOk = await notifyCreator(creatorId, 'Tienes una notificación nueva', `Se te han asignado ${payloads.length} ${payloads.length===1?'misión':'misiones'} para esta semana.`, 'missions', start, endDate);
+    }
+    toast(existing?'Misión actualizada ✓':`${payloads.length} misión${payloads.length===1?'':'es'} enviada${payloads.length===1?'':'s'} ✓${notificationOk?'':' · revisa notificaciones'}`);
     el.remove();
     const old=document.querySelector('.creator-profile-modal')?.parentElement;if(old)old.remove();
     await adminProfileModal(creatorId);
@@ -728,8 +874,11 @@ async function editModule(id) {
   $('#saveModule').onclick = async () => {
     const title = $('#moduleTitle').value.trim();
     if (!title) { $('#moduleErr').textContent = 'Escribe un nombre para el módulo.'; return; }
-    const { error } = await sb.from('modules').update({ title, description: $('#moduleDesc').value.trim(), published: $('#modulePublished').value === 'true' }).eq('id', id);
+    const nextPublished = $('#modulePublished').value === 'true';
+    const { data: before } = await sb.from('modules').select('published,title').eq('id', id).single();
+    const { error } = await sb.from('modules').update({ title, description: $('#moduleDesc').value.trim(), published: nextPublished }).eq('id', id);
     if (error) { $('#moduleErr').textContent = error.message; return; }
+    if (!before?.published && nextPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${title}.`, 'training');
     el.remove(); toast('Módulo actualizado ✓'); render();
   };
 }
@@ -855,8 +1004,10 @@ async function saveLesson(existing, moduleId, el) {
       sort_order = (last?.[0]?.sort_order ?? -1) + 1;
     }
     const payload = { module_id: moduleId, title, description, type, content, video_path, resource_path, sort_order, published };
+    const wasPublished = !!existing?.published;
     const result = existing ? await sb.from('lessons').update(payload).eq('id', existing.id) : await sb.from('lessons').insert(payload);
     if (result.error) throw result.error;
+    if (published && !wasPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${title}.`, 'training');
     el.remove(); toast(existing ? 'Lección actualizada ✓' : 'Lección creada ✓'); render();
   } catch (e) {
     err.textContent = errorText(e);
@@ -868,16 +1019,22 @@ async function saveLesson(existing, moduleId, el) {
 async function toggleModule(id) {
   const { data, error } = await sb.from('modules').select('published').eq('id', id).single();
   if (error || !data) return toast(errorText(error));
-  const { error: e } = await sb.from('modules').update({ published: !data.published }).eq('id', id);
+  const nextPublished = !data.published;
+  const { data: moduleRow } = await sb.from('modules').select('title').eq('id', id).single();
+  const { error: e } = await sb.from('modules').update({ published: nextPublished }).eq('id', id);
   if (e) return toast(e.message);
+  if (nextPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${moduleRow?.title || 'un nuevo módulo'}.`, 'training');
   toast(data.published ? 'Módulo ocultado' : 'Módulo publicado ✓'); render();
 }
 
 async function toggleLesson(id) {
   const { data, error } = await sb.from('lessons').select('published').eq('id', id).single();
   if (error || !data) return toast(errorText(error));
-  const { error: e } = await sb.from('lessons').update({ published: !data.published }).eq('id', id);
+  const nextPublished = !data.published;
+  const { data: lessonRow } = await sb.from('lessons').select('title').eq('id', id).single();
+  const { error: e } = await sb.from('lessons').update({ published: nextPublished }).eq('id', id);
   if (e) return toast(e.message);
+  if (nextPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${lessonRow?.title || 'una nueva lección'}.`, 'training');
   toast(data.published ? 'Lección ocultada' : 'Lección publicada ✓'); render();
 }
 
@@ -1072,6 +1229,7 @@ async function login() {
   session = data.session;
   profile = await getProfile();
   await loadProfileDetails();
+  await loadNotifications();
   if (!profile?.active) {
     await sb.auth.signOut();
     session = null;
@@ -1096,7 +1254,7 @@ async function login() {
 }
 
 async function logout() {
-  await sb.auth.signOut(); session = null; profile = null; profileDetails = null; paymentMethod = null; updateProfileBadge(); nav('home');
+  await sb.auth.signOut(); session = null; profile = null; profileDetails = null; paymentMethod = null; notifications = []; $('#notificationsPanel')?.classList.add('hidden'); updateProfileBadge(); updateNotificationsUI(); nav('home');
 }
 
 async function saveHome() {
@@ -1153,10 +1311,18 @@ async function saveBenefits() {
 async function init() {
   // Account controls live in the persistent header, so bind them once.
   const profileBtn = $('#mobileProfile');
+  const notificationsBtn = $('#notificationsBtn');
+  const notificationsPanel = $('#notificationsPanel');
   const profileMenu = $('#profileMenu');
   const openMyProfile = $('#openMyProfile');
   const menuLogout = $('#menuLogout');
 
+  if (notificationsBtn) notificationsBtn.addEventListener('click', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!session) { authMode = 'creator'; nav('auth'); return; }
+    toggleNotifications();
+  });
+  if (notificationsPanel) notificationsPanel.addEventListener('click', (e) => e.stopPropagation());
   if (profileBtn) profileBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1176,15 +1342,19 @@ async function init() {
     closeProfileMenu();
     logout();
   });
-  document.addEventListener('click', () => closeProfileMenu());
+  document.addEventListener('click', () => { closeProfileMenu(); $('#notificationsPanel')?.classList.add('hidden'); });
 
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (session) { profile = await getProfile(); await loadProfileDetails(); }
+  if (session) { profile = await getProfile(); await loadProfileDetails(); await loadNotifications(); }
+  else updateNotificationsUI();
   nav('home');
 }
 
 init();
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden && session) loadNotifications(); });
+setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 30000);
 
 window.addEventListener('popstate', () => {
   const page = history.state?.page || 'home';
