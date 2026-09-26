@@ -48,7 +48,6 @@ Deno.serve(async (req) => {
   }
 
   const syntheticEmail = `${username}@users.grayxongroup.com`
-  const syntheticEmail = `${username}@users.grayxongroup.com`
   const { data: created, error: createError } = await adminClient.auth.admin.createUser({
     email: syntheticEmail,
     password,
