@@ -196,7 +196,7 @@ function nav(p, push = true) {
 
   // Pintamos Tu espacio inmediatamente con un shell mínimo.
   if (p === 'space') {
-    renderSpaceShell();
+    try { renderSpaceShell(); } catch (e) { console.error('Error pintando Tu espacio:', e); const el=$('#space'); if(el) el.innerHTML='<div class="card" style="padding:30px"><h2>Tu espacio</h2><p>Estamos preparando tu espacio. Intenta nuevamente.</p></div>'; }
   }
 
   // El resto de contenido se enriquece de forma asíncrona y nunca debe bloquear
@@ -218,9 +218,9 @@ function renderSpaceShell() {
   el.innerHTML = `<div class="space-page">
     <div class="space-hero"><div><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.full_name || base.username)} 👋</h1><p class="muted">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong>0%</strong></div></div>
     <div class="space-grid">
-      ${card('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando...')}
-      ${card('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando...')}
-      ${card('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando...')}
+      <button class="space-card card" data-space-action="profile"><span class="space-card-icon">👤</span><div><h3>Tu perfil</h3><p>Completa tus datos para mantener tu información actualizada.</p><strong>0% · Cargando...</strong></div></button>
+      <button class="space-card card" data-space-action="training"><span class="space-card-icon">🎓</span><div><h3>Formación</h3><p>Aprende con los módulos, lecciones, videos y recursos de Grayxon.</p><strong>0% · Cargando...</strong></div></button>
+      <button class="space-card card" data-space-action="missions"><span class="space-card-icon">🎯</span><div><h3>Tus misiones</h3><p>Cumple tus objetivos semanales y registra tus avances.</p><strong>0% · Cargando...</strong></div></button>
     </div>
     <div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">Cargando equipo...</h2><p class="muted" style="margin:0">Estamos consultando tu equipo y manager.</p></div></div>
   </div>`;
