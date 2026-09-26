@@ -731,11 +731,20 @@ async function managerTpl(){
   const tmIds=[...new Set((creators||[]).map(c=>c.team_id).filter(Boolean))];
   const {data:teams}=tmIds.length?await sb.from('teams').select('id,name').in('id',tmIds):{data:[]};
   const tm=new Map((teams||[]).map(t=>[t.id,t.name]));
+  const {data:creatorDetails}=creatorIds.length?await sb.from('profile_details').select('user_id,avatar_url').in('user_id',creatorIds):{data:[]};
+  const avatarMap=new Map((creatorDetails||[]).map(d=>[d.user_id,d.avatar_url]));
+  const {data:creatorTasks}=creatorIds.length?await sb.from('creator_tasks').select('id,creator_id,title,due_at,assigned_at,completed,completed_at').in('creator_id',creatorIds).order('assigned_at',{ascending:false}):{data:[]};
+  const taskMap=new Map();
+  (creatorTasks||[]).forEach(t=>{ if(!taskMap.has(t.creator_id)) taskMap.set(t.creator_id,[]); taskMap.get(t.creator_id).push(t); });
   const pm=new Map(progress.map(x=>[`${x.user_id}:${x.mission_id}`,x]));
   const missionPct=m=>{const x=pm.get(`${m.assigned_to}:${m.id}`);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0;};
   const creatorCard=(c)=>{
     const cm=missions.filter(m=>m.assigned_to===c.id), pct=cm.length?Math.round(cm.reduce((a,m)=>a+missionPct(m),0)/cm.length):0;
-    return `<div class="item manager-creator-card"><div class="manager-creator-main"><div><b>${esc(c.full_name||c.username)}</b><div class="muted small">@${esc(c.username)} · ${esc(tm.get(c.team_id)||'Sin equipo')}</div></div><span class="pill ${c.active?'ok':''}">${c.active?'Activo':'Inactivo'}</span></div><div class="manager-creator-bottom"><div class="manager-creator-progress"><span>Misiones ${pct}%</span><div class="space-progress"><span style="width:${pct}%"></span></div></div><div class="inline"><button class="secondary small" data-manager-view-creator="${c.id}">👤 Ver creador</button><button class="primary small" data-manager-missions="${c.id}">🎯 Asignar misiones</button></div></div></div>`;
+    const avatar=avatarMap.get(c.id);
+    const initials=esc((c.full_name||c.username||'C').trim().charAt(0).toUpperCase());
+    const tasks=taskMap.get(c.id)||[], pendingTasks=tasks.filter(t=>!t.completed).length;
+    const avatarHtml=avatar?`<img src="${esc(avatar)}" alt="Foto de ${esc(c.full_name||c.username)}" loading="lazy">`:`<span>${initials}</span>`;
+    return `<div class="item manager-creator-card"><div class="manager-creator-main"><div class="manager-creator-identity"><div class="manager-creator-avatar">${avatarHtml}</div><div><b>${esc(c.full_name||c.username)}</b><div class="muted small">@${esc(c.username)} · ${esc(tm.get(c.team_id)||'Sin equipo')}</div></div></div><span class="pill ${c.active?'ok':''}">${c.active?'Activo':'Inactivo'}</span></div><div class="manager-creator-bottom"><div class="manager-creator-progress"><span>Misiones ${pct}%</span><div class="space-progress"><span style="width:${pct}%"></span></div></div><div class="manager-creator-actions"><button class="secondary manager-action-btn" data-manager-view-creator="${c.id}">👤 Ver creador</button><button class="secondary manager-action-btn" data-manager-creator-tasks="${c.id}">📋 Tareas${pendingTasks?` <span class="task-count-badge">${pendingTasks}</span>`:''}</button><button class="primary manager-action-btn" data-manager-missions="${c.id}">🎯 Misiones</button></div></div></div>`;
   };
   const tasksRes=await sb.from('manager_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('manager_id',me?.id||'').order('completed',{ascending:true}).order('assigned_at',{ascending:false});
   const tasks=tasksRes.data||[];
@@ -758,10 +767,58 @@ async function managerCreatorModal(id){
   ]);
   const el=document.createElement('div');el.className='modal-backdrop';
   const safe=x=>x?esc(x):'—';
-  el.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div><div class="eyebrow">CREADOR</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div><button class="secondary" id="closeManagerCreator">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(team?.name)} · <b>Manager:</b> ${safe(manager?.name)}</div><div class="creator-missions-section"><div class="row"><div><h3 style="margin:0">🎯 Misiones</h3><p class="muted small" style="margin:4px 0 0">Puedes asignar y administrar las misiones de este creador.</p></div><button class="primary small" id="managerAddMission">+ Agregar misión</button></div><div class="list" style="margin-top:12px">${(missions||[]).map(m=>`<div class="item"><div class="row"><div><b>${esc(m.title)}</b><div class="muted small">${esc(m.week_start||'')} → ${esc(m.week_end||'')} · ${m.type==='numeric'?`Meta ${Number(m.target||0)}`:'Marcable'}</div></div><span class="pill ${m.published?'ok':''}">${m.published?'Publicada':'Oculta'}</span></div></div>`).join('')||'<div class="item"><span class="muted small">Aún no hay misiones.</span></div>'}</div></div></div>`;
+  const avatar=d?.avatar_url?`<img class="creator-profile-modal-avatar" src="${esc(d.avatar_url)}" alt="Foto de ${safe(p.full_name||p.username)}">`:`<div class="creator-profile-modal-avatar creator-profile-modal-avatar-fallback">${esc((p.full_name||p.username||'C').trim().charAt(0).toUpperCase())}</div>`;
+  el.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div class="creator-profile-modal-head">${avatar}<div><div class="eyebrow">CREADOR</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div></div><button class="secondary" id="closeManagerCreator">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(team?.name)} · <b>Manager:</b> ${safe(manager?.name)}</div></div>`;
   document.body.appendChild(el);
   $('#closeManagerCreator').onclick=()=>el.remove();
-  $('#managerAddMission').onclick=()=>creatorMissionModal(id,null,'manager');
+}
+
+async function creatorTaskMenuModal(creatorId){
+  const [{data:p},{data:tasks,error}]=await Promise.all([
+    sb.from('profiles').select('id,username,full_name').eq('id',creatorId).single(),
+    sb.from('creator_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('creator_id',creatorId).order('completed',{ascending:true}).order('assigned_at',{ascending:false})
+  ]);
+  if(error){toast(error.message);return;}
+  const pending=(tasks||[]).filter(t=>!t.completed).length;
+  const completed=(tasks||[]).filter(t=>t.completed).length;
+  const el=document.createElement('div');el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal manager-task-menu-modal"><div class="row"><div><div class="eyebrow">TAREAS DEL CREADOR</div><h2>${esc(p?.full_name||p?.username||'Creador')}</h2><div class="muted small">@${esc(p?.username||'')}</div></div><button class="secondary" id="closeCreatorTaskMenu">Cerrar</button></div><div class="manager-task-menu-grid"><button class="task-menu-action primary" id="creatorTaskAssign">➕<span>Asignar tarea</span></button><button class="task-menu-action secondary" id="creatorTaskPending">🕐<span>Tareas pendientes <b>${pending}</b></span></button><button class="task-menu-action secondary" id="creatorTaskCompleted">✓<span>Tareas completadas <b>${completed}</b></span></button></div></div>`;
+  document.body.appendChild(el);
+  $('#closeCreatorTaskMenu').onclick=()=>el.remove();
+  $('#creatorTaskAssign').onclick=()=>{el.remove();creatorTaskAssignModal(creatorId);};
+  $('#creatorTaskPending').onclick=()=>{el.remove();creatorTaskListModal(creatorId,'pending');};
+  $('#creatorTaskCompleted').onclick=()=>{el.remove();creatorTaskListModal(creatorId,'completed');};
+}
+
+async function creatorTaskListModal(creatorId,mode='pending'){
+  const [{data:p},{data:tasks,error}]=await Promise.all([
+    sb.from('profiles').select('id,username,full_name').eq('id',creatorId).single(),
+    sb.from('creator_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('creator_id',creatorId).eq('completed',mode==='completed').order('assigned_at',{ascending:false})
+  ]);
+  if(error){toast(error.message);return;}
+  const el=document.createElement('div');el.className='modal-backdrop';
+  const rows=(tasks||[]).map(t=>`<div class="item creator-task-row"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Completada: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><span class="pill ${t.completed?'ok':''}">${t.completed?'✓ Completada':'Pendiente'}</span></div>`).join('')||`<div class="item"><span class="muted small">No hay tareas ${mode==='completed'?'completadas':'pendientes'}.</span></div>`;
+  el.innerHTML=`<div class="card modal"><div class="row"><div><div class="eyebrow">${mode==='completed'?'TAREAS COMPLETADAS':'TAREAS PENDIENTES'}</div><h2>${esc(p?.full_name||p?.username||'Creador')}</h2></div><button class="secondary" id="closeCreatorTaskList">Cerrar</button></div><div class="list" style="margin-top:16px">${rows}</div><div class="inline" style="margin-top:16px"><button class="primary" id="newCreatorTaskFromList">+ Asignar tarea</button></div></div>`;
+  document.body.appendChild(el);
+  $('#closeCreatorTaskList').onclick=()=>el.remove();
+  $('#newCreatorTaskFromList').onclick=()=>{el.remove();creatorTaskAssignModal(creatorId);};
+}
+
+function creatorTaskAssignModal(creatorId){
+  const el=document.createElement('div');el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal"><div class="row"><div><div class="eyebrow">NUEVA TAREA</div><h2>Asignar tarea al creador</h2></div><button class="secondary" id="cancelCreatorTask">Cancelar</button></div>${field('ctTitle','Título','')}${field('ctDesc','Descripción','',true)}<label class="field"><span>Fecha límite (opcional)</span><input id="ctDue" type="datetime-local"></label><div id="ctErr" class="error"></div><div class="inline" style="margin-top:18px"><button class="primary" id="saveCreatorTask">Asignar tarea</button></div></div>`;
+  document.body.appendChild(el);
+  $('#cancelCreatorTask').onclick=()=>el.remove();
+  $('#saveCreatorTask').onclick=async()=>{
+    const btn=$('#saveCreatorTask');btn.disabled=true;
+    const title=$('#ctTitle').value.trim(),description=$('#ctDesc').value.trim()||null,due=$('#ctDue').value?new Date($('#ctDue').value).toISOString():null;
+    if(!title){$('#ctErr').textContent='Escribe el título de la tarea.';btn.disabled=false;return;}
+    const {error}=await sb.from('creator_tasks').insert({creator_id:creatorId,title,description,due_at:due,assigned_by:session.user.id});
+    if(error){$('#ctErr').textContent=error.message;btn.disabled=false;return;}
+    const {error:notifyError}=await sb.rpc('notify_creator_task',{p_creator_id:creatorId,p_title:'Nueva tarea asignada',p_message:`Tienes una nueva tarea: ${title}`});
+    if(notifyError) console.warn('No se pudo crear la notificación de tarea:',notifyError);
+    el.remove();toast('Tarea asignada ✓');render();
+  };
 }
 
 async function adminManagerTasks(){
@@ -1398,6 +1455,7 @@ function bind() {
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-manager-view-creator]').forEach(b=>b.onclick=()=>managerCreatorModal(b.dataset.managerViewCreator));
   $$('[data-manager-missions]').forEach(b=>b.onclick=()=>creatorMissionModal(b.dataset.managerMissions,null,'manager'));
+  $$('[data-manager-creator-tasks]').forEach(b=>b.onclick=()=>creatorTaskMenuModal(b.dataset.managerCreatorTasks));
   $$('[data-complete-manager-task]').forEach(b=>b.onclick=async()=>{b.disabled=true;const {error}=await sb.rpc('complete_manager_task',{p_task_id:b.dataset.completeManagerTask});if(error){toast(error.message);b.disabled=false;return;}toast('Tarea marcada como lista ✓');await loadNotifications();render();});
   $('#newManagerTask')?.addEventListener('click',managerTaskModal);
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
