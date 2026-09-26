@@ -833,23 +833,27 @@ function teamManagerModal(existing=null){
     if(needsAccess&&(!username||!password||password.length<8)){ $('#tmErr').textContent='Define usuario y una contraseña de mínimo 8 caracteres para el manager.';btn.disabled=false;return; }
     try{
       let managerId=existing?.manager_id||null;
-      if(managerId){
-        let userId=existing?.manager?.user_id||null;
-        if(needsAccess){
-          const data=await createManagerAccess({username,full_name:mn,password,phone,email,manager_id:managerId});
-          userId=data?.user?.id||data?.profile?.id||data?.id;
-          managerId=data?.manager?.id||managerId;
-          if(!userId||!managerId)throw new Error('El acceso se creó pero no pudimos recuperar el manager.');
-        }
-        const {error}=await sb.from('managers').update({name:mn,phone,email,username,user_id:userId,active:true,updated_at:new Date().toISOString()}).eq('id',managerId);if(error)throw error;
-        if(userId){const {error:upe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn,manager_id:managerId}).eq('id',userId);if(upe)throw upe;}
-      } else {
+      let userId=existing?.manager?.user_id||null;
+
+      // If this manager has no portal access yet, the Edge Function creates
+      // BOTH the Auth user and the linked manager/profile records atomically
+      // from the portal's point of view. Do not insert/update those records
+      // again here; doing so used to create duplicate manager rows or hit the
+      // creator-assignment protection trigger.
+      if(needsAccess){
         const data=await createManagerAccess({username,full_name:mn,password,phone,email,manager_id:managerId});
-        const userId=data?.user?.id||data?.profile?.id||data?.id;
-        if(!userId)throw new Error('La cuenta fue creada pero no pudimos recuperar su usuario.');
-        const {error:pe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn}).eq('id',userId);if(pe)throw pe;
-        const {data:mi,error:me}=await sb.from('managers').insert({name:mn,phone,email,username,user_id:userId,active:true}).select('id').single();if(me)throw me;managerId=mi.id;
-        const {error:upe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn,manager_id:managerId}).eq('id',userId);if(upe)throw upe;
+        userId=data?.user?.id||data?.profile?.id||data?.id;
+        managerId=data?.manager?.id||managerId;
+        if(!userId||!managerId)throw new Error('El acceso se creó pero no pudimos recuperar el manager.');
+      } else if(managerId){
+        const {error}=await sb.from('managers').update({name:mn,phone,email,username,active:true,updated_at:new Date().toISOString()}).eq('id',managerId);
+        if(error)throw error;
+        if(userId){
+          const {error:upe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn}).eq('id',userId);
+          if(upe)throw upe;
+        }
+      } else {
+        throw new Error('No se encontró el manager seleccionado.');
       }
       const payload={name,manager_id:managerId,updated_at:new Date().toISOString()};
       const {data:teamSaved,error}=existing?await sb.from('teams').update(payload).eq('id',existing.id).select('id').single():await sb.from('teams').insert(payload).select('id').single();

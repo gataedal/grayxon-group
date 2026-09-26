@@ -48,25 +48,91 @@ Deno.serve(async (req) => {
   }
 
   const syntheticEmail = `${username}@users.grayxongroup.com`
-  const { data: created, error: createError } = await adminClient.auth.admin.createUser({ email: syntheticEmail, password, email_confirm: true, user_metadata: { username, full_name: fullName, role: 'manager' } })
-  if (createError || !created.user) return json({ error: createError?.message || 'No se pudo crear el usuario de Auth.' }, 400)
+  const syntheticEmail = `${username}@users.grayxongroup.com`
+  const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+    email: syntheticEmail,
+    password,
+    email_confirm: true,
+    user_metadata: { username, full_name: fullName, role: 'manager' }
+  })
+  if (createError || !created.user) {
+    const msg = createError?.message || 'No se pudo crear el usuario de Auth.'
+    if (/already.*registered|already exists/i.test(msg)) {
+      return json({ error: `El acceso @${username} ya existe. Si corresponde a este manager, edítalo en lugar de crear otro.` }, 409)
+    }
+    return json({ error: msg }, 400)
+  }
+
   const userId = created.user.id
   let managerRowId = managerId
+  let managerCreatedHere = false
+  let previousManager: any = null
 
   try {
-    const { error: profileInsertError } = await adminClient.from('profiles').insert({ id: userId, username, full_name: fullName, role: 'manager', active: true })
-    if (profileInsertError) throw new Error(profileInsertError.message)
+    // IMPORTANT: create/update the manager row BEFORE the profile is created.
+    // The profile assignment protection trigger runs on UPDATE of profiles;
+    // by inserting the final manager_id in the initial profile row we avoid
+    // that trigger entirely during manager provisioning.
     if (managerId) {
-      const { error } = await adminClient.from('managers').update({ name: fullName, phone, email, username, user_id: userId, active: true, updated_at: new Date().toISOString() }).eq('id', managerId)
-      if (error) throw new Error(error.message)
+      const { data: existingManager, error: readManagerError } = await adminClient
+        .from('managers')
+        .select('id,name,phone,email,username,user_id,active,updated_at')
+        .eq('id', managerId)
+        .single()
+      if (readManagerError || !existingManager) throw new Error(readManagerError?.message || 'No se encontró el manager.')
+      previousManager = existingManager
+      if (existingManager.user_id && existingManager.user_id !== userId) {
+        throw new Error('Este manager ya tiene un acceso activo.')
+      }
+      const { error: managerUpdateError } = await adminClient.from('managers').update({
+        name: fullName,
+        phone,
+        email,
+        username,
+        user_id: userId,
+        active: true,
+        updated_at: new Date().toISOString()
+      }).eq('id', managerId)
+      if (managerUpdateError) throw new Error(managerUpdateError.message)
     } else {
-      const { data: managerRow, error } = await adminClient.from('managers').insert({ name: fullName, phone, email, username, user_id: userId, active: true }).select('id').single()
-      if (error) throw new Error(error.message)
+      const { data: managerRow, error: managerInsertError } = await adminClient.from('managers').insert({
+        name: fullName,
+        phone,
+        email,
+        username,
+        user_id: userId,
+        active: true
+      }).select('id').single()
+      if (managerInsertError || !managerRow) throw new Error(managerInsertError?.message || 'No se pudo crear el registro del manager.')
       managerRowId = managerRow.id
+      managerCreatedHere = true
     }
-    const { error } = await adminClient.from('profiles').update({ manager_id: managerRowId }).eq('id', userId)
-    if (error) throw new Error(error.message)
+
+    const { error: profileInsertError } = await adminClient.from('profiles').insert({
+      id: userId,
+      username,
+      full_name: fullName,
+      role: 'manager',
+      active: true,
+      manager_id: managerRowId
+    })
+    if (profileInsertError) throw new Error(profileInsertError.message)
   } catch (e) {
+    // Best-effort compensation so a failed provisioning never leaves a
+    // half-created Auth user or an incorrectly linked manager.
+    if (managerCreatedHere && managerRowId) {
+      await adminClient.from('managers').delete().eq('id', managerRowId)
+    } else if (managerId && previousManager) {
+      await adminClient.from('managers').update({
+        name: previousManager.name,
+        phone: previousManager.phone,
+        email: previousManager.email,
+        username: previousManager.username,
+        user_id: previousManager.user_id,
+        active: previousManager.active,
+        updated_at: previousManager.updated_at
+      }).eq('id', managerId)
+    }
     await adminClient.auth.admin.deleteUser(userId)
     return json({ error: e instanceof Error ? e.message : 'No se pudo completar la creación del manager.' }, 400)
   }
