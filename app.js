@@ -93,7 +93,7 @@ function homeTpl(h) {
           <div class="brand-connection-inline" aria-label="Grayxon y TikTok LIVE">
             <img class="brand-connection-grayxon" src="assets/grayxon-logo.png" alt="Grayxon">
             <span></span>
-            <img class="brand-connection-tiktok" src="assets/tiktok-live-logo.png" alt="TikTok LIVE">
+            <img class="brand-connection-tiktok" src="assets/tiktok-live-logo-transparent.png" alt="TikTok LIVE">
           </div>
         </div>
 
@@ -108,7 +108,7 @@ function homeTpl(h) {
         <section class="modern-socials hero-socials">
           <div class="modern-social-title">NUESTRAS REDES</div>
           <div class="modern-social-grid">
-            <a class="modern-social-btn" href="https://www.tiktok.com/@grayxongroup" target="_blank" rel="noopener noreferrer"><span class="social-logo tiktok-mark">♪</span><strong>TikTok</strong><b>↗</b></a>
+            <a class="modern-social-btn" href="https://www.tiktok.com/@grayxongroup" target="_blank" rel="noopener noreferrer"><span class="social-logo tiktok-mark"><img src="assets/tiktok-icon.svg" alt="TikTok"></span><strong>TikTok</strong><b>↗</b></a>
             <a class="modern-social-btn whatsapp-btn" href="https://wa.me/573126283007?text=Hola%20Grayxon%20%F0%9F%91%8B" target="_blank" rel="noopener noreferrer"><span class="social-logo whatsapp-mark"><img src="assets/whatsapp-icon.svg" alt="WhatsApp"></span><strong>Hablar por WhatsApp</strong><b>↗</b></a>
           </div>
         </section>

@@ -121,7 +121,7 @@ body{min-height:100svh!important;}
 <main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="training" class="page hidden"></section><section id="admin" class="page hidden"></section></main>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=7"></script>
 </body></html>
 <style>
 /* v12: brand lockup first, horizontal headline below; remove duplicate TikTok LIVE label */
@@ -286,5 +286,31 @@ body{min-height:100dvh!important}
   .modern-hero h1{font-size:34px!important}
   .brand-connection-inline .brand-connection-grayxon{width:120px!important}
   .brand-connection-inline .brand-connection-tiktok{width:140px!important}
+}
+</style>
+
+<style>
+/* v7: clean mobile composition + cache bust + visible brand assets */
+.tiktok-mark{background:#050607!important;padding:0!important;overflow:hidden!important;}
+.tiktok-mark img{width:22px!important;height:22px!important;display:block!important;object-fit:contain!important;}
+@media(max-width:800px){
+  html,body,#home,.wrap{background:#08090b!important;}
+  .top{height:64px!important;}
+  .mobile-menu-btn{display:none!important;}
+  .header-actions{margin-left:auto!important;}
+  .modern-hero{min-height:calc(100svh - 74px)!important;height:calc(100svh - 74px)!important;overflow:hidden!important;}
+  .modern-hero-copy{height:100%!important;padding:22px 16px 24px!important;justify-content:space-evenly!important;gap:8px!important;}
+  .modern-title-block{gap:9px!important;}
+  .modern-hero h1{font-size:18px!important;line-height:1.1!important;white-space:nowrap!important;margin:0!important;letter-spacing:-.04em!important;}
+  .brand-connection-inline{height:34px!important;gap:14px!important;margin:0!important;justify-content:center!important;}
+  .brand-connection-inline .brand-connection-grayxon{width:88px!important;height:28px!important;}
+  .brand-connection-inline .brand-connection-tiktok{width:126px!important;height:25px!important;}
+  .brand-connection-inline span{height:22px!important;}
+  .modern-about{margin:0!important;max-width:100%!important;}
+  .modern-trust{margin:0!important;justify-content:center!important;}
+  .hero-socials{margin:0!important;max-width:100%!important;}
+  .hero-actions{margin:0!important;max-width:100%!important;}
+  .modern-creator-art{right:-14%!important;top:22%!important;width:69%!important;height:76%!important;opacity:.55!important;}
+  .modern-creator-art>img{object-position:24% center!important;}
 }
 </style>
