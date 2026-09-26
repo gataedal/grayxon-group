@@ -809,17 +809,16 @@ function teamManagerModal(existing=null){
       if(managerId){
         let userId=existing?.manager?.user_id||null;
         if(needsAccess){
-          const {data,error}=await sb.functions.invoke('create-creator',{body:{username,full_name:mn,password}});
+          const {data,error}=await sb.functions.invoke('create-manager',{body:{username,full_name:mn,password,phone,email,manager_id:managerId}});
           if(error||data?.error)throw new Error(data?.error||error?.message||'No se pudo crear el acceso del manager.');
           userId=data?.user?.id||data?.profile?.id||data?.id;
-          if(!userId){const {data:p}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();userId=p?.id;}
-          if(!userId)throw new Error('La cuenta fue creada pero no pudimos vincularla.');
-          const {error:pe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn}).eq('id',userId);if(pe)throw pe;
+          managerId=data?.manager?.id||managerId;
+          if(!userId||!managerId)throw new Error('El acceso se creó pero no pudimos recuperar el manager.');
         }
         const {error}=await sb.from('managers').update({name:mn,phone,email,username,user_id:userId,active:true,updated_at:new Date().toISOString()}).eq('id',managerId);if(error)throw error;
         if(userId){const {error:upe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn,manager_id:managerId}).eq('id',userId);if(upe)throw upe;}
       } else {
-        const {data,error}=await sb.functions.invoke('create-creator',{body:{username,full_name:mn,password}});
+        const {data,error}=await sb.functions.invoke('create-manager',{body:{username,full_name:mn,password,phone,email,manager_id:managerId}});
         if(error||data?.error)throw new Error(data?.error||error?.message||'No se pudo crear el acceso del manager.');
         const userId=data?.user?.id||data?.profile?.id||data?.id;
         if(!userId)throw new Error('La cuenta fue creada pero no pudimos recuperar su usuario.');

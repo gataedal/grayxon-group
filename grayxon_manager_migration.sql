@@ -10,6 +10,8 @@ create unique index if not exists managers_username_uidx on public.managers(lowe
 
 -- 2) Permitir que el perfil tenga el rol manager.
 -- No cambia los roles existentes: admin / creator siguen funcionando igual.
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check check (role in ('admin','creator','manager'));
 
 -- 3) Helpers de seguridad. Son SECURITY DEFINER para poder resolver el manager
 -- actual sin quedar bloqueados por las propias políticas RLS.
