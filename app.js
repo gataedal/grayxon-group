@@ -286,20 +286,65 @@ async function missionsTpl() {
   const today = new Date().toISOString().slice(0,10);
   const { data: ps } = await sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id);
   const progress = new Map((ps || []).map(x => [x.mission_id, x]));
-  const pct = m => { const p=progress.get(m.id); if(!p)return 0; if(m.type==='checkbox')return p.completed?100:0; return m.target>0?Math.min(100,Math.round(Number(p.value||0)/Number(m.target)*100)):0; };
   const fmt = n => Number(n||0).toLocaleString('es-CO');
-  const week = m => m.week_start || m.week_end ? `${m.week_start ? new Date(m.week_start+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '—'}${m.week_end ? ' · '+new Date(m.week_end+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : ''}` : 'Misión activa';
+  const pct = m => { const p=progress.get(m.id); if(!p)return 0; if(m.type==='checkbox')return p.completed?100:0; return m.target>0?Math.min(100,Math.round(Number(p.value||0)/Number(m.target)*100)):0; };
+  const dateLabel = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '—';
+  const weekKey = m => `${m.week_start||'sin-inicio'}__${m.week_end||'sin-fin'}`;
+  const weekLabel = (start,end) => start || end ? `${dateLabel(start)}${end ? ' · '+dateLabel(end) : ''}` : 'Sin semana definida';
+  const isCurrentWeek = (start,end) => (!start || start<=today) && (!end || end>=today);
   const isFinished = m => pct(m) >= 100 || (!!m.week_end && m.week_end < today);
-  const assignedMissions = (ms || []).filter(m => (!m.assigned_to || m.assigned_to === session.user.id) && !isFinished(m));
-  const completedMissions = (ms || []).filter(m => (!m.assigned_to || m.assigned_to === session.user.id) && isFinished(m));
-  const missionCard = (m, finished=false) => {
+  const visible = (ms || []).filter(m => !m.assigned_to || m.assigned_to === session.user.id);
+  const assignedMissions = visible.filter(m => !isFinished(m));
+  const completedMissions = visible.filter(m => isFinished(m));
+
+  const missionCard = (m, historical=false) => {
     const p=progress.get(m.id)||{value:0,completed:false};
     const v=pct(m);
     const expired=!!m.week_end && m.week_end < today && v<100;
-    return `<div class="mission-card ${v>=100?'mission-complete':''} ${expired?'mission-expired':''}"><div class="mission-head"><div class="mission-icon">${v>=100?'✓':expired?'⌁':m.type==='checkbox'?'✓':'↗'}</div><div><strong>${esc(m.title)}</strong><p class="muted small">${esc(m.description||'')}</p><small>${esc(week(m))}${expired?' · Semana finalizada':''}</small></div><span class="mission-pct">${v}%</span></div><div class="space-progress mission-progress"><span style="width:${v}%"></span></div><div class="mission-actions">${m.link_url?`<a class="mission-link" href="${esc(m.link_url)}" target="_blank" rel="noopener noreferrer">🔗 Abrir recurso</a>`:''}${!finished && !expired && m.type==='checkbox'?`<button class="mission-check ${p.completed?'checked':''}" data-complete-mission="${m.id}">${p.completed?'✓ Misión realizada':'Marcar como realizada'}</button>`:''}${!finished && !expired && m.type==='numeric'?`<div class="mission-number-wrap"><input type="number" min="0" step="1" value="${esc(p.value||0)}" id="missionValue-${m.id}" placeholder="0"><span>/ ${fmt(m.target)}</span></div><button class="mission-save" data-save-mission="${m.id}">Guardar avance</button>`:''}${finished?`<span class="mission-status-pill">✓ Completada</span>`:''}${expired?`<span class="mission-status-pill expired">Semana finalizada</span>`:''}</div></div>`;
+    return `<div class="mission-card ${v>=100?'mission-complete':''} ${expired?'mission-expired':''}">
+      <div class="mission-head"><div class="mission-icon">${v>=100?'✓':expired?'⌁':m.type==='checkbox'?'✓':'↗'}</div><div><strong>${esc(m.title)}</strong><p class="muted small">${esc(m.description||'')}</p><small>${esc(weekLabel(m.week_start,m.week_end))}${expired?' · Semana finalizada':''}</small></div><span class="mission-pct">${v}%</span></div>
+      <div class="space-progress mission-progress"><span style="width:${v}%"></span></div>
+      <div class="mission-actions">
+        ${m.link_url?`<a class="mission-link" href="${esc(m.link_url)}" target="_blank" rel="noopener noreferrer">🔗 Abrir recurso</a>`:''}
+        ${!historical && !expired && m.type==='checkbox'?`<button class="mission-check ${p.completed?'checked':''}" data-complete-mission="${m.id}">${p.completed?'✓ Misión realizada':'Marcar como realizada'}</button>`:''}
+        ${!historical && !expired && m.type==='numeric'?`<div class="mission-number-wrap"><input type="number" min="0" step="1" value="${esc(p.value||0)}" id="missionValue-${m.id}" placeholder="0"><span>/ ${fmt(m.target)}</span></div><button class="mission-save" data-save-mission="${m.id}">Guardar avance</button>`:''}
+        ${historical?`<span class="mission-status-pill ${expired?'expired':''}">${expired?'Semana finalizada':'✓ Completada'}</span>`:''}
+      </div>
+    </div>`;
   };
-  const section=(title,icon,items,finished=false)=>`<section class="mission-section"><div class="mission-section-head"><div><div class="eyebrow">${icon} ${title.toUpperCase()}</div><p class="muted small">${finished?'Misiones que ya alcanzaron su objetivo o cuya semana terminó.':'Misiones que tienes pendientes de completar.'}</p></div><span class="mission-count">${items.length}</span></div><div class="missions-list">${items.map(m=>missionCard(m,finished)).join('') || `<div class="card mission-empty compact"><h3>${finished?'Aún no hay misiones completadas':'No tienes misiones asignadas'}</h3><p class="muted small">${finished?'Cuando completes una misión aparecerá aquí.':'Cuando Grayxon te asigne nuevas misiones aparecerán aquí.'}</p></div>`}</div></section>`;
-  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Objetivos de la semana 🎯</h1><p class="muted">Aquí encontrarás todas tus misiones. Las pendientes permanecen en <b>Misiones asignadas</b> y las completadas pasan automáticamente a <b>Misiones completadas</b>.</p></div><button class="secondary" data-space-action="space">← Tu espacio</button></div>${section('Misiones asignadas','🎯',assignedMissions,false)}${section('Misiones completadas','✓',completedMissions,true)}</div>`;
+
+  const groupByWeek = items => {
+    const map = new Map();
+    items.forEach(m => {
+      const key = weekKey(m);
+      if (!map.has(key)) map.set(key, {start:m.week_start||'', end:m.week_end||'', items:[]});
+      map.get(key).items.push(m);
+    });
+    return [...map.values()].sort((a,b) => String(b.start||'').localeCompare(String(a.start||'')) || String(b.end||'').localeCompare(String(a.end||'')));
+  };
+
+  const weekCard = (g, type) => {
+    const current = isCurrentWeek(g.start,g.end);
+    const done = g.items.filter(m => pct(m)>=100).length;
+    const total = g.items.length;
+    const avg = total ? Math.round(g.items.reduce((sum,m)=>sum+pct(m),0)/total) : 0;
+    const id = `${type}-${String(g.start||'none').replace(/[^0-9a-z]/gi,'')}-${String(g.end||'none').replace(/[^0-9a-z]/gi,'')}`;
+    return `<button type="button" class="mission-week-card" data-mission-week="${id}">
+      <div class="mission-week-icon">${type==='assigned'?'🎯':'✓'}</div>
+      <div class="mission-week-main"><div class="mission-week-top"><strong>${current && type==='assigned'?'Misiones para esta semana':'Semana '+weekLabel(g.start,g.end)}</strong><span>${avg}%</span></div><p>${type==='assigned'?`${total} ${total===1?'misión asignada':'misiones asignadas'} · ${done} completada${done===1?'':'s'}`:`${total} ${total===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}`}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b>
+    </button>`;
+  };
+
+  const groupDetails = (groups, type) => groups.map((g,idx) => {
+    const id = `${type}-${String(g.start||'none').replace(/[^0-9a-z]/gi,'')}-${String(g.end||'none').replace(/[^0-9a-z]/gi,'')}`;
+    return `<div class="mission-week-group"><div>${weekCard(g,type)}</div><div class="mission-week-details hidden" id="details-${id}">${g.items.map(m=>missionCard(m,type==='completed')).join('')}</div></div>`;
+  }).join('');
+
+  const assignedGroups = groupByWeek(assignedMissions);
+  const completedGroups = groupByWeek(completedMissions);
+  const section = (title,icon,groups,type,emptyText) => `<section class="mission-section"><div class="mission-section-head"><div><div class="eyebrow">${icon} ${title.toUpperCase()}</div><p class="muted small">${type==='assigned'?'Abre una semana para ver todas sus misiones y completar tus objetivos.':'Abre una semana para consultar las misiones que completaste o cuya semana ya terminó.'}</p></div><span class="mission-count">${groups.length}</span></div><div class="mission-weeks-list">${groupDetails(groups,type) || `<div class="card mission-empty compact"><h3>${emptyText}</h3><p class="muted small">${type==='assigned'?'Cuando Grayxon te asigne nuevas misiones aparecerán aquí.':'Cuando completes misiones o termine una semana, aparecerán aquí.'}</p></div>`}</div></section>`;
+
+  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Tus objetivos 🎯</h1><p class="muted">Tus misiones están organizadas por semanas. Toca una semana para ver todas las misiones que contiene.</p></div><button class="secondary" data-space-action="space">← Tu espacio</button></div>${section('Misiones asignadas','🎯',assignedGroups,'assigned','No tienes misiones asignadas')}${section('Misiones completadas','✓',completedGroups,'completed','Aún no tienes historial de misiones')}</div>`;
 }
 
 async function completeMission(id){
@@ -536,27 +581,55 @@ async function creatorMissionModal(creatorId, existingId=null){
   const week=currentWeekRange();
   const el=document.createElement('div'); el.className='modal-backdrop';
   const creatorName=(await sb.from('profiles').select('full_name,username').eq('id',creatorId).single()).data;
-  el.innerHTML=`<div class="card modal"><div class="row"><div><div class="eyebrow">MISIÓN DEL CREADOR</div><h2>${existing?'Editar misión':'Agregar misión'}</h2></div><button class="secondary" id="cancelCreatorMission">Cerrar</button></div>${field('cmTitle','Título',existing?.title||'')}${field('cmDesc','Descripción',existing?.description||'',true)}<label class="field"><span>Tipo</span><select id="cmType"><option value="checkbox" ${existing?.type!=='numeric'?'selected':''}>Marcable</option><option value="numeric" ${existing?.type==='numeric'?'selected':''}>Meta numérica</option></select></label>${field('cmTarget','Meta numérica (si aplica)',existing?.target||'')}<div class="grid"><div class="field"><label>Inicio</label><input id="cmStart" type="date" value="${existing?.week_start||week.start}"></div><div class="field"><label>Fin</label><input id="cmEnd" type="date" value="${existing?.week_end||week.end}"></div></div>${field('cmLink','Link clickeable (opcional)',existing?.link_url||'')}<label class="field"><span>Estado</span><select id="cmPublished"><option value="true" ${existing?.published!==false?'selected':''}>Publicada</option><option value="false" ${existing?.published===false?'selected':''}>Oculta</option></select></label><div class="creator-mission-target-note">Esta misión se asignará exclusivamente a <b>${esc(creatorName?.full_name || creatorName?.username || 'este creador')}</b>. Puedes crear varias misiones para la misma semana.</div><div class="mission-form-actions" style="margin-top:18px">${existing?'<button class="primary" id="saveCreatorMission">Guardar cambios</button>':'<button class="secondary" id="saveAndAddAnother">Guardar y agregar otra</button><button class="primary" id="saveCreatorMission">Guardar misión</button>'}</div><div id="creatorMissionErr" class="error"></div></div>`;
+  const missionFields=(i,data={})=>`<div class="mission-batch-item" data-mission-item="${i}"><div class="row" style="align-items:center"><div><div class="eyebrow">MISIÓN ${i+1}</div></div>${i>0?`<button type="button" class="secondary small danger" data-remove-mission="${i}">Eliminar</button>`:''}</div>${field(`cmTitle${i}`,'Título',data.title||'')}${field(`cmDesc${i}`,'Descripción',data.description||'',true)}<label class="field"><span>Tipo</span><select id="cmType${i}"><option value="checkbox" ${data.type!=='numeric'?'selected':''}>Marcable</option><option value="numeric" ${data.type==='numeric'?'selected':''}>Meta numérica</option></select></label>${field(`cmTarget${i}`,'Meta numérica (si aplica)',data.target||'')} ${field(`cmLink${i}`,'Link clickeable (opcional)',data.link_url||'')}<label class="field"><span>Estado</span><select id="cmPublished${i}"><option value="true" ${data.published!==false?'selected':''}>Publicada</option><option value="false" ${data.published===false?'selected':''}>Oculta</option></select></label></div>`;
+  const headerDates=`<div class="creator-mission-week-box"><div><div class="eyebrow">SEMANA DE MISIONES</div><p class="muted small" style="margin:4px 0 0">Todas las misiones que agregues aquí se enviarán juntas al mismo creador y compartirán esta semana.</p></div><div class="grid"><div class="field"><label>Inicio</label><input id="cmStart" type="date" value="${existing?.week_start||week.start}"></div><div class="field"><label>Fin</label><input id="cmEnd" type="date" value="${existing?.week_end||week.end}"></div></div></div>`;
+  el.innerHTML=`<div class="card modal creator-mission-batch-modal"><div class="row"><div><div class="eyebrow">MISIÓN DEL CREADOR</div><h2>${existing?'Editar misión':'Agregar misiones'}</h2></div><button class="secondary" id="cancelCreatorMission">Cerrar</button></div>${headerDates}<div id="missionBatchList">${missionFields(0,existing||{})}</div>${existing?'':'<div class="creator-mission-add-row"><button type="button" class="secondary" id="addAnotherMission">＋ Agregar otra</button><span class="muted small">Puedes agregar todas las misiones que necesites para esta semana.</span></div>'}<div class="creator-mission-target-note">${existing?'Esta misión pertenece exclusivamente a ': 'Estas misiones se asignarán exclusivamente a '}<b>${esc(creatorName?.full_name || creatorName?.username || 'este creador')}</b>.</div><div class="mission-form-actions" style="margin-top:18px"><button class="primary" id="saveCreatorMission">${existing?'Guardar cambios':'Enviar'}</button></div><div id="creatorMissionErr" class="error"></div></div>`;
   document.body.appendChild(el);
   $('#cancelCreatorMission').onclick=()=>el.remove();
-  const save=async(keepOpen=false)=>{
-    const btn=$('#saveCreatorMission'); const other=$('#saveAndAddAnother'); if(btn)btn.disabled=true;if(other)other.disabled=true;
-    const link=validMissionLink($('#cmLink').value);if($('#cmLink').value.trim()&&!link){$('#creatorMissionErr').textContent='El link debe comenzar con http:// o https://';if(btn)btn.disabled=false;if(other)other.disabled=false;return;}
-    const type=$('#cmType').value;const target=Math.max(0,Number($('#cmTarget').value||0));
-    if(!$('#cmTitle').value.trim()){ $('#creatorMissionErr').textContent='Escribe un título.';if(btn)btn.disabled=false;if(other)other.disabled=false;return;}
-    if(type==='numeric'&&!target){$('#creatorMissionErr').textContent='Define una meta numérica.';if(btn)btn.disabled=false;if(other)other.disabled=false;return;}
-    const payload={title:$('#cmTitle').value.trim(),description:$('#cmDesc').value.trim(),type,target,week_start:$('#cmStart').value||null,week_end:$('#cmEnd').value||null,assigned_to:creatorId,published:$('#cmPublished').value==='true',link_url:link};
-    const r=existingId?await sb.from('missions').update(payload).eq('id',existingId):await sb.from('missions').insert(payload);
-    if(r.error){$('#creatorMissionErr').textContent=r.error.message;if(btn)btn.disabled=false;if(other)other.disabled=false;return;}
-    toast(existingId?'Misión actualizada ✓':'Misión asignada ✓');
-    if(keepOpen && !existingId){
-      $('#cmTitle').value='';$('#cmDesc').value='';$('#cmType').value='checkbox';$('#cmTarget').value='';$('#cmLink').value='';$('#cmPublished').value='true';$('#creatorMissionErr').textContent='';
-      if(btn)btn.disabled=false;if(other)other.disabled=false;$('#cmTitle').focus();return;
+
+  let count=1;
+  if(!existing){
+    $('#addAnotherMission').onclick=()=>{
+      const list=$('#missionBatchList');
+      list.insertAdjacentHTML('beforeend',missionFields(count,{}));
+      const item=list.lastElementChild;
+      item.scrollIntoView({behavior:'smooth',block:'nearest'});
+      item.querySelector(`[data-remove-mission="${count}"]`).onclick=()=>item.remove();
+      count++;
+    };
+  }
+
+  $('#saveCreatorMission').onclick=async()=>{
+    const btn=$('#saveCreatorMission'); btn.disabled=true;
+    const err=$('#creatorMissionErr'); err.textContent='';
+    const start=$('#cmStart').value||null,endDate=$('#cmEnd').value||null;
+    if(!start||!endDate){err.textContent='Define el inicio y fin de la semana.';btn.disabled=false;return;}
+    if(start>endDate){err.textContent='La fecha de inicio no puede ser posterior a la fecha final.';btn.disabled=false;return;}
+    const items=Array.from(document.querySelectorAll('#missionBatchList [data-mission-item]'));
+    const payloads=[];
+    for(let pos=0;pos<items.length;pos++){
+      const item=items[pos];
+      const i=Number(item.dataset.missionItem||pos);
+      const title=item.querySelector(`#cmTitle${i}`)?.value.trim()||'';
+      const description=item.querySelector(`#cmDesc${i}`)?.value.trim()||'';
+      const type=item.querySelector(`#cmType${i}`)?.value||'checkbox';
+      const target=Math.max(0,Number(item.querySelector(`#cmTarget${i}`)?.value||0));
+      const rawLink=item.querySelector(`#cmLink${i}`)?.value.trim()||'';
+      const link=validMissionLink(rawLink);
+      if(!title){err.textContent=`Escribe el título de la misión ${i+1}.`;btn.disabled=false;return;}
+      if(type==='numeric'&&!target){err.textContent=`Define una meta numérica para la misión ${i+1}.`;btn.disabled=false;return;}
+      if(rawLink&&!link){err.textContent=`El link de la misión ${i+1} debe comenzar con http:// o https://`;btn.disabled=false;return;}
+      payloads.push({title,description,type,target,week_start:start,week_end:endDate,assigned_to:creatorId,published:existing?$(`#cmPublished${i}`).value==='true':$(`#cmPublished${i}`).value==='true',link_url:link});
     }
-    el.remove();const old=document.querySelector('.creator-profile-modal')?.parentElement;if(old)old.remove();await adminProfileModal(creatorId);
+    let result;
+    if(existing){ result=await sb.from('missions').update(payloads[0]).eq('id',existingId); }
+    else { result=await sb.from('missions').insert(payloads); }
+    if(result.error){err.textContent=result.error.message;btn.disabled=false;return;}
+    toast(existing?'Misión actualizada ✓':`${payloads.length} misión${payloads.length===1?'':'es'} enviada${payloads.length===1?'':'s'} ✓`);
+    el.remove();
+    const old=document.querySelector('.creator-profile-modal')?.parentElement;if(old)old.remove();
+    await adminProfileModal(creatorId);
   };
-  $('#saveCreatorMission').onclick=()=>save(false);
-  $('#saveAndAddAnother')?.addEventListener('click',()=>save(true));
 }
 
 async function toggleCreator(id) {
@@ -868,6 +941,7 @@ function bind() {
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
   $$('[data-complete-mission]').forEach(b => b.onclick = () => completeMission(b.dataset.completeMission));
   $$('[data-save-mission]').forEach(b => b.onclick = () => saveMissionProgress(b.dataset.saveMission));
+  $$('[data-mission-week]').forEach(b => b.onclick = () => { const id = b.dataset.missionWeek; const panel = $('#details-' + id); if (panel) panel.classList.toggle('hidden'); b.classList.toggle('open'); });
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
