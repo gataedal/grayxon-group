@@ -188,15 +188,19 @@ function nav(p, push = true) {
 }
 
 async function render() {
-  const c = await content();
-  if (current === 'home') $('#home').innerHTML = homeTpl(c.home);
-  if (current === 'benefits') $('#benefits').innerHTML = benefitsTpl(c.benefits);
+  // No bloqueamos las pantallas privadas esperando contenido público.
+  // Esto evita que Tu espacio quede cargando si site_content está lento.
+  if (current === 'home' || current === 'benefits' || current === 'admin') {
+    const c = await content();
+    if (current === 'home') $('#home').innerHTML = homeTpl(c.home);
+    if (current === 'benefits') $('#benefits').innerHTML = benefitsTpl(c.benefits);
+    if (current === 'admin') await adminTpl(c);
+  }
   if (current === 'auth') $('#auth').innerHTML = authTpl(authMode);
   if (current === 'space') await spaceTpl();
   if (current === 'training') await trainingTpl();
   if (current === 'missions') await missionsTpl();
   if (current === 'profile') $('#profile').innerHTML = await profileTpl();
-  if (current === 'admin') await adminTpl(c);
   bind();
   updateProfileBadge();
   updateNotificationsUI();
@@ -366,7 +370,8 @@ function managerWhatsapp(phone){
 
 async function spaceTpl() {
   if (!session) { $('#space').innerHTML = authTpl('creator'); return; }
-  profile = await getProfile();
+  // Usa el perfil ya cargado al iniciar sesión. Solo consulta de nuevo si falta.
+  if (!profile) profile = await getProfile();
   if (!profile) { $('#space').innerHTML = '<div class="login"><h2>No pudimos cargar tu espacio</h2><p class="muted">Intenta nuevamente en unos segundos.</p><button class="primary" data-page="space">Reintentar</button></div>'; bindAll(); return; }
   if (profile.active === false) {
     await sb.auth.signOut(); session = null; profile = null;
