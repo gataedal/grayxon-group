@@ -182,7 +182,12 @@ async function content() {
 function nav(p, push = true) {
   const pages = ['home','benefits','auth','space','training','missions','profile','admin'];
   if (!pages.includes(p)) p = 'home';
-  if (push && current !== p) history.pushState({page:p}, '', window.location.href);
+  if (push && current !== p) {
+    const url = p === 'home'
+      ? `${window.location.pathname}${window.location.search}`
+      : `${window.location.pathname}${window.location.search}#${p}`;
+    history.pushState({page:p}, '', url);
+  }
   current = p;
   pages.forEach(id => { const el=$('#'+id); if(el) el.classList.toggle('hidden', id !== p); });
   if (p === 'space') { try { renderSpaceShell(); } catch(e) { console.error(e); } }
@@ -197,7 +202,7 @@ function renderSpaceShell(){
   const el=$('#space'); if(!el) return;
   if(!session){ el.innerHTML=authTpl('creator'); return; }
   const base=profile||{full_name:session.user.user_metadata?.full_name||'',username:session.user.user_metadata?.username||session.user.email?.split('@')[0]||'creador'};
-  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong><span class="space-manager-line">Manager: preparando información…</span></div></div></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}</div></div>`;
+  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-card space-team-card-loading"><div class="space-team-card-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong></div></div></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}</div></div>`;
   bind();
 }
 function updateSpaceTeam(a){
@@ -207,9 +212,9 @@ function updateSpaceTeam(a){
     const contact = m?.phone
       ? `<a class="space-team-contact" href="${esc(managerWhatsapp(m.phone))}" target="_blank" rel="noopener noreferrer"><img src="assets/whatsapp-icon.svg" alt=""><span>Contactar</span><span class="space-team-contact-arrow">↗</span></a>`
       : '';
-    el.innerHTML=`<div class="space-team-label-row"><span class="space-team-label">TU EQUIPO</span></div><div class="space-team-card"><div class="space-team-card-info"><strong>${esc(a.team.name)}</strong><span>Manager: <b>${esc(m?.name||'Sin manager asignado')}</b></span></div>${contact}</div>`;
+    el.innerHTML=`<div class="space-team-card"><div class="space-team-card-info"><span class="space-team-label">TU EQUIPO</span><strong>${esc(a.team.name)}</strong><span>Manager: <b>${esc(m?.name||'Sin manager asignado')}</b></span></div>${contact}</div>`;
   } else {
-    el.innerHTML=`<div class="space-team-label-row"><span class="space-team-label">TU EQUIPO</span></div><div class="space-team-card space-team-card-empty"><span>Aún no tienes equipo asignado</span></div>`;
+    el.innerHTML=`<div class="space-team-card space-team-card-empty"><span>Tu equipo: aún no tienes equipo asignado</span></div>`;
   }
 }
 function updateSpaceCard(action,pct,detail){const b=document.querySelector(`[data-space-action="${action}"]`);if(!b)return;const p=b.querySelector('.space-card-top span'),bar=b.querySelector('.space-progress span'),d=b.querySelector('small');if(p)p.textContent=`${pct}%`;if(bar)bar.style.width=`${Math.max(0,Math.min(100,pct))}%`;if(d)d.textContent=detail;}
@@ -396,7 +401,7 @@ async function spaceTpl(){
   if(!$('#space')?.innerHTML.trim()) renderSpaceShell();
   const uid=session.user.id;
   // Cargar el perfil en paralelo; no bloquea la pantalla.
-  getProfile().then(p=>{ if(!p)return; profile=p; const h=$('#space h1'); if(h)h.innerHTML=`Hola, ${esc(p.full_name||p.username)} 👋`; updateProfileBadge(); }).catch(()=>{});
+  getProfile().then(p=>{ if(!p)return; profile=p; const h=$('#space h1'); if(h)h.innerHTML=`Hola, ${esc(p.username||'creador')} 👋`; updateProfileBadge(); }).catch(()=>{});
   const safe=async(promise,fallback,ms=2500)=>{try{const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve({data:fallback,error:true}),ms))]);return r?.error?fallback:(r?.data??fallback);}catch{return fallback;}};
   const profileP=Promise.all([safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),null),safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),null)]).then(([d,pm])=>{const n=[d?.email,d?.phone,d?.country,d?.state_region,d?.city,d?.address,d?.avatar_url,pm?.method_type&&(pm.method_type==='paypal'?pm.paypal_email:pm.account_number)].filter(Boolean).length;const pct=Math.round(n/8*100);updateSpaceCard('profile',pct,pct===100?'Perfil completo':`${n} de 8 datos completos`);return pct;});
   const trainingP=Promise.all([safe(sb.from('lessons').select('id').eq('published',true),[]),safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[])]).then(([ls,lp])=>{const done=new Set((lp||[]).map(x=>x.lesson_id));const total=(ls||[]).length;const fin=(ls||[]).filter(x=>done.has(x.id)).length;const pct=total?Math.round(fin/total*100):0;updateSpaceCard('training',pct,total?`${fin} de ${total} lecciones completadas`:'Aún no hay formación publicada');return pct;});
@@ -1411,7 +1416,10 @@ async function init() {
   session = data.session;
   if (session) { profile = await getProfile(); await loadProfileDetails(); await loadNotifications(); }
   else updateNotificationsUI();
-  nav('home');
+
+  const hashPage = window.location.hash.replace(/^#/, '');
+  const initialPage = ['home','benefits','auth','space','training','missions','profile','admin'].includes(hashPage) ? hashPage : 'home';
+  nav(initialPage, false);
 }
 
 init();
@@ -1420,8 +1428,18 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && se
 setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 5000);
 
 window.addEventListener('popstate', () => {
-  const page = history.state?.page || 'home';
+  const hashPage = window.location.hash.replace(/^#/, '');
+  const page = history.state?.page || hashPage || 'home';
   current = ['home','benefits','auth','space','training','missions','profile','admin'].includes(page) ? page : 'home';
+  render();
+  window.scrollTo(0, 0);
+});
+
+window.addEventListener('hashchange', () => {
+  const page = window.location.hash.replace(/^#/, '') || 'home';
+  if (!['home','benefits','auth','space','training','missions','profile','admin'].includes(page)) return;
+  if (current === page) return;
+  current = page;
   render();
   window.scrollTo(0, 0);
 });
