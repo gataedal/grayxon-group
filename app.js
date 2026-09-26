@@ -214,7 +214,7 @@ function profileTpl(){
       <div id="paypalFields" ${pm.method_type==='paypal'?'':'style="display:none"'}>${field('pPaypal','Correo de PayPal',pm.paypal_email||'')}</div>
       <label class="field"><span>Preferencia</span><label style="display:flex;gap:8px;align-items:center;color:#ddd"><input id="pPrimary" type="checkbox" ${pm.is_primary!==false?'checked':''}> Usar como método principal de pago</label></label>
     </div>
-    <div class="inline"><button class="primary" id="saveProfile">Guardar perfil</button><button class="secondary" id="backHomeProfile">Volver al inicio</button></div><div id="profileErr" class="error"></div>
+    <div class="profile-save-wrap"><button class="primary profile-save-btn" id="saveProfile">Guardar</button></div><div id="profileErr" class="error"></div>
   </div>`;
 }
 function authTpl(mode = 'creator') {
@@ -257,7 +257,7 @@ async function trainingTpl() {
   const totalPct = totalLessons ? Math.round(totalDone / totalLessons * 100) : 0;
   const nextPending = orderedLessons.find(l => !done.has(l.id));
 
-  $('#training').innerHTML = `<div class="row"><div><div class="eyebrow">MI FORMACIÓN</div><h1 style="margin:7px 0">Hola, ${esc(profile.full_name || profile.username)} 👋</h1><p class="muted">Avanza por los módulos a tu ritmo. Los videos se completan automáticamente cuando terminan.</p></div><button class="secondary" id="logout">Cerrar sesión</button></div>
+  $('#training').innerHTML = `<div class="row"><div><div class="eyebrow">MI FORMACIÓN</div><h1 style="margin:7px 0">Hola, ${esc(profile.full_name || profile.username)} 👋</h1><p class="muted">Avanza por los módulos a tu ritmo. Los videos se completan automáticamente cuando terminan.</p></div></div>
   <div class="card progress-card" style="margin-top:20px"><div class="row"><div><b>Tu progreso</b><div class="muted small">${totalDone} de ${totalLessons} lecciones completadas</div></div><b class="progress-percent">${totalPct}%</b></div><div class="progress-track"><div class="progress-fill" style="width:${totalPct}%"></div></div></div>
   <div class="training-grid" style="margin-top:22px"><div class="modules-list">${(modules || []).map((m, mi) => { const ml = orderedLessons.filter(l => l.module_id === m.id); const md = ml.filter(l => done.has(l.id)).length; const pct = ml.length ? Math.round(md / ml.length * 100) : 0; return `<div class="module ${pct === 100 && ml.length ? 'module-complete' : ''}"><div class="module-head"><div class="module-number">${String(mi + 1).padStart(2,'0')}</div><div class="module-copy"><div class="module-title">${esc(m.title)}</div><p class="muted small">${esc(m.description || '')}</p></div><div class="module-status">${pct === 100 && ml.length ? '✓' : `${md}/${ml.length}`}</div></div><div class="module-progress"><span style="width:${pct}%"></span></div><div class="module-label">${pct === 100 && ml.length ? 'Módulo completado' : `${md} de ${ml.length} completadas`}</div>${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}"><button data-lesson="${l.id}"><span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}</small></span></button>${nextPending?.id === l.id ? '<span class="next-badge">SIGUIENTE</span>' : ''}</div>`).join('')}</div>`; }).join('') || '<div class="card"><p class="muted">Todavía no hay formación publicada.</p></div>'}</div><div class="lesson-view" id="lessonView"><div class="empty-lesson"><div class="empty-icon">▶</div><h2>Comienza tu formación</h2><p class="muted">Selecciona una lección para empezar. En móvil, el reproductor ocupará esta pantalla para que puedas ver el contenido sin buscarlo abajo.</p></div></div></div>`;
   window._lessons = orderedLessons;
@@ -714,16 +714,20 @@ function bind() {
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
-  $('#mobileProfile')?.addEventListener('click', (e) => { e.stopPropagation(); toggleProfileMenu(); });
-  $('#profileMenu')?.addEventListener('click', e => e.stopPropagation());
-  $('#openMyProfile')?.addEventListener('click', () => { closeProfileMenu(); if (session) nav('profile'); else nav('auth'); });
-  $('#menuLogout')?.addEventListener('click', () => { closeProfileMenu(); logout(); });
-  $('#saveProfile')?.addEventListener('click', saveProfile);
+  const profileBtn = $('#mobileProfile');
+  if (profileBtn) profileBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); toggleProfileMenu(); };
+  const profileMenu = $('#profileMenu');
+  if (profileMenu) profileMenu.onclick = e => e.stopPropagation();
+  const openMyProfile = $('#openMyProfile');
+  if (openMyProfile) openMyProfile.onclick = () => { closeProfileMenu(); if (session) nav('profile'); else nav('auth'); };
+  const menuLogout = $('#menuLogout');
+  if (menuLogout) menuLogout.onclick = () => { closeProfileMenu(); logout(); };
+  const saveProfileBtn = $('#saveProfile');
+  if (saveProfileBtn) saveProfileBtn.onclick = saveProfile;
   $('#pMethod')?.addEventListener('change', togglePaymentFields);
   $('#pCountry')?.addEventListener('change', () => {});
   $('#pBankCountry')?.addEventListener('change', populateBanks);
   $('#profileAvatar')?.addEventListener('change', uploadProfileAvatar);
-  $('#backHomeProfile')?.addEventListener('click', () => nav('home'));
   $('#saveHome')?.addEventListener('click', saveHome);
   $('#saveBenefits')?.addEventListener('click', saveBenefits);
   $('#bImage')?.addEventListener('change', previewBenefitsImage);
