@@ -245,7 +245,7 @@ async function spaceTpl() {
     sb.from('modules').select('id').eq('published', true),
     sb.from('lessons').select('id,module_id').eq('published', true),
     sb.from('lesson_progress').select('lesson_id').eq('user_id', session.user.id),
-    sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published').eq('published', true),
+    sb.rpc('get_my_published_missions'),
     sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id)
   ]);
 
@@ -281,7 +281,7 @@ async function spaceTpl() {
 
 async function missionsTpl() {
   if (!session) { $('#missions').innerHTML = authTpl('creator'); return; }
-  const { data: ms, error } = await sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to').eq('published', true).order('week_start',{ascending:false}).order('created_at',{ascending:false});
+  const { data: ms, error } = await sb.rpc('get_my_published_missions');
   if (error) { $('#missions').innerHTML = `<div class="card"><h2>Tus misiones</h2><div class="error">${esc(error.message)}</div><p class="muted small">Si acabas de activar las misiones, ejecuta el SQL de la carpeta del proyecto en Supabase.</p></div>`; return; }
   const today = new Date().toISOString().slice(0,10);
   const active = (ms || []).filter(m => (!m.week_start || m.week_start <= today) && (!m.week_end || m.week_end >= today) && (!m.assigned_to || m.assigned_to === session.user.id));
@@ -290,7 +290,7 @@ async function missionsTpl() {
   const pct = m => { const p=progress.get(m.id); if(!p)return 0; if(m.type==='checkbox')return p.completed?100:0; return m.target>0?Math.min(100,Math.round(Number(p.value||0)/Number(m.target)*100)):0; };
   const fmt = n => Number(n||0).toLocaleString('es-CO');
   const week = m => m.week_start || m.week_end ? `${m.week_start ? new Date(m.week_start+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '—'}${m.week_end ? ' · '+new Date(m.week_end+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : ''}` : 'Misión activa';
-  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Objetivos de la semana 🎯</h1><p class="muted">Completa tus misiones y registra tu avance. Tu progreso se guarda automáticamente.</p></div><button class="secondary" data-space-action="space">← Tu espacio</button></div><div class="missions-list">${active.map(m=>{const p=progress.get(m.id)||{value:0,completed:false};const v=pct(m);return `<div class="mission-card ${v>=100?'mission-complete':''}"><div class="mission-head"><div class="mission-icon">${m.type==='checkbox'?'✓':'↗'}</div><div><strong>${esc(m.title)}</strong><p class="muted small">${esc(m.description||'')}</p><small>${esc(week(m))}</small></div><span class="mission-pct">${v}%</span></div><div class="space-progress mission-progress"><span style="width:${v}%"></span></div><div class="mission-actions">${m.type==='checkbox'?`<button class="mission-check ${p.completed?'checked':''}" data-complete-mission="${m.id}">${p.completed?'✓ Misión realizada':'Marcar como realizada'}</button>`:`<div class="mission-number-wrap"><input type="number" min="0" step="1" value="${esc(p.value||0)}" id="missionValue-${m.id}" placeholder="0"><span>/ ${fmt(m.target)}</span></div><button class="mission-save" data-save-mission="${m.id}">Guardar avance</button>`}</div></div>`}).join('') || `<div class="card mission-empty"><div class="empty-icon">🎯</div><h2>No tienes misiones activas</h2><p class="muted">Cuando Grayxon publique nuevas misiones aparecerán aquí.</p></div>`}</div></div>`;
+  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Objetivos de la semana 🎯</h1><p class="muted">Completa tus misiones y registra tu avance. Tu progreso se guarda automáticamente.</p></div><button class="secondary" data-space-action="space">← Tu espacio</button></div><div class="missions-list">${active.map(m=>{const p=progress.get(m.id)||{value:0,completed:false};const v=pct(m);return `<div class="mission-card ${v>=100?'mission-complete':''}"><div class="mission-head"><div class="mission-icon">${m.type==='checkbox'?'✓':'↗'}</div><div><strong>${esc(m.title)}</strong><p class="muted small">${esc(m.description||'')}</p><small>${esc(week(m))}</small></div><span class="mission-pct">${v}%</span></div><div class="space-progress mission-progress"><span style="width:${v}%"></span></div><div class="mission-actions">${m.link_url?`<a class="mission-link" href="${esc(m.link_url)}" target="_blank" rel="noopener noreferrer">🔗 Abrir recurso</a>`:''}${m.type==='checkbox'?`<button class="mission-check ${p.completed?'checked':''}" data-complete-mission="${m.id}">${p.completed?'✓ Misión realizada':'Marcar como realizada'}</button>`:`<div class="mission-number-wrap"><input type="number" min="0" step="1" value="${esc(p.value||0)}" id="missionValue-${m.id}" placeholder="0"><span>/ ${fmt(m.target)}</span></div><button class="mission-save" data-save-mission="${m.id}">Guardar avance</button>`}</div></div>`}).join('') || `<div class="card mission-empty"><div class="empty-icon">🎯</div><h2>No tienes misiones activas</h2><p class="muted">Cuando Grayxon publique nuevas misiones aparecerán aquí.</p></div>`}</div></div>`;
 }
 
 async function completeMission(id){
@@ -448,9 +448,8 @@ async function adminTpl(c) {
   else if (adminView === 'home') body = adminHome(c.home);
   else if (adminView === 'benefits') body = adminBenefits(c.benefits);
   else if (adminView === 'creators') body = await adminCreators();
-  else if (adminView === 'missions') body = await adminMissions();
   else body = await adminFormation();
-  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['formation','Formación'],['missions','Misiones']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
+  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
 }
 
 function field(id, label, val, area = false) {
@@ -469,42 +468,65 @@ function adminBenefits(b) {
 async function adminCreators() {
   const { data, error } = await sb.from('profiles').select('id,username,full_name,active,role').eq('role','creator').order('full_name');
   if (error) return `<div class="card"><h2>Creadores</h2><div class="error">${esc(error.message)}</div></div>`;
-  return `<div class="card"><div class="row"><div><h2>Creadores</h2><p class="muted small">Cada creador entra con usuario + contraseña. El correo técnico nunca se muestra.</p></div><button class="primary" id="newCreator">+ Crear creador</button></div><div class="list" style="margin-top:18px">${(data || []).map(x => `<div class="item creator-admin-row"><div class="row"><div><b>${esc(x.full_name || x.username)}</b><div class="muted small">@${esc(x.username)}</div></div><div class="inline creator-access-actions"><span class="pill ${x.active ? 'ok' : ''}">${x.active ? 'Activo · acceso permitido' : 'Inactivo · acceso bloqueado'}</span><button class="secondary small creator-toggle ${x.active ? 'danger' : 'ok'}" data-toggle-creator="${x.id}">${x.active ? '🔒 Desactivar acceso' : '🔓 Activar acceso'}</button><button class="secondary small" data-view-profile="${x.id}">👤 Ver perfil</button></div></div></div>`).join('') || '<p class="muted">Aún no hay creadores.</p>'}</div></div>`;
+  return `<div class="card"><div class="row"><div><h2>Creadores</h2><p class="muted small">Cada creador entra con usuario + contraseña. El correo técnico nunca se muestra.</p></div><button class="primary" id="newCreator">+ Crear creador</button></div><div class="list" style="margin-top:18px">${(data || []).map(x => `<div class="item creator-admin-row"><div class="row"><div><b>${esc(x.full_name || x.username)}</b><div class="muted small">@${esc(x.username)}</div></div><div class="inline creator-access-actions"><span class="pill ${x.active ? 'ok' : ''}">${x.active ? 'Activo · acceso permitido' : 'Inactivo · acceso bloqueado'}</span><button class="secondary small creator-toggle ${x.active ? 'danger' : 'ok'}" data-toggle-creator="${x.id}">${x.active ? '🔒 Desactivar acceso' : '🔓 Activar acceso'}</button><button class="secondary small" data-view-profile="${x.id}">👤 Perfil y misiones</button></div></div></div>`).join('') || '<p class="muted">Aún no hay creadores.</p>'}</div></div>`;
 }
 
 
-async function adminMissions(){
-  const [{data:ms,error:me},{data:creators}] = await Promise.all([
-    sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,created_at').order('week_start',{ascending:false}).order('created_at',{ascending:false}),
-    sb.from('profiles').select('id,username,full_name').eq('role','creator').order('full_name')
-  ]);
-  if(me) return `<div class="card"><h2>Misiones</h2><div class="error">${esc(me.message)}</div><p class="muted small">Ejecuta el SQL incluido en el proyecto para crear las tablas de misiones.</p></div>`;
-  const creatorOptions=`<option value="">Todos los creadores</option>${(creators||[]).map(c=>`<option value="${c.id}">${esc(c.full_name||c.username)} · @${esc(c.username)}</option>`).join('')}`;
-  return `<div class="card"><div class="row"><div><h2>Misiones semanales</h2><p class="muted small">Crea objetivos para todos los creadores o asígnalos a una persona específica.</p></div><button class="primary" id="newMission">+ Crear misión</button></div><div class="list" style="margin-top:18px">${(ms||[]).map(m=>`<div class="item mission-admin-row"><div class="row"><div><b>${esc(m.title)}</b><div class="muted small">${esc(m.description||'')}${m.week_start||m.week_end?` · ${esc(m.week_start||'')} → ${esc(m.week_end||'')}`:''}</div><div class="muted small" style="margin-top:5px">${m.type==='checkbox'?'Marcable':'Meta numérica'}${m.target?` · Meta: ${Number(m.target).toLocaleString('es-CO')}`:''} · ${m.assigned_to ? 'Asignada a un creador' : 'Todos los creadores'}</div></div><div class="inline"><span class="pill ${m.published?'ok':''}">${m.published?'Publicada':'Oculta'}</span><button class="secondary small" data-edit-mission="${m.id}">Editar</button><button class="secondary small ${m.published?'danger':'ok'}" data-toggle-mission="${m.id}">${m.published?'Ocultar':'Publicar'}</button><button class="secondary small danger" data-delete-mission="${m.id}">Eliminar</button></div></div></div>`).join('') || '<p class="muted">Aún no hay misiones.</p>'}</div></div>`;
+function localDateISO(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
 }
-function missionModal(existing=null){
-  const el=document.createElement('div'); el.className='modal-backdrop';
-  el.innerHTML=`<div class="card modal"><h2>${existing?'Editar misión':'Crear misión'}</h2>${field('mTitle','Título',existing?.title||'')}${field('mDesc','Descripción',existing?.description||'',true)}<label class="field"><span>Tipo</span><select id="mType"><option value="checkbox" ${existing?.type!=='numeric'?'selected':''}>Marcable</option><option value="numeric" ${existing?.type==='numeric'?'selected':''}>Meta numérica</option></select></label>${field('mTarget','Meta numérica (si aplica)',existing?.target||'')}<div class="grid"><div class="field"><label>Inicio de la semana</label><input id="mStart" type="date" value="${existing?.week_start||''}"></div><div class="field"><label>Fin de la semana</label><input id="mEnd" type="date" value="${existing?.week_end||''}"></div></div><label class="field"><span>Asignar a</span><select id="mAssignee"><option value="">Todos los creadores</option></select></label><label class="field"><span>Publicación</span><select id="mPublished"><option value="true" ${existing?.published!==false?'selected':''}>Publicada</option><option value="false" ${existing?.published===false?'selected':''}>Oculta</option></select></label><div class="inline" style="margin-top:18px"><button class="primary" id="saveMission">${existing?'Guardar cambios':'Crear misión'}</button><button class="secondary" id="cancelMission">Cancelar</button></div><div id="missionErr" class="error"></div></div>`;
-  document.body.appendChild(el);
-  sb.from('profiles').select('id,username,full_name').eq('role','creator').order('full_name').then(({data})=>{const s=$('#mAssignee');(data||[]).forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=`${c.full_name||c.username} · @${c.username}`;if(existing?.assigned_to===c.id)o.selected=true;s.appendChild(o);});});
-  $('#cancelMission').onclick=()=>el.remove(); $('#saveMission').onclick=async()=>{const btn=$('#saveMission');btn.disabled=true;const payload={title:$('#mTitle').value.trim(),description:$('#mDesc').value.trim(),type:$('#mType').value,target:Math.max(0,Number($('#mTarget').value||0)),week_start:$('#mStart').value||null,week_end:$('#mEnd').value||null,assigned_to:$('#mAssignee').value||null,published:$('#mPublished').value==='true'};if(!payload.title){$('#missionErr').textContent='Escribe un título.';btn.disabled=false;return;}if(payload.type==='numeric'&&!payload.target){$('#missionErr').textContent='Define una meta numérica.';btn.disabled=false;return;}const r=existing?await sb.from('missions').update(payload).eq('id',existing.id):await sb.from('missions').insert(payload);if(r.error){$('#missionErr').textContent=r.error.message;btn.disabled=false;return;}el.remove();toast(existing?'Misión actualizada ✓':'Misión creada ✓');render();};
+function currentWeekRange(){
+  const now=new Date();
+  const day=now.getDay();
+  const diffToMonday=day===0 ? -6 : 1-day;
+  const start=new Date(now); start.setDate(now.getDate()+diffToMonday);
+  const end=new Date(start); end.setDate(start.getDate()+6);
+  return {start:localDateISO(start), end:localDateISO(end)};
 }
-async function editMission(id){const {data,error}=await sb.from('missions').select('*').eq('id',id).single();if(error)return toast(error.message);missionModal(data);}
-async function toggleMission(id){const {data,error}=await sb.from('missions').select('published').eq('id',id).single();if(error)return toast(error.message);const {error:e}=await sb.from('missions').update({published:!data.published}).eq('id',id);if(e)return toast(e.message);toast(data.published?'Misión ocultada':'Misión publicada ✓');render();}
-async function deleteMission(id){if(!confirm('¿Eliminar esta misión?'))return;const {error}=await sb.from('missions').delete().eq('id',id);if(error)return toast(error.message);toast('Misión eliminada');render();}
+function validMissionLink(url){
+  if(!url) return null;
+  const v=url.trim();
+  if(!v) return null;
+  try { const u=new URL(v); return ['http:','https:'].includes(u.protocol) ? u.href : null; }
+  catch { return null; }
+}
 
 async function adminProfileModal(id){
-  const [{data:d,error:de},{data:pm,error:pe},{data:p,error:pr}] = await Promise.all([
+  const [{data:d,error:de},{data:pm,error:pe},{data:p,error:pr},{data:missions,error:me},{data:progress,error:mpe}] = await Promise.all([
     sb.from('profile_details').select('*').eq('user_id',id).maybeSingle(),
     sb.from('payment_methods').select('*').eq('user_id',id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
-    sb.from('profiles').select('username,full_name').eq('id',id).single()
+    sb.from('profiles').select('id,username,full_name,active').eq('id',id).single(),
+    sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at').eq('assigned_to',id).order('week_start',{ascending:false}).order('created_at',{ascending:false}),
+    sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',id)
   ]);
   if(pr) return toast(pr.message);
+  if(me) return toast(me.message);
   const modalEl=document.createElement('div'); modalEl.className='modal-backdrop';
   const safe=x=>x?esc(x):'—';
-  modalEl.innerHTML=`<div class="card modal"><div class="row"><div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)}</div></div><button class="secondary" id="closeProfileModal">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:18px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type==='savings'?'Ahorros':pm?.account_type==='checking'?'Corriente':pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div></div>`;
-  document.body.appendChild(modalEl); $('#closeProfileModal').onclick=()=>modalEl.remove();
+  const prog=new Map((progress||[]).map(x=>[x.mission_id,x]));
+  const missionPct=m=>{const x=prog.get(m.id);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0;};
+  const missionRows=(missions||[]).map(m=>{const pct=missionPct(m);return `<div class="item creator-mission-row ${pct>=100?'creator-mission-done':''}"><div class="row"><div><b>${esc(m.title)}</b><div class="muted small">${esc(m.description||'')}</div><div class="muted small" style="margin-top:5px">${m.type==='checkbox'?'Marcable':'Meta numérica'}${m.type==='numeric'?` · ${Number(m.target||0).toLocaleString('es-CO')}`:''}${m.week_start||m.week_end?` · ${esc(m.week_start||'')} → ${esc(m.week_end||'')}`:''}</div>${m.link_url?`<a class="mission-admin-link" href="${esc(m.link_url)}" target="_blank" rel="noopener noreferrer">🔗 ${esc(m.link_url)}</a>`:''}</div><div class="inline creator-mission-actions"><span class="pill ${m.published?'ok':''}">${m.published?'Publicada':'Oculta'}</span><span class="pill ${pct>=100?'ok':''}">${pct}%</span><button class="secondary small" data-edit-creator-mission="${m.id}" data-creator-id="${id}">Editar</button><button class="secondary small ${m.published?'danger':'ok'}" data-toggle-creator-mission="${m.id}" data-creator-id="${id}">${m.published?'Ocultar':'Publicar'}</button><button class="secondary small danger" data-delete-creator-mission="${m.id}" data-creator-id="${id}">Eliminar</button></div></div><div class="space-progress" style="margin-top:10px"><span style="width:${pct}%"></span></div></div>`;}).join('');
+  modalEl.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div><button class="secondary" id="closeProfileModal">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type==='savings'?'Ahorros':pm?.account_type==='checking'?'Corriente':pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="creator-missions-section"><div class="row"><div><h3 style="margin-bottom:3px">🎯 Misiones del creador</h3><p class="muted small" style="margin:0">Agrega todas las misiones que quieras directamente a este creador.</p></div><button class="primary small" id="newCreatorMission">+ Agregar misión</button></div><div class="list" style="margin-top:12px">${missionRows || '<div class="item"><p class="muted small" style="margin:0">Este creador todavía no tiene misiones asignadas.</p></div>'}</div></div></div>`;
+  document.body.appendChild(modalEl);
+  $('#closeProfileModal').onclick=()=>modalEl.remove();
+  $('#newCreatorMission').onclick=()=>creatorMissionModal(id);
+  modalEl.querySelectorAll('[data-edit-creator-mission]').forEach(b=>b.onclick=()=>creatorMissionModal(id,b.dataset.editCreatorMission));
+  modalEl.querySelectorAll('[data-toggle-creator-mission]').forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from('missions').select('published').eq('id',b.dataset.toggleCreatorMission).single();if(error)return toast(error.message);const {error:e}=await sb.from('missions').update({published:!data.published}).eq('id',b.dataset.toggleCreatorMission);if(e)return toast(e.message);toast(data.published?'Misión ocultada':'Misión publicada ✓');modalEl.remove();await adminProfileModal(id);});
+  modalEl.querySelectorAll('[data-delete-creator-mission]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Eliminar esta misión y su progreso?'))return;const {error}=await sb.from('missions').delete().eq('id',b.dataset.deleteCreatorMission);if(error)return toast(error.message);toast('Misión eliminada');modalEl.remove();await adminProfileModal(id);});
 }
+
+async function creatorMissionModal(creatorId, existingId=null){
+  let existing=null;
+  if(existingId){const {data,error}=await sb.from('missions').select('*').eq('id',existingId).single();if(error)return toast(error.message);existing=data;}
+  const week=currentWeekRange();
+  const el=document.createElement('div'); el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal"><div class="row"><div><div class="eyebrow">MISIÓN DEL CREADOR</div><h2>${existing?'Editar misión':'Agregar misión'}</h2></div><button class="secondary" id="cancelCreatorMission">Cerrar</button></div>${field('cmTitle','Título',existing?.title||'')}${field('cmDesc','Descripción',existing?.description||'',true)}<label class="field"><span>Tipo</span><select id="cmType"><option value="checkbox" ${existing?.type!=='numeric'?'selected':''}>Marcable</option><option value="numeric" ${existing?.type==='numeric'?'selected':''}>Meta numérica</option></select></label>${field('cmTarget','Meta numérica (si aplica)',existing?.target||'')}<div class="grid"><div class="field"><label>Inicio</label><input id="cmStart" type="date" value="${existing?.week_start||week.start}"></div><div class="field"><label>Fin</label><input id="cmEnd" type="date" value="${existing?.week_end||week.end}"></div></div>${field('cmLink','Link clickeable (opcional)',existing?.link_url||'')}<label class="field"><span>Estado</span><select id="cmPublished"><option value="true" ${existing?.published!==false?'selected':''}>Publicada</option><option value="false" ${existing?.published===false?'selected':''}>Oculta</option></select></label><div class="creator-mission-target-note">Esta misión se asignará exclusivamente a <b>${esc((await sb.from('profiles').select('full_name,username').eq('id',creatorId).single()).data?.full_name || 'este creador')}</b>.</div><div class="inline" style="margin-top:18px;justify-content:center"><button class="primary" id="saveCreatorMission">${existing?'Guardar cambios':'Agregar misión'}</button></div><div id="creatorMissionErr" class="error"></div></div>`;
+  document.body.appendChild(el);
+  $('#cancelCreatorMission').onclick=()=>el.remove();
+  $('#saveCreatorMission').onclick=async()=>{const btn=$('#saveCreatorMission');btn.disabled=true;const link=validMissionLink($('#cmLink').value);if($('#cmLink').value.trim()&&!link){$('#creatorMissionErr').textContent='El link debe comenzar con http:// o https://';btn.disabled=false;return;}const type=$('#cmType').value;const target=Math.max(0,Number($('#cmTarget').value||0));if(!$('#cmTitle').value.trim()){ $('#creatorMissionErr').textContent='Escribe un título.';btn.disabled=false;return;}if(type==='numeric'&&!target){$('#creatorMissionErr').textContent='Define una meta numérica.';btn.disabled=false;return;}const payload={title:$('#cmTitle').value.trim(),description:$('#cmDesc').value.trim(),type,target,week_start:$('#cmStart').value||null,week_end:$('#cmEnd').value||null,assigned_to:creatorId,published:$('#cmPublished').value==='true',link_url:link};const r=existingId?await sb.from('missions').update(payload).eq('id',existingId):await sb.from('missions').insert(payload);if(r.error){$('#creatorMissionErr').textContent=r.error.message;btn.disabled=false;return;}el.remove();toast(existingId?'Misión actualizada ✓':'Misión asignada ✓');const old=document.querySelector('.creator-profile-modal')?.parentElement;if(old)old.remove();await adminProfileModal(creatorId);};
+}
+
 async function toggleCreator(id) {
   const { data: cur, error: readError } = await sb.from('profiles').select('id,username,full_name,active').eq('id', id).single();
   if (readError || !cur) return toast(readError?.message || 'No se encontró el creador.');
@@ -817,10 +839,6 @@ function bind() {
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
-  $('#newMission')?.addEventListener('click', () => missionModal());
-  $$('[data-edit-mission]').forEach(b => b.onclick = () => editMission(b.dataset.editMission));
-  $$('[data-toggle-mission]').forEach(b => b.onclick = () => toggleMission(b.dataset.toggleMission));
-  $$('[data-delete-mission]').forEach(b => b.onclick = () => deleteMission(b.dataset.deleteMission));
   // Account menu is wired once globally below. Do not bind it here on every render.
   const saveProfileBtn = $('#saveProfile');
   if (saveProfileBtn) saveProfileBtn.onclick = saveProfile;
