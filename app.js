@@ -89,8 +89,6 @@ function homeTpl(h) {
   return `<div class="home-modern">
     <section class="modern-hero">
       <div class="modern-hero-copy">
-        <div class="modern-kicker"><span>GRAYXON</span></div>
-        <h1>Crece. Aprende. Conecta con <em>Grayxon.</em></h1>
         <div class="brand-connection-inline" aria-label="Grayxon y TikTok LIVE">
           <img src="assets/grayxon-logo.png" alt="Grayxon">
           <span></span>
@@ -118,7 +116,6 @@ function homeTpl(h) {
       <div class="modern-creator-art" aria-hidden="true">
         <div class="creator-aura"></div>
         <img src="assets/creator-grayxon.png" alt="">
-        <div class="creator-brand-tag"><img src="assets/grayxon-logo.png" alt="Grayxon"><span>TikTok LIVE</span></div>
       </div>
     </section>
   </div>`;

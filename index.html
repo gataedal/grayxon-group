@@ -77,9 +77,47 @@
 }
 </style>
 
+<style>
+/* v5 FINAL MOBILE POLISH */
+html,body{background:#08090b!important;min-height:100%;}
+body{min-height:100svh!important;}
+#home{min-height:calc(100svh - 70px);background:#08090b;}
+.modern-kicker,.creator-brand-tag{display:none!important;}
+.brand-connection-inline{justify-content:center!important;width:100%;margin:0 0 12px!important;gap:18px!important;height:44px!important;}
+.brand-connection-inline img:first-child{width:118px!important;height:38px!important;object-fit:contain;}
+.brand-connection-inline img:last-child{width:112px!important;height:36px!important;object-fit:contain;}
+.brand-connection-inline span{height:30px!important;}
+.modern-trust{justify-content:center!important;align-items:center!important;width:100%;}
+.hero-socials{width:100%;}
+.modern-hero{min-height:calc(100svh - 86px)!important;}
+@media(max-width:800px){
+  .top{height:64px!important;padding:0 12px!important;}
+  .mobile-profile{display:grid!important;width:40px!important;height:40px!important;place-items:center;}
+  .modern-hero{min-height:calc(100svh - 78px)!important;height:auto!important;margin-bottom:0!important;}
+  .modern-hero-copy{padding:22px 16px 20px!important;align-items:center!important;text-align:center!important;}
+  .brand-connection-inline{height:42px!important;margin:0 0 9px!important;gap:14px!important;}
+  .brand-connection-inline img:first-child{width:96px!important;height:32px!important;}
+  .brand-connection-inline img:last-child{width:100px!important;height:32px!important;}
+  .brand-connection-inline span{height:25px!important;}
+  .modern-hero h1{font-size:18px!important;line-height:1.1!important;white-space:nowrap!important;letter-spacing:-.04em!important;margin:3px 0 10px!important;max-width:100%!important;}
+  .modern-intro{max-width:330px!important;text-align:center!important;font-size:11px!important;}
+  .modern-about{width:100%!important;text-align:left!important;}
+  .modern-trust{justify-content:center!important;flex-wrap:nowrap!important;gap:6px!important;}
+  .modern-trust span{font-size:8px!important;padding:5px 7px!important;white-space:nowrap;}
+  .hero-socials{width:100%!important;text-align:left!important;}
+  .hero-actions{width:100%!important;}
+  .modern-creator-art{right:-16%!important;top:23%!important;width:63%!important;height:76%!important;}
+  .modern-creator-art>img{object-position:24% center!important;}
+  .wrap{padding:10px 10px 0!important;min-height:calc(100svh - 64px)!important;}
+  body{padding-bottom:0!important;}
+}
+@media(min-width:801px){
+  .modern-hero-copy{align-items:flex-start;}
+}
+</style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
-<header class="top"><div class="brand"><img class="logo" src="assets/grayxon-logo.png" alt="Grayxon"><b>GRAYXON</b><span class="brand-live">LIVE</span></div><nav class="nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="auth" data-auth-mode="creator">Mi espacio</button></nav><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Abrir menú" aria-expanded="false"><i></i><i></i><i></i></button><button id="mobileProfile" class="mobile-profile" aria-label="Mi espacio">G</button></div><div id="mobileNav" class="mobile-nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="auth" data-auth-mode="creator">Mi espacio</button><button id="mobileAdminOpen">⚙ Admin</button></div></header>
+<header class="top"><div class="brand"><img class="logo" src="assets/grayxon-logo.png" alt="Grayxon"><b>GRAYXON</b><span class="brand-live">LIVE</span></div><nav class="nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="auth" data-auth-mode="creator">Mi espacio</button></nav><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><button id="mobileProfile" class="mobile-profile" aria-label="Mi espacio">G</button></div></header>
 <main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="training" class="page hidden"></section><section id="admin" class="page hidden"></section></main>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
