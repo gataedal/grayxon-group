@@ -418,7 +418,7 @@ function profileTpl(){
   </div>`;
 }
 function authTpl() {
-  return `<div class="login"><div class="eyebrow">GRAYXON · ACCESO</div><h2 style="margin-top:8px">Inicia sesión</h2><p class="muted">Usa el usuario o correo y la contraseña de tu cuenta. Grayxon detectará automáticamente si eres administrador, manager o creador y abrirá el panel correspondiente.</p><div class="field"><label>Usuario o correo</label><input id="loginUser" autocomplete="username" placeholder="Ej. andrea.onyx o correo@ejemplo.com"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button></div>`;
+  return `<div class="login"><div class="eyebrow">GRAYXON · ACCESO</div><h2 style="margin-top:8px">Inicia sesión</h2><p class="muted">Usa el usuario o correo y la contraseña de tu cuenta. Grayxon detectará automáticamente si eres administrador, manager o creador y abrirá el panel correspondiente.</p><div class="field"><label>Usuario o correo</label><input id="loginUser" autocomplete="username" placeholder="Ej. andrea.onyx o correo@ejemplo.com"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button><button class="secondary small" id="forgotPasswordBtn" style="margin-top:10px">¿Olvidaste tu contraseña?</button><div id="resetBox" class="hidden" style="margin-top:14px"><div class="muted small" style="margin-bottom:8px">Escribe tu correo para recibir un enlace de recuperación.</div><input id="resetEmail" type="email" placeholder="correo@ejemplo.com"><button class="secondary small" id="sendResetBtn" style="margin-top:8px">Enviar enlace</button><div id="resetErr" class="error" style="margin-top:8px"></div></div></div>`;
 }
 
 async function getProfile() {
@@ -714,10 +714,9 @@ async function completeLesson(id, options = {}) {
 async function managerTpl(){
   if(!session){ $('#manager').innerHTML=authTpl(); return; }
   if(profile?.role!=='manager'){ $('#manager').innerHTML='<div class="login"><h2>Acceso restringido</h2><p class="muted">Esta sección es solo para managers.</p></div>'; return; }
-  const [{data:me,error:meErr},{data:creators,error:crErr}]=await Promise.all([
-    sb.from('managers').select('id,name,phone,email,username,active').eq('user_id',session.user.id).maybeSingle(),
-    sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('role','creator').eq('manager_id',profile.manager_id).order('full_name')
-  ]);
+  const {data:me,error:meErr}=await sb.from('managers').select('id,name,phone,email,username,active').eq('user_id',session.user.id).maybeSingle();
+  if(meErr||!me){ $('#manager').innerHTML=`<div class="card"><h2>Panel de manager</h2><div class="error">${esc(meErr?.message||'No se encontró tu registro de manager.')}</div></div>`; return; }
+  const {data:creators,error:crErr}=await sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('role','creator').eq('manager_id',me.id).order('full_name');
   if(meErr||crErr){ $('#manager').innerHTML=`<div class="card"><h2>Panel de manager</h2><div class="error">${esc((meErr||crErr)?.message||'No se pudo cargar tu panel.')}</div></div>`; return; }
   const creatorIds=(creators||[]).map(x=>x.id);
   let missions=[], progress=[];
@@ -1565,6 +1564,8 @@ function bind() {
   $('#mobileAdminOpen')?.addEventListener('click', () => { if(session) nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space'); else nav('auth'); });
   $$('#mobileNav [data-page]').forEach(b => b.addEventListener('click', () => $('#mobileNav')?.classList.remove('open')));
   $('#loginBtn')?.addEventListener('click', login);
+  $('#forgotPasswordBtn')?.addEventListener('click',()=>$('#resetBox')?.classList.toggle('hidden'));
+  $('#sendResetBtn')?.addEventListener('click',sendPasswordReset);
   $('#adminLogout')?.addEventListener('click', logout);
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
   $$('[data-complete-mission]').forEach(b => b.onclick = () => completeMission(b.dataset.completeMission));
@@ -1685,6 +1686,21 @@ function updateProfileBadge(){
   if(name) name.textContent=session ? (profile?.full_name || profile?.username || 'Mi cuenta') : 'Mi cuenta';
   if(role) role.textContent=session ? (profile?.role==='admin' ? 'Administrador' : profile?.role==='manager' ? 'Manager' : 'Creador') : 'Inicia sesión para acceder';
 }
+async function sendPasswordReset(){
+  const email=($('#resetEmail')?.value||$('#loginUser')?.value||'').trim().toLowerCase();
+  const err=$('#resetErr');
+  if(!email || !email.includes('@')){if(err)err.textContent='Escribe un correo válido.';return;}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+  if(err)err.textContent=error?error.message:'Enlace enviado. Revisa tu correo.';
+}
+
+async function finishPasswordRecovery(){
+  const box=document.createElement('div');box.className='modal-backdrop';
+  box.innerHTML=`<div class="card modal"><h2>Crear nueva contraseña</h2><p class="muted small">Tu enlace de recuperación es válido. Define una nueva contraseña para volver a entrar.</p><div class="field"><label>Nueva contraseña</label><input id="newRecoveryPass" type="password" autocomplete="new-password"></div><div class="field"><label>Repetir contraseña</label><input id="newRecoveryPass2" type="password" autocomplete="new-password"></div><div id="recoveryErr" class="error"></div><div class="inline"><button class="primary" id="saveRecoveryPass">Guardar contraseña</button></div></div>`;
+  document.body.appendChild(box);
+  $('#saveRecoveryPass').onclick=async()=>{const a=$('#newRecoveryPass').value,b=$('#newRecoveryPass2').value,err=$('#recoveryErr');if(a.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres.';return;}if(a!==b){err.textContent='Las contraseñas no coinciden.';return;}const btn=$('#saveRecoveryPass');btn.disabled=true;const {error}=await sb.auth.updateUser({password:a});if(error){err.textContent=error.message;btn.disabled=false;return;}box.remove();toast('Contraseña actualizada ✓');await sb.auth.signOut();session=null;profile=null;nav('auth');};
+}
+
 async function login() {
   const input = $('#loginUser')?.value.trim() || '';
   const p = $('#loginPass')?.value || '';
@@ -1840,6 +1856,13 @@ async function init() {
   const initialPage = ['home','benefits','auth','space','manager','training','missions','profile','admin'].includes(hashPage) ? hashPage : 'home';
   nav(initialPage, false);
 }
+
+sb.auth.onAuthStateChange((event,newSession)=>{
+  if(event==='PASSWORD_RECOVERY' && newSession){
+    session=newSession;
+    setTimeout(()=>finishPasswordRecovery(),0);
+  }
+});
 
 init();
 
