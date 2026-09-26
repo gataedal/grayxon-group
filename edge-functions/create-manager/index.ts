@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     if (existingManager.user_id) return json({ error: 'Este manager ya tiene un acceso activo.' }, 409)
   }
 
-  const syntheticEmail = `${username}@users.grayxon.local`
+  const syntheticEmail = `${username}@users.grayxongroup.com`
   const { data: created, error: createError } = await adminClient.auth.admin.createUser({ email: syntheticEmail, password, email_confirm: true, user_metadata: { username, full_name: fullName, role: 'manager' } })
   if (createError || !created.user) return json({ error: createError?.message || 'No se pudo crear el usuario de Auth.' }, 400)
   const userId = created.user.id

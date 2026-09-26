@@ -1,4 +1,8 @@
 const CFG = window.GRAYXON_CONFIG || {};
+// Auth uses a syntactically valid internal domain. Users still log in only with
+// their Grayxon username; this address is never shown in the portal UI.
+const LOGIN_EMAIL_DOMAIN = 'users.grayxongroup.com';
+const LEGACY_LOGIN_EMAIL_DOMAIN = 'users.grayxon.local';
 const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_PUBLISHABLE_KEY);
 async function createManagerAccess(body){
   const { data: sessionData } = await sb.auth.getSession();
@@ -1444,11 +1448,26 @@ async function login() {
     }
   }
 
-  // Admin puede entrar con su correo real o con su username.
-  // Creadores siempre usan username; su correo técnico nunca se muestra.
-  const email = value.includes('@') ? value : `${value}@users.grayxon.local`;
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: p });
-  if (error) { $('#loginErr').textContent = 'Usuario o contraseña incorrectos.'; return; }
+  // Admin puede entrar con su correo real. Managers/creadores usan username;
+  // el correo técnico nunca se muestra al usuario.
+  // El dominio nuevo es válido para Auth. El dominio .local se conserva solo
+  // como fallback temporal para cuentas antiguas que aún no hayan migrado.
+  const candidateEmails = value.includes('@')
+    ? [value]
+    : [`${value}@${LOGIN_EMAIL_DOMAIN}`, `${value}@${LEGACY_LOGIN_EMAIL_DOMAIN}`];
+
+  let data = null;
+  let authError = null;
+  for (const email of candidateEmails) {
+    const result = await sb.auth.signInWithPassword({ email, password: p });
+    if (!result.error && result.data?.session) {
+      data = result.data;
+      authError = null;
+      break;
+    }
+    authError = result.error;
+  }
+  if (!data?.session) { $('#loginErr').textContent = 'Usuario o contraseña incorrectos.'; return; }
 
   session = data.session;
   profile = await getProfile();
