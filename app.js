@@ -197,7 +197,7 @@ function renderSpaceShell(){
   const el=$('#space'); if(!el) return;
   if(!session){ el.innerHTML=authTpl('creator'); return; }
   const base=profile||{full_name:session.user.user_metadata?.full_name||'',username:session.user.user_metadata?.username||session.user.email?.split('@')[0]||'creador'};
-  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.full_name||base.username)} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong><span class="space-manager-line">Manager: preparando información…</span></div></div></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}</div></div>`;
+  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong><span class="space-manager-line">Manager: preparando información…</span></div></div></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}</div></div>`;
   bind();
 }
 function updateSpaceTeam(a){
@@ -207,7 +207,7 @@ function updateSpaceTeam(a){
     const contact = m?.phone
       ? `<a class="space-team-contact" href="${esc(managerWhatsapp(m.phone))}" target="_blank" rel="noopener noreferrer"><img src="assets/whatsapp-icon.svg" alt=""><span>Contacta tu manager</span></a>`
       : '';
-    el.innerHTML=`<div class="space-team-one-line"><span>Tu equipo</span><b>:</b><strong>${esc(a.team.name)}</strong><b>:</b>${contact}</div>`;
+    el.innerHTML=`<div class="space-team-stack"><div class="space-team-name"><span>Tu equipo</span><b>:</b><strong>${esc(a.team.name)}</strong></div>${m?.phone ? `<div class="space-manager-name">Manager: <strong>${esc(m.name||'Manager')}</strong></div><div class="space-manager-action">${contact}</div>` : `<div class="space-manager-name">Manager: <strong>${esc(m?.name||'Sin manager asignado')}</strong></div>`}</div>`;
   } else {
     el.innerHTML=`<div class="space-team-one-line"><span>Tu equipo</span><b>:</b><span>Aún no tienes equipo asignado</span></div>`;
   }
