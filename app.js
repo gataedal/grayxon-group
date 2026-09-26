@@ -346,12 +346,14 @@ async function getProfile() {
 
 async function loadCreatorAssignment(){
   if(!session?.user?.id) return {team:null,manager:null};
-  const {data:pr} = await sb.from('profiles').select('team_id').eq('id',session.user.id).maybeSingle();
-  if(!pr?.team_id) return {team:null,manager:null};
-  const {data:team} = await sb.from('teams').select('id,name,manager_id').eq('id',pr.team_id).maybeSingle();
-  if(!team) return {team:null,manager:null};
-  const {data:manager} = team.manager_id ? await sb.from('managers').select('id,name,phone,email').eq('id',team.manager_id).maybeSingle() : {data:null};
-  return {team,manager:manager||null};
+  try {
+    const {data:pr,error:pe} = await sb.from('profiles').select('team_id').eq('id',session.user.id).maybeSingle();
+    if(pe || !pr?.team_id) return {team:null,manager:null};
+    const {data:team,error:te} = await sb.from('teams').select('id,name,manager_id').eq('id',pr.team_id).maybeSingle();
+    if(te || !team) return {team:null,manager:null};
+    const {data:manager} = team.manager_id ? await sb.from('managers').select('id,name,phone,email').eq('id',team.manager_id).maybeSingle() : {data:null};
+    return {team,manager:manager||null};
+  } catch(e) { return {team:null,manager:null}; }
 }
 function managerWhatsapp(phone){
   const raw=String(phone||'').replace(/[^0-9]/g,'');
@@ -1165,6 +1167,7 @@ function bind() {
   $('#mobileMenuBtn')?.addEventListener('click', () => { const m = $('#mobileNav'); const open = m?.classList.toggle('open'); $('#mobileMenuBtn')?.setAttribute('aria-expanded', open ? 'true' : 'false'); });
   $('#mobileAdminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
   $$('#mobileNav [data-page]').forEach(b => b.addEventListener('click', () => $('#mobileNav')?.classList.remove('open')));
+  $('#openMySpace')?.addEventListener('click', () => { closeProfileMenu(); nav('space'); });
   $('#loginBtn')?.addEventListener('click', login);
   $('#adminLogout')?.addEventListener('click', logout);
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
@@ -1383,6 +1386,7 @@ async function init() {
   const notificationsPanel = $('#notificationsPanel');
   const profileMenu = $('#profileMenu');
   const openMyProfile = $('#openMyProfile');
+  const openMySpace = $('#openMySpace');
   const menuLogout = $('#menuLogout');
 
   if (notificationsBtn) notificationsBtn.addEventListener('click', (e) => {
@@ -1406,6 +1410,7 @@ async function init() {
     closeProfileMenu();
     if (session) nav('profile'); else nav('auth');
   });
+  if (openMySpace) openMySpace.addEventListener('click', () => { closeProfileMenu(); if (session) nav('space'); else nav('auth'); });
   if (menuLogout) menuLogout.addEventListener('click', () => {
     closeProfileMenu();
     logout();
