@@ -146,28 +146,30 @@ async function notifyCreators(title, message, linkPage='space') {
 }
 
 async function notifyCreator(userId, title, message, linkPage='space', weekStart=null, weekEnd=null) {
-  // La vía principal es el RPC protegido para evitar problemas de RLS.
-  const rpc = await sb.rpc('send_creator_notification', { p_user_id: userId, p_type: 'mission', p_title: title, p_message: message, p_link_page: linkPage, p_week_start: weekStart, p_week_end: weekEnd });
-  if (!rpc.error) return true;
-  // Respaldo para instalaciones donde el RPC aún no esté disponible.
-  const payload = { user_id:userId, type:'mission', title, message, link_page:linkPage, related_week_start:weekStart, related_week_end:weekEnd };
+  if (!userId) return {ok:false,error:'Falta el ID del creador.'};
+  const payload = { user_id:userId, type:'mission', title, message, link_page:linkPage, related_week_start:weekStart || null, related_week_end:weekEnd || null };
+  // Usamos el RPC ya creado en la configuración de notificaciones.
+  const rpc = await sb.rpc('create_notification', { p_user_id:userId, p_type:'mission', p_title:title, p_message:message, p_link_page:linkPage, p_week_start:weekStart || null, p_week_end:weekEnd || null });
+  if (!rpc.error) return {ok:true};
+  // Respaldo directo para administradores; la política RLS de v26 permite INSERT a admins.
   const direct = await sb.from('notifications').insert(payload);
-  if (!direct.error) return true;
-  console.warn('No se pudo crear la notificación:', rpc.error.message, direct.error.message);
-  return false;
+  if (!direct.error) return {ok:true};
+  const detail = `RPC: ${rpc.error.message || rpc.error.code || 'error desconocido'} · INSERT: ${direct.error.message || direct.error.code || 'error desconocido'}`;
+  console.warn('No se pudo crear la notificación:', {rpc:rpc.error, direct:direct.error, userId});
+  return {ok:false,error:detail};
 }
 
 async function notifyMissionWeek(creatorId, start, end, count) {
   if (!creatorId || !start || !end) return false;
   const message = `Se te han asignado ${count} ${count===1?'misión':'misiones'} para esta semana (${start} → ${end}).`;
-  const ok = await notifyCreator(creatorId, 'Tienes una notificación nueva', message, 'missions', start, end);
-  if (ok) {
+  const result = await notifyCreator(creatorId, 'Tienes una notificación nueva', message, 'missions', start, end);
+  if (result.ok) {
     if (session?.user?.id === creatorId) await loadNotifications();
     toast('Notificación enviada ✓');
-  } else {
-    toast('No se pudo enviar la notificación. Revisa la configuración de Supabase.');
+    return true;
   }
-  return ok;
+  toast(`No se pudo enviar: ${result.error}`);
+  return false;
 }
 
 async function content() {
@@ -1388,7 +1390,7 @@ async function init() {
 init();
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && session) loadNotifications(); });
-setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 30000);
+setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 5000);
 
 window.addEventListener('popstate', () => {
   const page = history.state?.page || 'home';
