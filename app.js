@@ -11,7 +11,7 @@ let authMode = 'creator';
 const fallback = {
   home: {
     eyebrow: 'GRAYXON GROUP · TIKTOK LIVE',
-    title: 'Crece. Aprende. Conecta con Grayxon.',
+    title: 'Crea, aprende y conecta con Grayxon.',
     intro: 'Bienvenido/a al portal oficial de Grayxon.',
     about: 'Somos una agencia enfocada en acompañar talentos que quieren desarrollar su proceso en TikTok LIVE, con orientación, formación y recursos para comenzar con claridad.',
     badge: 'TikTok LIVE',
@@ -83,24 +83,28 @@ async function render() {
 
 function homeTpl(h) {
   const d = fallback.home;
-  const intro = h?.intro || d.intro;
   const about = h?.about || d.about;
   const trust = Array.isArray(h?.trust) && h.trust.length ? h.trust : d.trust;
   return `<div class="home-modern">
     <section class="modern-hero">
       <div class="modern-hero-copy">
-        <div class="brand-connection-inline" aria-label="Grayxon y TikTok LIVE">
-          <img src="assets/grayxon-logo.png" alt="Grayxon">
-          <span></span>
-          <img src="assets/tiktok-live-logo.png" alt="TikTok LIVE">
+        <div class="modern-title-block">
+          <h1>Crea, aprende y conecta con <em>Grayxon.</em></h1>
+          <div class="brand-connection-inline" aria-label="Grayxon y TikTok LIVE">
+            <img class="brand-connection-grayxon" src="assets/grayxon-logo.png" alt="Grayxon">
+            <span></span>
+            <img class="brand-connection-tiktok" src="assets/tiktok-live-logo.png" alt="TikTok LIVE">
+          </div>
         </div>
-        <p class="modern-intro">${esc(intro)}</p>
+
         <button class="modern-about" data-page="benefits">
           <span class="about-icon">♧</span>
           <span class="about-copy"><small>QUIÉNES SOMOS</small><strong>${esc(about)}</strong></span>
           <span class="about-arrow">›</span>
         </button>
+
         <div class="modern-trust">${trust.slice(0,3).map(x => `<span>✓ ${esc(x)}</span>`).join('')}</div>
+
         <section class="modern-socials hero-socials">
           <div class="modern-social-title">NUESTRAS REDES</div>
           <div class="modern-social-grid">
@@ -108,6 +112,7 @@ function homeTpl(h) {
             <a class="modern-social-btn whatsapp-btn" href="https://wa.me/573126283007?text=Hola%20Grayxon%20%F0%9F%91%8B" target="_blank" rel="noopener noreferrer"><span class="social-logo whatsapp-mark"><img src="assets/whatsapp-icon.svg" alt="WhatsApp"></span><strong>Hablar por WhatsApp</strong><b>↗</b></a>
           </div>
         </section>
+
         <div class="hero-actions">
           <button class="hero-action hero-action-primary" data-page="benefits">Beneficios y requisitos <span>›</span></button>
           <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Tu espacio <span>›</span></button>
@@ -120,7 +125,6 @@ function homeTpl(h) {
     </section>
   </div>`;
 }
-
 function benefitsTpl(b) {
   const bonusSections = [
     { icon:'💎', title:'1. ¿Qué puedes ganar?', body:'Además de las recompensas de TikTok, puedes ganar bonos mensuales por tu producción.', bullets:['Bonos por mantener e incrementar tu producción.','Más herramientas para ayudarte a crecer.','Acompañamiento real de un equipo que quiere verte crecer.'] },
