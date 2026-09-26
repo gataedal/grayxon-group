@@ -68,7 +68,7 @@ async function content() {
 function nav(p, push = true) {
   if (push && current !== p) history.pushState({ page: p }, '', window.location.href);
   current = p;
-  ['home', 'benefits', 'auth', 'training', 'profile', 'admin'].forEach(id => $('#' + id).classList.toggle('hidden', id !== p));
+  ['home', 'benefits', 'auth', 'space', 'training', 'missions', 'profile', 'admin'].forEach(id => $('#' + id).classList.toggle('hidden', id !== p));
   render();
   window.scrollTo(0, 0);
 }
@@ -78,7 +78,9 @@ async function render() {
   if (current === 'home') $('#home').innerHTML = homeTpl(c.home);
   if (current === 'benefits') $('#benefits').innerHTML = benefitsTpl(c.benefits);
   if (current === 'auth') $('#auth').innerHTML = authTpl(authMode);
+  if (current === 'space') await spaceTpl();
   if (current === 'training') await trainingTpl();
+  if (current === 'missions') await missionsTpl();
   if (current === 'profile') $('#profile').innerHTML = await profileTpl();
   if (current === 'admin') await adminTpl(c);
   bind();
@@ -228,6 +230,84 @@ async function getProfile() {
   return data;
 }
 
+async function spaceTpl() {
+  if (!session) { $('#space').innerHTML = authTpl('creator'); return; }
+  profile = await getProfile();
+  if (!profile || !profile.active) {
+    await sb.auth.signOut(); session = null; profile = null;
+    $('#space').innerHTML = '<div class="login"><h2>Tu acceso está desactivado</h2><p class="muted">Tu acceso al portal de Grayxon ha sido desactivado. Contacta con tu manager para solicitar la reactivación.</p></div>';
+    return;
+  }
+
+  const [{data: details}, {data: pm}, {data: modules}, {data: lessons}, {data: lessonProgress}, {data: missions}, {data: missionProgress}] = await Promise.all([
+    sb.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(),
+    sb.from('payment_methods').select('*').eq('user_id', session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
+    sb.from('modules').select('id').eq('published', true),
+    sb.from('lessons').select('id,module_id').eq('published', true),
+    sb.from('lesson_progress').select('lesson_id').eq('user_id', session.user.id),
+    sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published').eq('published', true),
+    sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id)
+  ]);
+
+  const profileFields = [details?.email, details?.phone, details?.country, details?.state_region, details?.city, details?.address, details?.avatar_url, pm?.method_type && (pm.method_type === 'paypal' ? pm.paypal_email : pm.account_number)].filter(Boolean).length;
+  const profilePct = Math.round(profileFields / 8 * 100);
+  const doneLessons = new Set((lessonProgress || []).map(x => x.lesson_id));
+  const formationTotal = (lessons || []).length;
+  const formationDone = (lessons || []).filter(x => doneLessons.has(x.id)).length;
+  const formationPct = formationTotal ? Math.round(formationDone / formationTotal * 100) : 0;
+  const today = new Date().toISOString().slice(0,10);
+  const activeMissions = (missions || []).filter(m => (!m.week_start || m.week_start <= today) && (!m.week_end || m.week_end >= today) && (!m.assigned_to || m.assigned_to === session.user.id));
+  const mp = new Map((missionProgress || []).map(x => [x.mission_id, x]));
+  const missionPctFor = m => {
+    const x = mp.get(m.id); if (!x) return 0;
+    if (m.type === 'checkbox') return x.completed ? 100 : 0;
+    return m.target > 0 ? Math.min(100, Math.round(Number(x.value || 0) / Number(m.target) * 100)) : 0;
+  };
+  const missionTotal = activeMissions.length;
+  const missionDone = activeMissions.filter(m => missionPctFor(m) >= 100).length;
+  const missionPct = missionTotal ? Math.round(activeMissions.reduce((a,m) => a + missionPctFor(m),0) / missionTotal) : 0;
+
+  const card = (icon,title,desc,pct,action,meta) => `<button class="space-card" data-space-action="${action}"><div class="space-card-icon">${icon}</div><div class="space-card-main"><div class="space-card-top"><strong>${title}</strong><span>${pct}%</span></div><p>${desc}</p><div class="space-progress"><span style="width:${pct}%"></span></div><small>${meta}</small></div><b class="space-card-arrow">›</b></button>`;
+
+  $('#space').innerHTML = `<div class="space-page">
+    <div class="space-hero"><div><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(profile.full_name || profile.username)} 👋</h1><p class="muted">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong>${Math.round((profilePct + formationPct + missionPct) / 3)}%</strong></div></div>
+    <div class="space-grid">
+      ${card('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',profilePct,'profile',`${profilePct === 100 ? 'Perfil completo' : `${profileFields} de 8 datos completos`}`)}
+      ${card('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',formationPct,'training',formationTotal ? `${formationDone} de ${formationTotal} lecciones completadas` : 'Aún no hay formación publicada')}
+      ${card('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',missionPct,'missions',missionTotal ? `${missionDone} de ${missionTotal} misiones completadas` : 'No hay misiones activas esta semana')}
+    </div>
+  </div>`;
+}
+
+async function missionsTpl() {
+  if (!session) { $('#missions').innerHTML = authTpl('creator'); return; }
+  const { data: ms, error } = await sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to').eq('published', true).order('week_start',{ascending:false}).order('created_at',{ascending:false});
+  if (error) { $('#missions').innerHTML = `<div class="card"><h2>Tus misiones</h2><div class="error">${esc(error.message)}</div><p class="muted small">Si acabas de activar las misiones, ejecuta el SQL de la carpeta del proyecto en Supabase.</p></div>`; return; }
+  const today = new Date().toISOString().slice(0,10);
+  const active = (ms || []).filter(m => (!m.week_start || m.week_start <= today) && (!m.week_end || m.week_end >= today) && (!m.assigned_to || m.assigned_to === session.user.id));
+  const { data: ps } = await sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id);
+  const progress = new Map((ps || []).map(x => [x.mission_id, x]));
+  const pct = m => { const p=progress.get(m.id); if(!p)return 0; if(m.type==='checkbox')return p.completed?100:0; return m.target>0?Math.min(100,Math.round(Number(p.value||0)/Number(m.target)*100)):0; };
+  const fmt = n => Number(n||0).toLocaleString('es-CO');
+  const week = m => m.week_start || m.week_end ? `${m.week_start ? new Date(m.week_start+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '—'}${m.week_end ? ' · '+new Date(m.week_end+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : ''}` : 'Misión activa';
+  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Objetivos de la semana 🎯</h1><p class="muted">Completa tus misiones y registra tu avance. Tu progreso se guarda automáticamente.</p></div><button class="secondary" data-space-action="space">← Tu espacio</button></div><div class="missions-list">${active.map(m=>{const p=progress.get(m.id)||{value:0,completed:false};const v=pct(m);return `<div class="mission-card ${v>=100?'mission-complete':''}"><div class="mission-head"><div class="mission-icon">${m.type==='checkbox'?'✓':'↗'}</div><div><strong>${esc(m.title)}</strong><p class="muted small">${esc(m.description||'')}</p><small>${esc(week(m))}</small></div><span class="mission-pct">${v}%</span></div><div class="space-progress mission-progress"><span style="width:${v}%"></span></div><div class="mission-actions">${m.type==='checkbox'?`<button class="mission-check ${p.completed?'checked':''}" data-complete-mission="${m.id}">${p.completed?'✓ Misión realizada':'Marcar como realizada'}</button>`:`<div class="mission-number-wrap"><input type="number" min="0" step="1" value="${esc(p.value||0)}" id="missionValue-${m.id}" placeholder="0"><span>/ ${fmt(m.target)}</span></div><button class="mission-save" data-save-mission="${m.id}">Guardar avance</button>`}</div></div>`}).join('') || `<div class="card mission-empty"><div class="empty-icon">🎯</div><h2>No tienes misiones activas</h2><p class="muted">Cuando Grayxon publique nuevas misiones aparecerán aquí.</p></div>`}</div></div>`;
+}
+
+async function completeMission(id){
+  if(!session)return;
+  const {error}=await sb.from('mission_progress').upsert({user_id:session.user.id,mission_id:id,value:1,completed:true,updated_at:new Date().toISOString()},{onConflict:'user_id,mission_id'});
+  if(error)return toast(error.message);
+  toast('Misión completada ✓'); await missionsTpl(); bind();
+}
+async function saveMissionProgress(id){
+  if(!session)return;
+  const input=$(`#missionValue-${id}`); const value=Math.max(0,Number(input?.value||0));
+  const {data:m,error:me}=await sb.from('missions').select('target').eq('id',id).single(); if(me)return toast(me.message);
+  const completed=Number(value)>=Number(m?.target||0);
+  const {error}=await sb.from('mission_progress').upsert({user_id:session.user.id,mission_id:id,value,completed,updated_at:new Date().toISOString()},{onConflict:'user_id,mission_id'});
+  if(error)return toast(error.message); toast(completed?'Misión completada ✓':'Avance guardado ✓'); await missionsTpl(); bind();
+}
+
 async function trainingTpl() {
   if (!session) {
     $('#training').innerHTML = authTpl('creator');
@@ -257,7 +337,7 @@ async function trainingTpl() {
   const totalPct = totalLessons ? Math.round(totalDone / totalLessons * 100) : 0;
   const nextPending = orderedLessons.find(l => !done.has(l.id));
 
-  $('#training').innerHTML = `<div class="row"><div><div class="eyebrow">MI FORMACIÓN</div><h1 style="margin:7px 0">Hola, ${esc(profile.full_name || profile.username)} 👋</h1><p class="muted">Avanza por los módulos a tu ritmo. Los videos se completan automáticamente cuando terminan.</p></div></div>
+  $('#training').innerHTML = `<div class="row"><div><div class="eyebrow">FORMACIÓN</div><h1 style="margin:7px 0">Aprende con Grayxon 🎓</h1><p class="muted">Avanza por los módulos a tu ritmo. Los videos se completan automáticamente cuando terminan.</p></div><button class="secondary" data-space-action="space">← Tu espacio</button></div>
   <div class="card progress-card" style="margin-top:20px"><div class="row"><div><b>Tu progreso</b><div class="muted small">${totalDone} de ${totalLessons} lecciones completadas</div></div><b class="progress-percent">${totalPct}%</b></div><div class="progress-track"><div class="progress-fill" style="width:${totalPct}%"></div></div></div>
   <div class="training-grid" style="margin-top:22px"><div class="modules-list">${(modules || []).map((m, mi) => { const ml = orderedLessons.filter(l => l.module_id === m.id); const md = ml.filter(l => done.has(l.id)).length; const pct = ml.length ? Math.round(md / ml.length * 100) : 0; return `<div class="module ${pct === 100 && ml.length ? 'module-complete' : ''}"><div class="module-head"><div class="module-number">${String(mi + 1).padStart(2,'0')}</div><div class="module-copy"><div class="module-title">${esc(m.title)}</div><p class="muted small">${esc(m.description || '')}</p></div><div class="module-status">${pct === 100 && ml.length ? '✓' : `${md}/${ml.length}`}</div></div><div class="module-progress"><span style="width:${pct}%"></span></div><div class="module-label">${pct === 100 && ml.length ? 'Módulo completado' : `${md} de ${ml.length} completadas`}</div>${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}"><button data-lesson="${l.id}"><span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}</small></span></button>${nextPending?.id === l.id ? '<span class="next-badge">SIGUIENTE</span>' : ''}</div>`).join('')}</div>`; }).join('') || '<div class="card"><p class="muted">Todavía no hay formación publicada.</p></div>'}</div><div class="lesson-view" id="lessonView"><div class="empty-lesson"><div class="empty-icon">▶</div><h2>Comienza tu formación</h2><p class="muted">Selecciona una lección para empezar. En móvil, el reproductor ocupará esta pantalla para que puedas ver el contenido sin buscarlo abajo.</p></div></div></div>`;
   window._lessons = orderedLessons;
@@ -368,8 +448,9 @@ async function adminTpl(c) {
   else if (adminView === 'home') body = adminHome(c.home);
   else if (adminView === 'benefits') body = adminBenefits(c.benefits);
   else if (adminView === 'creators') body = await adminCreators();
+  else if (adminView === 'missions') body = await adminMissions();
   else body = await adminFormation();
-  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
+  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['formation','Formación'],['missions','Misiones']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
 }
 
 function field(id, label, val, area = false) {
@@ -391,6 +472,26 @@ async function adminCreators() {
   return `<div class="card"><div class="row"><div><h2>Creadores</h2><p class="muted small">Cada creador entra con usuario + contraseña. El correo técnico nunca se muestra.</p></div><button class="primary" id="newCreator">+ Crear creador</button></div><div class="list" style="margin-top:18px">${(data || []).map(x => `<div class="item creator-admin-row"><div class="row"><div><b>${esc(x.full_name || x.username)}</b><div class="muted small">@${esc(x.username)}</div></div><div class="inline creator-access-actions"><span class="pill ${x.active ? 'ok' : ''}">${x.active ? 'Activo · acceso permitido' : 'Inactivo · acceso bloqueado'}</span><button class="secondary small creator-toggle ${x.active ? 'danger' : 'ok'}" data-toggle-creator="${x.id}">${x.active ? '🔒 Desactivar acceso' : '🔓 Activar acceso'}</button><button class="secondary small" data-view-profile="${x.id}">👤 Ver perfil</button></div></div></div>`).join('') || '<p class="muted">Aún no hay creadores.</p>'}</div></div>`;
 }
 
+
+async function adminMissions(){
+  const [{data:ms,error:me},{data:creators}] = await Promise.all([
+    sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,created_at').order('week_start',{ascending:false}).order('created_at',{ascending:false}),
+    sb.from('profiles').select('id,username,full_name').eq('role','creator').order('full_name')
+  ]);
+  if(me) return `<div class="card"><h2>Misiones</h2><div class="error">${esc(me.message)}</div><p class="muted small">Ejecuta el SQL incluido en el proyecto para crear las tablas de misiones.</p></div>`;
+  const creatorOptions=`<option value="">Todos los creadores</option>${(creators||[]).map(c=>`<option value="${c.id}">${esc(c.full_name||c.username)} · @${esc(c.username)}</option>`).join('')}`;
+  return `<div class="card"><div class="row"><div><h2>Misiones semanales</h2><p class="muted small">Crea objetivos para todos los creadores o asígnalos a una persona específica.</p></div><button class="primary" id="newMission">+ Crear misión</button></div><div class="list" style="margin-top:18px">${(ms||[]).map(m=>`<div class="item mission-admin-row"><div class="row"><div><b>${esc(m.title)}</b><div class="muted small">${esc(m.description||'')}${m.week_start||m.week_end?` · ${esc(m.week_start||'')} → ${esc(m.week_end||'')}`:''}</div><div class="muted small" style="margin-top:5px">${m.type==='checkbox'?'Marcable':'Meta numérica'}${m.target?` · Meta: ${Number(m.target).toLocaleString('es-CO')}`:''} · ${m.assigned_to ? 'Asignada a un creador' : 'Todos los creadores'}</div></div><div class="inline"><span class="pill ${m.published?'ok':''}">${m.published?'Publicada':'Oculta'}</span><button class="secondary small" data-edit-mission="${m.id}">Editar</button><button class="secondary small ${m.published?'danger':'ok'}" data-toggle-mission="${m.id}">${m.published?'Ocultar':'Publicar'}</button><button class="secondary small danger" data-delete-mission="${m.id}">Eliminar</button></div></div></div>`).join('') || '<p class="muted">Aún no hay misiones.</p>'}</div></div>`;
+}
+function missionModal(existing=null){
+  const el=document.createElement('div'); el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal"><h2>${existing?'Editar misión':'Crear misión'}</h2>${field('mTitle','Título',existing?.title||'')}${field('mDesc','Descripción',existing?.description||'',true)}<label class="field"><span>Tipo</span><select id="mType"><option value="checkbox" ${existing?.type!=='numeric'?'selected':''}>Marcable</option><option value="numeric" ${existing?.type==='numeric'?'selected':''}>Meta numérica</option></select></label>${field('mTarget','Meta numérica (si aplica)',existing?.target||'')}<div class="grid"><div class="field"><label>Inicio de la semana</label><input id="mStart" type="date" value="${existing?.week_start||''}"></div><div class="field"><label>Fin de la semana</label><input id="mEnd" type="date" value="${existing?.week_end||''}"></div></div><label class="field"><span>Asignar a</span><select id="mAssignee"><option value="">Todos los creadores</option></select></label><label class="field"><span>Publicación</span><select id="mPublished"><option value="true" ${existing?.published!==false?'selected':''}>Publicada</option><option value="false" ${existing?.published===false?'selected':''}>Oculta</option></select></label><div class="inline" style="margin-top:18px"><button class="primary" id="saveMission">${existing?'Guardar cambios':'Crear misión'}</button><button class="secondary" id="cancelMission">Cancelar</button></div><div id="missionErr" class="error"></div></div>`;
+  document.body.appendChild(el);
+  sb.from('profiles').select('id,username,full_name').eq('role','creator').order('full_name').then(({data})=>{const s=$('#mAssignee');(data||[]).forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=`${c.full_name||c.username} · @${c.username}`;if(existing?.assigned_to===c.id)o.selected=true;s.appendChild(o);});});
+  $('#cancelMission').onclick=()=>el.remove(); $('#saveMission').onclick=async()=>{const btn=$('#saveMission');btn.disabled=true;const payload={title:$('#mTitle').value.trim(),description:$('#mDesc').value.trim(),type:$('#mType').value,target:Math.max(0,Number($('#mTarget').value||0)),week_start:$('#mStart').value||null,week_end:$('#mEnd').value||null,assigned_to:$('#mAssignee').value||null,published:$('#mPublished').value==='true'};if(!payload.title){$('#missionErr').textContent='Escribe un título.';btn.disabled=false;return;}if(payload.type==='numeric'&&!payload.target){$('#missionErr').textContent='Define una meta numérica.';btn.disabled=false;return;}const r=existing?await sb.from('missions').update(payload).eq('id',existing.id):await sb.from('missions').insert(payload);if(r.error){$('#missionErr').textContent=r.error.message;btn.disabled=false;return;}el.remove();toast(existing?'Misión actualizada ✓':'Misión creada ✓');render();};
+}
+async function editMission(id){const {data,error}=await sb.from('missions').select('*').eq('id',id).single();if(error)return toast(error.message);missionModal(data);}
+async function toggleMission(id){const {data,error}=await sb.from('missions').select('published').eq('id',id).single();if(error)return toast(error.message);const {error:e}=await sb.from('missions').update({published:!data.published}).eq('id',id);if(e)return toast(e.message);toast(data.published?'Misión ocultada':'Misión publicada ✓');render();}
+async function deleteMission(id){if(!confirm('¿Eliminar esta misión?'))return;const {error}=await sb.from('missions').delete().eq('id',id);if(error)return toast(error.message);toast('Misión eliminada');render();}
 
 async function adminProfileModal(id){
   const [{data:d,error:de},{data:pm,error:pe},{data:p,error:pr}] = await Promise.all([
@@ -699,7 +800,8 @@ function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classLi
 
 function bind() {
   $('#homeBrand')?.addEventListener('click', () => nav('home'));
-  $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'auth' && session && profile?.role === 'creator') nav('training'); else nav(target); });
+  $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'auth' && session && profile?.role === 'creator') nav('space'); else nav(target); });
+  $$('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
   $('#loginOpen')?.addEventListener('click', () => { authMode = 'creator'; nav('auth'); });
   $('#adminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
   $('#adminLoginLink')?.addEventListener('click', () => { authMode = 'admin'; render(); });
@@ -710,9 +812,15 @@ function bind() {
   $('#loginBtn')?.addEventListener('click', login);
   $('#adminLogout')?.addEventListener('click', logout);
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
+  $$('[data-complete-mission]').forEach(b => b.onclick = () => completeMission(b.dataset.completeMission));
+  $$('[data-save-mission]').forEach(b => b.onclick = () => saveMissionProgress(b.dataset.saveMission));
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
+  $('#newMission')?.addEventListener('click', () => missionModal());
+  $$('[data-edit-mission]').forEach(b => b.onclick = () => editMission(b.dataset.editMission));
+  $$('[data-toggle-mission]').forEach(b => b.onclick = () => toggleMission(b.dataset.toggleMission));
+  $$('[data-delete-mission]').forEach(b => b.onclick = () => deleteMission(b.dataset.deleteMission));
   // Account menu is wired once globally below. Do not bind it here on every render.
   const saveProfileBtn = $('#saveProfile');
   if (saveProfileBtn) saveProfileBtn.onclick = saveProfile;
@@ -844,7 +952,7 @@ async function login() {
     return;
   }
 
-  nav(profile.role === 'admin' ? 'admin' : 'training');
+  nav(profile.role === 'admin' ? 'admin' : 'space');
 }
 
 async function logout() {
@@ -940,7 +1048,7 @@ init();
 
 window.addEventListener('popstate', () => {
   const page = history.state?.page || 'home';
-  current = ['home','benefits','auth','training','profile','admin'].includes(page) ? page : 'home';
+  current = ['home','benefits','auth','space','training','missions','profile','admin'].includes(page) ? page : 'home';
   render();
   window.scrollTo(0, 0);
 });
