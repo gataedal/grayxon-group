@@ -340,8 +340,12 @@ function authTpl(mode = 'creator') {
 
 async function getProfile() {
   if (!session) return null;
-  const { data } = await sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').eq('id', session.user.id).single();
-  return data;
+  try {
+    const query = sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').eq('id', session.user.id).maybeSingle();
+    const result = await Promise.race([query, new Promise(resolve => setTimeout(() => resolve({data:null,error:new Error('timeout')}), 5000))]);
+    if (result?.data) return result.data;
+  } catch(e) {}
+  return { id: session.user.id, username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador', full_name: session.user.user_metadata?.full_name || '', role:'creator', active:true, team_id:null, manager_id:null };
 }
 
 async function loadCreatorAssignment(){
@@ -363,17 +367,23 @@ function managerWhatsapp(phone){
 async function spaceTpl() {
   if (!session) { $('#space').innerHTML = authTpl('creator'); return; }
   profile = await getProfile();
-  if (!profile || !profile.active) {
+  if (!profile) { $('#space').innerHTML = '<div class="login"><h2>No pudimos cargar tu espacio</h2><p class="muted">Intenta nuevamente en unos segundos.</p><button class="primary" data-page="space">Reintentar</button></div>'; bindAll(); return; }
+  if (profile.active === false) {
     await sb.auth.signOut(); session = null; profile = null;
     $('#space').innerHTML = '<div class="login"><h2>Tu acceso está desactivado</h2><p class="muted">Tu acceso al portal de Grayxon ha sido desactivado. Contacta con tu manager para solicitar la reactivación.</p></div>';
     return;
   }
 
-  const assignment = await loadCreatorAssignment();
-  // Ninguna consulta secundaria debe impedir que Tu espacio cargue.
-  // Si una tabla opcional falla, usamos valores vacíos y seguimos renderizando.
-  const safe = (promise, fallback) => promise.then(r => r.error ? { data: fallback, error: r.error } : { data: r.data ?? fallback, error: null }).catch(error => ({ data: fallback, error }));
-  const [detailsR, pmR, modulesR, lessonsR, lessonProgressR, missionsR, missionProgressR] = await Promise.all([
+  // Renderiza Tu espacio aunque una consulta secundaria tarde o falle.
+  const safe = async (promise, fallback, ms=3500) => {
+    try {
+      const result = await Promise.race([promise, new Promise(resolve => setTimeout(() => resolve({data:fallback,error:new Error('timeout')}), ms))]);
+      return result?.error ? {data:fallback,error:result.error} : {data:result?.data ?? fallback,error:null};
+    } catch(error) { return {data:fallback,error}; }
+  };
+  const assignmentPromise = loadCreatorAssignment();
+  const [assignment, detailsR, pmR, modulesR, lessonsR, lessonProgressR, missionsR, missionProgressR] = await Promise.all([
+    safe(assignmentPromise, {team:null,manager:null}),
     safe(sb.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(), null),
     safe(sb.from('payment_methods').select('*').eq('user_id', session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle(), null),
     safe(sb.from('modules').select('id').eq('published', true), []),
