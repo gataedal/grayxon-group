@@ -772,12 +772,10 @@ async function managerTpl(){
 }
 
 async function managerCreatorModal(id){
-  const [{data:d},{data:pm},{data:p},{data:missions},{data:progress}]=await Promise.all([
+  const [{data:d},{data:pm},{data:p}]=await Promise.all([
     sb.from('profile_details').select('*').eq('user_id',id).maybeSingle(),
     sb.from('payment_methods').select('*').eq('user_id',id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
-    sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('id',id).single(),
-    sb.from('missions').select('id,title,description,type,target,week_start,week_end,published,link_url,created_at').eq('assigned_to',id).order('week_start',{ascending:false}).order('created_at',{ascending:false}),
-    sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',id)
+    sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('id',id).single()
   ]);
   if(!p)return toast('No se encontró el creador.');
 
@@ -785,6 +783,30 @@ async function managerCreatorModal(id){
     p.team_id?sb.from('teams').select('name').eq('id',p.team_id).maybeSingle():{data:null},
     p.manager_id?sb.from('managers').select('name').eq('id',p.manager_id).maybeSingle():{data:null}
   ]);
+
+  const el=document.createElement('div');el.className='modal-backdrop';
+  const safe=x=>x?esc(x):'—';
+  const avatar=d?.avatar_url?`<img class="creator-profile-modal-avatar" src="${esc(d.avatar_url)}" alt="Foto de ${safe(p.full_name||p.username)}">`:`<div class="creator-profile-modal-avatar creator-profile-modal-avatar-fallback">${esc((p.full_name||p.username||'C').trim().charAt(0).toUpperCase())}</div>`;
+  el.innerHTML=`<div class="card modal creator-profile-modal">
+    <div class="row"><div class="creator-profile-modal-head">${avatar}<div><div class="eyebrow">CREADOR</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div></div><button class="secondary" id="closeManagerCreator">Cerrar</button></div>
+    <div class="hr"></div>
+    <h3>Información personal</h3>
+    <div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div>
+    <h3 style="margin-top:22px">Pago</h3>
+    <div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div>
+    <div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(team?.name)} · <b>Manager:</b> ${safe(manager?.name)}</div>
+  </div>`;
+  document.body.appendChild(el);
+  $('#closeManagerCreator').onclick=()=>el.remove();
+}
+
+async function managerMissionsModal(id){
+  const [{data:p},{data:missions},{data:progress}]=await Promise.all([
+    sb.from('profiles').select('id,username,full_name,active').eq('id',id).single(),
+    sb.from('missions').select('id,title,description,type,target,week_start,week_end,published,link_url,created_at').eq('assigned_to',id).order('week_start',{ascending:false}).order('created_at',{ascending:false}),
+    sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',id)
+  ]);
+  if(!p)return toast('No se encontró el creador.');
 
   const el=document.createElement('div');el.className='modal-backdrop';
   const safe=x=>x?esc(x):'—';
@@ -848,42 +870,35 @@ async function managerCreatorModal(id){
     </div>`;
   }).join('');
 
-  const avatar=d?.avatar_url?`<img class="creator-profile-modal-avatar" src="${esc(d.avatar_url)}" alt="Foto de ${safe(p.full_name||p.username)}">`:`<div class="creator-profile-modal-avatar creator-profile-modal-avatar-fallback">${esc((p.full_name||p.username||'C').trim().charAt(0).toUpperCase())}</div>`;
   el.innerHTML=`<div class="card modal creator-profile-modal">
-    <div class="row"><div class="creator-profile-modal-head">${avatar}<div><div class="eyebrow">CREADOR</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div></div><button class="secondary" id="closeManagerCreator">Cerrar</button></div>
-    <div class="hr"></div>
-    <h3>Información personal</h3>
-    <div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div>
-    <h3 style="margin-top:22px">Pago</h3>
-    <div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div>
-    <div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(team?.name)} · <b>Manager:</b> ${safe(manager?.name)}</div>
+    <div class="row"><div><div class="eyebrow">MISIONES DEL CREADOR</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · Aquí puedes ver las misiones que le has asignado, su progreso y cuáles ya completó.</div></div><button class="secondary" id="closeManagerMissions">Cerrar</button></div>
     <div class="creator-missions-section" style="margin-top:22px">
-      <div class="row"><div><h3 style="margin-bottom:3px">🎯 Misiones del creador</h3><p class="muted small" style="margin:0">Aquí puedes ver las misiones que le has asignado, su progreso y cuáles ya completó.</p></div><button class="primary small" id="newManagerCreatorMission">+ Agregar misión</button></div>
-      <div class="creator-mission-group" style="margin-top:14px"><div class="row"><div><h3 style="margin-bottom:3px">📅 Misiones por semana</h3><p class="muted small" style="margin:0">Abre una semana para revisar cada misión y su progreso.</p></div><span class="mission-count">${groupedWeeks.length}</span></div>
+      <div class="row"><div><h3 style="margin-bottom:3px">🎯 Misiones asignadas</h3><p class="muted small" style="margin:0">Abre una semana para revisar cada misión, su progreso y estado.</p></div><button class="primary small" id="newManagerCreatorMission">+ Agregar misión</button></div>
+      <div class="creator-mission-group" style="margin-top:14px"><div class="row"><div><h3 style="margin-bottom:3px">📅 Misiones por semana</h3><p class="muted small" style="margin:0">Las misiones cumplidas permanecen en el historial.</p></div><span class="mission-count">${groupedWeeks.length}</span></div>
       <div class="mission-weeks-list" style="margin-top:12px">${weekCards||'<div class="item"><p class="muted small" style="margin:0">Aún no has asignado misiones a este creador.</p></div>'}</div></div>
     </div>
   </div>`;
   document.body.appendChild(el);
-  $('#closeManagerCreator').onclick=()=>el.remove();
-  $('#newManagerCreatorMission').onclick=()=>creatorMissionModal(id,null,'manager');
+  $('#closeManagerMissions').onclick=()=>el.remove();
+  $('#newManagerCreatorMission').onclick=()=>creatorMissionModal(id,null,'manager-missions');
   el.querySelectorAll('[data-manager-mission-week]').forEach(b=>b.onclick=()=>{
     const panel=$('#'+b.dataset.managerMissionWeek);
     if(panel){const open=panel.classList.toggle('hidden')===false;b.classList.toggle('open',open);b.setAttribute('aria-expanded',String(open));}
   });
-  el.querySelectorAll('[data-manager-edit-mission]').forEach(b=>b.onclick=()=>creatorMissionModal(id,b.dataset.managerEditMission,'manager'));
+  el.querySelectorAll('[data-manager-edit-mission]').forEach(b=>b.onclick=()=>creatorMissionModal(id,b.dataset.managerEditMission,'manager-missions'));
   el.querySelectorAll('[data-manager-toggle-mission]').forEach(b=>b.onclick=async()=>{
     const {data,error}=await sb.from('missions').select('published').eq('id',b.dataset.managerToggleMission).single();
     if(error)return toast(error.message);
     const {error:e}=await sb.from('missions').update({published:!data.published}).eq('id',b.dataset.managerToggleMission);
     if(e)return toast(e.message);
     toast(data.published?'Misión ocultada':'Misión publicada ✓');
-    el.remove();await managerCreatorModal(id);
+    el.remove();await managerMissionsModal(id);
   });
   el.querySelectorAll('[data-manager-delete-mission]').forEach(b=>b.onclick=async()=>{
     if(!confirm('¿Eliminar esta misión y su progreso?'))return;
     const {error}=await sb.from('missions').delete().eq('id',b.dataset.managerDeleteMission);
     if(error)return toast(error.message);
-    toast('Misión eliminada');el.remove();await managerCreatorModal(id);
+    toast('Misión eliminada');el.remove();await managerMissionsModal(id);
   });
 }
 
@@ -1173,7 +1188,7 @@ async function creatorMissionModal(creatorId, existingId=null, returnMode='admin
     toast(existing?'Misión actualizada ✓':`${payloads.length} misión${payloads.length===1?'':'es'} enviada${payloads.length===1?'':'s'} ✓`);
     el.remove();
     const old=document.querySelector('.creator-profile-modal')?.parentElement;if(old)old.remove();
-    if(returnMode==='manager'){ await managerCreatorModal(creatorId); } else { await adminProfileModal(creatorId); }
+    if(returnMode==='manager-missions'){ await managerMissionsModal(creatorId); } else if(returnMode==='manager'){ await managerCreatorModal(creatorId); } else { await adminProfileModal(creatorId); }
   };
 }
 
@@ -1529,7 +1544,7 @@ function bind() {
     if(willOpen){ actions.classList.remove('hidden'); b.classList.add('is-open'); }
   });
   $$('[data-manager-view-creator]').forEach(b=>b.onclick=e=>{e.stopPropagation();managerCreatorModal(b.dataset.managerViewCreator)});
-  $$('[data-manager-missions]').forEach(b=>b.onclick=e=>{e.stopPropagation();creatorMissionModal(b.dataset.managerMissions,null,'manager')});
+  $$('[data-manager-missions]').forEach(b=>b.onclick=e=>{e.stopPropagation();managerMissionsModal(b.dataset.managerMissions)});
   $$('[data-complete-manager-task]').forEach(b=>b.onclick=async()=>{b.disabled=true;const {error}=await sb.rpc('complete_manager_task',{p_task_id:b.dataset.completeManagerTask});if(error){toast(error.message);b.disabled=false;return;}toast('Tarea marcada como lista ✓');await loadNotifications();render();});
   $('#newManagerTask')?.addEventListener('click',managerTaskModal);
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
