@@ -74,7 +74,7 @@ async function render() {
   const c = await content();
   if (current === 'home') $('#home').innerHTML = homeTpl(c.home);
   if (current === 'benefits') $('#benefits').innerHTML = benefitsTpl(c.benefits);
-  if (current === 'auth') $('#auth').innerHTML = authTpl('creator');
+  if (current === 'auth') $('#auth').innerHTML = authTpl(authMode);
   if (current === 'training') await trainingTpl();
   if (current === 'admin') await adminTpl(c);
   bind();
@@ -90,25 +90,24 @@ function homeTpl(h) {
       <div class="modern-hero-copy">
         <div class="modern-title-block">
           <h1>Crea, aprende y conecta con <em>Grayxon.</em></h1>
-          <div class="brand-connection-inline" aria-label="Grayxon y TikTok LIVE">
+          <div class="brand-connection-inline" aria-label="Grayxon">
             <img class="brand-connection-grayxon" src="assets/grayxon-logo.png" alt="Grayxon">
-            <span></span>
-            <img class="brand-connection-tiktok" src="assets/tiktok-live-logo-transparent.png" alt="TikTok LIVE">
           </div>
         </div>
 
         <div class="modern-about">
-          <span class="about-icon">♧</span>
           <span class="about-copy"><small>QUIÉNES SOMOS</small><strong>${esc(about)}</strong></span>
         </div>
 
         <div class="modern-trust">${trust.slice(0,3).map(x => `<span>✓ ${esc(x)}</span>`).join('')}</div>
 
-        <div class="home-menu-heading">NUESTRO MENÚ</div>
-        <div class="hero-actions">
-          <button class="hero-action hero-action-primary" data-page="benefits">Beneficios y requisitos <span>›</span></button>
-          <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Tu espacio <span>›</span></button>
-        </div>
+        <section class="menu-panel">
+          <div class="home-menu-heading">NUESTRO MENÚ</div>
+          <div class="hero-actions">
+            <button class="hero-action hero-action-primary" data-page="benefits">Beneficios y requisitos <span>›</span></button>
+            <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Tu espacio <span>›</span></button>
+          </div>
+        </section>
 
         <section class="modern-socials hero-socials">
           <div class="modern-social-title">NUESTRAS REDES</div>
@@ -161,7 +160,7 @@ function benefitsTpl(b) {
 
 function authTpl(mode = 'creator') {
   const isAdmin = mode === 'admin';
-  return `<div class="login"><h2>${isAdmin ? 'Acceso administrativo' : 'Mi formación'}</h2><p class="muted">${isAdmin ? 'Ingresa con tu usuario o correo y contraseña de administrador.' : 'Ingresa con el usuario y contraseña asignados por Grayxon.'}</p><div class="field"><label>${isAdmin ? 'Usuario o correo' : 'Usuario'}</label><input id="loginUser" autocomplete="username" placeholder="${isAdmin ? 'Ej. edwar o correo@ejemplo.com' : 'Ej. maria123'}"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button></div>`;
+  return `<div class="login"><h2>${isAdmin ? 'Acceso administrativo' : 'Mi formación'}</h2><p class="muted">${isAdmin ? 'Ingresa con tu usuario o correo y contraseña de administrador.' : 'Ingresa con el usuario y contraseña asignados por Grayxon.'}</p><div class="field"><label>${isAdmin ? 'Usuario o correo' : 'Usuario'}</label><input id="loginUser" autocomplete="username" placeholder="${isAdmin ? 'Ej. edwar o correo@ejemplo.com' : 'Ej. maria123'}"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button>${isAdmin ? '<button class="ghost" id="creatorLoginLink" style="display:block;width:100%;margin-top:10px">← Volver a acceso de creador</button>' : '<button class="ghost" id="adminLoginLink" style="display:block;width:100%;margin-top:10px">Acceso administrativo</button>'}</div>`;
 }
 
 async function getProfile() {
@@ -618,6 +617,8 @@ function bind() {
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'auth' && session && profile?.role === 'creator') nav('training'); else nav(target); });
   $('#loginOpen')?.addEventListener('click', () => { authMode = 'creator'; nav('auth'); });
   $('#adminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
+  $('#adminLoginLink')?.addEventListener('click', () => { authMode = 'admin'; render(); });
+  $('#creatorLoginLink')?.addEventListener('click', () => { authMode = 'creator'; render(); });
   $('#mobileMenuBtn')?.addEventListener('click', () => { const m = $('#mobileNav'); const open = m?.classList.toggle('open'); $('#mobileMenuBtn')?.setAttribute('aria-expanded', open ? 'true' : 'false'); });
   $('#mobileProfile')?.addEventListener('click', () => { if (session && profile?.role === 'creator') nav('training'); else nav('auth'); });
   $('#mobileAdminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
