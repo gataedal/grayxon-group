@@ -117,11 +117,11 @@ body{min-height:100svh!important;}
 </style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
-<header class="top"><div class="brand"><img class="logo" src="assets/grayxon-logo.png" alt="Grayxon"><b>GRAYXON</b><span class="brand-live">LIVE</span></div><nav class="nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="auth" data-auth-mode="creator">Mi espacio</button></nav><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><button id="mobileProfile" class="mobile-profile" aria-label="Mi espacio">G</button></div></header>
+<header class="top"><button class="brand" id="homeBrand" type="button" aria-label="Ir al inicio"><img class="logo" src="assets/grayxon-logo.png" alt="Grayxon"><b>GRAYXON</b><span class="brand-live">LIVE</span></button><nav class="nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="auth" data-auth-mode="creator">Mi espacio</button></nav><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><button id="mobileProfile" class="mobile-profile" aria-label="Mi espacio">G</button></div></header>
 <main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="training" class="page hidden"></section><section id="admin" class="page hidden"></section></main>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=14"></script>
 
 <style>
 /* v11 final home refinements */
@@ -176,6 +176,23 @@ body{min-height:100svh!important;}
 @media (min-width:801px){
   .brand-connection-inline .brand-connection-grayxon{width:280px!important;height:90px!important;object-fit:contain!important;}
   .menu-panel{border:1px solid #292e35!important;border-radius:20px!important;padding:20px!important;background:linear-gradient(145deg,#111316,#0b0c0e)!important;}
+}
+</style>
+
+<style id="grayxon-v14">
+/* v14: navigation + creator-focused mobile home */
+.brand{appearance:none!important;border:0!important;background:transparent!important;color:inherit!important;cursor:pointer!important;padding:0!important;font:inherit!important;display:flex!important;align-items:center!important;}
+.brand:focus-visible{outline:2px solid #d45c85!important;outline-offset:4px!important;border-radius:8px!important;}
+@media(max-width:800px){
+  .modern-title-block{gap:0!important;margin-bottom:10px!important;}
+  .modern-hero h1{font-size:17px!important;font-weight:750!important;letter-spacing:-.025em!important;margin:0!important;}
+  .modern-about{position:relative!important;z-index:4!important;}
+  .modern-trust{position:relative!important;z-index:4!important;}
+  .menu-panel{position:relative!important;z-index:4!important;}
+  .hero-socials{position:relative!important;z-index:4!important;}
+  .modern-creator-art{right:-17%!important;top:7%!important;width:88%!important;height:92%!important;opacity:.82!important;z-index:1!important;}
+  .modern-creator-art .creator-aura{opacity:.85!important;filter:blur(18px)!important;}
+  .modern-creator-art>img{height:100%!important;width:100%!important;object-fit:cover!important;object-position:20% center!important;mix-blend-mode:screen!important;mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.35) 12%,#000 30%,#000 100%)!important;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.35) 12%,#000 30%,#000 100%)!important;}
 }
 </style>
 </body></html>

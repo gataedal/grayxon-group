@@ -63,7 +63,8 @@ async function content() {
   return c;
 }
 
-function nav(p) {
+function nav(p, push = true) {
+  if (push && current !== p) history.pushState({ page: p }, '', window.location.href);
   current = p;
   ['home', 'benefits', 'auth', 'training', 'admin'].forEach(id => $('#' + id).classList.toggle('hidden', id !== p));
   render();
@@ -90,9 +91,6 @@ function homeTpl(h) {
       <div class="modern-hero-copy">
         <div class="modern-title-block">
           <h1>Crea, aprende y conecta con <em>Grayxon.</em></h1>
-                    <div class="brand-connection-inline" aria-label="Grayxon">
-            <img class="brand-connection-grayxon" src="assets/grayxon-logo.png" alt="Grayxon">
-          </div>
         </div>
 
         <div class="modern-about">
@@ -614,6 +612,7 @@ async function moveLesson(id, direction) {
 }
 
 function bind() {
+  $('#homeBrand')?.addEventListener('click', () => nav('home'));
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'auth' && session && profile?.role === 'creator') nav('training'); else nav(target); });
   $('#loginOpen')?.addEventListener('click', () => { authMode = 'creator'; nav('auth'); });
   $('#adminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
@@ -763,3 +762,10 @@ async function init() {
 }
 
 init();
+
+window.addEventListener('popstate', () => {
+  const page = history.state?.page || 'home';
+  current = ['home','benefits','auth','training','admin'].includes(page) ? page : 'home';
+  render();
+  window.scrollTo(0, 0);
+});
