@@ -370,19 +370,19 @@ async function spaceTpl() {
   }
 
   const assignment = await loadCreatorAssignment();
-  const [{data: details}, {data: pm}, {data: modules}, {data: lessons}, {data: lessonProgress}, {data: missions}, {data: missionProgress}] = await Promise.all([
-    sb.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(),
-    sb.from('payment_methods').select('*').eq('user_id', session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
-    sb.from('modules').select('id').eq('published', true),
-    sb.from('lessons').select('id,module_id').eq('published', true),
-    sb.from('lesson_progress').select('lesson_id').eq('user_id', session.user.id),
-    // Consultamos la tabla directamente para que las nuevas misiones asignadas
-    // aparezcan inmediatamente y nunca hereden el progreso de otra misión.
-    sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at')
-      .eq('published', true).or(`assigned_to.is.null,assigned_to.eq.${session.user.id}`)
-      .order('week_start',{ascending:false}).order('created_at',{ascending:false}),
-    sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id)
+  // Ninguna consulta secundaria debe impedir que Tu espacio cargue.
+  // Si una tabla opcional falla, usamos valores vacíos y seguimos renderizando.
+  const safe = (promise, fallback) => promise.then(r => r.error ? { data: fallback, error: r.error } : { data: r.data ?? fallback, error: null }).catch(error => ({ data: fallback, error }));
+  const [detailsR, pmR, modulesR, lessonsR, lessonProgressR, missionsR, missionProgressR] = await Promise.all([
+    safe(sb.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(), null),
+    safe(sb.from('payment_methods').select('*').eq('user_id', session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle(), null),
+    safe(sb.from('modules').select('id').eq('published', true), []),
+    safe(sb.from('lessons').select('id,module_id').eq('published', true), []),
+    safe(sb.from('lesson_progress').select('lesson_id').eq('user_id', session.user.id), []),
+    safe(sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at').eq('published', true).or(`assigned_to.is.null,assigned_to.eq.${session.user.id}`).order('week_start',{ascending:false}).order('created_at',{ascending:false}), []),
+    safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id), [])
   ]);
+  const details = detailsR.data, pm = pmR.data, modules = modulesR.data, lessons = lessonsR.data, lessonProgress = lessonProgressR.data, missions = missionsR.data, missionProgress = missionProgressR.data;
 
   const profileFields = [details?.email, details?.phone, details?.country, details?.state_region, details?.city, details?.address, details?.avatar_url, pm?.method_type && (pm.method_type === 'paypal' ? pm.paypal_email : pm.account_number)].filter(Boolean).length;
   const profilePct = Math.round(profileFields / 8 * 100);
