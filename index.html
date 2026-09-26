@@ -155,13 +155,31 @@ body{min-height:100svh!important;}
 .profile-save-btn{min-width:210px!important;padding:14px 30px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:14px!important;background:linear-gradient(135deg,#ff3f78 0%,#8e4de8 100%)!important;box-shadow:0 12px 30px rgba(142,77,232,.28)!important;color:#fff!important;font-weight:800!important}
 .profile-save-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
 </style>
+
+<style>
+/* v19: compact profile photo editor */
+.profile-photo-card{padding:16px 18px!important}
+.profile-photo-row{display:flex;align-items:center;gap:14px}
+.profile-photo-preview{width:72px;height:72px;flex:0 0 72px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:#111319;display:grid;place-items:center;overflow:hidden;color:#fff;font-weight:900;font-size:25px}
+.profile-photo-preview .profile-avatar-img{width:100%;height:100%;object-fit:cover}
+.profile-photo-actions{min-width:0;display:flex;align-items:center;gap:8px;flex:1}
+.profile-photo-actions>div{min-width:0;flex:1}
+.profile-photo-actions strong{display:block;color:#fff;font-size:14px;margin-bottom:3px}
+.profile-photo-actions .small{margin:0;line-height:1.35}
+.photo-edit-btn,.photo-delete-btn{width:40px;height:40px;flex:0 0 40px;border:1px solid #343943;border-radius:12px;background:#171a20;color:#f2f4f7;display:grid;place-items:center;font-size:17px;cursor:pointer;transition:.18s ease}
+.photo-edit-btn:hover{border-color:#d75a87;background:#22151c;transform:translateY(-1px)}
+.photo-delete-btn{color:#ff9aaa}
+.photo-delete-btn:hover{border-color:#ff6d88;background:#241419;transform:translateY(-1px)}
+.profile-photo-card #profileAvatarStatus{margin-top:9px;min-height:16px}
+@media(max-width:600px){.profile-photo-card{padding:14px!important}.profile-photo-preview{width:62px;height:62px;flex-basis:62px;font-size:22px}.profile-photo-actions{gap:7px}.photo-edit-btn,.photo-delete-btn{width:38px;height:38px;flex-basis:38px}}
+</style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
 <header class="top"><button class="brand" id="homeBrand" type="button" aria-label="Ir al inicio"><img class="logo" src="assets/grayxon-logo.png" alt="Grayxon"><b>GRAYXON</b><span class="brand-live">LIVE</span></button><nav class="nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="auth" data-auth-mode="creator">Mi espacio</button></nav><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir menú de cuenta">G</button><div id="profileMenu" class="profile-menu hidden"><div class="profile-menu-user"><strong id="profileMenuName">Mi cuenta</strong><span id="profileMenuRole">Cuenta Grayxon</span></div><button id="openMyProfile" class="profile-menu-item">👤 <span>Mi perfil</span><b>›</b></button><button id="menuLogout" class="profile-menu-item profile-menu-logout">↪ <span>Cerrar sesión</span></button></div></div></div></header>
 <main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="training" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section></main>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=18"></script>
+<script src="app.js?v=19"></script>
 
 <style>
 /* v11 final home refinements */

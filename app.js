@@ -205,7 +205,7 @@ function profileTpl(){
   const banks=(bankSeed[pm.bank_country || d.country]||[]).map(b=>`<option value="${esc(b)}" ${pm.bank_name===b?'selected':''}>${esc(b)}</option>`).join('');
   return `<div class="profile-page">
     <div class="profile-head card"><div class="profile-avatar-wrap">${avatar}</div><div><div class="eyebrow">MI PERFIL</div><h1>${esc(profile.full_name||profile.username)}</h1><p class="muted">@${esc(profile.username)} · ${profile.role==='admin'?'Administrador':'Creador'}</p></div></div>
-    <div class="card"><h2>Foto de perfil</h2><p class="muted small">Puedes subir una foto para reemplazar la inicial del círculo superior.</p><input id="profileAvatar" type="file" accept="image/png,image/jpeg,image/webp"><div id="profileAvatarStatus" class="muted small"></div></div>
+    <div class="card profile-photo-card"><div class="profile-photo-row"><div class="profile-photo-preview">${avatar}</div><div class="profile-photo-actions"><div><strong>Foto de perfil</strong><p class="muted small">Cambia o elimina tu foto cuando quieras.</p></div><button type="button" class="photo-edit-btn" id="profilePhotoEdit" aria-label="Editar foto de perfil">✎</button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"><button type="button" class="photo-delete-btn ${d.avatar_url ? '' : 'hidden'}" id="deleteProfileAvatar" aria-label="Eliminar foto de perfil">🗑</button></div></div><div id="profileAvatarStatus" class="muted small"></div></div>
     <div class="card"><h2>Información personal</h2>${field('pEmail','Correo electrónico',d.email||'')}${field('pPhone','Número de teléfono',d.phone||'')}
       <label class="field"><span>País</span><select id="pCountry">${countries}</select></label>${field('pState','Estado / Departamento / Provincia',d.state_region||'')}${field('pCity','Ciudad',d.city||'')}${field('pAddress','Dirección',d.address||'',true)}
     </div>
@@ -720,6 +720,11 @@ function bind() {
   $('#pCountry')?.addEventListener('change', () => {});
   $('#pBankCountry')?.addEventListener('change', populateBanks);
   $('#profileAvatar')?.addEventListener('change', uploadProfileAvatar);
+  $('#profilePhotoEdit')?.addEventListener('click', () => {
+    const input = $('#profileAvatar');
+    if (input) input.click();
+  });
+  $('#deleteProfileAvatar')?.addEventListener('click', deleteProfileAvatar);
   $('#saveHome')?.addEventListener('click', saveHome);
   $('#saveBenefits')?.addEventListener('click', saveBenefits);
   $('#bImage')?.addEventListener('change', previewBenefitsImage);
@@ -756,8 +761,25 @@ async function uploadProfileAvatar(){
   const url=sb.storage.from('profile-avatars').getPublicUrl(path).data.publicUrl;
   const {error:saveErr}=await sb.from('profile_details').upsert({user_id:session.user.id,avatar_path:path,avatar_url:url,updated_at:new Date().toISOString()});
   if(saveErr){ if(status) status.textContent=saveErr.message; return; }
-  profileDetails={...(profileDetails||{}),avatar_path:path,avatar_url:url}; updateProfileBadge(); if(status) status.textContent='Foto actualizada ✓';
+  profileDetails={...(profileDetails||{}),avatar_path:path,avatar_url:url}; updateProfileBadge();
+  if(status) status.textContent='Foto actualizada ✓';
+  await render();
 }
+
+async function deleteProfileAvatar(){
+  if(!session) return;
+  const status=$('#profileAvatarStatus');
+  const oldPath=profileDetails?.avatar_path;
+  if(status) status.textContent='Eliminando foto…';
+  if(oldPath) { try { await sb.storage.from('profile-avatars').remove([oldPath]); } catch(e) {} }
+  const {error}=await sb.from('profile_details').upsert({user_id:session.user.id,avatar_path:null,avatar_url:null,updated_at:new Date().toISOString()});
+  if(error){ if(status) status.textContent=error.message; return; }
+  profileDetails={...(profileDetails||{}),avatar_path:null,avatar_url:null};
+  updateProfileBadge();
+  if(status) status.textContent='Foto eliminada ✓';
+  await render();
+}
+
 async function saveProfile(){
   const err=$('#profileErr'); if(err) err.textContent=''; if(!session) return;
   const d={user_id:session.user.id,email:$('#pEmail')?.value.trim()||null,phone:$('#pPhone')?.value.trim()||null,country:$('#pCountry')?.value||null,state_region:$('#pState')?.value.trim()||null,city:$('#pCity')?.value.trim()||null,address:$('#pAddress')?.value.trim()||null,updated_at:new Date().toISOString()};
@@ -890,6 +912,11 @@ async function init() {
   if (profileBtn) profileBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!session) {
+      authMode = 'creator';
+      nav('auth');
+      return;
+    }
     toggleProfileMenu();
   });
   if (profileMenu) profileMenu.addEventListener('click', (e) => e.stopPropagation());
