@@ -219,7 +219,7 @@ body{min-height:100svh!important;}
 <main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="space" class="page hidden"></section><section id="training" class="page hidden"></section><section id="missions" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section></main>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=48"></script>
+<script src="app.js?v=54"></script>
 
 <style>
 /* v11 final home refinements */
@@ -574,4 +574,26 @@ body{min-height:100dvh!important}
 }
 
 .mission-weeks-list{display:grid;gap:12px;margin-top:18px}.mission-week-group{display:grid;gap:10px}.mission-week-card{width:100%;display:grid;grid-template-columns:46px 1fr 18px;gap:13px;align-items:center;text-align:left;padding:16px;border:1px solid #2d3036;border-radius:17px;background:linear-gradient(145deg,#15171a,#0d0f11);color:#fff;cursor:pointer;box-shadow:0 10px 28px #0003;transition:.2s}.mission-week-card:hover,.mission-week-card.open{transform:translateY(-1px);border-color:#665260;background:linear-gradient(145deg,#18151b,#0e1113)}.mission-week-icon{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:20px;background:linear-gradient(135deg,#fe2c5520,#25f4ee20);border:1px solid #574653}.mission-week-main{min-width:0}.mission-week-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.mission-week-top strong{font-size:15px}.mission-week-top span{font-size:13px;font-weight:900;color:#e2c77e}.mission-week-main p{margin:5px 0 10px;color:#8f96a1;font-size:11px}.mission-week-arrow{font-size:24px;color:#7f858f;transition:transform .2s}.mission-week-card.open .mission-week-arrow{transform:rotate(90deg)}.mission-week-details{display:grid;gap:11px;padding-left:8px}.mission-week-details.hidden{display:none}
+
+/* v54 — equipo estilo tarjeta, inspirado en el bloque de redes */
+.space-team-inline{margin-top:18px;overflow:visible}
+.space-team-label-row{margin-bottom:9px}
+.space-team-card{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #30343b;border-radius:15px;background:linear-gradient(145deg,#15171a,#0d0f11);box-shadow:0 8px 22px #0003}
+.space-team-card-info{min-width:0;display:flex;flex-direction:column;gap:3px}
+.space-team-card-info strong{font-size:15px;line-height:1.2;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.space-team-card-info span{font-size:11px;color:#969ca6;white-space:nowrap}
+.space-team-card-info b{color:#fff}
+.space-team-contact{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:108px;height:38px;padding:0 12px;box-sizing:border-box;border-radius:11px;text-decoration:none!important;color:#fff!important;font-size:11px;font-weight:900;background:linear-gradient(135deg,#25d366,#128c7e);border:1px solid #48e27f55;box-shadow:0 7px 18px #25d36620;white-space:nowrap}
+.space-team-contact img{width:16px!important;height:16px!important;object-fit:contain;filter:brightness(0) invert(1)}
+.space-team-contact-arrow{font-size:15px;line-height:1;opacity:.85}
+.space-team-card-empty{justify-content:flex-start;color:#969ca6;font-size:12px}
+@media(max-width:800px){
+  .space-team-inline{margin-top:16px}
+  .space-team-card{gap:10px;padding:10px 11px;border-radius:14px}
+  .space-team-card-info strong{font-size:13px}
+  .space-team-card-info span{font-size:10px}
+  .space-team-contact{min-width:92px;height:34px;padding:0 9px;font-size:10px;gap:5px}
+  .space-team-contact img{width:14px!important;height:14px!important}
+  .space-team-contact-arrow{font-size:13px}
+}
 </style>

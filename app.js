@@ -205,11 +205,11 @@ function updateSpaceTeam(a){
   if(a?.team){
     const m=a.manager;
     const contact = m?.phone
-      ? `<a class="space-team-contact" href="${esc(managerWhatsapp(m.phone))}" target="_blank" rel="noopener noreferrer"><img src="assets/whatsapp-icon.svg" alt=""><span>Contacta tu manager</span></a>`
+      ? `<a class="space-team-contact" href="${esc(managerWhatsapp(m.phone))}" target="_blank" rel="noopener noreferrer"><img src="assets/whatsapp-icon.svg" alt=""><span>Contactar</span><span class="space-team-contact-arrow">↗</span></a>`
       : '';
-    el.innerHTML=`<div class="space-team-stack"><div class="space-team-name"><span>Tu equipo</span><b>:</b><strong>${esc(a.team.name)}</strong></div>${m?.phone ? `<div class="space-manager-name">Manager: <strong>${esc(m.name||'Manager')}</strong></div><div class="space-manager-action">${contact}</div>` : `<div class="space-manager-name">Manager: <strong>${esc(m?.name||'Sin manager asignado')}</strong></div>`}</div>`;
+    el.innerHTML=`<div class="space-team-label-row"><span class="space-team-label">TU EQUIPO</span></div><div class="space-team-card"><div class="space-team-card-info"><strong>${esc(a.team.name)}</strong><span>Manager: <b>${esc(m?.name||'Sin manager asignado')}</b></span></div>${contact}</div>`;
   } else {
-    el.innerHTML=`<div class="space-team-one-line"><span>Tu equipo</span><b>:</b><span>Aún no tienes equipo asignado</span></div>`;
+    el.innerHTML=`<div class="space-team-label-row"><span class="space-team-label">TU EQUIPO</span></div><div class="space-team-card space-team-card-empty"><span>Aún no tienes equipo asignado</span></div>`;
   }
 }
 function updateSpaceCard(action,pct,detail){const b=document.querySelector(`[data-space-action="${action}"]`);if(!b)return;const p=b.querySelector('.space-card-top span'),bar=b.querySelector('.space-progress span'),d=b.querySelector('small');if(p)p.textContent=`${pct}%`;if(bar)bar.style.width=`${Math.max(0,Math.min(100,pct))}%`;if(d)d.textContent=detail;}
