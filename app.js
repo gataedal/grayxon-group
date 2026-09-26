@@ -251,7 +251,7 @@ function spaceCard(icon,title,desc,pct,action,detail){
 }
 function renderSpaceShell(){
   const el=$('#space'); if(!el) return;
-  if(!session){ el.innerHTML=authTpl('creator'); return; }
+  if(!session){ el.innerHTML=authTpl(); return; }
   const base=profile||{full_name:session.user.user_metadata?.full_name||'',username:session.user.user_metadata?.username||session.user.email?.split('@')[0]||'creador'};
   el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-card space-team-card-loading"><div class="space-team-card-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong></div></div></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}</div></div>`;
   bind();
@@ -277,13 +277,13 @@ async function render(){
     if(current==='benefits')$('#benefits').innerHTML=benefitsTpl(c.benefits);
     if(current==='admin')await adminTpl(c);
   }
-  if(current==='auth')$('#auth').innerHTML=authTpl(authMode);
+  if(current==='auth')$('#auth').innerHTML=authTpl();
   if(current==='space') { if(profile?.role==='manager') await managerTpl(); else await spaceTpl(); }
   if(current==='manager')await managerTpl();
   if(current==='training')await trainingTpl();
   if(current==='missions')await missionsTpl();
   if(current==='profile')$('#profile').innerHTML=await profileTpl();
-  bind(); updateProfileBadge(); updateNotificationsUI();
+  bind(); updateHeaderAccessUI(); updateProfileBadge(); updateNotificationsUI();
   $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===current || (b.dataset.page==='space' && current==='manager')));
 }
 
@@ -399,7 +399,7 @@ async function loadProfileDetails(){
   profileDetails=d||null; paymentMethod=pm||null; return {details:profileDetails,payment:paymentMethod};
 }
 function profileTpl(){
-  if (!session || !profile) return authTpl('creator');
+  if (!session || !profile) return authTpl();
   const d=profileDetails||{}; const pm=paymentMethod||{};
   const avatar = d.avatar_url ? `<img class="profile-avatar-img" src="${esc(d.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
   const countries=profileCountries.map(([c,n])=>`<option value="${c}" ${d.country===c?'selected':''}>${n}</option>`).join('');
@@ -417,9 +417,8 @@ function profileTpl(){
     <div class="profile-save-wrap"><button class="primary profile-save-btn" id="saveProfile">Guardar</button></div><div id="profileErr" class="error"></div>
   </div>`;
 }
-function authTpl(mode = 'creator') {
-  const isAdmin = mode === 'admin';
-  return `<div class="login"><h2>${isAdmin ? 'Acceso administrativo' : 'Mi formación'}</h2><p class="muted">${isAdmin ? 'Ingresa con tu usuario o correo y contraseña de administrador.' : 'Ingresa con el usuario y contraseña asignados por Grayxon.'}</p><div class="field"><label>${isAdmin ? 'Usuario o correo' : 'Usuario'}</label><input id="loginUser" autocomplete="username" placeholder="${isAdmin ? 'Ej. edwar o correo@ejemplo.com' : 'Ej. maria123'}"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button>${isAdmin ? '<button class="ghost" id="creatorLoginLink" style="display:block;width:100%;margin-top:10px">← Volver a acceso de creador</button>' : '<button class="ghost" id="adminLoginLink" style="display:block;width:100%;margin-top:10px">Acceso administrativo</button>'}</div>`;
+function authTpl() {
+  return `<div class="login"><div class="eyebrow">GRAYXON · ACCESO</div><h2 style="margin-top:8px">Inicia sesión</h2><p class="muted">Usa el usuario o correo y la contraseña de tu cuenta. Grayxon detectará automáticamente si eres administrador, manager o creador y abrirá el panel correspondiente.</p><div class="field"><label>Usuario o correo</label><input id="loginUser" autocomplete="username" placeholder="Ej. andrea.onyx o correo@ejemplo.com"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button></div>`;
 }
 
 async function getProfile() {
@@ -449,7 +448,7 @@ function managerWhatsapp(phone){
 }
 
 async function spaceTpl(){
-  if(!session){$('#space').innerHTML=authTpl('creator');return;}
+  if(!session){$('#space').innerHTML=authTpl();return;}
   if(!$('#space')?.innerHTML.trim()) renderSpaceShell();
   const uid=session.user.id;
   // Cargar el perfil en paralelo; no bloquea la pantalla.
@@ -463,7 +462,7 @@ async function spaceTpl(){
 }
 
 async function missionsTpl() {
-  if (!session) { $('#missions').innerHTML = authTpl('creator'); return; }
+  if (!session) { $('#missions').innerHTML = authTpl(); return; }
   // Leemos directamente las misiones publicadas asignadas a este creador.
   // Esto garantiza que cada nueva misión tenga su propio progreso 0% hasta que
   // el creador la guarde, incluso cuando ya haya completado misiones anteriores.
@@ -588,7 +587,7 @@ async function saveMissionProgress(id){
 
 async function trainingTpl() {
   if (!session) {
-    $('#training').innerHTML = authTpl('creator');
+    $('#training').innerHTML = authTpl();
     return;
   }
   profile = await getProfile();
@@ -713,7 +712,7 @@ async function completeLesson(id, options = {}) {
 
 
 async function managerTpl(){
-  if(!session){ $('#manager').innerHTML=authTpl('creator'); return; }
+  if(!session){ $('#manager').innerHTML=authTpl(); return; }
   if(profile?.role!=='manager'){ $('#manager').innerHTML='<div class="login"><h2>Acceso restringido</h2><p class="muted">Esta sección es solo para managers.</p></div>'; return; }
   const [{data:me,error:meErr},{data:creators,error:crErr}]=await Promise.all([
     sb.from('managers').select('id,name,phone,email,username,active').eq('user_id',session.user.id).maybeSingle(),
@@ -795,7 +794,7 @@ function managerTaskModal(){
 
 async function adminTpl(c) {
   if (!session) {
-    $('#admin').innerHTML = authTpl('admin');
+    $('#admin').innerHTML = authTpl();
     return;
   }
   profile = await getProfile();
@@ -1353,18 +1352,34 @@ function toggleProfileMenu(){
 }
 function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classList.add('hidden'); }
 
+function updateHeaderAccessUI(){
+  const btn=$('#adminOpen');
+  if(!btn) return;
+  if(!session){
+    btn.textContent='Iniciar sesión';
+    btn.onclick=()=>nav('auth');
+    return;
+  }
+  if(profile?.role==='admin'){
+    btn.textContent='⚙ Admin';
+    btn.onclick=()=>nav('admin');
+  } else if(profile?.role==='manager'){
+    btn.textContent='👥 Manager';
+    btn.onclick=()=>nav('manager');
+  } else {
+    btn.textContent='👤 Mi espacio';
+    btn.onclick=()=>nav('space');
+  }
+}
+
 function bind() {
   $('#homeBrand')?.addEventListener('click', () => nav('home'));
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'space' && session) nav(profile?.role === 'manager' ? 'manager' : 'space'); else if (target === 'auth' && session) nav(profile?.role === 'manager' ? 'manager' : profile?.role === 'creator' ? 'space' : 'admin'); else nav(target); });
   $$('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
-  $('#loginOpen')?.addEventListener('click', () => { authMode = 'creator'; nav('auth'); });
-  $('#adminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
-  $('#adminLoginLink')?.addEventListener('click', () => { authMode = 'admin'; render(); });
-  $('#creatorLoginLink')?.addEventListener('click', () => { authMode = 'creator'; render(); });
+  updateHeaderAccessUI();
   $('#mobileMenuBtn')?.addEventListener('click', () => { const m = $('#mobileNav'); const open = m?.classList.toggle('open'); $('#mobileMenuBtn')?.setAttribute('aria-expanded', open ? 'true' : 'false'); });
-  $('#mobileAdminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
+  $('#mobileAdminOpen')?.addEventListener('click', () => { if(session) nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space'); else nav('auth'); });
   $$('#mobileNav [data-page]').forEach(b => b.addEventListener('click', () => $('#mobileNav')?.classList.remove('open')));
-  $('#openMySpace')?.addEventListener('click', () => { closeProfileMenu(); nav(profile?.role==='manager' ? 'manager' : 'space'); });
   $('#loginBtn')?.addEventListener('click', login);
   $('#adminLogout')?.addEventListener('click', logout);
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
@@ -1476,40 +1491,38 @@ function updateProfileBadge(){
   if(role) role.textContent=session ? (profile?.role==='admin' ? 'Administrador' : profile?.role==='manager' ? 'Manager' : 'Creador') : 'Inicia sesión para acceder';
 }
 async function login() {
-  const input = $('#loginUser').value.trim();
-  const p = $('#loginPass').value;
+  const input = $('#loginUser')?.value.trim() || '';
+  const p = $('#loginPass')?.value || '';
   const value = input.toLowerCase();
   if (!input || !p) { $('#loginErr').textContent = 'Ingresa tus datos para continuar.'; return; }
 
-  // Creadores usan username. Antes de autenticar, comprobamos si la cuenta
-  // existe y está activa para poder mostrar un mensaje claro cuando fue bloqueada.
-  // Si no existe o la consulta falla, dejamos que Supabase valide las credenciales.
-  if (authMode === 'creator' && !value.includes('@')) {
-    const { data: accessStatus } = await sb.rpc('creator_access_status', { p_username: value });
-    if (accessStatus?.length && accessStatus[0]?.exists && accessStatus[0]?.active === false) {
-      $('#loginErr').textContent = '🔒 Tu acceso al portal está desactivado. Contacta con tu manager para solicitar la reactivación.';
-      return;
-    }
+  // Si se usa username, conservamos la comprobación de acceso de creador
+  // para mostrar un mensaje claro cuando una cuenta de creador está bloqueada.
+  // Para managers y admins, si no existe en esa RPC, el flujo continúa con Auth.
+  if (!value.includes('@')) {
+    try {
+      const { data: accessStatus } = await sb.rpc('creator_access_status', { p_username: value });
+      if (accessStatus?.length && accessStatus[0]?.exists && accessStatus[0]?.active === false) {
+        $('#loginErr').textContent = '🔒 Tu acceso al portal está desactivado. Contacta con tu manager para solicitar la reactivación.';
+        return;
+      }
+    } catch (_) {}
   }
 
-  // Admin puede entrar con su correo real. Managers/creadores usan username;
-  // el correo técnico nunca se muestra al usuario.
-  // El dominio nuevo es válido para Auth. El dominio .local se conserva solo
-  // como fallback temporal para cuentas antiguas que aún no hayan migrado.
+  // Un único acceso para los tres roles. Si el usuario escribe un username,
+  // probamos los dominios técnicos internos en orden; si escribe un correo,
+  // usamos exactamente ese correo. El correo técnico nunca se muestra al usuario.
   const candidateEmails = value.includes('@')
     ? [value]
     : [`${value}@${LOGIN_EMAIL_DOMAIN}`, `${value}@${LEGACY_LOGIN_EMAIL_DOMAIN}`];
 
   let data = null;
-  let authError = null;
   for (const email of candidateEmails) {
     const result = await sb.auth.signInWithPassword({ email, password: p });
     if (!result.error && result.data?.session) {
       data = result.data;
-      authError = null;
       break;
     }
-    authError = result.error;
   }
   if (!data?.session) { $('#loginErr').textContent = 'Usuario o contraseña incorrectos.'; return; }
 
@@ -1522,25 +1535,16 @@ async function login() {
     session = null;
     profile = null;
     $('#loginErr').textContent = 'Tu acceso al portal ha sido desactivado. Si crees que esto es un error o necesitas volver a ingresar, contacta con tu manager.';
+    updateHeaderAccessUI();
     return;
   }
 
-  if (authMode === 'admin' && profile.role !== 'admin') {
-    await logout();
-    $('#loginErr').textContent = 'Esta cuenta no tiene acceso administrativo.';
-    return;
-  }
-
-  if (authMode === 'creator' && profile.role === 'admin') {
-    nav('admin');
-    return;
-  }
-
+  updateHeaderAccessUI();
   nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
 }
 
 async function logout() {
-  await sb.auth.signOut(); session = null; profile = null; profileDetails = null; paymentMethod = null; notifications = []; $('#notificationsPanel')?.classList.add('hidden'); updateProfileBadge(); updateNotificationsUI(); nav('home');
+  await sb.auth.signOut(); session = null; profile = null; profileDetails = null; paymentMethod = null; notifications = []; $('#notificationsPanel')?.classList.add('hidden'); updateHeaderAccessUI(); updateProfileBadge(); updateNotificationsUI(); nav('home');
 }
 
 async function saveHome() {
@@ -1606,7 +1610,7 @@ async function init() {
 
   if (notificationsBtn) notificationsBtn.addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation();
-    if (!session) { authMode = 'creator'; nav('auth'); return; }
+    if (!session) { nav('auth'); return; }
     toggleNotifications();
   });
   if (notificationsPanel) notificationsPanel.addEventListener('click', (e) => e.stopPropagation());
@@ -1614,7 +1618,6 @@ async function init() {
     e.preventDefault();
     e.stopPropagation();
     if (!session) {
-      authMode = 'creator';
       nav('auth');
       return;
     }
@@ -1625,7 +1628,7 @@ async function init() {
     closeProfileMenu();
     if (session) nav('profile'); else nav('auth');
   });
-  if (openMySpace) openMySpace.addEventListener('click', () => { closeProfileMenu(); if (session) nav('space'); else nav('auth'); });
+  if (openMySpace) openMySpace.addEventListener('click', () => { closeProfileMenu(); if (session) nav(profile?.role==='admin' ? 'admin' : profile?.role==='manager' ? 'manager' : 'space'); else nav('auth'); });
   if (menuLogout) menuLogout.addEventListener('click', () => {
     closeProfileMenu();
     logout();
@@ -1636,6 +1639,7 @@ async function init() {
   session = data.session;
   if (session) { profile = await getProfile(); await loadProfileDetails(); await loadNotifications(); }
   else updateNotificationsUI();
+  updateHeaderAccessUI();
 
   const hashPage = window.location.hash.replace(/^#/, '');
   const initialPage = ['home','benefits','auth','space','manager','training','missions','profile','admin'].includes(hashPage) ? hashPage : 'home';
