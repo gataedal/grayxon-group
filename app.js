@@ -202,8 +202,15 @@ function renderSpaceShell(){
 }
 function updateSpaceTeam(a){
   const el=$('#spaceTeamBlock'); if(!el)return;
-  if(a?.team){const m=a.manager; el.innerHTML=`<div class="space-team-info"><span class="space-team-label">TU EQUIPO</span><strong>${esc(a.team.name)}</strong><div class="space-manager-row"><span class="space-manager-line">Manager: <b>${esc(m?.name||'Sin asignar')}</b></span>${m?.phone?`<a class="space-team-whatsapp" href="${esc(managerWhatsapp(m.phone))}" target="_blank" rel="noopener noreferrer"><img src="assets/whatsapp-icon.svg" alt=""><span>Contactar</span></a>`:''}</div></div>`;}
-  else el.innerHTML=`<div><span class="space-team-label">TU EQUIPO</span><strong>Aún no tienes equipo asignado</strong><span>Cuando Grayxon te asigne un equipo y manager, aparecerán aquí.</span></div>`;
+  if(a?.team){
+    const m=a.manager;
+    const contact = m?.phone
+      ? `<a class="space-team-contact" href="${esc(managerWhatsapp(m.phone))}" target="_blank" rel="noopener noreferrer"><img src="assets/whatsapp-icon.svg" alt=""><span>Contacta tu manager</span></a>`
+      : '';
+    el.innerHTML=`<div class="space-team-one-line"><span>Tu equipo</span><b>:</b><strong>${esc(a.team.name)}</strong><b>:</b>${contact}</div>`;
+  } else {
+    el.innerHTML=`<div class="space-team-one-line"><span>Tu equipo</span><b>:</b><span>Aún no tienes equipo asignado</span></div>`;
+  }
 }
 function updateSpaceCard(action,pct,detail){const b=document.querySelector(`[data-space-action="${action}"]`);if(!b)return;const p=b.querySelector('.space-card-top span'),bar=b.querySelector('.space-progress span'),d=b.querySelector('small');if(p)p.textContent=`${pct}%`;if(bar)bar.style.width=`${Math.max(0,Math.min(100,pct))}%`;if(d)d.textContent=detail;}
 
