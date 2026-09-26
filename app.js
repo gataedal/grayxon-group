@@ -147,7 +147,7 @@ async function notifyCreators(title, message, linkPage='space') {
 
 async function notifyCreator(userId, title, message, linkPage='space', weekStart=null, weekEnd=null) {
   // La vía principal es el RPC protegido para evitar problemas de RLS.
-  const rpc = await sb.rpc('create_notification', { p_user_id: userId, p_type: 'mission', p_title: title, p_message: message, p_link_page: linkPage, p_week_start: weekStart, p_week_end: weekEnd });
+  const rpc = await sb.rpc('send_creator_notification', { p_user_id: userId, p_type: 'mission', p_title: title, p_message: message, p_link_page: linkPage, p_week_start: weekStart, p_week_end: weekEnd });
   if (!rpc.error) return true;
   // Respaldo para instalaciones donde el RPC aún no esté disponible.
   const payload = { user_id:userId, type:'mission', title, message, link_page:linkPage, related_week_start:weekStart, related_week_end:weekEnd };
