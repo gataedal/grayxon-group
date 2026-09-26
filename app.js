@@ -714,11 +714,28 @@ async function completeLesson(id, options = {}) {
 async function managerTpl(){
   if(!session){ $('#manager').innerHTML=authTpl(); return; }
   if(profile?.role!=='manager'){ $('#manager').innerHTML='<div class="login"><h2>Acceso restringido</h2><p class="muted">Esta sección es solo para managers.</p></div>'; return; }
-  const [{data:me,error:meErr},{data:creators,error:crErr}]=await Promise.all([
-    sb.from('managers').select('id,name,phone,email,username,active').eq('user_id',session.user.id).maybeSingle(),
-    sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('role','creator').eq('manager_id',profile.manager_id).order('full_name')
-  ]);
-  if(meErr||crErr){ $('#manager').innerHTML=`<div class="card"><h2>Panel de manager</h2><div class="error">${esc((meErr||crErr)?.message||'No se pudo cargar tu panel.')}</div></div>`; return; }
+  const {data:me,error:meErr}=await sb
+    .from('managers')
+    .select('id,name,phone,email,username,active')
+    .eq('user_id',session.user.id)
+    .maybeSingle();
+
+  if(meErr||!me){
+    $('#manager').innerHTML=`<div class="card"><h2>Panel de manager</h2><div class="error">${esc(meErr?.message||'No se encontró el manager.')}</div></div>`;
+    return;
+  }
+
+  const {data:creators,error:crErr}=await sb
+    .from('profiles')
+    .select('id,username,full_name,active,team_id,manager_id')
+    .eq('role','creator')
+    .eq('manager_id',me.id)
+    .order('full_name');
+
+  if(crErr){
+    $('#manager').innerHTML=`<div class="card"><h2>Panel de manager</h2><div class="error">${esc(crErr.message||'No se pudo cargar tus creadores.')}</div></div>`;
+    return;
+  }
   const creatorIds=(creators||[]).map(x=>x.id);
   let missions=[], progress=[];
   if(creatorIds.length){
