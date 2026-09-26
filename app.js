@@ -27,6 +27,29 @@ async function createManagerAccess(body){
   return data;
 }
 
+async function updateManagerPassword(managerId, password){
+  const { data: sessionData } = await sb.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+  if(!accessToken) throw new Error('Tu sesión de administrador no está disponible. Vuelve a iniciar sesión.');
+  const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/update-manager-password`, {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({manager_id: managerId, password})
+  });
+  let data=null;
+  try{ data=await res.json(); }catch(_){}
+  if(!res.ok){
+    const msg=data?.error || data?.message || `Error ${res.status} al cambiar la contraseña del manager.`;
+    throw new Error(msg);
+  }
+  if(data?.error) throw new Error(data.error);
+  return data;
+}
+
 
 let current = 'home';
 let session = null;
@@ -821,9 +844,26 @@ async function adminTeams(){
 function teamManagerModal(existing=null){
   const el=document.createElement('div'); el.className='modal-backdrop';
   const needsAccess=!existing?.manager?.user_id;
-  el.innerHTML=`<div class="card modal"><h2>${existing?'Editar':'Crear'} equipo</h2>${field('tmName','Nombre del equipo',existing?.name||'')}<h3 style="margin-top:18px">Manager</h3>${field('tmManagerName','Nombre completo',existing?.manager?.name||'')}<div class="field"><label>WhatsApp con indicativo</label><input id="tmManagerPhone" value="${esc(existing?.manager?.phone||'')}" placeholder="+573126283007"></div>${field('tmManagerEmail','Correo',existing?.manager?.email||'')}<div class="manager-access-box"><div class="eyebrow">ACCESO AL PORTAL</div>${needsAccess?`<div class="item" style="margin-bottom:12px"><b>Este manager ya existe.</b><div class="muted small">Aquí solo vamos a crear su acceso; no se creará otro manager.</div></div>${field('tmManagerUsername','Usuario del manager',existing?.manager?.username||'')}<div class="field"><label>Contraseña inicial</label><input id="tmManagerPassword" type="password" placeholder="Mínimo 8 caracteres"></div><p class="muted small">Se vinculará este acceso al manager actual y se conservará su registro.</p>`:`<div class="item"><b>Acceso ya creado</b><div class="muted small">@${esc(existing?.manager?.username||'manager')} · ${existing?.manager?.active!==false?'Activo':'Inactivo'}</div></div>`}</div><div id="tmErr" class="error"></div><div class="inline" style="margin-top:18px"><button class="primary" id="saveTeamManager">${needsAccess ? 'Crear acceso y guardar' : 'Guardar cambios'}</button><button class="secondary" id="cancelTeamManager">Cancelar</button></div></div>`;
+  el.innerHTML=`<div class="card modal"><h2>${existing?'Editar':'Crear'} equipo</h2>${field('tmName','Nombre del equipo',existing?.name||'')}<h3 style="margin-top:18px">Manager</h3>${field('tmManagerName','Nombre completo',existing?.manager?.name||'')}<div class="field"><label>WhatsApp con indicativo</label><input id="tmManagerPhone" value="${esc(existing?.manager?.phone||'')}" placeholder="+573126283007"></div>${field('tmManagerEmail','Correo',existing?.manager?.email||'')}<div class="manager-access-box"><div class="eyebrow">ACCESO AL PORTAL</div>${needsAccess?`<div class="item" style="margin-bottom:12px"><b>Este manager ya existe.</b><div class="muted small">Aquí solo vamos a crear su acceso; no se creará otro manager.</div></div>${field('tmManagerUsername','Usuario del manager',existing?.manager?.username||'')}<div class="field"><label>Contraseña inicial</label><input id="tmManagerPassword" type="password" placeholder="Mínimo 8 caracteres"></div><p class="muted small">Se vinculará este acceso al manager actual y se conservará su registro.</p>`:`<div class="item"><b>Acceso ya creado</b><div class="muted small">@${esc(existing?.manager?.username||'manager')} · ${existing?.manager?.active!==false?'Activo':'Inactivo'}</div></div>${existing?.manager?.user_id?`<div class="manager-password-reset" style="margin-top:12px"><div class="field"><label>Nueva contraseña del manager</label><input id="tmManagerNewPassword" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password"></div><button type="button" class="secondary small" id="changeManagerPassword">🔑 Cambiar contraseña</button><div id="tmPasswordMsg" class="muted small" style="margin-top:8px"></div></div>`:''}</div>`}<div id="tmErr" class="error"></div><div class="inline" style="margin-top:18px"><button class="primary" id="saveTeamManager">${needsAccess ? 'Crear acceso y guardar' : 'Guardar cambios'}</button><button class="secondary" id="cancelTeamManager">Cancelar</button></div></div>`;
   document.body.appendChild(el);
   $('#cancelTeamManager').onclick=()=>el.remove();
+  if(existing?.manager?.user_id){
+    $('#changeManagerPassword').onclick=async()=>{
+      const btn=$('#changeManagerPassword');
+      const msg=$('#tmPasswordMsg');
+      const password=$('#tmManagerNewPassword').value;
+      msg.textContent='';
+      if(!password||password.length<8){ msg.textContent='La contraseña debe tener mínimo 8 caracteres.'; return; }
+      btn.disabled=true;
+      try{
+        await updateManagerPassword(existing.manager_id, password);
+        $('#tmManagerNewPassword').value='';
+        msg.textContent='Contraseña actualizada correctamente.';
+      }catch(e){
+        msg.textContent=e?.message||'No se pudo cambiar la contraseña.';
+      }finally{ btn.disabled=false; }
+    };
+  }
   $('#saveTeamManager').onclick=async()=>{
     const btn=$('#saveTeamManager');btn.disabled=true;
     const name=$('#tmName').value.trim(),mn=$('#tmManagerName').value.trim(),phone=$('#tmManagerPhone').value.trim(),email=$('#tmManagerEmail').value.trim()||null;
