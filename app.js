@@ -708,20 +708,12 @@ function bind() {
   $('#mobileAdminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
   $$('#mobileNav [data-page]').forEach(b => b.addEventListener('click', () => $('#mobileNav')?.classList.remove('open')));
   $('#loginBtn')?.addEventListener('click', login);
-  $('#logout')?.addEventListener('click', logout);
   $('#adminLogout')?.addEventListener('click', logout);
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
-  const profileBtn = $('#mobileProfile');
-  if (profileBtn) profileBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); toggleProfileMenu(); };
-  const profileMenu = $('#profileMenu');
-  if (profileMenu) profileMenu.onclick = e => e.stopPropagation();
-  const openMyProfile = $('#openMyProfile');
-  if (openMyProfile) openMyProfile.onclick = () => { closeProfileMenu(); if (session) nav('profile'); else nav('auth'); };
-  const menuLogout = $('#menuLogout');
-  if (menuLogout) menuLogout.onclick = () => { closeProfileMenu(); logout(); };
+  // Account menu is wired once globally below. Do not bind it here on every render.
   const saveProfileBtn = $('#saveProfile');
   if (saveProfileBtn) saveProfileBtn.onclick = saveProfile;
   $('#pMethod')?.addEventListener('change', togglePaymentFields);
@@ -889,6 +881,28 @@ async function saveBenefits() {
 }
 
 async function init() {
+  // Account controls live in the persistent header, so bind them once.
+  const profileBtn = $('#mobileProfile');
+  const profileMenu = $('#profileMenu');
+  const openMyProfile = $('#openMyProfile');
+  const menuLogout = $('#menuLogout');
+
+  if (profileBtn) profileBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleProfileMenu();
+  });
+  if (profileMenu) profileMenu.addEventListener('click', (e) => e.stopPropagation());
+  if (openMyProfile) openMyProfile.addEventListener('click', () => {
+    closeProfileMenu();
+    if (session) nav('profile'); else nav('auth');
+  });
+  if (menuLogout) menuLogout.addEventListener('click', () => {
+    closeProfileMenu();
+    logout();
+  });
+  document.addEventListener('click', () => closeProfileMenu());
+
   const { data } = await sb.auth.getSession();
   session = data.session;
   if (session) { profile = await getProfile(); await loadProfileDetails(); }
