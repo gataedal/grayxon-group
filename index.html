@@ -130,13 +130,27 @@ body{min-height:100svh!important;}
 .sensitive-value{letter-spacing:.05em}
 @media(max-width:600px){.profile-head{padding:18px}.profile-head h1{font-size:22px}.profile-avatar-wrap{width:62px;height:62px;flex-basis:62px}}
 </style>
+<style>
+/* Account menu */
+.profile-menu-wrap{position:relative;display:flex;align-items:center}
+.profile-menu{position:absolute;right:0;top:calc(100% + 10px);width:245px;padding:10px;border:1px solid #30343b;border-radius:16px;background:rgba(12,14,17,.98);box-shadow:0 18px 50px #000b;z-index:100;backdrop-filter:blur(14px)}
+.profile-menu-user{padding:9px 10px 11px;border-bottom:1px solid #292d33;margin-bottom:6px;display:grid;gap:3px}
+.profile-menu-user strong{font-size:14px;color:#fff}
+.profile-menu-user span{font-size:11px;color:#858c97}
+.profile-menu-item{width:100%;display:flex;align-items:center;gap:10px;padding:11px 10px;border:0;border-radius:10px;background:transparent;color:#e8eaed;text-align:left}
+.profile-menu-item:hover{background:#1a1d21}
+.profile-menu-item b{margin-left:auto;font-size:18px;color:#8e95a0}
+.profile-menu-logout{color:#ff9aaa;border-top:1px solid #292d33;border-radius:0;margin-top:5px;padding-top:13px}
+.profile-menu-logout:hover{background:#241419}
+@media(max-width:800px){.profile-menu{right:-4px;width:220px}.admin-btn{display:none!important}}
+</style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
-<header class="top"><button class="brand" id="homeBrand" type="button" aria-label="Ir al inicio"><img class="logo" src="assets/grayxon-logo.png" alt="Grayxon"><b>GRAYXON</b><span class="brand-live">LIVE</span></button><nav class="nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="auth" data-auth-mode="creator">Mi espacio</button></nav><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><button id="mobileProfile" class="mobile-profile" aria-label="Mi espacio">G</button></div></header>
+<header class="top"><button class="brand" id="homeBrand" type="button" aria-label="Ir al inicio"><img class="logo" src="assets/grayxon-logo.png" alt="Grayxon"><b>GRAYXON</b><span class="brand-live">LIVE</span></button><nav class="nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="auth" data-auth-mode="creator">Mi espacio</button></nav><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir menú de cuenta">G</button><div id="profileMenu" class="profile-menu hidden"><div class="profile-menu-user"><strong id="profileMenuName">Mi cuenta</strong><span id="profileMenuRole">Cuenta Grayxon</span></div><button id="openMyProfile" class="profile-menu-item">👤 <span>Mi perfil</span><b>›</b></button><button id="menuLogout" class="profile-menu-item profile-menu-logout">↪ <span>Cerrar sesión</span></button></div></div></div></header>
 <main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="training" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section></main>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 
 <style>
 /* v11 final home refinements */

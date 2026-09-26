@@ -685,6 +685,18 @@ async function moveLesson(id, direction) {
   render();
 }
 
+function toggleProfileMenu(){
+  const menu=$('#profileMenu'); if(!menu) return;
+  const willOpen=menu.classList.contains('hidden');
+  menu.classList.toggle('hidden', !willOpen);
+  if(willOpen){
+    const name=$('#profileMenuName'); const role=$('#profileMenuRole');
+    if(name) name.textContent=profile?.full_name || profile?.username || 'Mi cuenta';
+    if(role) role.textContent=profile?.role==='admin' ? 'Administrador' : 'Creador';
+  }
+}
+function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classList.add('hidden'); }
+
 function bind() {
   $('#homeBrand')?.addEventListener('click', () => nav('home'));
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'auth' && session && profile?.role === 'creator') nav('training'); else nav(target); });
@@ -702,7 +714,10 @@ function bind() {
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
-  $('#mobileProfile')?.addEventListener('click', () => { if (session) nav('profile'); else nav('auth'); });
+  $('#mobileProfile')?.addEventListener('click', (e) => { e.stopPropagation(); toggleProfileMenu(); });
+  $('#profileMenu')?.addEventListener('click', e => e.stopPropagation());
+  $('#openMyProfile')?.addEventListener('click', () => { closeProfileMenu(); if (session) nav('profile'); else nav('auth'); });
+  $('#menuLogout')?.addEventListener('click', () => { closeProfileMenu(); logout(); });
   $('#saveProfile')?.addEventListener('click', saveProfile);
   $('#pMethod')?.addEventListener('change', togglePaymentFields);
   $('#pCountry')?.addEventListener('change', () => {});
@@ -756,9 +771,15 @@ async function saveProfile(){
   const {data:existing}=await sb.from('payment_methods').select('id').eq('user_id',session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle();
   const {error:pe}=existing?.id ? await sb.from('payment_methods').update(pm).eq('id',existing.id) : await sb.from('payment_methods').insert(pm);
   if(pe){if(err)err.textContent=pe.message;return;}
-  toast('Perfil guardado ✓'); await loadProfileDetails(); updateProfileBadge(); render();
+  toast('Perfil guardado ✓'); await loadProfileDetails(); updateProfileBadge(); closeProfileMenu(); nav('training');
 }
-function updateProfileBadge(){ const b=$('#mobileProfile'); if(!b)return; if(profileDetails?.avatar_url)b.innerHTML=`<img src="${esc(profileDetails.avatar_url)}" alt="Perfil">`; else b.textContent=profileInitial(); }
+function updateProfileBadge(){
+  const b=$('#mobileProfile'); if(!b)return;
+  if(profileDetails?.avatar_url)b.innerHTML=`<img src="${esc(profileDetails.avatar_url)}" alt="Perfil">`; else b.textContent=profileInitial();
+  const name=$('#profileMenuName'); const role=$('#profileMenuRole');
+  if(name) name.textContent=session ? (profile?.full_name || profile?.username || 'Mi cuenta') : 'Mi cuenta';
+  if(role) role.textContent=session ? (profile?.role==='admin' ? 'Administrador' : 'Creador') : 'Inicia sesión para acceder';
+}
 async function login() {
   const input = $('#loginUser').value.trim();
   const p = $('#loginPass').value;
