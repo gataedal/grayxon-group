@@ -83,18 +83,20 @@ async function render() {
 
 function homeTpl(h) {
   const d = fallback.home;
-  const eyebrow = h?.eyebrow || d.eyebrow;
-  const title = h?.title || d.title;
   const intro = h?.intro || d.intro;
   const about = h?.about || d.about;
   const trust = Array.isArray(h?.trust) && h.trust.length ? h.trust : d.trust;
   const creatorName = session && profile?.role === 'creator' ? esc(profile.full_name || profile.username) : 'Gray';
-  const initials = session && profile?.role === 'creator' ? esc((profile.full_name || profile.username || 'G').split(/\s+/).map(x => x[0]).slice(0,2).join('').toUpperCase()) : 'G';
   return `<div class="home-modern">
     <section class="modern-hero">
       <div class="modern-hero-copy">
         <div class="modern-kicker"><span>GRAYXON ACADEMY</span></div>
-        <h1>Crece. Aprende.<br>Conecta con <em>Grayxon.</em></h1>
+        <h1>Crece. Aprende. Conecta con <em>Grayxon.</em></h1>
+        <div class="brand-connection-inline" aria-hidden="true">
+          <img src="assets/grayxon-logo.png" alt="Grayxon">
+          <span></span>
+          <img src="assets/tiktok-live-logo.png" alt="TikTok LIVE">
+        </div>
         <p class="modern-intro">${esc(intro)}</p>
         <button class="modern-about" data-page="benefits">
           <span class="about-icon">♧</span>
@@ -102,6 +104,19 @@ function homeTpl(h) {
           <span class="about-arrow">›</span>
         </button>
         <div class="modern-trust">${trust.slice(0,3).map(x => `<span>✓ ${esc(x)}</span>`).join('')}</div>
+
+        <section class="modern-socials hero-socials">
+          <div class="modern-social-title">NUESTRAS REDES</div>
+          <div class="modern-social-grid">
+            <a class="modern-social-btn" href="https://www.tiktok.com/@grayxongroup" target="_blank" rel="noopener noreferrer"><span class="social-logo tiktok-mark">♪</span><strong>TikTok</strong><b>↗</b></a>
+            <a class="modern-social-btn whatsapp-btn" href="https://wa.me/573126283007?text=Hola%20Grayxon%20%F0%9F%91%8B" target="_blank" rel="noopener noreferrer"><span class="social-logo whatsapp-mark"><img src="assets/whatsapp-icon.svg" alt="WhatsApp"></span><strong>Hablar por WhatsApp</strong><b>↗</b></a>
+          </div>
+        </section>
+
+        <div class="hero-actions">
+          <button class="hero-action hero-action-primary" data-page="benefits">Beneficios y requisitos <span>›</span></button>
+          <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Tu espacio <span>›</span></button>
+        </div>
       </div>
       <div class="modern-creator-art" aria-hidden="true">
         <div class="creator-aura"></div>
@@ -109,32 +124,8 @@ function homeTpl(h) {
         <div class="creator-brand-tag"><img src="assets/grayxon-logo.png" alt="Grayxon"><span>TikTok LIVE</span></div>
       </div>
     </section>
-
-    <button class="space-card" data-page="auth" data-auth-mode="creator">
-      <span class="space-icon">⌂</span>
-      <span class="space-copy"><strong>Tu espacio</strong><small>¡Bienvenido, ${creatorName}!<br>Aquí encontrarás todo lo que necesitas para seguir aprendiendo y creciendo.</small></span>
-      <span class="space-arrow">›</span>
-    </button>
-
-    <section class="modern-quick-grid">
-      <button class="quick-card quick-pink" data-page="auth" data-auth-mode="creator">
-        <span class="quick-icon">▮▮</span><span><strong>Mi formación</strong><small>Accede a tus cursos y contenidos.</small></span><b>›</b>
-      </button>
-      <button class="quick-card quick-cyan" data-page="auth" data-auth-mode="creator">
-        <span class="quick-icon">▥</span><span><strong>Mi progreso</strong><small>Revisa tu avance y tus logros.</small></span><b>›</b>
-      </button>
-    </section>
-
-    <section class="modern-socials">
-      <div class="modern-social-title">NUESTRAS REDES</div>
-      <div class="modern-social-grid">
-        <a class="modern-social-btn" href="https://www.tiktok.com/@grayxongroup" target="_blank" rel="noopener noreferrer"><span class="social-logo tiktok-mark">♪</span><strong>TikTok</strong><b>↗</b></a>
-        <a class="modern-social-btn whatsapp-btn" href="https://wa.me/573126283007?text=Hola%20Grayxon%20%F0%9F%91%8B" target="_blank" rel="noopener noreferrer"><span class="social-logo whatsapp-mark"><img src="assets/whatsapp-icon.svg" alt="WhatsApp"></span><strong>Hablar por WhatsApp</strong><b>↗</b></a>
-      </div>
-    </section>
   </div>`;
 }
-
 function benefitsTpl(b) {
   const bonusSections = [
     { icon:'💎', title:'1. ¿Qué puedes ganar?', body:'Además de las recompensas de TikTok, puedes ganar bonos mensuales por tu producción.', bullets:['Bonos por mantener e incrementar tu producción.','Más herramientas para ayudarte a crecer.','Acompañamiento real de un equipo que quiere verte crecer.'] },
@@ -243,6 +234,14 @@ async function openLesson(id) {
     }
   } else {
     $('#completeLesson').onclick = () => completeLesson(l.id);
+  }
+
+  // On mobile, bring the selected lesson/player into view automatically so the user
+  // never has to hunt for the video below the module list.
+  if (window.matchMedia('(max-width: 800px)').matches) {
+    requestAnimationFrame(() => {
+      $('#lessonView')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 }
 
