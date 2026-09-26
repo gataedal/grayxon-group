@@ -736,16 +736,28 @@ async function managerTpl(){
   const pm=new Map(progress.map(x=>[`${x.user_id}:${x.mission_id}`,x]));
   const missionPct=m=>{const x=pm.get(`${m.assigned_to}:${m.id}`);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0;};
   const creatorCard=(c)=>{
-    const cm=missions.filter(m=>m.assigned_to===c.id), pct=cm.length?Math.round(cm.reduce((a,m)=>a+missionPct(m),0)/cm.length):0;
     const avatar=avatarMap.get(c.id);
     const initials=esc((c.full_name||c.username||'C').trim().charAt(0).toUpperCase());
-    const avatarHtml=avatar?`<img src="${esc(avatar)}" alt="Foto de ${esc(c.full_name||c.username)}" loading="eager" decoding="async" referrerpolicy="no-referrer">`:`<span>${initials}</span>`;
-    return `<div class="item manager-creator-card"><div class="manager-creator-main"><div class="manager-creator-identity"><div class="manager-creator-avatar">${avatarHtml}</div><div><b>${esc(c.full_name||c.username)}</b><div class="muted small">@${esc(c.username)} · ${esc(tm.get(c.team_id)||'Sin equipo')}</div></div></div><span class="pill ${c.active?'ok':''}">${c.active?'Activo':'Inactivo'}</span></div><div class="manager-creator-bottom"><div class="manager-creator-progress"><span>Misiones ${pct}%</span><div class="space-progress"><span style="width:${pct}%"></span></div></div><div class="manager-creator-actions"><button class="secondary manager-action-btn" data-manager-view-creator="${c.id}">👤 Ver perfil</button><button class="primary manager-action-btn" data-manager-missions="${c.id}">🎯 Misiones</button></div></div></div>`;
+    const avatarHtml=avatar
+      ? `<img src="${esc(avatar)}" alt="Foto de ${esc(c.full_name||c.username)}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden')"><span class="manager-creator-avatar-fallback hidden">${initials}</span>`
+      : `<span class="manager-creator-avatar-fallback">${initials}</span>`;
+    return `<div class="item manager-creator-card" data-manager-creator-row="${c.id}" data-search="${esc(`${c.username||''} ${c.full_name||''}`.toLowerCase())}"><button type="button" class="manager-creator-summary" data-manager-creator-toggle="${c.id}"><span class="manager-creator-identity"><span class="manager-creator-avatar">${avatarHtml}</span><span class="manager-creator-name"><b>@${esc(c.username)}</b></span></span><span class="manager-creator-chevron">›</span></button><div class="manager-creator-actions hidden" data-manager-actions="${c.id}"><button class="secondary manager-action-btn" data-manager-view-creator="${c.id}">👤 Ver perfil</button><button class="secondary manager-action-btn" data-manager-missions="${c.id}">🎯 Misiones</button></div></div>`;
   };
+  const creatorRows=(creators||[]).map(creatorCard).join('') || '<div class="item"><p class="muted small" style="margin:0">No tienes creadores asignados actualmente.</p></div>';
   const tasksRes=await sb.from('manager_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('manager_id',me?.id||'').order('completed',{ascending:true}).order('assigned_at',{ascending:false});
   const tasks=tasksRes.data||[];
   const taskHtml=tasks.length?tasks.map(t=>`<div class="item manager-task-row ${t.completed?'task-done':''}"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><div>${t.completed?'<span class="pill ok">✓ Lista</span>':'<button class="primary small" data-complete-manager-task="'+t.id+'">Marcar como lista</button>'}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">No tienes tareas asignadas.</p></div>';
-  $('#manager').innerHTML=`<div class="manager-page"><div class="manager-hero card"><div><div class="eyebrow">PANEL DE MANAGER</div><h1>Hola, ${esc(me?.name||profile.username)} 👋</h1><p class="muted">Aquí puedes ver tus creadores, asignar misiones y completar tus tareas.</p></div><div class="manager-hero-stat"><strong>${(creators||[]).length}</strong><span>CREADORES</span></div></div><div class="card"><div class="row"><div><h2>Mis creadores</h2><p class="muted small">Solo aparecen los creadores que actualmente están asignados a ti.</p></div></div><div class="manager-creators-list">${(creators||[]).map(creatorCard).join('')||'<div class="item"><p class="muted small" style="margin:0">No tienes creadores asignados actualmente.</p></div>'}</div></div><div class="card"><div class="row"><div><h2>Mis tareas</h2><p class="muted small">Las fechas de asignación y finalización quedan selladas por el sistema.</p></div></div><div class="manager-tasks-list">${taskHtml}</div></div></div>`;
+  $('#manager').innerHTML=`<div class="manager-page"><div class="manager-hero card"><div><div class="eyebrow">PANEL DE MANAGER</div><h1>Hola, ${esc(me?.name||profile.username)} 👋</h1><p class="muted">Aquí puedes ver tus creadores, asignar misiones y completar tus tareas.</p></div><div class="manager-hero-stat"><strong>${(creators||[]).length}</strong><span>CREADORES</span></div></div><div class="card"><div class="row"><div><h2>Mis creadores</h2><p class="muted small">Solo aparecen los creadores que actualmente están asignados a ti.</p></div></div><div class="manager-creator-search"><span aria-hidden="true">⌕</span><input id="managerCreatorSearch" type="search" placeholder="Buscar creador por nombre o usuario…" autocomplete="off"></div><div id="managerCreatorNoResults" class="item hidden"><p class="muted small" style="margin:0">No encontramos un creador con esa búsqueda.</p></div><div class="manager-creators-list" id="managerCreatorsList">${creatorRows}</div></div><div class="card"><div class="row"><div><h2>Mis tareas</h2><p class="muted small">Las fechas de asignación y finalización quedan selladas por el sistema.</p></div></div><div class="manager-tasks-list">${taskHtml}</div></div></div>`;
+  $('#managerCreatorSearch')?.addEventListener('input',e=>{
+    const q=(e.target.value||'').trim().toLowerCase();
+    let visible=0;
+    $$('#managerCreatorsList [data-manager-creator-row]').forEach(row=>{
+      const match=!q || (row.dataset.search||'').includes(q);
+      row.classList.toggle('hidden',!match);
+      if(match) visible++;
+    });
+    $('#managerCreatorNoResults')?.classList.toggle('hidden',visible!==0);
+  });
   bind();
 }
 
@@ -1401,8 +1413,17 @@ function bind() {
     }
   }
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
-  $$('[data-manager-view-creator]').forEach(b=>b.onclick=()=>managerCreatorModal(b.dataset.managerViewCreator));
-  $$('[data-manager-missions]').forEach(b=>b.onclick=()=>creatorMissionModal(b.dataset.managerMissions,null,'manager'));
+  $$('[data-manager-creator-toggle]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.managerCreatorToggle;
+    const actions=$(`[data-manager-actions="${id}"]`);
+    if(!actions)return;
+    const willOpen=actions.classList.contains('hidden');
+    $$('.manager-creator-actions').forEach(x=>x.classList.add('hidden'));
+    $$('[data-manager-creator-toggle]').forEach(x=>x.classList.remove('is-open'));
+    if(willOpen){ actions.classList.remove('hidden'); b.classList.add('is-open'); }
+  });
+  $$('[data-manager-view-creator]').forEach(b=>b.onclick=e=>{e.stopPropagation();managerCreatorModal(b.dataset.managerViewCreator)});
+  $$('[data-manager-missions]').forEach(b=>b.onclick=e=>{e.stopPropagation();creatorMissionModal(b.dataset.managerMissions,null,'manager')});
   $$('[data-complete-manager-task]').forEach(b=>b.onclick=async()=>{b.disabled=true;const {error}=await sb.rpc('complete_manager_task',{p_task_id:b.dataset.completeManagerTask});if(error){toast(error.message);b.disabled=false;return;}toast('Tarea marcada como lista ✓');await loadNotifications();render();});
   $('#newManagerTask')?.addEventListener('click',managerTaskModal);
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
