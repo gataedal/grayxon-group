@@ -180,167 +180,222 @@ async function content() {
 }
 
 function nav(p, push = true) {
-  const pages = ['home', 'benefits', 'auth', 'space', 'training', 'missions', 'profile', 'admin'];
+  const pages = ['home','benefits','auth','space','training','missions','profile','admin'];
   if (!pages.includes(p)) p = 'home';
-  if (push && current !== p) history.pushState({ page: p }, '', window.location.href);
+  if (push && current !== p) history.pushState({page:p}, '', window.location.href);
   current = p;
-
-  // Navegación inmediata: mostrar/ocultar la pantalla ANTES de cualquier consulta
-  // o render asíncrono. Esto evita que una promesa de Supabase pueda bloquear
-  // el acceso a Tu espacio.
-  pages.forEach(id => {
-    const el = $('#' + id);
-    if (el) el.classList.toggle('hidden', id !== p);
-  });
-  window.scrollTo(0, 0);
-
-  // Pintamos Tu espacio inmediatamente con un shell mínimo.
-  if (p === 'space') {
-    try { renderSpaceShell(); } catch (e) { console.error('Error pintando Tu espacio:', e); const el=$('#space'); if(el) el.innerHTML='<div class="card" style="padding:30px"><h2>Tu espacio</h2><p>Estamos preparando tu espacio. Intenta nuevamente.</p></div>'; }
-  }
-
-  // El resto de contenido se enriquece de forma asíncrona y nunca debe bloquear
-  // la navegación.
-  Promise.resolve(render()).catch(err => console.warn('Render de página falló:', err));
+  pages.forEach(id => { const el=$('#'+id); if(el) el.classList.toggle('hidden', id !== p); });
+  if (p === 'space') { try { renderSpaceShell(); } catch(e) { console.error(e); } }
+  Promise.resolve(render()).catch(e => console.warn('Render:', e));
+  window.scrollTo(0,0);
 }
 
-function spaceCard(icon, title, desc, pct, action, detail) {
-  return `<button class="space-card card" data-space-action="${esc(action)}">
-    <span class="space-card-icon">${icon}</span>
-    <div class="space-card-main">
-      <div class="space-card-top"><strong>${esc(title)}</strong><span>${pct}%</span></div>
-      <p>${esc(desc)}</p>
-      <div class="space-progress"><span style="width:${Math.max(0,Math.min(100,pct))}%"></span></div>
-      <small>${esc(detail)}</small>
-    </div>
-    <span class="space-card-arrow">›</span>
-  </button>`;
+function spaceCard(icon,title,desc,pct,action,detail){
+  return `<button class="space-card card" data-space-action="${esc(action)}"><span class="space-card-icon">${icon}</span><div class="space-card-main"><div class="space-card-top"><strong>${esc(title)}</strong><span>${pct}%</span></div><p>${esc(desc)}</p><div class="space-progress"><span style="width:${Math.max(0,Math.min(100,pct))}%"></span></div><small>${esc(detail)}</small></div><span class="space-card-arrow">›</span></button>`;
 }
-
-function renderSpaceShell() {
-  const el = $('#space');
-  if (!el) return;
-  if (!session) {
-    el.innerHTML = authTpl('creator');
-    return;
-  }
-  const base = profile || {
-    full_name: session.user.user_metadata?.full_name || '',
-    username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador'
-  };
-  el.innerHTML = `<div class="space-page">
-    <div class="space-hero">
-      <div class="space-hero-main">
-        <div class="eyebrow">TU ESPACIO</div>
-        <h1>Hola, ${esc(base.full_name || base.username)} 👋</h1>
-        <p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p>
-        <div id="spaceTeamBlock" class="space-team-inline">
-          <div><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong><span>Estamos preparando tu equipo y manager.</span></div>
-        </div>
-      </div>
-      <div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div>
-    </div>
-    <div class="space-grid" id="spaceCards">
-      ${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}
-      ${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}
-      ${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}
-    </div>
-  </div>`;
+function renderSpaceShell(){
+  const el=$('#space'); if(!el) return;
+  if(!session){ el.innerHTML=authTpl('creator'); return; }
+  const base=profile||{full_name:session.user.user_metadata?.full_name||'',username:session.user.user_metadata?.username||session.user.email?.split('@')[0]||'creador'};
+  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.full_name||base.username)} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p><div id="spaceTeamBlock" class="space-team-inline"><div><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong><span>Estamos preparando tu equipo y manager.</span></div></div></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}</div></div>`;
   bind();
 }
+function updateSpaceTeam(a){
+  const el=$('#spaceTeamBlock'); if(!el)return;
+  if(a?.team){const m=a.manager; el.innerHTML=`<div><span class="space-team-label">TU EQUIPO</span><strong>${esc(a.team.name)}</strong><span>Manager: <b>${esc(m?.name||'Sin asignar')}</b></span></div>${m?.phone?`<a class="space-team-whatsapp" href="${esc(managerWhatsapp(m.phone))}" target="_blank" rel="noopener noreferrer">💬 Contacta tu manager</a>`:''}`;}
+  else el.innerHTML=`<div><span class="space-team-label">TU EQUIPO</span><strong>Aún no tienes equipo asignado</strong><span>Cuando Grayxon te asigne un equipo y manager, aparecerán aquí.</span></div>`;
+}
+function updateSpaceCard(action,pct,detail){const b=document.querySelector(`[data-space-action="${action}"]`);if(!b)return;const p=b.querySelector('.space-card-top span'),bar=b.querySelector('.space-progress span'),d=b.querySelector('small');if(p)p.textContent=`${pct}%`;if(bar)bar.style.width=`${Math.max(0,Math.min(100,pct))}%`;if(d)d.textContent=detail;}
 
-function updateSpaceTeam(assignment) {
-  const el = $('#spaceTeamBlock');
-  if (!el) return;
-  if (assignment?.team) {
-    const manager = assignment.manager;
-    el.innerHTML = `<div>
-      <span class="space-team-label">TU EQUIPO</span>
-      <strong>${esc(assignment.team.name)}</strong>
-      <span>Manager: <b>${esc(manager?.name || 'Sin asignar')}</b></span>
-    </div>
-    ${manager?.phone ? `<a class="space-team-whatsapp" href="${esc(managerWhatsapp(manager.phone))}" target="_blank" rel="noopener noreferrer">💬 Contacta tu manager</a>` : ''}`;
-  } else {
-    el.innerHTML = `<div><span class="space-team-label">TU EQUIPO</span><strong>Aún no tienes equipo asignado</strong><span>Cuando Grayxon te asigne un equipo y manager, aparecerán aquí.</span></div>`;
+async function render(){
+  if(current==='home'||current==='benefits'||current==='admin'){
+    const c=await content();
+    if(current==='home')$('#home').innerHTML=homeTpl(c.home);
+    if(current==='benefits')$('#benefits').innerHTML=benefitsTpl(c.benefits);
+    if(current==='admin')await adminTpl(c);
   }
+  if(current==='auth')$('#auth').innerHTML=authTpl(authMode);
+  if(current==='space')await spaceTpl();
+  if(current==='training')await trainingTpl();
+  if(current==='missions')await missionsTpl();
+  if(current==='profile')$('#profile').innerHTML=await profileTpl();
+  bind(); updateProfileBadge(); updateNotificationsUI();
+  $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===current));
 }
 
-function updateSpaceCard(action, pct, detail) {
-  const btn = document.querySelector(`[data-space-action="${action}"]`);
-  if (!btn) return;
-  const pctEl = btn.querySelector('.space-card-top span');
-  const bar = btn.querySelector('.space-progress span');
-  const small = btn.querySelector('small');
-  if (pctEl) pctEl.textContent = `${pct}%`;
-  if (bar) bar.style.width = `${Math.max(0,Math.min(100,pct))}%`;
-  if (small) small.textContent = detail;
+function homeTpl(h) {
+  const d = fallback.home;
+  const about = h?.about || d.about;
+  const trust = Array.isArray(h?.trust) && h.trust.length ? h.trust : d.trust;
+  return `<div class="home-modern">
+    <section class="modern-hero">
+      <div class="modern-hero-copy">
+        <div class="modern-title-block">
+          <h1>Crea, aprende y conecta con <em>Grayxon.</em></h1>
+        </div>
+
+        <div class="modern-about">
+          <span class="about-copy"><small>QUIÉNES SOMOS</small><strong>${esc(about)}</strong></span>
+        </div>
+
+        <div class="modern-trust">${trust.slice(0,3).map(x => `<span>✓ ${esc(x)}</span>`).join('')}</div>
+
+        <section class="menu-panel">
+          <div class="home-menu-heading">NUESTRO MENÚ</div>
+          <div class="hero-actions">
+            <button class="hero-action hero-action-primary" data-page="benefits">Beneficios y requisitos <span>›</span></button>
+            <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Tu espacio <span>›</span></button>
+          </div>
+        </section>
+
+        <section class="modern-socials hero-socials">
+          <div class="modern-social-title">NUESTRAS REDES</div>
+          <div class="modern-social-grid">
+            <a class="modern-social-btn" href="https://www.tiktok.com/@grayxongroup" target="_blank" rel="noopener noreferrer"><span class="social-logo tiktok-mark"><img src="assets/tiktok-icon.svg" alt="TikTok"></span><strong>TikTok</strong><b>↗</b></a>
+            <a class="modern-social-btn whatsapp-btn" href="https://wa.me/573126283007?text=Hola%20Grayxon%20%F0%9F%91%8B" target="_blank" rel="noopener noreferrer"><span class="social-logo whatsapp-mark"><img src="assets/whatsapp-icon.svg" alt="WhatsApp"></span><strong>Hablar por WhatsApp</strong><b>↗</b></a>
+          </div>
+        </section>
+
+      </div>
+      <div class="modern-creator-art" aria-hidden="true">
+        <div class="creator-aura"></div>
+        <img src="assets/creator-grayxon.png" alt="">
+      </div>
+    </section>
+  </div>`;
+}
+function benefitsTpl(b) {
+  const bonusSections = [
+    { icon:'💎', title:'1. ¿Qué puedes ganar?', body:'Además de las recompensas de TikTok, puedes ganar bonos mensuales por tu producción.', bullets:['Bonos por mantener e incrementar tu producción.','Más herramientas para ayudarte a crecer.','Acompañamiento real de un equipo que quiere verte crecer.'] },
+    { icon:'📅', title:'2. ¿Cómo ganar tu bono?', body:'Para que tu producción sea válida y puedas participar en el programa, debes cumplir:', bullets:['90 horas al mes','22 días válidos','Cumplir las condiciones del programa'], note:'Los bonos están sujetos a las condiciones del programa. Si una sanción genera un débito para la agencia y está relacionado con el creador, el valor correspondiente podrá descontarse del bono generado por ese creador.' },
+    { icon:'💰', title:'3. ¿Cuánto puedes ganar?', tiers:[['100K','$15'],['150K','$25'],['300K','$40'],['500K','$60'],['800K','$90'],['1.2M','$130'],['1.8M','$200']], increment:[['100K','$40'],['150K','$60'],['300K','$100'],['500K','$140'],['800K','$220'],['1.2M','$320'],['1.8M','$500']] },
+    { icon:'🎁', title:'4. ¿Cómo recibes tu bono?', body:'Una vez cumplas las condiciones del programa y generes tu bono, podrás recibirlo mediante:', bullets:['Regalos de TikTok','PayPal','Tu cuenta bancaria local'] },
+    { icon:'🚀', title:'5. Todo lo que tienes en Grayxon para seguir creciendo', bullets:['Academia Grayxon · Cursos, guías y tutoriales disponibles 24/7.','Capacitaciones en vivo · Entrenamientos semanales con estrategias para crecer.','Acompañamiento personalizado · Orientación para resolver tus dudas.','Soporte especializado · Ayuda con restricciones, bloqueos, apelaciones y errores.','Comunidad Grayxon · Conecta con otros talentos y participa en actividades.','Concursos y eventos · Actividades y premios para nuestra comunidad.'] },
+    { icon:'✨', title:'6. Tú también puedes', body:'No importa dónde estás hoy. Lo importante es cuánto puedes crecer mañana.', bullets:['💎 $100K → puedes.','💎 $300K → puedes.','💎 $1 MILLÓN → también puedes.'], note:'Crecer juntos. Llegar más lejos.' }
+  ];
+  return `<div class="section benefits-page">
+    <div class="eyebrow">GRAYXON · INFORMACIÓN</div>
+    <h2>${esc(b.title || 'Beneficios y requisitos')}</h2>
+    <p class="muted">${esc(b.intro || fallback.benefits.intro)}</p>
+    <div class="benefits-media">
+      <div class="section">
+        <div class="benefits-media-label"><span>🎥</span><div><strong>Conoce Grayxon</strong><small>Te explicamos cómo funciona nuestro proceso.</small></div></div>
+        <video class="video" controls playsinline preload="metadata" src="assets/Beneficios_y_requisitos.mp4"></video>
+      </div>
+    </div>
+
+    <section class="bonus-module section">
+      <div class="bonus-module-head"><div><div class="eyebrow">PROGRAMA GRAYXON</div><h3>Bonificaciones</h3><p>Consulta de forma rápida cómo funciona nuestro programa de bonos y qué necesitas para acceder a ellos.</p></div><span class="bonus-live-badge">BONOS</span></div>
+      <div class="bonus-accordion">${bonusSections.map((x,i)=>`<details class="bonus-item" ${i===0?'open':''}><summary><span class="bonus-icon">${x.icon}</span><span class="bonus-title">${x.title}</span><span class="bonus-chevron">⌄</span></summary><div class="bonus-content">${x.body?`<p>${esc(x.body)}</p>`:''}${x.bullets?`<div class="bonus-bullets">${x.bullets.map(v=>`<div>✓ <span>${esc(v)}</span></div>`).join('')}</div>`:''}${x.tiers?`<div class="bonus-subtitle">Bono por mantener tu producción</div><div class="bonus-tiers">${x.tiers.map(v=>`<div><b>${v[0]}</b><span>${v[1]}</span></div>`).join('')}</div><div class="bonus-subtitle second">Bono por incrementar 10% o más tu producción</div><div class="bonus-tiers">${x.increment.map(v=>`<div><b>${v[0]}</b><span>hasta ${v[1]}</span></div>`).join('')}</div>`:''}${x.note?`<div class="bonus-note">${esc(x.note)}</div>`:''}</div></details>`).join('')}</div>
+    </section>
+
+    <div class="benefits-lists">
+      <div class="section benefits-list-card"><h3>Beneficios</h3><div class="list">${(b.benefits || fallback.benefits.benefits).map(x => `<div class="item">✓ ${esc(x)}</div>`).join('')}</div></div>
+      <div class="section benefits-list-card"><h3>Requisitos</h3><div class="list">${(b.requirements || fallback.benefits.requirements).map(x => `<div class="item">✓ ${esc(x)}</div>`).join('')}</div></div>
+    </div>
+    <a class="primary benefits-cta" href="https://wa.me/573126283007?text=Quiero%20continuar%20con%20mi%20proceso%20de%20ingreso" target="_blank" rel="noopener noreferrer">Quiero continuar con mi proceso →</a>
+  </div>`;
 }
 
-async function spaceTpl() {
-  if (!session) { $('#space').innerHTML = authTpl('creator'); return; }
-  if (!$('#space')?.innerHTML.trim()) renderSpaceShell();
 
-  const uid = session.user.id;
-  const safe = async (promise, fallback, ms=2200) => {
-    try {
-      const r = await Promise.race([
-        promise,
-        new Promise(resolve => setTimeout(() => resolve({data:fallback,error:new Error('timeout')}), ms))
-      ]);
-      return r?.error ? fallback : (r?.data ?? fallback);
-    } catch { return fallback; }
-  };
+const profileCountries = [
+  ['CO','Colombia'],['MX','México'],['AR','Argentina'],['CL','Chile'],['PE','Perú'],['EC','Ecuador'],['VE','Venezuela'],['PA','Panamá'],['CR','Costa Rica'],['GT','Guatemala'],['SV','El Salvador'],['HN','Honduras'],['NI','Nicaragua'],['DO','República Dominicana'],['BO','Bolivia'],['PY','Paraguay'],['UY','Uruguay'],['CU','Cuba'],['HT','Haití']
+];
+const bankSeed = {
+  CO:['Bancolombia','Banco de Bogotá','Davivienda','BBVA Colombia','Banco de Occidente','Banco Popular','Banco AV Villas','Scotiabank Colpatria','Itaú Colombia','Banco Caja Social','Banco Falabella','Banco W','Lulo Bank','Nu Colombia'],
+  MX:['BBVA México','Santander México','Banorte','Citibanamex','HSBC México','Scotiabank México','Banco Azteca','BanCoppel','Inbursa','Afirme','Banregio','Hey Banco'],
+  AR:['Banco Nación','Banco Provincia','Banco Galicia','Santander Argentina','BBVA Argentina','Banco Macro','ICBC Argentina','HSBC Argentina','Banco Credicoop','Brubank'],
+  CL:['Banco de Chile','BancoEstado','Santander Chile','BCI','Scotiabank Chile','Itaú Chile','Banco Falabella','Banco Ripley','Tenpo'],
+  PE:['BCP','Interbank','BBVA Perú','Scotiabank Perú','Banco de la Nación','BanBif','Banco Pichincha','Mibanco','Caja Arequipa'],
+  EC:['Banco Pichincha','Banco del Pacífico','Produbanco','Banco Guayaquil','Banco Bolivariano','Banco Internacional','Banco Machala','Banco Solidario'],
+  VE:['Banco de Venezuela','Banesco','Mercantil Banco Universal','BBVA Provincial','Banco Nacional de Crédito','Banco del Tesoro','Bancamiga','Banco Exterior'],
+  PA:['Banco General','Global Bank','Banistmo','BAC Credomatic Panamá','Caja de Ahorros','Multibank','Towerbank'],
+  CR:['Banco Nacional de Costa Rica','Banco de Costa Rica','BAC Credomatic','Banco Popular','Scotiabank Costa Rica','Promerica Costa Rica'],
+  GT:['Banco Industrial','Banrural','G&T Continental','BAC Guatemala','Promerica Guatemala','Banco de los Trabajadores'],
+  SV:['Banco Agrícola','Banco Cuscatlán','BAC Credomatic El Salvador','Banco Davivienda Salvadoreño','Promerica El Salvador','Banco Hipotecario'],
+  HN:['Banco Atlántida','BAC Honduras','Ficohsa','Banpaís','Davivienda Honduras','Banco de Occidente Honduras'],
+  NI:['Banpro','BAC Nicaragua','LAFISE Bancentro','Ficohsa Nicaragua','Banco Avanz','Banco Atlántida Nicaragua'],
+  DO:['BanReservas','Banco Popular Dominicano','Banco BHD','Scotiabank República Dominicana','Banco Santa Cruz','Banco Caribe','Asociación Popular de Ahorros y Préstamos'],
+  BO:['Banco Nacional de Bolivia','Banco Mercantil Santa Cruz','Banco Bisa','Banco Unión','Banco de Crédito de Bolivia','Banco Económico','Banco Ganadero'],
+  PY:['Banco Nacional de Fomento','Banco Continental','Banco GNB Paraguay','Banco Familiar','Sudameris Paraguay','Itaú Paraguay'],
+  UY:['Banco República','Santander Uruguay','BBVA Uruguay','Scotiabank Uruguay','Itaú Uruguay','HSBC Uruguay','BROU'],
+  CU:['Banco Nacional de Cuba','Banco Metropolitano','Banco Popular de Ahorro'],
+  HT:['Sogebank','Unibank','BUH','Capital Bank']
+};
+function profileInitial(p = profile){
+  const n = (p?.full_name || p?.username || 'G').trim();
+  return (n.charAt(0) || 'G').toUpperCase();
+}
+async function loadProfileDetails(){
+  if (!session?.user?.id) return { details:null, payment:null };
+  const [{data: d}, {data: pm}] = await Promise.all([
+    sb.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(),
+    sb.from('payment_methods').select('*').eq('user_id', session.user.id).order('is_primary',{ascending:false}).order('updated_at',{ascending:false}).limit(1).maybeSingle()
+  ]);
+  profileDetails=d||null; paymentMethod=pm||null; return {details:profileDetails,payment:paymentMethod};
+}
+function profileTpl(){
+  if (!session || !profile) return authTpl('creator');
+  const d=profileDetails||{}; const pm=paymentMethod||{};
+  const avatar = d.avatar_url ? `<img class="profile-avatar-img" src="${esc(d.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
+  const countries=profileCountries.map(([c,n])=>`<option value="${c}" ${d.country===c?'selected':''}>${n}</option>`).join('');
+  const banks=(bankSeed[pm.bank_country || d.country]||[]).map(b=>`<option value="${esc(b)}" ${pm.bank_name===b?'selected':''}>${esc(b)}</option>`).join('');
+  return `<div class="profile-page">
+    <div class="profile-head card"><div class="profile-avatar-wrap profile-avatar-editable">${avatar}<button type="button" class="avatar-edit-fab" id="profilePhotoEdit" aria-label="Cambiar foto">✎</button><button type="button" class="avatar-delete-fab ${d.avatar_url ? '' : 'hidden'}" id="deleteProfileAvatar" aria-label="Eliminar foto">🗑</button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div><div class="eyebrow">MI PERFIL</div><h1>${esc(profile.full_name||profile.username)}</h1><p class="muted">@${esc(profile.username)} · ${profile.role==='admin'?'Administrador':'Creador'}</p><div id="profileAvatarStatus" class="muted small" style="margin-top:8px"></div></div></div>
+    <div class="card"><h2>Información personal</h2>${field('pEmail','Correo electrónico',d.email||'')}${field('pPhone','Número de teléfono',d.phone||'')}
+      <label class="field"><span>País</span><select id="pCountry">${countries}</select></label>${field('pState','Estado / Departamento / Provincia',d.state_region||'')}${field('pCity','Ciudad',d.city||'')}${field('pAddress','Dirección',d.address||'',true)}
+    </div>
+    <div class="card"><h2>Información de pagos</h2><label class="field"><span>Método de pago</span><select id="pMethod"><option value="bank" ${pm.method_type!=='paypal'?'selected':''}>Cuenta bancaria</option><option value="paypal" ${pm.method_type==='paypal'?'selected':''}>PayPal</option></select></label>
+      <div id="bankFields" ${pm.method_type==='paypal'?'style="display:none"':''}><label class="field"><span>País del banco</span><select id="pBankCountry">${profileCountries.map(([c,n])=>`<option value="${c}" ${pm.bank_country===c?'selected':''}>${n}</option>`).join('')}</select></label><label class="field"><span>Banco</span><select id="pBank"><option value="">Selecciona tu banco</option>${banks}</select></label><label class="field"><span>Tipo de cuenta</span><select id="pAccountType"><option value="savings" ${pm.account_type==='savings'?'selected':''}>Ahorros</option><option value="checking" ${pm.account_type==='checking'?'selected':''}>Corriente</option><option value="other" ${pm.account_type==='other'?'selected':''}>Otro</option></select></label>${field('pAccountNumber','Número de cuenta',pm.account_number||'')}</div>
+      <div id="paypalFields" ${pm.method_type==='paypal'?'':'style="display:none"'}>${field('pPaypal','Correo de PayPal',pm.paypal_email||'')}</div>
+      <label class="field"><span>Preferencia</span><label style="display:flex;gap:8px;align-items:center;color:#ddd"><input id="pPrimary" type="checkbox" ${pm.is_primary!==false?'checked':''}> Usar como método principal de pago</label></label>
+    </div>
+    <div class="profile-save-wrap"><button class="primary profile-save-btn" id="saveProfile">Guardar</button></div><div id="profileErr" class="error"></div>
+  </div>`;
+}
+function authTpl(mode = 'creator') {
+  const isAdmin = mode === 'admin';
+  return `<div class="login"><h2>${isAdmin ? 'Acceso administrativo' : 'Mi formación'}</h2><p class="muted">${isAdmin ? 'Ingresa con tu usuario o correo y contraseña de administrador.' : 'Ingresa con el usuario y contraseña asignados por Grayxon.'}</p><div class="field"><label>${isAdmin ? 'Usuario o correo' : 'Usuario'}</label><input id="loginUser" autocomplete="username" placeholder="${isAdmin ? 'Ej. edwar o correo@ejemplo.com' : 'Ej. maria123'}"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button>${isAdmin ? '<button class="ghost" id="creatorLoginLink" style="display:block;width:100%;margin-top:10px">← Volver a acceso de creador</button>' : '<button class="ghost" id="adminLoginLink" style="display:block;width:100%;margin-top:10px">Acceso administrativo</button>'}</div>`;
+}
 
-  // Cada bloque se carga por separado: una consulta lenta no retrasa las demás.
-  Promise.all([
-    (async () => {
-      const [details, pm] = await Promise.all([
-        safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(), null),
-        safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(), null)
-      ]);
-      const fields=[details?.email,details?.phone,details?.country,details?.state_region,details?.city,details?.address,details?.avatar_url,pm?.method_type && (pm.method_type==='paypal'?pm.paypal_email:pm.account_number)].filter(Boolean).length;
-      const pct=Math.round(fields/8*100);
-      updateSpaceCard('profile',pct,pct===100?'Perfil completo':`${fields} de 8 datos completos`);
-      return pct;
-    })(),
-    (async () => {
-      const [lessons, lp] = await Promise.all([
-        safe(sb.from('lessons').select('id').eq('published',true), []),
-        safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid), [])
-      ]);
-      const done=new Set((lp||[]).map(x=>x.lesson_id));
-      const total=(lessons||[]).length;
-      const finished=(lessons||[]).filter(x=>done.has(x.id)).length;
-      const pct=total?Math.round(finished/total*100):0;
-      updateSpaceCard('training',pct,total?`${finished} de ${total} lecciones completadas`:'Aún no hay formación publicada');
-      return pct;
-    })(),
-    (async () => {
-      const [missions, mp] = await Promise.all([
-        safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}), []),
-        safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid), [])
-      ]);
-      const today=new Date().toISOString().slice(0,10);
-      const active=(missions||[]).filter(m=>(!m.week_start||m.week_start<=today)&&(!m.week_end||m.week_end>=today)&&(!m.assigned_to||m.assigned_to===uid));
-      const map=new Map((mp||[]).map(x=>[x.mission_id,x]));
-      const pctFor=m=>{const x=map.get(m.id);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0;};
-      const total=active.length;
-      const finished=active.filter(m=>pctFor(m)>=100).length;
-      const pct=total?Math.round(active.reduce((a,m)=>a+pctFor(m),0)/total):0;
-      updateSpaceCard('missions',pct,total?`${finished} de ${total} misiones completadas`:'No hay misiones activas esta semana');
-      return pct;
-    })(),
-    (async () => {
-      const assignment=await safe(loadCreatorAssignment(),{team:null,manager:null});
-      updateSpaceTeam(assignment);
-      return 0;
-    })()
-  ]).then(values => {
-    const pcts=values.slice(0,3);
-    const overall=Math.round(pcts.reduce((a,v)=>a+(Number(v)||0),0)/3);
-    const overallEl=$('#spaceOverallPct');
-    if(overallEl) overallEl.textContent=`${overall}%`;
-  }).catch(e => console.warn('Tu espacio: actualización secundaria falló',e));
+async function getProfile() {
+  if (!session) return null;
+  try {
+    const query = sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').eq('id', session.user.id).maybeSingle();
+    const result = await Promise.race([query, new Promise(resolve => setTimeout(() => resolve({data:null,error:new Error('timeout')}), 5000))]);
+    if (result?.data) return result.data;
+  } catch(e) {}
+  return { id: session.user.id, username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador', full_name: session.user.user_metadata?.full_name || '', role:'creator', active:true, team_id:null, manager_id:null };
+}
+
+async function loadCreatorAssignment(){
+  if(!session?.user?.id) return {team:null,manager:null};
+  try {
+    const {data:pr,error:pe} = await sb.from('profiles').select('team_id').eq('id',session.user.id).maybeSingle();
+    if(pe || !pr?.team_id) return {team:null,manager:null};
+    const {data:team,error:te} = await sb.from('teams').select('id,name,manager_id').eq('id',pr.team_id).maybeSingle();
+    if(te || !team) return {team:null,manager:null};
+    const {data:manager} = team.manager_id ? await sb.from('managers').select('id,name,phone,email').eq('id',team.manager_id).maybeSingle() : {data:null};
+    return {team,manager:manager||null};
+  } catch(e) { return {team:null,manager:null}; }
+}
+function managerWhatsapp(phone){
+  const raw=String(phone||'').replace(/[^0-9]/g,'');
+  return raw ? `https://wa.me/${raw}` : '#';
+}
+
+async function spaceTpl(){
+  if(!session){$('#space').innerHTML=authTpl('creator');return;}
+  if(!$('#space')?.innerHTML.trim()) renderSpaceShell();
+  const uid=session.user.id;
+  // Cargar el perfil en paralelo; no bloquea la pantalla.
+  getProfile().then(p=>{ if(!p)return; profile=p; const h=$('#space h1'); if(h)h.innerHTML=`Hola, ${esc(p.full_name||p.username)} 👋`; updateProfileBadge(); }).catch(()=>{});
+  const safe=async(promise,fallback,ms=2500)=>{try{const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve({data:fallback,error:true}),ms))]);return r?.error?fallback:(r?.data??fallback);}catch{return fallback;}};
+  const profileP=Promise.all([safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),null),safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),null)]).then(([d,pm])=>{const n=[d?.email,d?.phone,d?.country,d?.state_region,d?.city,d?.address,d?.avatar_url,pm?.method_type&&(pm.method_type==='paypal'?pm.paypal_email:pm.account_number)].filter(Boolean).length;const pct=Math.round(n/8*100);updateSpaceCard('profile',pct,pct===100?'Perfil completo':`${n} de 8 datos completos`);return pct;});
+  const trainingP=Promise.all([safe(sb.from('lessons').select('id').eq('published',true),[]),safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[])]).then(([ls,lp])=>{const done=new Set((lp||[]).map(x=>x.lesson_id));const total=(ls||[]).length;const fin=(ls||[]).filter(x=>done.has(x.id)).length;const pct=total?Math.round(fin/total*100):0;updateSpaceCard('training',pct,total?`${fin} de ${total} lecciones completadas`:'Aún no hay formación publicada');return pct;});
+  const missionsP=Promise.all([safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}),[]),safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[])]).then(([ms,mp])=>{const today=new Date().toISOString().slice(0,10);const active=(ms||[]).filter(m=>(!m.week_start||m.week_start<=today)&&(!m.week_end||m.week_end>=today)&&(!m.assigned_to||m.assigned_to===uid));const map=new Map((mp||[]).map(x=>[x.mission_id,x]));const pctFor=m=>{const x=map.get(m.id);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0};const total=active.length,done=active.filter(m=>pctFor(m)>=100).length,pct=total?Math.round(active.reduce((a,m)=>a+pctFor(m),0)/total):0;updateSpaceCard('missions',pct,total?`${done} de ${total} misiones completadas`:'No hay misiones activas esta semana');return pct;});
+  const teamP=loadCreatorAssignment().then(a=>{updateSpaceTeam(a);return 0;}).catch(()=>{updateSpaceTeam({team:null,manager:null});return 0;});
+  Promise.all([profileP,trainingP,missionsP,teamP]).then(v=>{const pct=Math.round((v[0]+v[1]+v[2])/3);const el=$('#spaceOverallPct');if(el)el.textContent=`${pct}%`;}).catch(()=>{});
 }
 
 async function missionsTpl() {
@@ -1347,20 +1402,9 @@ async function init() {
 
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (!session) {
-    updateNotificationsUI();
-    nav('home');
-    return;
-  }
-
-  // No bloqueamos el arranque esperando datos secundarios.
+  if (session) { profile = await getProfile(); await loadProfileDetails(); await loadNotifications(); }
+  else updateNotificationsUI();
   nav('home');
-  getProfile().then(p => {
-    profile = p;
-    updateProfileBadge();
-  }).catch(() => {});
-  loadProfileDetails().catch(() => {});
-  loadNotifications().catch(() => {});
 }
 
 init();
