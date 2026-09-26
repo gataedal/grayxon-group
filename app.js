@@ -68,7 +68,7 @@ async function loadNotifications() {
   updateNotificationsUI();
 }
 
-function notificationIcon(type) { return type === 'mission' ? '🎯' : type === 'formation' ? '🎓' : '🔔'; }
+function notificationIcon(type) { return type === 'mission' ? '🎯' : type === 'formation' ? '🎓' : type === 'manager_task' ? '📋' : type === 'manager_assignment' ? '👥' : '🔔'; }
 
 function updateNotificationsUI() {
   const btn = $('#notificationsBtn');
@@ -129,6 +129,7 @@ async function openNotification(id) {
     pendingNotificationTarget = { type: 'missions', weekStart: n.related_week_start || null, weekEnd: n.related_week_end || null };
     nav('missions');
   } else if (n.link_page === 'training') nav('training');
+  else if (n.link_page === 'manager') nav('manager');
   else nav('space');
 }
 
@@ -180,7 +181,7 @@ async function content() {
 }
 
 function nav(p, push = true) {
-  const pages = ['home','benefits','auth','space','training','missions','profile','admin'];
+  const pages = ['home','benefits','auth','space','manager','training','missions','profile','admin'];
   if (!pages.includes(p)) p = 'home';
   if (push && current !== p) {
     const url = p === 'home'
@@ -227,12 +228,13 @@ async function render(){
     if(current==='admin')await adminTpl(c);
   }
   if(current==='auth')$('#auth').innerHTML=authTpl(authMode);
-  if(current==='space')await spaceTpl();
+  if(current==='space') { if(profile?.role==='manager') await managerTpl(); else await spaceTpl(); }
+  if(current==='manager')await managerTpl();
   if(current==='training')await trainingTpl();
   if(current==='missions')await missionsTpl();
   if(current==='profile')$('#profile').innerHTML=await profileTpl();
   bind(); updateProfileBadge(); updateNotificationsUI();
-  $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===current));
+  $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===current || (b.dataset.page==='space' && current==='manager')));
 }
 
 function homeTpl(h) {
@@ -353,7 +355,7 @@ function profileTpl(){
   const countries=profileCountries.map(([c,n])=>`<option value="${c}" ${d.country===c?'selected':''}>${n}</option>`).join('');
   const banks=(bankSeed[pm.bank_country || d.country]||[]).map(b=>`<option value="${esc(b)}" ${pm.bank_name===b?'selected':''}>${esc(b)}</option>`).join('');
   return `<div class="profile-page">
-    <div class="profile-head card"><div class="profile-avatar-wrap profile-avatar-editable">${avatar}<button type="button" class="avatar-edit-fab" id="profilePhotoEdit" aria-label="Cambiar foto">✎</button><button type="button" class="avatar-delete-fab ${d.avatar_url ? '' : 'hidden'}" id="deleteProfileAvatar" aria-label="Eliminar foto">🗑</button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div><div class="eyebrow">MI PERFIL</div><h1>${esc(profile.full_name||profile.username)}</h1><p class="muted">@${esc(profile.username)} · ${profile.role==='admin'?'Administrador':'Creador'}</p><div id="profileAvatarStatus" class="muted small" style="margin-top:8px"></div></div></div>
+    <div class="profile-head card"><div class="profile-avatar-wrap profile-avatar-editable">${avatar}<button type="button" class="avatar-edit-fab" id="profilePhotoEdit" aria-label="Cambiar foto">✎</button><button type="button" class="avatar-delete-fab ${d.avatar_url ? '' : 'hidden'}" id="deleteProfileAvatar" aria-label="Eliminar foto">🗑</button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div><div class="eyebrow">MI PERFIL</div><h1>${esc(profile.full_name||profile.username)}</h1><p class="muted">@${esc(profile.username)} · ${profile.role==='admin'?'Administrador':profile.role==='manager'?'Manager':'Creador'}</p><div id="profileAvatarStatus" class="muted small" style="margin-top:8px"></div></div></div>
     <div class="card"><h2>Información personal</h2>${field('pEmail','Correo electrónico',d.email||'')}${field('pPhone','Número de teléfono',d.phone||'')}
       <label class="field"><span>País</span><select id="pCountry">${countries}</select></label>${field('pState','Estado / Departamento / Provincia',d.state_region||'')}${field('pCity','Ciudad',d.city||'')}${field('pAddress','Dirección',d.address||'',true)}
     </div>
@@ -659,6 +661,88 @@ async function completeLesson(id, options = {}) {
   }
 }
 
+
+async function managerTpl(){
+  if(!session){ $('#manager').innerHTML=authTpl('creator'); return; }
+  if(profile?.role!=='manager'){ $('#manager').innerHTML='<div class="login"><h2>Acceso restringido</h2><p class="muted">Esta sección es solo para managers.</p></div>'; return; }
+  const [{data:me,error:meErr},{data:creators,error:crErr}]=await Promise.all([
+    sb.from('managers').select('id,name,phone,email,username,active').eq('user_id',session.user.id).maybeSingle(),
+    sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('role','creator').eq('manager_id',profile.manager_id).order('full_name')
+  ]);
+  if(meErr||crErr){ $('#manager').innerHTML=`<div class="card"><h2>Panel de manager</h2><div class="error">${esc((meErr||crErr)?.message||'No se pudo cargar tu panel.')}</div></div>`; return; }
+  const creatorIds=(creators||[]).map(x=>x.id);
+  let missions=[], progress=[];
+  if(creatorIds.length){
+    const [mRes,pRes]=await Promise.all([
+      sb.from('missions').select('id,title,type,target,week_start,week_end,assigned_to,published,created_at').in('assigned_to',creatorIds).order('week_start',{ascending:false}),
+      sb.from('mission_progress').select('mission_id,user_id,value,completed').in('user_id',creatorIds)
+    ]);
+    missions=mRes.data||[]; progress=pRes.data||[];
+  }
+  const tmIds=[...new Set((creators||[]).map(c=>c.team_id).filter(Boolean))];
+  const {data:teams}=tmIds.length?await sb.from('teams').select('id,name').in('id',tmIds):{data:[]};
+  const tm=new Map((teams||[]).map(t=>[t.id,t.name]));
+  const pm=new Map(progress.map(x=>[`${x.user_id}:${x.mission_id}`,x]));
+  const missionPct=m=>{const x=pm.get(`${m.assigned_to}:${m.id}`);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0;};
+  const creatorCard=(c)=>{
+    const cm=missions.filter(m=>m.assigned_to===c.id), pct=cm.length?Math.round(cm.reduce((a,m)=>a+missionPct(m),0)/cm.length):0;
+    return `<div class="item manager-creator-card"><div class="manager-creator-main"><div><b>${esc(c.full_name||c.username)}</b><div class="muted small">@${esc(c.username)} · ${esc(tm.get(c.team_id)||'Sin equipo')}</div></div><span class="pill ${c.active?'ok':''}">${c.active?'Activo':'Inactivo'}</span></div><div class="manager-creator-bottom"><div class="manager-creator-progress"><span>Misiones ${pct}%</span><div class="space-progress"><span style="width:${pct}%"></span></div></div><div class="inline"><button class="secondary small" data-manager-view-creator="${c.id}">👤 Ver creador</button><button class="primary small" data-manager-missions="${c.id}">🎯 Asignar misiones</button></div></div></div>`;
+  };
+  const tasksRes=await sb.from('manager_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('manager_id',me?.id||'').order('completed',{ascending:true}).order('assigned_at',{ascending:false});
+  const tasks=tasksRes.data||[];
+  const taskHtml=tasks.length?tasks.map(t=>`<div class="item manager-task-row ${t.completed?'task-done':''}"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><div>${t.completed?'<span class="pill ok">✓ Lista</span>':'<button class="primary small" data-complete-manager-task="'+t.id+'">Marcar como lista</button>'}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">No tienes tareas asignadas.</p></div>';
+  $('#manager').innerHTML=`<div class="manager-page"><div class="manager-hero card"><div><div class="eyebrow">PANEL DE MANAGER</div><h1>Hola, ${esc(me?.name||profile.username)} 👋</h1><p class="muted">Aquí puedes ver tus creadores, asignar misiones y completar tus tareas.</p></div><div class="manager-hero-stat"><strong>${(creators||[]).length}</strong><span>CREADORES</span></div></div><div class="card"><div class="row"><div><h2>Mis creadores</h2><p class="muted small">Solo aparecen los creadores que actualmente están asignados a ti.</p></div></div><div class="manager-creators-list">${(creators||[]).map(creatorCard).join('')||'<div class="item"><p class="muted small" style="margin:0">No tienes creadores asignados actualmente.</p></div>'}</div></div><div class="card"><div class="row"><div><h2>Mis tareas</h2><p class="muted small">Las fechas de asignación y finalización quedan selladas por el sistema.</p></div></div><div class="manager-tasks-list">${taskHtml}</div></div></div>`;
+  bind();
+}
+
+async function managerCreatorModal(id){
+  const [{data:d},{data:pm},{data:p},{data:missions}]=await Promise.all([
+    sb.from('profile_details').select('*').eq('user_id',id).maybeSingle(),
+    sb.from('payment_methods').select('*').eq('user_id',id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
+    sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('id',id).single(),
+    sb.from('missions').select('id,title,description,type,target,week_start,week_end,published,link_url,created_at').eq('assigned_to',id).order('week_start',{ascending:false}).order('created_at',{ascending:false})
+  ]);
+  if(!p)return toast('No se encontró el creador.');
+  const [{data:team},{data:manager}]=await Promise.all([
+    p.team_id?sb.from('teams').select('name').eq('id',p.team_id).maybeSingle():{data:null},
+    p.manager_id?sb.from('managers').select('name').eq('id',p.manager_id).maybeSingle():{data:null}
+  ]);
+  const el=document.createElement('div');el.className='modal-backdrop';
+  const safe=x=>x?esc(x):'—';
+  el.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div><div class="eyebrow">CREADOR</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div><button class="secondary" id="closeManagerCreator">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(team?.name)} · <b>Manager:</b> ${safe(manager?.name)}</div><div class="creator-missions-section"><div class="row"><div><h3 style="margin:0">🎯 Misiones</h3><p class="muted small" style="margin:4px 0 0">Puedes asignar y administrar las misiones de este creador.</p></div><button class="primary small" id="managerAddMission">+ Agregar misión</button></div><div class="list" style="margin-top:12px">${(missions||[]).map(m=>`<div class="item"><div class="row"><div><b>${esc(m.title)}</b><div class="muted small">${esc(m.week_start||'')} → ${esc(m.week_end||'')} · ${m.type==='numeric'?`Meta ${Number(m.target||0)}`:'Marcable'}</div></div><span class="pill ${m.published?'ok':''}">${m.published?'Publicada':'Oculta'}</span></div></div>`).join('')||'<div class="item"><span class="muted small">Aún no hay misiones.</span></div>'}</div></div></div>`;
+  document.body.appendChild(el);
+  $('#closeManagerCreator').onclick=()=>el.remove();
+  $('#managerAddMission').onclick=()=>creatorMissionModal(id,null,'manager');
+}
+
+async function adminManagerTasks(){
+  const [{data:managers,error:me},{data:tasks,error:te}]=await Promise.all([
+    sb.from('managers').select('id,name,username,user_id,active').order('name'),
+    sb.from('manager_tasks').select('id,manager_id,title,description,due_at,assigned_at,assigned_by,completed,completed_at').order('assigned_at',{ascending:false})
+  ]);
+  if(me||te)return `<div class="card"><h2>Tareas de managers</h2><div class="error">${esc((me||te)?.message||'No se pudieron cargar las tareas.')}</div></div>`;
+  const mm=new Map((managers||[]).map(m=>[m.id,m]));
+  return `<div class="card"><div class="row"><div><h2>Tareas de managers</h2><p class="muted small">Asigna tareas a un manager. La fecha de asignación se genera en la base de datos y la fecha de finalización se sella al marcarla como lista.</p></div><button class="primary" id="newManagerTask">+ Asignar tarea</button></div><div class="list" style="margin-top:18px">${(tasks||[]).map(t=>`<div class="item"><div class="row"><div><b>${esc(t.title)}</b><div class="muted small">Manager: ${esc(mm.get(t.manager_id)?.name||'Sin manager')}</div>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><span class="pill ${t.completed?'ok':''}">${t.completed?'✓ Lista':'Pendiente'}</span></div></div>`).join('')||'<div class="item"><span class="muted small">Aún no hay tareas.</span></div>'}</div></div>`;
+}
+
+function managerTaskModal(){
+  const el=document.createElement('div');el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal"><h2>Asignar tarea a manager</h2><label class="field"><span>Manager</span><select id="mtManager"></select></label>${field('mtTitle','Título','')}${field('mtDesc','Descripción','',true)}<label class="field"><span>Fecha límite (opcional)</span><input id="mtDue" type="datetime-local"></label><div id="mtErr" class="error"></div><div class="inline" style="margin-top:18px"><button class="primary" id="saveManagerTask">Asignar tarea</button><button class="secondary" id="cancelManagerTask">Cancelar</button></div></div>`;
+  document.body.appendChild(el);
+  const select=$('#mtManager');
+  sb.from('managers').select('id,name,active,user_id').order('name').then(({data,error})=>{if(error){$('#mtErr').textContent=error.message;return;}select.innerHTML=(data||[]).filter(m=>m.active&&m.user_id).map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');});
+  $('#cancelManagerTask').onclick=()=>el.remove();
+  $('#saveManagerTask').onclick=async()=>{
+    const btn=$('#saveManagerTask');btn.disabled=true;const managerId=select.value,title=$('#mtTitle').value.trim(),description=$('#mtDesc').value.trim()||null,due=$('#mtDue').value?new Date($('#mtDue').value).toISOString():null;
+    if(!managerId||!title){$('#mtErr').textContent='Selecciona un manager y escribe el título.';btn.disabled=false;return;}
+    const {data,error}=await sb.from('manager_tasks').insert({manager_id:managerId,title,description,due_at:due,assigned_by:session.user.id}).select('id').single();
+    if(error){$('#mtErr').textContent=error.message;btn.disabled=false;return;}
+    const {data:m}=await sb.from('managers').select('user_id,name').eq('id',managerId).single();
+    if(m?.user_id){await sb.from('notifications').insert({user_id:m.user_id,type:'manager_task',title:'Nueva tarea asignada',message:`Tienes una nueva tarea: ${title}`,link_page:'manager'});}
+    el.remove();toast('Tarea asignada ✓');render();
+  };
+}
+
 async function adminTpl(c) {
   if (!session) {
     $('#admin').innerHTML = authTpl('admin');
@@ -675,8 +759,9 @@ async function adminTpl(c) {
   else if (adminView === 'benefits') body = adminBenefits(c.benefits);
   else if (adminView === 'creators') body = await adminCreators();
   else if (adminView === 'teams') body = await adminTeams();
+  else if (adminView === 'manager_tasks') body = await adminManagerTasks();
   else body = await adminFormation();
-  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['teams','Equipos y managers'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
+  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['teams','Equipos y managers'],['manager_tasks','Tareas de managers'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
 }
 
 function field(id, label, val, area = false) {
@@ -708,12 +793,56 @@ async function adminTeams(){
 }
 function teamManagerModal(existing=null){
   const el=document.createElement('div'); el.className='modal-backdrop';
-  el.innerHTML=`<div class="card modal"><h2>${existing?'Editar':'Crear'} equipo</h2>${field('tmName','Nombre del equipo',existing?.name||'')}<h3 style="margin-top:18px">Manager</h3>${field('tmManagerName','Nombre completo',existing?.manager?.name||'')}<div class="field"><label>WhatsApp con indicativo</label><input id="tmManagerPhone" value="${esc(existing?.manager?.phone||'')}" placeholder="+573126283007"></div>${field('tmManagerEmail','Correo',existing?.manager?.email||'')}<div id="tmErr" class="error"></div><div class="inline" style="margin-top:18px"><button class="primary" id="saveTeamManager">Guardar</button><button class="secondary" id="cancelTeamManager">Cancelar</button></div></div>`;
-  document.body.appendChild(el); $('#cancelTeamManager').onclick=()=>el.remove(); $('#saveTeamManager').onclick=async()=>{const btn=$('#saveTeamManager');btn.disabled=true;const name=$('#tmName').value.trim(),mn=$('#tmManagerName').value.trim(),phone=$('#tmManagerPhone').value.trim(),email=$('#tmManagerEmail').value.trim()||null;if(!name||!mn){$('#tmErr').textContent='Escribe el nombre del equipo y del manager.';btn.disabled=false;return;}try{let managerId=existing?.manager_id||null;if(managerId){const {error}=await sb.from('managers').update({name:mn,phone,email,updated_at:new Date().toISOString()}).eq('id',managerId);if(error)throw error;}else{const {data,error}=await sb.from('managers').insert({name:mn,phone,email}).select('id').single();if(error)throw error;managerId=data.id;}const payload={name,manager_id:managerId,updated_at:new Date().toISOString()};const {error}=existing?await sb.from('teams').update(payload).eq('id',existing.id):await sb.from('teams').insert(payload);if(error)throw error;el.remove();toast(existing?'Equipo actualizado ✓':'Equipo creado ✓');render();}catch(e){$('#tmErr').textContent=e.message||'No se pudo guardar.';btn.disabled=false;}};
+  const needsAccess=!existing?.manager?.user_id;
+  el.innerHTML=`<div class="card modal"><h2>${existing?'Editar':'Crear'} equipo</h2>${field('tmName','Nombre del equipo',existing?.name||'')}<h3 style="margin-top:18px">Manager</h3>${field('tmManagerName','Nombre completo',existing?.manager?.name||'')}<div class="field"><label>WhatsApp con indicativo</label><input id="tmManagerPhone" value="${esc(existing?.manager?.phone||'')}" placeholder="+573126283007"></div>${field('tmManagerEmail','Correo',existing?.manager?.email||'')}<div class="manager-access-box"><div class="eyebrow">ACCESO AL PORTAL</div>${needsAccess?`${field('tmManagerUsername','Usuario del manager',existing?.manager?.username||'')}<div class="field"><label>Contraseña inicial</label><input id="tmManagerPassword" type="password" placeholder="Mínimo 8 caracteres"></div><p class="muted small">El manager ingresará con este usuario y contraseña. El correo técnico no se muestra.</p>`:`<div class="item"><b>Acceso activo</b><div class="muted small">@${esc(existing?.manager?.username||'manager')} · ${existing?.manager?.active!==false?'Activo':'Inactivo'}</div></div>`}</div><div id="tmErr" class="error"></div><div class="inline" style="margin-top:18px"><button class="primary" id="saveTeamManager">Guardar</button><button class="secondary" id="cancelTeamManager">Cancelar</button></div></div>`;
+  document.body.appendChild(el);
+  $('#cancelTeamManager').onclick=()=>el.remove();
+  $('#saveTeamManager').onclick=async()=>{
+    const btn=$('#saveTeamManager');btn.disabled=true;
+    const name=$('#tmName').value.trim(),mn=$('#tmManagerName').value.trim(),phone=$('#tmManagerPhone').value.trim(),email=$('#tmManagerEmail').value.trim()||null;
+    const username=needsAccess?$('#tmManagerUsername')?.value.trim().toLowerCase():existing?.manager?.username;
+    const password=needsAccess?$('#tmManagerPassword')?.value:'';
+    if(!name||!mn){$('#tmErr').textContent='Escribe el nombre del equipo y del manager.';btn.disabled=false;return;}
+    if(needsAccess&&(!username||!password||password.length<8)){ $('#tmErr').textContent='Define usuario y una contraseña de mínimo 8 caracteres para el manager.';btn.disabled=false;return; }
+    try{
+      let managerId=existing?.manager_id||null;
+      if(managerId){
+        let userId=existing?.manager?.user_id||null;
+        if(needsAccess){
+          const {data,error}=await sb.functions.invoke('create-creator',{body:{username,full_name:mn,password}});
+          if(error||data?.error)throw new Error(data?.error||error?.message||'No se pudo crear el acceso del manager.');
+          userId=data?.user?.id||data?.profile?.id||data?.id;
+          if(!userId){const {data:p}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();userId=p?.id;}
+          if(!userId)throw new Error('La cuenta fue creada pero no pudimos vincularla.');
+          const {error:pe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn}).eq('id',userId);if(pe)throw pe;
+        }
+        const {error}=await sb.from('managers').update({name:mn,phone,email,username,user_id:userId,active:true,updated_at:new Date().toISOString()}).eq('id',managerId);if(error)throw error;
+        if(userId){const {error:upe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn,manager_id:managerId}).eq('id',userId);if(upe)throw upe;}
+      } else {
+        const {data,error}=await sb.functions.invoke('create-creator',{body:{username,full_name:mn,password}});
+        if(error||data?.error)throw new Error(data?.error||error?.message||'No se pudo crear el acceso del manager.');
+        const userId=data?.user?.id||data?.profile?.id||data?.id;
+        if(!userId)throw new Error('La cuenta fue creada pero no pudimos recuperar su usuario.');
+        const {error:pe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn}).eq('id',userId);if(pe)throw pe;
+        const {data:mi,error:me}=await sb.from('managers').insert({name:mn,phone,email,username,user_id:userId,active:true}).select('id').single();if(me)throw me;managerId=mi.id;
+        const {error:upe}=await sb.from('profiles').update({role:'manager',active:true,full_name:mn,manager_id:managerId}).eq('id',userId);if(upe)throw upe;
+      }
+      const payload={name,manager_id:managerId,updated_at:new Date().toISOString()};
+      const {data:teamSaved,error}=existing?await sb.from('teams').update(payload).eq('id',existing.id).select('id').single():await sb.from('teams').insert(payload).select('id').single();
+      if(error)throw error;
+      if(teamSaved?.id){
+        const {error:assignErr}=await sb.from('profiles').update({manager_id:managerId}).eq('team_id',teamSaved.id).eq('role','creator');
+        if(assignErr)throw assignErr;
+      }
+      el.remove();toast(existing?'Equipo y manager actualizados ✓':'Equipo y acceso de manager creados ✓');render();
+    }catch(e){$('#tmErr').textContent=e.message||'No se pudo guardar.';btn.disabled=false;}
+  };
 }
+
 async function editTeam(id){const {data:t,error}=await sb.from('teams').select('*').eq('id',id).single();if(error||!t)return toast(error?.message||'No se encontró el equipo.');const {data:m}=t.manager_id?await sb.from('managers').select('*').eq('id',t.manager_id).maybeSingle():{data:null};teamManagerModal({...t,manager:m});}
 async function deleteTeam(id){if(!confirm('¿Eliminar este equipo? Los creadores quedarán sin equipo asignado.'))return;await sb.from('profiles').update({team_id:null,manager_id:null}).eq('team_id',id);const {data:t}=await sb.from('teams').select('manager_id').eq('id',id).maybeSingle();if(t?.manager_id)await sb.from('managers').delete().eq('id',t.manager_id);const {error}=await sb.from('teams').delete().eq('id',id);if(error)return toast(error.message);toast('Equipo eliminado');render();}
 
+function formatDateTime(value){ if(!value) return '—'; try{return new Date(value).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'short'});}catch(e){return String(value);} }
 function localDateISO(d){
   const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
@@ -796,7 +925,7 @@ async function adminProfileModal(id){
   });
 }
 
-async function creatorMissionModal(creatorId, existingId=null){
+async function creatorMissionModal(creatorId, existingId=null, returnMode='admin'){
   let existing=null;
   if(existingId){const {data,error}=await sb.from('missions').select('*').eq('id',existingId).single();if(error)return toast(error.message);existing=data;}
   const week=currentWeekRange();
@@ -840,16 +969,21 @@ async function creatorMissionModal(creatorId, existingId=null){
       if(!title){err.textContent=`Escribe el título de la misión ${i+1}.`;btn.disabled=false;return;}
       if(type==='numeric'&&!target){err.textContent=`Define una meta numérica para la misión ${i+1}.`;btn.disabled=false;return;}
       if(rawLink&&!link){err.textContent=`El link de la misión ${i+1} debe comenzar con http:// o https://`;btn.disabled=false;return;}
-      payloads.push({title,description,type,target,week_start:start,week_end:endDate,assigned_to:creatorId,published:existing?$(`#cmPublished${i}`).value==='true':$(`#cmPublished${i}`).value==='true',link_url:link});
+      payloads.push({title,description,type,target,week_start:start,week_end:endDate,assigned_to:creatorId,published:existing?$(`#cmPublished${i}`).value==='true':$(`#cmPublished${i}`).value==='true',link_url:link,...(!existing&&profile?.role==='manager'?{created_by:session.user.id,created_by_role:'manager'}:{})});
     }
     let result;
     if(existing){ result=await sb.from('missions').update(payloads[0]).eq('id',existingId); }
     else { result=await sb.from('missions').insert(payloads); }
     if(result.error){err.textContent=result.error.message;btn.disabled=false;return;}
+    if(!existing && profile?.role==='manager'){
+      const msg=`Se te han asignado ${payloads.length} ${payloads.length===1?'misión':'misiones'} para esta semana (${start} → ${endDate}).`;
+      const nr=await sb.rpc('notify_creator_mission_week',{p_creator_id:creatorId,p_title:'Tienes una notificación nueva',p_message:msg,p_week_start:start,p_week_end:endDate});
+      if(nr.error) console.warn('No se pudo notificar al creador:',nr.error.message);
+    }
     toast(existing?'Misión actualizada ✓':`${payloads.length} misión${payloads.length===1?'':'es'} enviada${payloads.length===1?'':'s'} ✓`);
     el.remove();
     const old=document.querySelector('.creator-profile-modal')?.parentElement;if(old)old.remove();
-    await adminProfileModal(creatorId);
+    if(returnMode==='manager'){ await managerCreatorModal(creatorId); } else { await adminProfileModal(creatorId); }
   };
 }
 
@@ -1146,14 +1280,14 @@ function toggleProfileMenu(){
   if(willOpen){
     const name=$('#profileMenuName'); const role=$('#profileMenuRole');
     if(name) name.textContent=profile?.full_name || profile?.username || 'Mi cuenta';
-    if(role) role.textContent=profile?.role==='admin' ? 'Administrador' : 'Creador';
+    if(role) role.textContent=profile?.role==='admin' ? 'Administrador' : profile?.role==='manager' ? 'Manager' : 'Creador';
   }
 }
 function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classList.add('hidden'); }
 
 function bind() {
   $('#homeBrand')?.addEventListener('click', () => nav('home'));
-  $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'auth' && session && profile?.role === 'creator') nav('space'); else nav(target); });
+  $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'space' && session) nav(profile?.role === 'manager' ? 'manager' : 'space'); else if (target === 'auth' && session) nav(profile?.role === 'manager' ? 'manager' : profile?.role === 'creator' ? 'space' : 'admin'); else nav(target); });
   $$('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
   $('#loginOpen')?.addEventListener('click', () => { authMode = 'creator'; nav('auth'); });
   $('#adminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
@@ -1162,7 +1296,7 @@ function bind() {
   $('#mobileMenuBtn')?.addEventListener('click', () => { const m = $('#mobileNav'); const open = m?.classList.toggle('open'); $('#mobileMenuBtn')?.setAttribute('aria-expanded', open ? 'true' : 'false'); });
   $('#mobileAdminOpen')?.addEventListener('click', () => { authMode = 'admin'; nav('admin'); });
   $$('#mobileNav [data-page]').forEach(b => b.addEventListener('click', () => $('#mobileNav')?.classList.remove('open')));
-  $('#openMySpace')?.addEventListener('click', () => { closeProfileMenu(); nav('space'); });
+  $('#openMySpace')?.addEventListener('click', () => { closeProfileMenu(); nav(profile?.role==='manager' ? 'manager' : 'space'); });
   $('#loginBtn')?.addEventListener('click', login);
   $('#adminLogout')?.addEventListener('click', logout);
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
@@ -1179,6 +1313,10 @@ function bind() {
     }
   }
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
+  $$('[data-manager-view-creator]').forEach(b=>b.onclick=()=>managerCreatorModal(b.dataset.managerViewCreator));
+  $$('[data-manager-missions]').forEach(b=>b.onclick=()=>creatorMissionModal(b.dataset.managerMissions,null,'manager'));
+  $$('[data-complete-manager-task]').forEach(b=>b.onclick=async()=>{b.disabled=true;const {error}=await sb.rpc('complete_manager_task',{p_task_id:b.dataset.completeManagerTask});if(error){toast(error.message);b.disabled=false;return;}toast('Tarea marcada como lista ✓');await loadNotifications();render();});
+  $('#newManagerTask')?.addEventListener('click',managerTaskModal);
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
   $('#newTeamManager')?.addEventListener('click',()=>teamManagerModal());
@@ -1267,7 +1405,7 @@ function updateProfileBadge(){
   if(profileDetails?.avatar_url)b.innerHTML=`<img src="${esc(profileDetails.avatar_url)}" alt="Perfil">`; else b.textContent=profileInitial();
   const name=$('#profileMenuName'); const role=$('#profileMenuRole');
   if(name) name.textContent=session ? (profile?.full_name || profile?.username || 'Mi cuenta') : 'Mi cuenta';
-  if(role) role.textContent=session ? (profile?.role==='admin' ? 'Administrador' : 'Creador') : 'Inicia sesión para acceder';
+  if(role) role.textContent=session ? (profile?.role==='admin' ? 'Administrador' : profile?.role==='manager' ? 'Manager' : 'Creador') : 'Inicia sesión para acceder';
 }
 async function login() {
   const input = $('#loginUser').value.trim();
@@ -1311,12 +1449,11 @@ async function login() {
   }
 
   if (authMode === 'creator' && profile.role === 'admin') {
-    // Si un admin entra desde el acceso de formación, lo llevamos a su panel.
     nav('admin');
     return;
   }
 
-  nav(profile.role === 'admin' ? 'admin' : 'space');
+  nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
 }
 
 async function logout() {
@@ -1418,7 +1555,7 @@ async function init() {
   else updateNotificationsUI();
 
   const hashPage = window.location.hash.replace(/^#/, '');
-  const initialPage = ['home','benefits','auth','space','training','missions','profile','admin'].includes(hashPage) ? hashPage : 'home';
+  const initialPage = ['home','benefits','auth','space','manager','training','missions','profile','admin'].includes(hashPage) ? hashPage : 'home';
   nav(initialPage, false);
 }
 
@@ -1430,14 +1567,14 @@ setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 500
 window.addEventListener('popstate', () => {
   const hashPage = window.location.hash.replace(/^#/, '');
   const page = history.state?.page || hashPage || 'home';
-  current = ['home','benefits','auth','space','training','missions','profile','admin'].includes(page) ? page : 'home';
+  current = ['home','benefits','auth','space','manager','training','missions','profile','admin'].includes(page) ? page : 'home';
   render();
   window.scrollTo(0, 0);
 });
 
 window.addEventListener('hashchange', () => {
   const page = window.location.hash.replace(/^#/, '') || 'home';
-  if (!['home','benefits','auth','space','training','missions','profile','admin'].includes(page)) return;
+  if (!['home','benefits','auth','space','manager','training','missions','profile','admin'].includes(page)) return;
   if (current === page) return;
   current = page;
   render();
