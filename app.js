@@ -10,6 +10,7 @@ let authMode = 'creator';
 let profileDetails = null;
 let paymentMethod = null;
 let notifications = [];
+let pendingNotificationTarget = null;
 
 const fallback = {
   home: {
@@ -76,6 +77,7 @@ function updateNotificationsUI() {
   const unread = notifications.filter(n => !n.read_at).length;
   badge.textContent = unread > 9 ? '9+' : String(unread);
   badge.classList.toggle('hidden', unread === 0 || !session);
+  btn.classList.toggle('hidden', !session || unread === 0);
   btn.setAttribute('aria-label', session ? `Notificaciones${unread ? `: ${unread} nuevas` : ''}` : 'Iniciar sesión');
   const panel = $('#notificationsPanel');
   if (panel && !panel.classList.contains('hidden')) renderNotificationsPanel();
@@ -123,8 +125,10 @@ async function openNotification(id) {
   if (!n) return;
   await markNotificationRead(id);
   $('#notificationsPanel')?.classList.add('hidden');
-  if (n.link_page === 'missions') nav('missions');
-  else if (n.link_page === 'training') nav('training');
+  if (n.link_page === 'missions') {
+    pendingNotificationTarget = { type: 'missions', weekStart: n.related_week_start || null, weekEnd: n.related_week_end || null };
+    nav('missions');
+  } else if (n.link_page === 'training') nav('training');
   else nav('space');
 }
 
@@ -450,7 +454,7 @@ async function missionsTpl() {
     const total = g.items.length;
     const avg = total ? Math.round(g.items.reduce((sum,m)=>sum+pct(m),0)/total) : 0;
     const id = `${type}-${String(g.start||'none').replace(/[^0-9a-z]/gi,'')}-${String(g.end||'none').replace(/[^0-9a-z]/gi,'')}`;
-    return `<button type="button" class="mission-week-card" data-mission-week="${id}">
+    return `<button type="button" class="mission-week-card" data-mission-week="${id}" data-week-start="${esc(g.start)}" data-week-end="${esc(g.end)}">
       <div class="mission-week-icon">${type==='assigned'?'🎯':'✓'}</div>
       <div class="mission-week-main"><div class="mission-week-top"><strong>${current && type==='assigned'?'Misiones para esta semana':'Semana '+weekLabel(g.start,g.end)}</strong><span>${avg}%</span></div><p>${type==='assigned'?`${total} ${total===1?'misión asignada':'misiones asignadas'} · ${done} completada${done===1?'':'s'}`:`${total} ${total===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}`}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b>
     </button>`;
@@ -733,7 +737,8 @@ async function adminProfileModal(id){
     const avg=g.items.length?Math.round(g.items.reduce((sum,m)=>sum+missionPct(m),0)/g.items.length):0;
     const current=today>=g.start && today<=g.end;
     const publishedCount=g.items.filter(m=>m.published).length;
-    return `<div class="mission-week-group admin-mission-week-group"><button type="button" class="mission-week-card admin-mission-week-card" data-admin-mission-week="${id}" aria-expanded="false"><div class="mission-week-icon">🎯</div><div class="mission-week-main"><div class="mission-week-top"><strong>Misiones ${esc(adminWeekLabel(g.start,g.end))}</strong><span>${avg}%</span></div><p>${g.items.length} ${g.items.length===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}${current?' · Semana actual':''}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b></button><div class="mission-week-details hidden" id="${id}"><div class="admin-week-actions"><span class="muted small">${publishedCount} ${publishedCount===1?'misión publicada':'misiones publicadas'}</span>${publishedCount?`<button type="button" class="secondary small mission-notify-btn" data-notify-mission-week="${esc(g.start)}|${esc(g.end)}" data-creator-id="${esc(id)}">🔔 Notificar</button>`:'<span class="muted small">Publica al menos una misión para notificar.</span>'}</div>${g.items.map(renderMissionRow).join('')}</div></div>`;
+    const notifyLabel=publishedCount?'🔔 Notificar':'Sin misiones publicadas';
+    return `<div class="mission-week-group admin-mission-week-group"><div class="admin-week-card-row"><button type="button" class="mission-week-card admin-mission-week-card" data-admin-mission-week="${id}" aria-expanded="false"><div class="mission-week-icon">🎯</div><div class="mission-week-main"><div class="mission-week-top"><strong>Misiones ${esc(adminWeekLabel(g.start,g.end))}</strong><span>${avg}%</span></div><p>${g.items.length} ${g.items.length===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}${current?' · Semana actual':''}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b></button><button type="button" class="secondary small mission-notify-btn admin-week-notify" data-notify-mission-week="${esc(g.start)}|${esc(g.end)}" data-creator-id="${esc(id)}" ${publishedCount?'':'disabled'}>${notifyLabel}</button></div><div class="mission-week-details hidden" id="${id}">${g.items.map(renderMissionRow).join('')}</div></div>`;
   };
   const missionWeeksHtml=groupedWeeks.map(adminWeekCard).join('') || `<div class="item"><p class="muted small" style="margin:0">Aún no hay misiones asignadas a este creador.</p></div>`;
   modalEl.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div><button class="secondary" id="closeProfileModal">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type==='savings'?'Ahorros':pm?.account_type==='checking'?'Corriente':pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="creator-missions-section"><div class="row"><div><h3 style="margin-bottom:3px">🎯 Misiones del creador</h3><p class="muted small" style="margin:0">Agrega todas las misiones que necesites directamente aquí. Puedes tener varias por semana.</p></div><button class="primary small" id="newCreatorMission">+ Agregar misión</button></div><div class="creator-mission-group"><div class="row"><div><h3 style="margin-bottom:3px">📅 Misiones por semana</h3><p class="muted small" style="margin:0">Abre una semana para ver todas las misiones de ese periodo, junto con su progreso y estado.</p></div><span class="mission-count">${groupedWeeks.length}</span></div><div class="mission-weeks-list" style="margin-top:12px">${missionWeeksHtml}</div></div></div></div>`;
@@ -1135,6 +1140,15 @@ function bind() {
   $$('[data-complete-mission]').forEach(b => b.onclick = () => completeMission(b.dataset.completeMission));
   $$('[data-save-mission]').forEach(b => b.onclick = () => saveMissionProgress(b.dataset.saveMission));
   $$('[data-mission-week]').forEach(b => b.onclick = () => { const id = b.dataset.missionWeek; const panel = $('#details-' + id); if (panel) panel.classList.toggle('hidden'); b.classList.toggle('open'); });
+  if (pendingNotificationTarget?.type === 'missions') {
+    const target = pendingNotificationTarget;
+    pendingNotificationTarget = null;
+    const btn = $$('[data-mission-week]').find(b => (b.dataset.weekStart || '') === (target.weekStart || '') && (b.dataset.weekEnd || '') === (target.weekEnd || ''));
+    if (btn) {
+      const panel = $('#details-' + btn.dataset.missionWeek);
+      if (panel) { panel.classList.remove('hidden'); btn.classList.add('open'); setTimeout(() => btn.scrollIntoView({ behavior:'smooth', block:'center' }), 60); }
+    }
+  }
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
