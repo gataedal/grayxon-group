@@ -97,13 +97,18 @@ function homeTpl(h) {
           </div>
         </div>
 
-        <button class="modern-about" data-page="benefits">
+        <div class="modern-about">
           <span class="about-icon">♧</span>
           <span class="about-copy"><small>QUIÉNES SOMOS</small><strong>${esc(about)}</strong></span>
-          <span class="about-arrow">›</span>
-        </button>
+        </div>
 
         <div class="modern-trust">${trust.slice(0,3).map(x => `<span>✓ ${esc(x)}</span>`).join('')}</div>
+
+        <div class="home-menu-heading">NUESTRO MENÚ</div>
+        <div class="hero-actions">
+          <button class="hero-action hero-action-primary" data-page="benefits">Beneficios y requisitos <span>›</span></button>
+          <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Tu espacio <span>›</span></button>
+        </div>
 
         <section class="modern-socials hero-socials">
           <div class="modern-social-title">NUESTRAS REDES</div>
@@ -113,10 +118,6 @@ function homeTpl(h) {
           </div>
         </section>
 
-        <div class="hero-actions">
-          <button class="hero-action hero-action-primary" data-page="benefits">Beneficios y requisitos <span>›</span></button>
-          <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Tu espacio <span>›</span></button>
-        </div>
       </div>
       <div class="modern-creator-art" aria-hidden="true">
         <div class="creator-aura"></div>
