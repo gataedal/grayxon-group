@@ -321,8 +321,7 @@ function profileTpl(){
   const countries=profileCountries.map(([c,n])=>`<option value="${c}" ${d.country===c?'selected':''}>${n}</option>`).join('');
   const banks=(bankSeed[pm.bank_country || d.country]||[]).map(b=>`<option value="${esc(b)}" ${pm.bank_name===b?'selected':''}>${esc(b)}</option>`).join('');
   return `<div class="profile-page">
-    <div class="profile-head card"><div class="profile-avatar-wrap">${avatar}</div><div><div class="eyebrow">MI PERFIL</div><h1>${esc(profile.full_name||profile.username)}</h1><p class="muted">@${esc(profile.username)} · ${profile.role==='admin'?'Administrador':'Creador'}</p></div></div>
-    <div class="card profile-photo-card"><div class="profile-photo-row"><div class="profile-photo-preview">${avatar}</div><div class="profile-photo-actions"><div><strong>Foto de perfil</strong><p class="muted small">Cambia o elimina tu foto cuando quieras.</p></div><button type="button" class="photo-edit-btn" id="profilePhotoEdit" aria-label="Editar foto de perfil">✎</button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"><button type="button" class="photo-delete-btn ${d.avatar_url ? '' : 'hidden'}" id="deleteProfileAvatar" aria-label="Eliminar foto de perfil">🗑</button></div></div><div id="profileAvatarStatus" class="muted small"></div></div>
+    <div class="profile-head card"><div class="profile-avatar-wrap profile-avatar-editable">${avatar}<button type="button" class="avatar-edit-fab" id="profilePhotoEdit" aria-label="Cambiar foto">✎</button><button type="button" class="avatar-delete-fab ${d.avatar_url ? '' : 'hidden'}" id="deleteProfileAvatar" aria-label="Eliminar foto">🗑</button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div><div class="eyebrow">MI PERFIL</div><h1>${esc(profile.full_name||profile.username)}</h1><p class="muted">@${esc(profile.username)} · ${profile.role==='admin'?'Administrador':'Creador'}</p><div id="profileAvatarStatus" class="muted small" style="margin-top:8px"></div></div></div>
     <div class="card"><h2>Información personal</h2>${field('pEmail','Correo electrónico',d.email||'')}${field('pPhone','Número de teléfono',d.phone||'')}
       <label class="field"><span>País</span><select id="pCountry">${countries}</select></label>${field('pState','Estado / Departamento / Provincia',d.state_region||'')}${field('pCity','Ciudad',d.city||'')}${field('pAddress','Dirección',d.address||'',true)}
     </div>
@@ -341,8 +340,22 @@ function authTpl(mode = 'creator') {
 
 async function getProfile() {
   if (!session) return null;
-  const { data } = await sb.from('profiles').select('id,username,full_name,role,active').eq('id', session.user.id).single();
+  const { data } = await sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').eq('id', session.user.id).single();
   return data;
+}
+
+async function loadCreatorAssignment(){
+  if(!session?.user?.id) return {team:null,manager:null};
+  const [{data:pr},{data:team},{data:manager}] = await Promise.all([
+    sb.from('profiles').select('team_id,manager_id').eq('id',session.user.id).maybeSingle(),
+    sb.from('teams').select('id,name').eq('id',profile?.team_id || '').maybeSingle(),
+    sb.from('managers').select('id,name,phone,email').eq('id',profile?.manager_id || '').maybeSingle()
+  ]);
+  return {team:team||null,manager:manager||null};
+}
+function managerWhatsapp(phone){
+  const raw=String(phone||'').replace(/[^0-9]/g,'');
+  return raw ? `https://wa.me/${raw}` : '#';
 }
 
 async function spaceTpl() {
@@ -354,6 +367,7 @@ async function spaceTpl() {
     return;
   }
 
+  const assignment = await loadCreatorAssignment();
   const [{data: details}, {data: pm}, {data: modules}, {data: lessons}, {data: lessonProgress}, {data: missions}, {data: missionProgress}] = await Promise.all([
     sb.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(),
     sb.from('payment_methods').select('*').eq('user_id', session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
@@ -386,15 +400,16 @@ async function spaceTpl() {
   const missionDone = activeMissions.filter(m => missionPctFor(m) >= 100).length;
   const missionPct = missionTotal ? Math.round(activeMissions.reduce((a,m) => a + missionPctFor(m),0) / missionTotal) : 0;
 
-  const card = (icon,title,desc,pct,action,meta) => `<button class="space-card" data-space-action="${action}"><div class="space-card-icon">${icon}</div><div class="space-card-main"><div class="space-card-top"><strong>${title}</strong><span>${pct}%</span></div><p>${desc}</p><div class="space-progress"><span style="width:${pct}%"></span></div><small>${meta}</small></div><b class="space-card-arrow">›</b></button>`;
-
+  const cards = [
+    {html:card('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',profilePct,'profile',`${profilePct === 100 ? 'Perfil completo' : `${profileFields} de 8 datos completos`}`), pct:profilePct},
+    {html:card('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',formationPct,'training',formationTotal ? `${formationDone} de ${formationTotal} lecciones completadas` : 'Aún no hay formación publicada'), pct:formationPct},
+    {html:card('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',missionPct,'missions',missionTotal ? `${missionDone} de ${missionTotal} misiones completadas` : 'No hay misiones activas esta semana'), pct:missionPct}
+  ].sort((a,b)=>a.pct-b.pct);
+  const teamBlock = assignment.team ? `<div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">${esc(assignment.team.name)}</h2><p class="muted" style="margin:0">Manager asignado: <strong>${esc(assignment.manager?.name || 'Sin asignar')}</strong>${assignment.manager?.email ? ` · ${esc(assignment.manager.email)}` : ''}</p></div>${assignment.manager?.phone ? `<a class="primary team-whatsapp" href="${esc(managerWhatsapp(assignment.manager.phone))}" target="_blank" rel="noopener noreferrer">💬 Contactar a mi manager</a>` : '<span class="muted small">Tu manager aún no tiene WhatsApp configurado.</span>'}</div>` : `<div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">Aún no tienes equipo asignado</h2><p class="muted" style="margin:0">Cuando Grayxon te asigne un equipo y un manager, aparecerán aquí.</p></div></div>`;
   $('#space').innerHTML = `<div class="space-page">
     <div class="space-hero"><div><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(profile.full_name || profile.username)} 👋</h1><p class="muted">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong>${Math.round((profilePct + formationPct + missionPct) / 3)}%</strong></div></div>
-    <div class="space-grid">
-      ${card('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',profilePct,'profile',`${profilePct === 100 ? 'Perfil completo' : `${profileFields} de 8 datos completos`}`)}
-      ${card('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',formationPct,'training',formationTotal ? `${formationDone} de ${formationTotal} lecciones completadas` : 'Aún no hay formación publicada')}
-      ${card('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',missionPct,'missions',missionTotal ? `${missionDone} de ${missionTotal} misiones completadas` : 'No hay misiones activas esta semana')}
-    </div>
+    <div class="space-grid">${cards.map(x=>x.html).join('')}</div>
+    ${teamBlock}
   </div>`;
 }
 
@@ -662,8 +677,9 @@ async function adminTpl(c) {
   else if (adminView === 'home') body = adminHome(c.home);
   else if (adminView === 'benefits') body = adminBenefits(c.benefits);
   else if (adminView === 'creators') body = await adminCreators();
+  else if (adminView === 'teams') body = await adminTeams();
   else body = await adminFormation();
-  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
+  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['teams','Equipos y managers'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
 }
 
 function field(id, label, val, area = false) {
@@ -680,11 +696,26 @@ function adminBenefits(b) {
 }
 
 async function adminCreators() {
-  const { data, error } = await sb.from('profiles').select('id,username,full_name,active,role').eq('role','creator').order('full_name');
+  const { data, error } = await sb.from('profiles').select('id,username,full_name,active,role,team_id,manager_id').eq('role','creator').order('full_name');
   if (error) return `<div class="card"><h2>Creadores</h2><div class="error">${esc(error.message)}</div></div>`;
-  return `<div class="card"><div class="row"><div><h2>Creadores</h2><p class="muted small">Cada creador entra con usuario + contraseña. El correo técnico nunca se muestra.</p></div><button class="primary" id="newCreator">+ Crear creador</button></div><div class="list" style="margin-top:18px">${(data || []).map(x => `<div class="item creator-admin-row"><div class="row"><div><b>${esc(x.full_name || x.username)}</b><div class="muted small">@${esc(x.username)}</div></div><div class="inline creator-access-actions"><span class="pill ${x.active ? 'ok' : ''}">${x.active ? 'Activo · acceso permitido' : 'Inactivo · acceso bloqueado'}</span><button class="secondary small creator-toggle ${x.active ? 'danger' : 'ok'}" data-toggle-creator="${x.id}">${x.active ? '🔒 Desactivar acceso' : '🔓 Activar acceso'}</button><button class="secondary small" data-view-profile="${x.id}">👤 Perfil y misiones</button></div></div></div>`).join('') || '<p class="muted">Aún no hay creadores.</p>'}</div></div>`;
+  const [{data:teams},{data:managers}] = await Promise.all([sb.from('teams').select('id,name'),sb.from('managers').select('id,name')]);
+  const tm=new Map((teams||[]).map(x=>[x.id,x.name])), mm=new Map((managers||[]).map(x=>[x.id,x.name]));
+  return `<div class="card"><div class="row"><div><h2>Creadores</h2><p class="muted small">Cada creador entra con usuario + contraseña. El correo técnico nunca se muestra.</p></div><button class="primary" id="newCreator">+ Crear creador</button></div><div class="list" style="margin-top:18px">${(data || []).map(x => `<div class="item creator-admin-row"><div class="row"><div><b>${esc(x.full_name || x.username)}</b><div class="muted small">@${esc(x.username)}</div><div class="muted small">${esc(tm.get(x.team_id)||'Sin equipo')} · ${esc(mm.get(x.manager_id)||'Sin manager')}</div></div><div class="inline creator-access-actions"><span class="pill ${x.active ? 'ok' : ''}">${x.active ? 'Activo · acceso permitido' : 'Inactivo · acceso bloqueado'}</span><button class="secondary small creator-toggle ${x.active ? 'danger' : 'ok'}" data-toggle-creator="${x.id}">${x.active ? '🔒 Desactivar acceso' : '🔓 Activar acceso'}</button><button class="secondary small" data-view-profile="${x.id}">👤 Perfil y misiones</button></div></div></div>`).join('') || '<p class="muted">Aún no hay creadores.</p>'}</div></div>`;
 }
 
+
+async function adminTeams(){
+  const [{data:teams,error:te},{data:managers,error:me}] = await Promise.all([sb.from('teams').select('*').order('name'),sb.from('managers').select('*').order('name')]);
+  if(te||me) return `<div class="card"><h2>Equipos y managers</h2><div class="error">${esc((te||me)?.message||'No se pudo cargar la configuración.')}</div></div>`;
+  return `<div class="card"><div class="row"><div><h2>Equipos y managers</h2><p class="muted small">Crea equipos, asigna su manager y guarda su WhatsApp con indicativo para que los creadores puedan contactarlo directamente.</p></div><button class="primary" id="newTeamManager">+ Crear equipo</button></div><div class="list" style="margin-top:18px">${(teams||[]).map(t=>{const m=(managers||[]).find(x=>x.id===t.manager_id);return `<div class="item"><div class="row"><div><b>${esc(t.name)}</b><div class="muted small">Manager: ${esc(m?.name||'Sin asignar')}</div><div class="muted small">${m?.phone?`WhatsApp: ${esc(m.phone)}`:'Sin teléfono'}${m?.email?` · ${esc(m.email)}`:''}</div></div><div class="inline"><button class="secondary small" data-edit-team="${t.id}">✏️ Editar</button><button class="secondary small danger" data-delete-team="${t.id}">Eliminar</button></div></div></div>`}).join('')||'<p class="muted">Aún no hay equipos.</p>'}</div></div>`;
+}
+function teamManagerModal(existing=null){
+  const el=document.createElement('div'); el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal"><h2>${existing?'Editar':'Crear'} equipo</h2>${field('tmName','Nombre del equipo',existing?.name||'')}<h3 style="margin-top:18px">Manager</h3>${field('tmManagerName','Nombre completo',existing?.manager?.name||'')}<div class="field"><label>WhatsApp con indicativo</label><input id="tmManagerPhone" value="${esc(existing?.manager?.phone||'')}" placeholder="+573126283007"></div>${field('tmManagerEmail','Correo',existing?.manager?.email||'')}<div id="tmErr" class="error"></div><div class="inline" style="margin-top:18px"><button class="primary" id="saveTeamManager">Guardar</button><button class="secondary" id="cancelTeamManager">Cancelar</button></div></div>`;
+  document.body.appendChild(el); $('#cancelTeamManager').onclick=()=>el.remove(); $('#saveTeamManager').onclick=async()=>{const btn=$('#saveTeamManager');btn.disabled=true;const name=$('#tmName').value.trim(),mn=$('#tmManagerName').value.trim(),phone=$('#tmManagerPhone').value.trim(),email=$('#tmManagerEmail').value.trim()||null;if(!name||!mn){$('#tmErr').textContent='Escribe el nombre del equipo y del manager.';btn.disabled=false;return;}try{let managerId=existing?.manager_id||null;if(managerId){const {error}=await sb.from('managers').update({name:mn,phone,email,updated_at:new Date().toISOString()}).eq('id',managerId);if(error)throw error;}else{const {data,error}=await sb.from('managers').insert({name:mn,phone,email}).select('id').single();if(error)throw error;managerId=data.id;}const payload={name,manager_id:managerId,updated_at:new Date().toISOString()};const {error}=existing?await sb.from('teams').update(payload).eq('id',existing.id):await sb.from('teams').insert(payload);if(error)throw error;el.remove();toast(existing?'Equipo actualizado ✓':'Equipo creado ✓');render();}catch(e){$('#tmErr').textContent=e.message||'No se pudo guardar.';btn.disabled=false;}};
+}
+async function editTeam(id){const {data:t,error}=await sb.from('teams').select('*').eq('id',id).single();if(error||!t)return toast(error?.message||'No se encontró el equipo.');const {data:m}=t.manager_id?await sb.from('managers').select('*').eq('id',t.manager_id).maybeSingle():{data:null};teamManagerModal({...t,manager:m});}
+async function deleteTeam(id){if(!confirm('¿Eliminar este equipo? Los creadores quedarán sin equipo asignado.'))return;await sb.from('profiles').update({team_id:null,manager_id:null}).eq('team_id',id);const {data:t}=await sb.from('teams').select('manager_id').eq('id',id).maybeSingle();if(t?.manager_id)await sb.from('managers').delete().eq('id',t.manager_id);const {error}=await sb.from('teams').delete().eq('id',id);if(error)return toast(error.message);toast('Equipo eliminado');render();}
 
 function localDateISO(d){
   const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
@@ -710,12 +741,13 @@ async function adminProfileModal(id){
   const [{data:d,error:de},{data:pm,error:pe},{data:p,error:pr},{data:missions,error:me},{data:progress,error:mpe}] = await Promise.all([
     sb.from('profile_details').select('*').eq('user_id',id).maybeSingle(),
     sb.from('payment_methods').select('*').eq('user_id',id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
-    sb.from('profiles').select('id,username,full_name,active').eq('id',id).single(),
+    sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('id',id).single(),
     sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at').eq('assigned_to',id).order('week_start',{ascending:false}).order('created_at',{ascending:false}),
     sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',id)
   ]);
   if(pr) return toast(pr.message);
   if(me) return toast(me.message);
+  const [{data:teams},{data:managers}] = await Promise.all([sb.from('teams').select('id,name').order('name'),sb.from('managers').select('id,name,phone,email').order('name')]);
   const modalEl=document.createElement('div'); modalEl.className='modal-backdrop';
   const safe=x=>x?esc(x):'—';
   const today=new Date().toISOString().slice(0,10);
@@ -743,9 +775,10 @@ async function adminProfileModal(id){
     return `<div class="mission-week-group admin-mission-week-group"><div class="admin-week-card-row"><button type="button" class="mission-week-card admin-mission-week-card" data-admin-mission-week="${weekPanelId}" aria-expanded="false"><div class="mission-week-icon">🎯</div><div class="mission-week-main"><div class="mission-week-top"><strong>Misiones ${esc(adminWeekLabel(g.start,g.end))}</strong><span>${avg}%</span></div><p>${g.items.length} ${g.items.length===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}${current?' · Semana actual':''}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b></button><button type="button" class="secondary small mission-notify-btn admin-week-notify" data-notify-mission-week="${esc(g.start)}|${esc(g.end)}" data-creator-id="${esc(id)}" ${publishedCount?'':'disabled'}>${notifyLabel}</button></div><div class="mission-week-details hidden" id="${weekPanelId}">${g.items.map(renderMissionRow).join('')}</div></div>`;
   };
   const missionWeeksHtml=groupedWeeks.map(adminWeekCard).join('') || `<div class="item"><p class="muted small" style="margin:0">Aún no hay misiones asignadas a este creador.</p></div>`;
-  modalEl.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div><button class="secondary" id="closeProfileModal">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type==='savings'?'Ahorros':pm?.account_type==='checking'?'Corriente':pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="creator-missions-section"><div class="row"><div><h3 style="margin-bottom:3px">🎯 Misiones del creador</h3><p class="muted small" style="margin:0">Agrega todas las misiones que necesites directamente aquí. Puedes tener varias por semana.</p></div><button class="primary small" id="newCreatorMission">+ Agregar misión</button></div><div class="creator-mission-group"><div class="row"><div><h3 style="margin-bottom:3px">📅 Misiones por semana</h3><p class="muted small" style="margin:0">Abre una semana para ver todas las misiones de ese periodo, junto con su progreso y estado.</p></div><span class="mission-count">${groupedWeeks.length}</span></div><div class="mission-weeks-list" style="margin-top:12px">${missionWeeksHtml}</div></div></div></div>`;
+  modalEl.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div><button class="secondary" id="closeProfileModal">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco: ${safe(pm?.bank_name)} · ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type==='savings'?'Ahorros':pm?.account_type==='checking'?'Corriente':pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="card" style="margin-top:16px"><h3>Equipo y manager</h3><div class="grid"><label class="field"><span>Equipo</span><select id="adminCreatorTeam"><option value="">Sin equipo</option>${(teams||[]).map(t=>`<option value="${t.id}" ${p.team_id===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><label class="field"><span>Manager</span><select id="adminCreatorManager"><option value="">Sin manager</option>${(managers||[]).map(m=>`<option value="${m.id}" ${p.manager_id===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label></div><button class="primary small" id="saveCreatorAssignment">Guardar asignación</button></div><div class="creator-missions-section"><div class="row"><div><h3 style="margin-bottom:3px">🎯 Misiones del creador</h3><p class="muted small" style="margin:0">Agrega todas las misiones que necesites directamente aquí. Puedes tener varias por semana.</p></div><button class="primary small" id="newCreatorMission">+ Agregar misión</button></div><div class="creator-mission-group"><div class="row"><div><h3 style="margin-bottom:3px">📅 Misiones por semana</h3><p class="muted small" style="margin:0">Abre una semana para ver todas las misiones de ese periodo, junto con su progreso y estado.</p></div><span class="mission-count">${groupedWeeks.length}</span></div><div class="mission-weeks-list" style="margin-top:12px">${missionWeeksHtml}</div></div></div></div>`;
   document.body.appendChild(modalEl);
   $('#closeProfileModal').onclick=()=>modalEl.remove();
+  $('#saveCreatorAssignment').onclick=async()=>{const btn=$('#saveCreatorAssignment');btn.disabled=true;const {error}=await sb.from('profiles').update({team_id:$('#adminCreatorTeam').value||null,manager_id:$('#adminCreatorManager').value||null}).eq('id',id);if(error){toast(error.message);btn.disabled=false;return;}toast('Equipo y manager actualizados ✓');modalEl.remove();await adminProfileModal(id);};
   $('#newCreatorMission').onclick=()=>creatorMissionModal(id);
   modalEl.querySelectorAll('[data-edit-creator-mission]').forEach(b=>b.onclick=()=>creatorMissionModal(id,b.dataset.editCreatorMission));
   modalEl.querySelectorAll('[data-toggle-creator-mission]').forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from('missions').select('published').eq('id',b.dataset.toggleCreatorMission).single();if(error)return toast(error.message);const {error:e}=await sb.from('missions').update({published:!data.published}).eq('id',b.dataset.toggleCreatorMission);if(e)return toast(e.message);toast(data.published?'Misión ocultada':'Misión publicada ✓');modalEl.remove();await adminProfileModal(id);});
@@ -831,19 +864,13 @@ async function toggleCreator(id) {
   render();
 }
 
-function creatorModal() {
-  const el = document.createElement('div');
-  el.className = 'modal-backdrop';
-  el.innerHTML = `<div class="card modal"><h2>Crear creador</h2>${field('newName','Nombre completo','')}${field('newUser','Usuario','')}${field('newPass','Contraseña','')}<div class="muted small">Mínimo 8 caracteres. El creador solo verá su usuario, nunca el correo técnico.</div><div class="inline" style="margin-top:18px"><button class="primary" id="createCreator">Crear cuenta</button><button class="secondary" id="cancelCreator">Cancelar</button></div><div id="createErr" class="error"></div></div>`;
-  document.body.appendChild(el);
-  $('#cancelCreator').onclick = () => el.remove();
-  $('#createCreator').onclick = async () => {
-    const btn = $('#createCreator'); btn.disabled = true;
-    const { data, error } = await sb.functions.invoke('create-creator', { body: { username: $('#newUser').value.trim(), full_name: $('#newName').value.trim(), password: $('#newPass').value } });
-    if (error || data?.error) { $('#createErr').textContent = data?.error || error.message; btn.disabled = false; return; }
-    el.remove(); toast('Creador creado ✓'); render();
-  };
+async function creatorModal() {
+  const [{data:teams},{data:managers}] = await Promise.all([sb.from('teams').select('id,name').order('name'),sb.from('managers').select('id,name').order('name')]);
+  const el = document.createElement('div'); el.className = 'modal-backdrop';
+  el.innerHTML = `<div class="card modal"><h2>Crear creador</h2>${field('newName','Nombre completo','')}${field('newUser','Usuario','')}${field('newPass','Contraseña','')}<label class="field"><span>Equipo</span><select id="newTeam"><option value="">Sin equipo</option>${(teams||[]).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label><label class="field"><span>Manager</span><select id="newManager"><option value="">Sin manager</option>${(managers||[]).map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select></label><div class="muted small">Mínimo 8 caracteres. El creador solo verá su usuario, nunca el correo técnico.</div><div class="inline" style="margin-top:18px"><button class="primary" id="createCreator">Crear cuenta</button><button class="secondary" id="cancelCreator">Cancelar</button></div><div id="createErr" class="error"></div></div>`;
+  document.body.appendChild(el); $('#cancelCreator').onclick=()=>el.remove(); $('#createCreator').onclick=async()=>{const btn=$('#createCreator');btn.disabled=true;try{const username=$('#newUser').value.trim(),full_name=$('#newName').value.trim(),password=$('#newPass').value,team_id=$('#newTeam').value||null,manager_id=$('#newManager').value||null;const {data,error}=await sb.functions.invoke('create-creator',{body:{username,full_name,password}});if(error||data?.error)throw new Error(data?.error||error.message);const creatorId=data?.user?.id||data?.profile?.id||data?.id;let id=creatorId;if(!id){const {data:p}=await sb.from('profiles').select('id').eq('username',username.toLowerCase()).maybeSingle();id=p?.id;}if(!id)throw new Error('La cuenta se creó, pero no pudimos recuperar el creador para asignarle equipo y manager.');const {error:ae}=await sb.from('profiles').update({team_id,manager_id}).eq('id',id);if(ae)throw ae;el.remove();toast('Creador creado y asignado ✓');render();}catch(e){$('#createErr').textContent=e.message||'No se pudo crear el creador.';btn.disabled=false;}};
 }
+
 
 async function adminFormation() {
   const { data: mods, error: modError } = await sb.from('modules').select('id,title,description,sort_order,published').order('sort_order');
@@ -1154,6 +1181,9 @@ function bind() {
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
+  $('#newTeamManager')?.addEventListener('click',()=>teamManagerModal());
+  $$('[data-edit-team]').forEach(b=>b.onclick=()=>editTeam(b.dataset.editTeam));
+  $$('[data-delete-team]').forEach(b=>b.onclick=()=>deleteTeam(b.dataset.deleteTeam));
   // Account menu is wired once globally below. Do not bind it here on every render.
   const saveProfileBtn = $('#saveProfile');
   if (saveProfileBtn) saveProfileBtn.onclick = saveProfile;
@@ -1230,7 +1260,7 @@ async function saveProfile(){
   const {data:existing}=await sb.from('payment_methods').select('id').eq('user_id',session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle();
   const {error:pe}=existing?.id ? await sb.from('payment_methods').update(pm).eq('id',existing.id) : await sb.from('payment_methods').insert(pm);
   if(pe){if(err)err.textContent=pe.message;return;}
-  toast('Perfil guardado ✓'); await loadProfileDetails(); updateProfileBadge(); closeProfileMenu(); nav('training');
+  toast('Perfil guardado ✓'); await loadProfileDetails(); updateProfileBadge(); closeProfileMenu(); nav('space');
 }
 function updateProfileBadge(){
   const b=$('#mobileProfile'); if(!b)return;
