@@ -86,13 +86,12 @@ function homeTpl(h) {
   const intro = h?.intro || d.intro;
   const about = h?.about || d.about;
   const trust = Array.isArray(h?.trust) && h.trust.length ? h.trust : d.trust;
-  const creatorName = session && profile?.role === 'creator' ? esc(profile.full_name || profile.username) : 'Gray';
   return `<div class="home-modern">
     <section class="modern-hero">
       <div class="modern-hero-copy">
-        <div class="modern-kicker"><span>GRAYXON ACADEMY</span></div>
+        <div class="modern-kicker"><span>GRAYXON</span></div>
         <h1>Crece. Aprende. Conecta con <em>Grayxon.</em></h1>
-        <div class="brand-connection-inline" aria-hidden="true">
+        <div class="brand-connection-inline" aria-label="Grayxon y TikTok LIVE">
           <img src="assets/grayxon-logo.png" alt="Grayxon">
           <span></span>
           <img src="assets/tiktok-live-logo.png" alt="TikTok LIVE">
@@ -104,7 +103,6 @@ function homeTpl(h) {
           <span class="about-arrow">›</span>
         </button>
         <div class="modern-trust">${trust.slice(0,3).map(x => `<span>✓ ${esc(x)}</span>`).join('')}</div>
-
         <section class="modern-socials hero-socials">
           <div class="modern-social-title">NUESTRAS REDES</div>
           <div class="modern-social-grid">
@@ -112,7 +110,6 @@ function homeTpl(h) {
             <a class="modern-social-btn whatsapp-btn" href="https://wa.me/573126283007?text=Hola%20Grayxon%20%F0%9F%91%8B" target="_blank" rel="noopener noreferrer"><span class="social-logo whatsapp-mark"><img src="assets/whatsapp-icon.svg" alt="WhatsApp"></span><strong>Hablar por WhatsApp</strong><b>↗</b></a>
           </div>
         </section>
-
         <div class="hero-actions">
           <button class="hero-action hero-action-primary" data-page="benefits">Beneficios y requisitos <span>›</span></button>
           <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Tu espacio <span>›</span></button>
@@ -126,6 +123,7 @@ function homeTpl(h) {
     </section>
   </div>`;
 }
+
 function benefitsTpl(b) {
   const bonusSections = [
     { icon:'💎', title:'1. ¿Qué puedes ganar?', body:'Además de las recompensas de TikTok, puedes ganar bonos mensuales por tu producción.', bullets:['Bonos por mantener e incrementar tu producción.','Más herramientas para ayudarte a crecer.','Acompañamiento real de un equipo que quiere verte crecer.'] },
@@ -201,7 +199,7 @@ async function trainingTpl() {
 
   $('#training').innerHTML = `<div class="row"><div><div class="eyebrow">MI FORMACIÓN</div><h1 style="margin:7px 0">Hola, ${esc(profile.full_name || profile.username)} 👋</h1><p class="muted">Avanza por los módulos a tu ritmo. Los videos se completan automáticamente cuando terminan.</p></div><button class="secondary" id="logout">Cerrar sesión</button></div>
   <div class="card progress-card" style="margin-top:20px"><div class="row"><div><b>Tu progreso</b><div class="muted small">${totalDone} de ${totalLessons} lecciones completadas</div></div><b class="progress-percent">${totalPct}%</b></div><div class="progress-track"><div class="progress-fill" style="width:${totalPct}%"></div></div></div>
-  <div class="training-grid" style="margin-top:22px"><div class="modules-list">${(modules || []).map((m, mi) => { const ml = orderedLessons.filter(l => l.module_id === m.id); const md = ml.filter(l => done.has(l.id)).length; const pct = ml.length ? Math.round(md / ml.length * 100) : 0; return `<div class="module ${pct === 100 && ml.length ? 'module-complete' : ''}"><div class="module-head"><div class="module-number">${String(mi + 1).padStart(2,'0')}</div><div class="module-copy"><div class="module-title">${esc(m.title)}</div><p class="muted small">${esc(m.description || '')}</p></div><div class="module-status">${pct === 100 && ml.length ? '✓' : `${md}/${ml.length}`}</div></div><div class="module-progress"><span style="width:${pct}%"></span></div><div class="module-label">${pct === 100 && ml.length ? 'Módulo completado' : `${md} de ${ml.length} completadas`}</div>${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}"><button data-lesson="${l.id}"><span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}</small></span></button>${nextPending?.id === l.id ? '<span class="next-badge">SIGUIENTE</span>' : ''}</div>`).join('')}</div>`; }).join('') || '<div class="card"><p class="muted">Todavía no hay formación publicada.</p></div>'}</div><div class="lesson-view" id="lessonView"><div class="empty-lesson"><div class="empty-icon">▶</div><h2>Comienza tu formación</h2><p class="muted">Selecciona una lección del panel izquierdo para empezar. Cuando termines un video, Grayxon registrará automáticamente tu avance y te llevará al siguiente tema.</p></div></div></div>`;
+  <div class="training-grid" style="margin-top:22px"><div class="modules-list">${(modules || []).map((m, mi) => { const ml = orderedLessons.filter(l => l.module_id === m.id); const md = ml.filter(l => done.has(l.id)).length; const pct = ml.length ? Math.round(md / ml.length * 100) : 0; return `<div class="module ${pct === 100 && ml.length ? 'module-complete' : ''}"><div class="module-head"><div class="module-number">${String(mi + 1).padStart(2,'0')}</div><div class="module-copy"><div class="module-title">${esc(m.title)}</div><p class="muted small">${esc(m.description || '')}</p></div><div class="module-status">${pct === 100 && ml.length ? '✓' : `${md}/${ml.length}`}</div></div><div class="module-progress"><span style="width:${pct}%"></span></div><div class="module-label">${pct === 100 && ml.length ? 'Módulo completado' : `${md} de ${ml.length} completadas`}</div>${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}"><button data-lesson="${l.id}"><span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}</small></span></button>${nextPending?.id === l.id ? '<span class="next-badge">SIGUIENTE</span>' : ''}</div>`).join('')}</div>`; }).join('') || '<div class="card"><p class="muted">Todavía no hay formación publicada.</p></div>'}</div><div class="lesson-view" id="lessonView"><div class="empty-lesson"><div class="empty-icon">▶</div><h2>Comienza tu formación</h2><p class="muted">Selecciona una lección para empezar. En móvil, el reproductor ocupará esta pantalla para que puedas ver el contenido sin buscarlo abajo.</p></div></div></div>`;
   window._lessons = orderedLessons;
   window._done = done;
 }
@@ -220,7 +218,7 @@ async function openLesson(id) {
   }
   const isVideo = l.type === 'video' && !!l.video_path;
   const alreadyDone = window._done.has(l.id);
-  $('#lessonView').innerHTML = `<div class="eyebrow">LECCIÓN</div><div class="lesson-header"><div><h2>${esc(l.title)}</h2><p class="muted">${esc(l.description || '')}</p></div><span class="lesson-state ${alreadyDone ? 'completed' : ''}">${alreadyDone ? '✓ COMPLETADA' : isVideo ? 'EN CURSO' : 'PENDIENTE'}</span></div>${media}${l.content ? `<div class="section">${esc(l.content).replace(/\n/g, '<br>')}</div>` : ''}${!isVideo ? `<button class="primary" id="completeLesson">${alreadyDone ? '✓ Lección completada' : 'Completar lección'}</button>` : ''}`;
+  $('#lessonView').innerHTML = `<button class="mobile-back-lessons" id="backToLessons">← Volver a módulos</button><div class="eyebrow">LECCIÓN</div><div class="lesson-header"><div><h2>${esc(l.title)}</h2><p class="muted">${esc(l.description || '')}</p></div><span class="lesson-state ${alreadyDone ? 'completed' : ''}">${alreadyDone ? '✓ COMPLETADA' : isVideo ? 'EN CURSO' : 'PENDIENTE'}</span></div>${media}${l.content ? `<div class="section">${esc(l.content).replace(/\n/g, '<br>')}</div>` : ''}${!isVideo ? `<button class="primary" id="completeLesson">${alreadyDone ? '✓ Lección completada' : 'Completar lección'}</button>` : ''}`;
 
   if (isVideo) {
     const video = $('#lessonVideo');
@@ -236,12 +234,18 @@ async function openLesson(id) {
     $('#completeLesson').onclick = () => completeLesson(l.id);
   }
 
-  // On mobile, bring the selected lesson/player into view automatically so the user
-  // never has to hunt for the video below the module list.
+  // On mobile, show the selected lesson as its own screen instead of placing
+  // the player after the entire module list.
   if (window.matchMedia('(max-width: 800px)').matches) {
-    requestAnimationFrame(() => {
-      $('#lessonView')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const modulesList = $('.modules-list');
+    if (modulesList) modulesList.classList.add('mobile-lesson-open');
+    $('#lessonView')?.classList.add('mobile-lesson-active');
+    $('#backToLessons')?.addEventListener('click', () => {
+      modulesList?.classList.remove('mobile-lesson-open');
+      $('#lessonView')?.classList.remove('mobile-lesson-active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
   }
 }
 
