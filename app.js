@@ -370,64 +370,73 @@ function managerWhatsapp(phone){
 
 async function spaceTpl() {
   if (!session) { $('#space').innerHTML = authTpl('creator'); return; }
-  // Usa el perfil ya cargado al iniciar sesión. Solo consulta de nuevo si falta.
-  if (!profile) profile = await getProfile();
-  if (!profile) { $('#space').innerHTML = '<div class="login"><h2>No pudimos cargar tu espacio</h2><p class="muted">Intenta nuevamente en unos segundos.</p><button class="primary" data-page="space">Reintentar</button></div>'; bindAll(); return; }
-  if (profile.active === false) {
-    await sb.auth.signOut(); session = null; profile = null;
-    $('#space').innerHTML = '<div class="login"><h2>Tu acceso está desactivado</h2><p class="muted">Tu acceso al portal de Grayxon ha sido desactivado. Contacta con tu manager para solicitar la reactivación.</p></div>';
-    return;
-  }
 
-  // Renderiza Tu espacio aunque una consulta secundaria tarde o falle.
-  const safe = async (promise, fallback, ms=3500) => {
-    try {
-      const result = await Promise.race([promise, new Promise(resolve => setTimeout(() => resolve({data:fallback,error:new Error('timeout')}), ms))]);
-      return result?.error ? {data:fallback,error:result.error} : {data:result?.data ?? fallback,error:null};
-    } catch(error) { return {data:fallback,error}; }
+  // Renderiza una versión mínima inmediatamente. Nunca dejamos Tu espacio
+  // esperando consultas de Supabase.
+  const baseProfile = profile || {
+    id: session.user.id,
+    username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador',
+    full_name: session.user.user_metadata?.full_name || '',
+    role: 'creator', active: true
   };
-  const assignmentPromise = loadCreatorAssignment();
-  const [assignment, detailsR, pmR, modulesR, lessonsR, lessonProgressR, missionsR, missionProgressR] = await Promise.all([
-    safe(assignmentPromise, {team:null,manager:null}),
-    safe(sb.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(), null),
-    safe(sb.from('payment_methods').select('*').eq('user_id', session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle(), null),
-    safe(sb.from('modules').select('id').eq('published', true), []),
-    safe(sb.from('lessons').select('id,module_id').eq('published', true), []),
-    safe(sb.from('lesson_progress').select('lesson_id').eq('user_id', session.user.id), []),
-    safe(sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at').eq('published', true).or(`assigned_to.is.null,assigned_to.eq.${session.user.id}`).order('week_start',{ascending:false}).order('created_at',{ascending:false}), []),
-    safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id), [])
-  ]);
-  const details = detailsR.data, pm = pmR.data, modules = modulesR.data, lessons = lessonsR.data, lessonProgress = lessonProgressR.data, missions = missionsR.data, missionProgress = missionProgressR.data;
+  profile = baseProfile;
 
-  const profileFields = [details?.email, details?.phone, details?.country, details?.state_region, details?.city, details?.address, details?.avatar_url, pm?.method_type && (pm.method_type === 'paypal' ? pm.paypal_email : pm.account_number)].filter(Boolean).length;
-  const profilePct = Math.round(profileFields / 8 * 100);
-  const doneLessons = new Set((lessonProgress || []).map(x => x.lesson_id));
-  const formationTotal = (lessons || []).length;
-  const formationDone = (lessons || []).filter(x => doneLessons.has(x.id)).length;
-  const formationPct = formationTotal ? Math.round(formationDone / formationTotal * 100) : 0;
-  const today = new Date().toISOString().slice(0,10);
-  const activeMissions = (missions || []).filter(m => (!m.week_start || m.week_start <= today) && (!m.week_end || m.week_end >= today) && (!m.assigned_to || m.assigned_to === session.user.id));
-  const mp = new Map((missionProgress || []).map(x => [x.mission_id, x]));
-  const missionPctFor = m => {
-    const x = mp.get(m.id); if (!x) return 0;
-    if (m.type === 'checkbox') return x.completed ? 100 : 0;
-    return m.target > 0 ? Math.min(100, Math.round(Number(x.value || 0) / Number(m.target) * 100)) : 0;
-  };
-  const missionTotal = activeMissions.length;
-  const missionDone = activeMissions.filter(m => missionPctFor(m) >= 100).length;
-  const missionPct = missionTotal ? Math.round(activeMissions.reduce((a,m) => a + missionPctFor(m),0) / missionTotal) : 0;
-
-  const cards = [
-    {html:card('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',profilePct,'profile',`${profilePct === 100 ? 'Perfil completo' : `${profileFields} de 8 datos completos`}`), pct:profilePct},
-    {html:card('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',formationPct,'training',formationTotal ? `${formationDone} de ${formationTotal} lecciones completadas` : 'Aún no hay formación publicada'), pct:formationPct},
-    {html:card('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',missionPct,'missions',missionTotal ? `${missionDone} de ${missionTotal} misiones completadas` : 'No hay misiones activas esta semana'), pct:missionPct}
-  ].sort((a,b)=>a.pct-b.pct);
-  const teamBlock = assignment.team ? `<div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">${esc(assignment.team.name)}</h2><p class="muted" style="margin:0">Manager asignado: <strong>${esc(assignment.manager?.name || 'Sin asignar')}</strong>${assignment.manager?.email ? ` · ${esc(assignment.manager.email)}` : ''}</p></div>${assignment.manager?.phone ? `<a class="primary team-whatsapp" href="${esc(managerWhatsapp(assignment.manager.phone))}" target="_blank" rel="noopener noreferrer">💬 Contactar a mi manager</a>` : '<span class="muted small">Tu manager aún no tiene WhatsApp configurado.</span>'}</div>` : `<div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">Aún no tienes equipo asignado</h2><p class="muted" style="margin:0">Cuando Grayxon te asigne un equipo y un manager, aparecerán aquí.</p></div></div>`;
   $('#space').innerHTML = `<div class="space-page">
-    <div class="space-hero"><div><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(profile.full_name || profile.username)} 👋</h1><p class="muted">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong>${Math.round((profilePct + formationPct + missionPct) / 3)}%</strong></div></div>
-    <div class="space-grid">${cards.map(x=>x.html).join('')}</div>
-    ${teamBlock}
+    <div class="space-hero"><div><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(baseProfile.full_name || baseProfile.username)} 👋</h1><p class="muted">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong>0%</strong></div></div>
+    <div class="space-grid">
+      ${card('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando...')}
+      ${card('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando...')}
+      ${card('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando...')}
+    </div>
+    <div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">Cargando equipo...</h2><p class="muted" style="margin:0">Estamos consultando tu equipo y manager.</p></div></div>
   </div>`;
+
+  // Enriquecemos la pantalla después de pintarla. Ninguna consulta puede impedir
+  // que el usuario vea Tu espacio.
+  try {
+    const uid = session.user.id;
+    const safe = async (promise, fallback, ms=3000) => {
+      try {
+        const r = await Promise.race([promise, new Promise(resolve => setTimeout(() => resolve({data:fallback,error:new Error('timeout')}), ms))]);
+        return r?.error ? fallback : (r?.data ?? fallback);
+      } catch { return fallback; }
+    };
+    const [details, pm, modules, lessons, lp, missions, mp, assignment] = await Promise.all([
+      safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(), null),
+      safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(), null),
+      safe(sb.from('modules').select('id').eq('published',true), []),
+      safe(sb.from('lessons').select('id,module_id').eq('published',true), []),
+      safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid), []),
+      safe(sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}).order('created_at',{ascending:false}), []),
+      safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid), []),
+      safe(loadCreatorAssignment(), {team:null,manager:null})
+    ]);
+
+    const profileFields=[details?.email,details?.phone,details?.country,details?.state_region,details?.city,details?.address,details?.avatar_url,pm?.method_type && (pm.method_type==='paypal'?pm.paypal_email:pm.account_number)].filter(Boolean).length;
+    const profilePct=Math.round(profileFields/8*100);
+    const doneLessons=new Set((lp||[]).map(x=>x.lesson_id));
+    const formationTotal=(lessons||[]).length;
+    const formationDone=(lessons||[]).filter(x=>doneLessons.has(x.id)).length;
+    const formationPct=formationTotal?Math.round(formationDone/formationTotal*100):0;
+    const today=new Date().toISOString().slice(0,10);
+    const activeMissions=(missions||[]).filter(m=>(!m.week_start||m.week_start<=today)&&(!m.week_end||m.week_end>=today)&&(!m.assigned_to||m.assigned_to===uid));
+    const progressMap=new Map((mp||[]).map(x=>[x.mission_id,x]));
+    const missionPctFor=m=>{const x=progressMap.get(m.id);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return m.target>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0;};
+    const missionTotal=activeMissions.length;
+    const missionDone=activeMissions.filter(m=>missionPctFor(m)>=100).length;
+    const missionPct=missionTotal?Math.round(activeMissions.reduce((a,m)=>a+missionPctFor(m),0)/missionTotal):0;
+    const cards=[
+      {html:card('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',profilePct,'profile',profilePct===100?'Perfil completo':`${profileFields} de 8 datos completos`),pct:profilePct},
+      {html:card('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',formationPct,'training',formationTotal?`${formationDone} de ${formationTotal} lecciones completadas`:'Aún no hay formación publicada'),pct:formationPct},
+      {html:card('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',missionPct,'missions',missionTotal?`${missionDone} de ${missionTotal} misiones completadas`:'No hay misiones activas esta semana'),pct:missionPct}
+    ].sort((a,b)=>a.pct-b.pct);
+    const teamBlock=assignment.team?`<div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">${esc(assignment.team.name)}</h2><p class="muted" style="margin:0">Manager asignado: <strong>${esc(assignment.manager?.name||'Sin asignar')}</strong>${assignment.manager?.email?` · ${esc(assignment.manager.email)}`:''}</p></div>${assignment.manager?.phone?`<a class="primary team-whatsapp" href="${esc(managerWhatsapp(assignment.manager.phone))}" target="_blank" rel="noopener noreferrer">💬 Contactar a mi manager</a>`:'<span class="muted small">Tu manager aún no tiene WhatsApp configurado.</span>'}</div>`:`<div class="team-space-card card"><div><div class="eyebrow">TU EQUIPO</div><h2 style="margin:6px 0">Aún no tienes equipo asignado</h2><p class="muted" style="margin:0">Cuando Grayxon te asigne un equipo y un manager, aparecerán aquí.</p></div></div>`;
+    $('#space').innerHTML=`<div class="space-page"><div class="space-hero"><div><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(baseProfile.full_name||baseProfile.username)} 👋</h1><p class="muted">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong>${Math.round((profilePct+formationPct+missionPct)/3)}%</strong></div></div><div class="space-grid">${cards.map(x=>x.html).join('')}</div>${teamBlock}</div>`;
+    bind();
+  } catch (e) {
+    // La pantalla inicial ya está visible; nunca la sustituimos por un error.
+    console.warn('Tu espacio: actualización secundaria falló', e);
+  }
 }
 
 async function missionsTpl() {
