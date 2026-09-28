@@ -1,3 +1,4 @@
+// GRAYXON BUILD V32
 const CFG = window.GRAYXON_CONFIG || {};
 // Auth uses a syntactically valid internal domain. Users still log in only with
 // their Grayxon username; this address is never shown in the portal UI.
@@ -5,6 +6,7 @@ const LOGIN_EMAIL_DOMAIN = 'users.grayxongroup.com';
 const LEGACY_LOGIN_EMAIL_DOMAIN = 'users.grayxon.local';
 const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_PUBLISHABLE_KEY);
 
+// GRAYXON BUILD V32
 // Grayxon live trainings use Jitsi as a Service (JaaS).
 // The App ID is public; the private signing key stays exclusively in the
 // Supabase Edge Function `generate-jaas-jwt`.
@@ -69,6 +71,7 @@ async function updateManagerPassword(managerId, password){
 
 
 let current = 'home';
+let navGeneration = 0;
 let session = null;
 let profile = null;
 let adminView = 'dashboard';
@@ -406,6 +409,7 @@ function updateCreatorTopNav(){
 }
 
 function nav(p, push = true) {
+  const thisNav = ++navGeneration;
   const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'];
   if (!pages.includes(p)) p = 'home';
   // Una cuenta autenticada nunca vuelve a la portada pública por accidente.
@@ -465,7 +469,13 @@ function nav(p, push = true) {
   // El render de la página activa lo controla render(). Para creadores no
   // pintamos el shell antiguo aquí porque provocaba el estado "Cargando tu espacio..."
   // al volver desde Misiones/Mi perfil.
-  Promise.resolve(render()).catch(e => console.warn('Render:', e));
+  // Para creadores, Tu espacio ya fue pintado de inmediato. No dejamos que un render
+  // asíncrono antiguo vuelva a pisarlo mientras el usuario navega.
+  if (p === 'space' && profile?.role === 'creator') {
+    Promise.resolve(creatorDashboardTpl(thisNav)).catch(e => console.warn('Creator dashboard:', e));
+  } else {
+    Promise.resolve(render()).catch(e => console.warn('Render:', e));
+  }
   window.scrollTo(0,0);
 }
 
@@ -744,7 +754,7 @@ function creatorDashboardAvatar(){
   return `<span>${esc(profileInitial())}</span>`;
 }
 
-async function creatorDashboardTpl(){
+async function creatorDashboardTpl(expectedNav = navGeneration){
   ensureCreatorDashboardStyles();
   if(!session){ $('#space').innerHTML=authTpl(); return; }
   const uid=session.user.id;
@@ -797,7 +807,7 @@ async function creatorDashboardTpl(){
   ]);
 
   // Si el usuario ya navegó a otra pantalla, este render atrasado no debe tocarla.
-  if(current!=='space' || !session?.user?.id || session.user.id!==uid) return;
+  if(expectedNav!==navGeneration || current!=='space' || !session?.user?.id || session.user.id!==uid) return;
 
   if(profileRow) profile=profileRow;
   if(details!==undefined) profileDetails=details;
@@ -1247,7 +1257,30 @@ function showCreatorTrainingDetail(training){
   el.innerHTML=`<div class="card modal" style="max-width:700px"><div class="row"><div><div class="eyebrow">GRAYXON · ENTRENAMIENTO</div><h2>${esc(training.title)}</h2></div><button class="secondary" id="closeCreatorTrainingDetail">Cerrar</button></div><div class="hr"></div><div class="grid"><div class="item"><b>Instructor</b><div class="muted small">${esc(training.instructor_name||'Grayxon')}</div></div><div class="item"><b>Fecha</b><div class="muted small">${formatDateTime(training.started_at||training.scheduled_at||training.created_at)}</div></div><div class="item"><b>Duración</b><div class="muted small">${liveTrainingDuration(training.started_at,training.ended_at)}</div></div><div class="item"><b>Estado</b><div class="muted small">${training.status==='live'?'EN VIVO':training.status==='scheduled'?'Programado':'Completado'}</div></div></div><div class="item" style="margin-top:18px"><b>Contenido</b><p class="muted" style="margin:8px 0 0;line-height:1.65">${esc(training.description||'Este entrenamiento no tiene una descripción adicional.')}</p></div>${training.status==='live'?'<div style="margin-top:18px"><button class="primary" id="detailEnterLive">Entrar al entrenamiento</button></div>':''}</div>`;
   document.body.appendChild(el);
   $('#closeCreatorTrainingDetail').onclick=()=>el.remove();
-  $('#detailEnterLive')?.addEventListener('click',async()=>{el.remove();await markLiveTrainingViewed(training.id);pendingLiveTrainingAutoStart={id:training.id};nav('live-training');});
+  $('#detailEnterLive')?.addEventListener('click',async()=>{el.remove();await enterCreatorLiveTraining(training);});
+}
+
+async function enterCreatorLiveTraining(training){
+  if(!training?.id) return;
+  pendingLiveTrainingAutoStart={id:training.id};
+  currentLiveTraining=training;
+  current='live-training';
+  updateCreatorSpaceFloat();
+  updateCreatorTopNav();
+  document.body.classList.add('grayxon-live-training-active');
+  const pages=['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'];
+  pages.forEach(id=>{
+    const node=$('#'+id); if(!node)return;
+    const active=id==='live-training';
+    node.classList.toggle('hidden',!active);
+    node.hidden=!active;
+    if(active) node.removeAttribute('aria-hidden'); else node.setAttribute('aria-hidden','true');
+  });
+  const spaceEl=$('#space');
+  if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
+  if(history.state?.page!=='live-training') history.pushState({page:'live-training'},'',`${window.location.pathname}${window.location.search}#live-training`);
+  await liveTrainingTpl();
+  $('#enterGrayxonTraining')?.click();
 }
 
 async function creatorTrainingsTpl(){
@@ -1351,8 +1384,7 @@ async function creatorTrainingsTpl(){
 
   $('#enterCreatorLiveNow')?.addEventListener('click',async()=>{
     if(!activeLive)return;
-    pendingLiveTrainingAutoStart={id:activeLive.id};
-    nav('live-training');
+    await enterCreatorLiveTraining(activeLive);
   });
   $('#creatorAttendedToggle')?.addEventListener('click',()=>{
     const panel=$('#creatorAttendedPanel');
@@ -1365,15 +1397,15 @@ async function creatorTrainingsTpl(){
   });
 }
 
-async function liveTrainingTpl() {
-  if(profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session')) return creatorTrainingsTpl();
+async function liveTrainingTpl(trainingOverride=null) {
+  if((profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session')) && !trainingOverride) return creatorTrainingsTpl();
   const el=ensureLiveTrainingPage();
   document.body.classList.add('grayxon-live-training-active');
   const spaceEl=$('#space'); if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
   if(!session){el.innerHTML=authTpl();return;}
   profile=await getProfile();
   if(!profile||!profile.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2></div>';destroyJaasMeeting();return;}
-  const training=await fetchActiveLiveTraining(); currentLiveTraining=training;
+  const training=trainingOverride || await fetchActiveLiveTraining(); currentLiveTraining=training;
   const isHost=!!training?.created_by && training.created_by===session?.user?.id;
   const isModerator=profile.role==='admin'||profile.role==='manager';
   const backPage=isModerator?(profile.role==='admin'?'admin':'manager'):'space';
@@ -1454,17 +1486,25 @@ async function trainingTpl() {
     </div>`;
   };
 
-  const sectionHtml = (title, kicker, items, section, emptyText) => `<section class="formation-group">
-    <div class="formation-group-head"><div><div class="eyebrow">${kicker}</div><h2>${title}</h2></div><span class="formation-group-count">${items.length}</span></div>
-    <div class="formation-group-list">${items.length ? items.map(x => moduleCard(x, section)).join('') : `<div class="formation-empty-group">${emptyText}</div>`}</div>
-  </section>`;
+  const sectionHtml = (title, kicker, items, section, emptyText, defaultOpen=false) => {
+    const panelId=`formation-section-${section}`;
+    return `<section class="formation-group ${defaultOpen?'is-open':''}">
+      <button type="button" class="formation-group-toggle" data-formation-group-toggle="${panelId}" aria-expanded="${defaultOpen?'true':'false'}">
+        <span><span class="eyebrow">${kicker}</span><strong>${title}</strong></span>
+        <span class="formation-group-toggle-right"><b>${items.length}</b><span class="formation-group-chevron">›</span></span>
+      </button>
+      <div id="${panelId}" class="formation-group-panel ${defaultOpen?'':'hidden'}">
+        <div class="formation-group-list">${items.length ? items.map(x => moduleCard(x, section)).join('') : `<div class="formation-empty-group">${emptyText}</div>`}</div>
+      </div>
+    </section>`;
+  };
 
   $('#training').innerHTML = `<div class="formation-page">
     <div class="row"><div><div class="eyebrow">FORMACIÓN</div><h1 style="margin:7px 0">Aprende con Grayxon 🎓</h1><p class="muted">Aquí encontrarás tus módulos y lecciones. Abre un módulo para ver su contenido.</p></div>${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Tu espacio</button>'}</div>
     <div class="card formation-progress-card" style="margin-top:18px"><div class="row"><div><b>Tu progreso</b><div class="muted small">${totalDone} de ${totalLessons} lecciones completadas</div></div><b class="progress-percent">${totalPct}%</b></div><div class="progress-track"><div class="progress-fill" style="width:${totalPct}%"></div></div></div>
     <div class="formation-groups" style="margin-top:22px">
-      ${sectionHtml('Por ver','POR VER',pendingModules,'pending','No tienes módulos pendientes. 🎉')}
-      ${sectionHtml('Completados','COMPLETADOS',completedModules,'completed','Todavía no has completado ningún módulo.')}
+      ${sectionHtml('Por ver','POR VER',pendingModules,'pending','No tienes módulos pendientes. 🎉',pendingModules.length>0)}
+      ${sectionHtml('Completados','COMPLETADOS',completedModules,'completed','Todavía no has completado ningún módulo.',false)}
     </div>
     <div class="lesson-view hidden" id="lessonView"></div>
   </div>`;
@@ -2811,6 +2851,7 @@ function bind() {
   $('#sendResetBtn')?.addEventListener('click',sendPasswordReset);
   $('#adminLogout')?.addEventListener('click', logout);
   $$('[data-formation-module-toggle]').forEach(b => b.onclick = () => { const panel=$('#'+b.dataset.formationModuleToggle); if(!panel)return; const open=panel.classList.contains('hidden'); panel.classList.toggle('hidden',!open); b.classList.toggle('is-open',open); b.setAttribute('aria-expanded',open?'true':'false'); });
+  $$('[data-formation-group-toggle]').forEach(b => b.onclick = () => { const panel=$('#'+b.dataset.formationGroupToggle); if(!panel)return; const open=panel.classList.contains('hidden'); panel.classList.toggle('hidden',!open); b.setAttribute('aria-expanded',open?'true':'false'); b.closest('.formation-group')?.classList.toggle('is-open',open); });
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
   $$('[data-complete-mission]').forEach(b => b.onclick = () => completeMission(b.dataset.completeMission));
   $$('[data-save-mission]').forEach(b => b.onclick = () => saveMissionProgress(b.dataset.saveMission));
@@ -3408,6 +3449,52 @@ sb.auth.onAuthStateChange((event,newSession)=>{
     .module-completion-actions{justify-content:center;margin-top:18px}
     .module-completion-actions .primary{min-width:190px}
     #lessonView > #completeLesson{margin-top:14px}
+  `;
+  document.head.appendChild(style);
+})();
+
+/* GRAYXON v32 · final UI/navigation hardening */
+(function applyV32FinalFixes(){
+  if(document.getElementById('grayxon-v32-final-fixes')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-v32-final-fixes';
+  style.textContent=`
+    /* Formación: two-level compact accordions, same visual language as Entrenamientos. */
+    #training .formation-page{display:block!important;width:100%!important;box-sizing:border-box!important}
+    #training .formation-groups{display:grid!important;gap:12px!important;margin-top:18px!important}
+    #training .formation-group{display:block!important;overflow:hidden!important;border:1px solid rgba(255,255,255,.09)!important;border-radius:18px!important;background:#0f1115!important;box-shadow:none!important}
+    #training .formation-group-toggle{display:flex!important;align-items:center!important;justify-content:space-between!important;width:100%!important;min-height:66px!important;padding:14px 16px!important;background:#0f1115!important;color:#fff!important;border:0!important;border-radius:0!important;box-shadow:none!important;text-align:left!important;appearance:none!important;-webkit-appearance:none!important}
+    #training .formation-group-toggle>span:first-child{display:grid!important;gap:3px!important}
+    #training .formation-group-toggle .eyebrow{margin:0!important;font-size:10px!important;letter-spacing:.16em!important}
+    #training .formation-group-toggle strong{font-size:18px!important;line-height:1.2!important}
+    #training .formation-group-toggle-right{display:flex!important;align-items:center!important;gap:9px!important}
+    #training .formation-group-toggle-right b{min-width:30px!important;height:30px!important;padding:0 8px!important;display:grid!important;place-items:center!important;border-radius:999px!important;border:1px solid rgba(255,255,255,.10)!important;background:rgba(255,255,255,.035)!important;color:#cfd5dc!important;font-size:11px!important}
+    #training .formation-group-chevron{font-size:22px!important;color:#858c98!important;transition:transform .18s ease!important}
+    #training .formation-group.is-open .formation-group-chevron{transform:rotate(90deg)!important}
+    #training .formation-group-panel{display:block!important;padding:0 10px 10px!important;border-top:1px solid rgba(255,255,255,.07)!important}
+    #training .formation-group-panel.hidden{display:none!important}
+    #training .formation-group-list{display:grid!important;gap:8px!important;padding-top:10px!important}
+    #training .formation-module-accordion{background:#11141a!important;border:1px solid rgba(255,255,255,.08)!important;border-radius:15px!important;overflow:hidden!important}
+    #training .formation-module-toggle{background:#11141a!important;color:#fff!important;border:0!important;box-shadow:none!important;min-height:62px!important;padding:12px 13px!important}
+    #training .formation-module-copy strong{color:#fff!important}
+    #training .formation-module-copy small{color:#858c98!important}
+    #training .formation-module-meta{color:#aeb5bf!important}
+    #training .formation-module-panel{background:#0d1014!important}
+    #training .formation-lessons-list .lesson button{background:transparent!important;color:#fff!important;border:0!important;box-shadow:none!important;text-align:left!important}
+    @media(max-width:800px){
+      #training .row>h1,#training h1{font-size:34px!important;line-height:1.08!important}
+      #training .formation-progress-card{margin-top:14px!important;padding:14px!important}
+      #training .formation-group-toggle{min-height:62px!important;padding:13px 14px!important}
+      #training .formation-group-toggle strong{font-size:17px!important}
+      #training .formation-group-panel{padding:0 7px 8px!important}
+      #training .formation-module-toggle{min-height:58px!important;padding:12px!important}
+    }
+
+    /* Creator Entrenamientos: only an actual LIVE goes in the main area. */
+    #live-training .creator-training-library .creator-live-now-section{margin-top:18px!important}
+    #live-training .creator-training-library .creator-attended-section{margin-top:18px!important}
+    #live-training .creator-training-library .creator-attended-toggle{min-height:62px!important}
+    #live-training .creator-training-library .creator-attended-panel.hidden{display:none!important}
   `;
   document.head.appendChild(style);
 })();
