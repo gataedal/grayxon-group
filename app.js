@@ -680,7 +680,7 @@ async function missionsTpl() {
   const congratulations = currentWeekComplete ? `<div class="card mission-congrats"><div style="font-size:34px">🎉</div><div><h3 style="margin:0 0 5px">¡Felicidades!</h3><p class="muted" style="margin:0">Has completado todas las misiones para esta semana. 🖤</p></div></div>` : '';
   const section = (title,icon,groups,type,emptyText) => `<section class="mission-section"><div class="mission-section-head"><div><div class="eyebrow">${icon} ${title.toUpperCase()}</div><p class="muted small">${type==='assigned'?'Abre una semana para ver todas sus misiones y completar tus objetivos.':'Abre una semana para consultar las misiones que completaste o cuya semana ya terminó.'}</p></div><span class="mission-count">${groups.length}</span></div><div class="mission-weeks-list">${groupDetails(groups,type) || `<div class="card mission-empty compact"><h3>${emptyText}</h3><p class="muted small">${type==='assigned'?'Cuando Grayxon te asigne nuevas misiones aparecerán aquí.':'Cuando completes misiones o termine una semana, aparecerán aquí.'}</p></div>`}</div></section>`;
 
-  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Tus objetivos 🎯</h1><p class="muted">Tus misiones están organizadas por semanas. Toca una semana para ver todas las misiones que contiene.</p></div><button class="secondary" data-space-action="space">← Tu espacio</button></div>${congratulations}${section('Misiones asignadas','🎯',assignedGroups,'assigned','No tienes misiones asignadas')}${section('Misiones completadas','✓',completedGroups,'completed','Aún no tienes historial de misiones')}</div>`;
+  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Tus objetivos 🎯</h1><p class="muted">Tus misiones están organizadas por semanas. Toca una semana para ver todas las misiones que contiene.</p></div><button class="secondary" data-space-action="space" aria-label="Volver a Tu espacio">← Tu espacio</button></div>${congratulations}${section('Misiones asignadas','🎯',assignedGroups,'assigned','No tienes misiones asignadas')}${section('Misiones completadas','✓',completedGroups,'completed','Aún no tienes historial de misiones')}</div>`;
 }
 
 async function focusNextPendingMission(currentId=null){
@@ -836,17 +836,28 @@ async function startGrayxonLiveTraining() {
     api.addEventListener?.('readyToClose', () => {
       destroyJaasMeeting();
 
-      // Al salir de la videollamada, ocultamos completamente la sala.
-      // El usuario vuelve a ver la tarjeta del entrenamiento y puede entrar de nuevo.
+      // Al salir, la sala desaparece por completo del layout.
+      // Dejamos visible nuevamente la ficha del entrenamiento para poder entrar otra vez.
       const wrap = $('#grayxonTrainingRoomWrap');
       const meet = $('#grayxonJaasMeet');
       const btn = $('#enterGrayxonTraining');
+      const hero = $('.live-training-hero');
+      const feature = $('.live-training-feature');
 
       if (meet) {
         meet.innerHTML = `<div class="live-training-loading"><div><strong>Preparando el entrenamiento…</strong><span>La videollamada se abrirá aquí.</span></div></div>`;
       }
 
-      wrap?.classList.add('hidden');
+      if (wrap) {
+        wrap.classList.add('hidden');
+        wrap.hidden = true;
+        wrap.style.display = 'none';
+      }
+
+      hero?.classList.remove('hidden');
+      feature?.classList.remove('hidden');
+      if (hero) { hero.hidden = false; hero.style.display = ''; }
+      if (feature) { feature.hidden = false; feature.style.display = ''; }
 
       if (btn) {
         btn.disabled = false;
@@ -931,10 +942,34 @@ async function liveTrainingTpl() {
   $('#enterGrayxonTraining')?.addEventListener('click', async () => {
     const btn = $('#enterGrayxonTraining');
     const wrap = $('#grayxonTrainingRoomWrap');
-    if (btn) { btn.disabled = true; btn.textContent = 'Preparando entrada…'; }
-    wrap?.classList.remove('hidden');
+    const hero = $('.live-training-hero');
+    const feature = $('.live-training-feature');
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
+
+    // Una vez que el usuario entra, la ficha deja de ocupar espacio:
+    // la pantalla queda dedicada únicamente a la reunión.
+    if (hero) {
+      hero.classList.add('hidden');
+      hero.hidden = true;
+      hero.style.display = 'none';
+    }
+    if (feature) {
+      feature.classList.add('hidden');
+      feature.hidden = true;
+      feature.style.display = 'none';
+    }
+
+    if (wrap) {
+      wrap.classList.remove('hidden');
+      wrap.hidden = false;
+      wrap.style.display = 'block';
+    }
+
     wrap?.scrollIntoView({behavior:'smooth', block:'start'});
     await startGrayxonLiveTraining();
+
+    // El botón de la ficha ya no es visible mientras la reunión está activa.
     if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
   });
 }
