@@ -1,4 +1,4 @@
-// GRAYXON BUILD V33.4
+// GRAYXON BUILD V33.7
 const CFG = window.GRAYXON_CONFIG || {};
 // Auth uses a syntactically valid internal domain. Users still log in only with
 // their Grayxon username; this address is never shown in the portal UI.
@@ -1307,27 +1307,37 @@ async function fetchActiveLiveTraining(){
       return trainings.find(t=>t.created_by===uid || allowed.has(t.id))||fallback;
     }
 
-    // Creator: la policy de live_trainings ya filtra el acceso; esta segunda
-    // comprobación evita mostrar por accidente una sesión dirigida a managers.
+    // Creator: use the same visibility model as the Entrenamientos page so
+    // Mi espacio and Entrenamientos cannot disagree about an active LIVE.
     if(role==='creator'){
-      const {data:aud,error:ae}=await sb.from('live_training_audience')
-        .select('training_id,target_type,target_id')
-        .in('training_id',trainings.map(t=>t.id));
-      if(ae) return fallback;
       const {data:creatorRow}=await sb.from('profiles').select('id,role,active,team_id').eq('id',uid).maybeSingle();
       const p=creatorRow||profile||{};
+      const liveIds=trainings.map(t=>t.id);
+      const {data:aud,error:ae}=liveIds.length
+        ? await sb.from('live_training_audience').select('training_id,target_type,target_id').in('training_id',liveIds)
+        : {data:[],error:null};
+      if(ae){ console.warn('No se pudo consultar la audiencia del LIVE:',ae.message); return fallback; }
+
       const allowed=new Set((aud||[]).filter(a =>
         a.target_type==='all_creators' ||
         (a.target_type==='creator' && a.target_id===uid) ||
-        (a.target_type==='team' && a.target_id===p.team_id)
+        (a.target_type==='team' && p.team_id && a.target_id===p.team_id)
       ).map(a=>a.training_id));
       const audienceLive=trainings.find(t=>allowed.has(t.id));
       if(audienceLive) return audienceLive;
 
-      // Compatibilidad con entrenamientos creados por un manager antes de que
-      // guardáramos explícitamente la audiencia por equipo. En ese caso el
-      // acceso se deriva del manager que creó el entrenamiento y del equipo
-      // actual del creador. No amplía el acceso a sesiones de otros managers.
+      // Legacy compatibility: an older training may have been created without
+      // an audience row. For an admin-created LIVE, the historical default was
+      // all creators; keep that LIVE visible instead of leaving Mi espacio in
+      // conflict with the Entrenamientos page.
+      const adminLive=trainings.find(t=>t.created_by && (aud||[]).every(a=>a.training_id!==t.id));
+      if(adminLive){
+        const {data:creatorOwner}=await sb.from('profiles').select('id,role').eq('id',adminLive.created_by).maybeSingle();
+        if(creatorOwner?.role==='admin') return adminLive;
+      }
+
+      // Legacy compatibility for manager-created LIVE without explicit team
+      // audience: derive access from the creator's current team.
       const creatorTeamId=p?.team_id||null;
       if(creatorTeamId){
         const managerUserIds=[...new Set(trainings.map(t=>t.created_by).filter(Boolean))];
@@ -1346,15 +1356,13 @@ async function fetchActiveLiveTraining(){
         }
       }
 
-      // Último respaldo seguro: si el creador ya está dentro de un LIVE, su
-      // propia fila de participante confirma qué entrenamiento está viendo.
-      // Esto no concede acceso a ninguna sesión nueva; solo refleja una sesión
-      // en la que el usuario ya está participando.
+      // Final safe fallback: if the creator is already participating in a LIVE,
+      // reflect that existing participation only.
       const {data:participating}=await sb.from('live_training_participants')
         .select('training_id')
         .eq('user_id',uid)
         .is('left_at',null)
-        .in('training_id',trainings.map(t=>t.id))
+        .in('training_id',liveIds)
         .order('joined_at',{ascending:false})
         .limit(1);
       const participatingId=participating?.[0]?.training_id;
@@ -1372,36 +1380,7 @@ async function refreshLiveTrainingCard(){
   const target=card||dashboardCard;
   if(!target)return;
   try{
-    let live=await fetchActiveLiveTraining();
-
-    // Mi espacio debe usar exactamente la misma fuente de verdad que la pantalla
-    // Entrenamientos. Si la primera consulta llega demasiado pronto, hacemos una
-    // segunda lectura directa del perfil + audiencia antes de mostrar “Sin sesión activa”.
-    if(!live && profile?.role==='creator' && session?.user?.id){
-      const uid=session.user.id;
-      const {data:p}=await sb.from('profiles')
-        .select('id,role,active,team_id')
-        .eq('id',uid)
-        .maybeSingle();
-      const {data:rawLive}=await sb.from('live_trainings')
-        .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
-        .eq('status','live')
-        .order('started_at',{ascending:false});
-      const liveIds=(rawLive||[]).map(t=>t.id);
-      if(liveIds.length){
-        const {data:aud}=await sb.from('live_training_audience')
-          .select('training_id,target_type,target_id')
-          .in('training_id',liveIds);
-        const teamId=p?.team_id ?? profile?.team_id ?? null;
-        const allowed=new Set((aud||[]).filter(a =>
-          a.target_type==='all_creators' ||
-          (a.target_type==='creator' && a.target_id===uid) ||
-          (a.target_type==='team' && teamId && a.target_id===teamId)
-        ).map(a=>a.training_id));
-        live=(rawLive||[]).find(t=>allowed.has(t.id))||null;
-      }
-    }
-
+    const live=await fetchActiveLiveTraining();
     currentLiveTraining=live||null;
     const status=(card||dashboardCard)?.querySelector('.live-training-card-status') || dashboardCard?.querySelector('.creator-dashboard-card-meta');
     const title=(card||dashboardCard)?.querySelector('.live-training-card-title');
@@ -1424,8 +1403,11 @@ async function refreshLiveTrainingCard(){
     if(desc)desc.textContent='Cuando haya uno activo aparecerá aquí.';
     if(detail)detail.textContent='Cuando haya uno activo aparecerá aquí.';
     if(bar)bar.style.width='0%';
-  }catch(e){console.warn('Estado de entrenamiento:',e);}
+  }catch(e){
+    console.warn('No se pudo actualizar la tarjeta de LIVE:',e?.message||e);
+  }
 }
+
 
 function stopCreatorLiveDashboardWatcher(){
   creatorLiveDashboardWatcherToken++;
@@ -1710,6 +1692,18 @@ async function creatorTrainingsTpl(){
   ).map(a=>a.training_id));
 
   let liveTrainings=(rawLive||[]).filter(t=>allowedLiveIds.has(t.id));
+
+  // Compatibilidad con LIVE antiguos sin audiencia guardada.
+  // Si el instructor es admin, el comportamiento histórico por defecto era
+  // permitir a todos los creadores entrar; si es manager, se deriva por equipo.
+  if(!liveTrainings.length && rawLive?.length){
+    const adminCreated=(rawLive||[]).filter(t=>t.created_by && !liveAudience?.some(a=>a.training_id===t.id));
+    if(adminCreated.length){
+      const {data:owners}=await sb.from('profiles').select('id,role').in('id',[...new Set(adminCreated.map(t=>t.created_by))]);
+      const adminIds=new Set((owners||[]).filter(o=>o.role==='admin').map(o=>o.id));
+      liveTrainings=adminCreated.filter(t=>adminIds.has(t.created_by));
+    }
+  }
 
   // Compatibilidad con LIVE antiguos de manager que no tienen audiencia guardada.
   // Si el creador pertenece a un equipo administrado por el instructor, ese LIVE
@@ -2533,7 +2527,7 @@ async function createLiveTrainingModal(){
         if(type==='managers') rows=[...document.querySelectorAll('[data-lt-manager]:checked')].map(x=>({training_id:created.id,target_type:'manager',target_id:x.value}));
         if(type==='creators') rows=[...document.querySelectorAll('[data-lt-creator]:checked')].map(x=>({training_id:created.id,target_type:'creator',target_id:x.value}));
         if(!rows.length)throw new Error('Selecciona al menos un equipo, manager o creador para este entrenamiento.');
-        const {error:ae}=await sb.from('live_training_audience').insert(rows);if(ae)throw ae;
+        const {error:ae}=await sb.from('live_training_audience').insert(rows);if(ae){await sb.from('live_trainings').delete().eq('id',created.id);throw ae;}
       } else if(profile?.role==='manager'){
         // Los entrenamientos creados por un manager deben quedar dirigidos
         // explícitamente a los creadores de su(s) equipo(s). Antes faltaba
@@ -2542,7 +2536,7 @@ async function createLiveTrainingModal(){
         const {data:teams}=me ? await sb.from('teams').select('id').eq('manager_id',me.id) : {data:[]};
         const rows=(teams||[]).map(t=>({training_id:created.id,target_type:'team',target_id:t.id}));
         if(!rows.length)throw new Error('Tu manager no tiene un equipo asignado para este entrenamiento.');
-        const {error:ae}=await sb.from('live_training_audience').insert(rows);if(ae)throw ae;
+        const {error:ae}=await sb.from('live_training_audience').insert(rows);if(ae){await sb.from('live_trainings').delete().eq('id',created.id);throw ae;}
       }
       close();toast('Entrenamiento creado ✓');render();
     }catch(e){
@@ -2551,12 +2545,45 @@ async function createLiveTrainingModal(){
   };
 }
 
+async function ensureLiveTrainingAudience(training){
+  if(!training?.id) return {data:[], error:new Error('Entrenamiento inválido.')};
+  const {data:existing,error:readError}=await sb.from('live_training_audience')
+    .select('id,target_type,target_id').eq('training_id',training.id);
+  if(readError) return {data:[], error:readError};
+  if((existing||[]).length) return {data:existing, error:null};
+
+  // Legacy repair: V33.6 could leave an orphan LIVE without audience when an
+  // older/cached build created it. Repair it at the moment it is started.
+  const {data:owner,error:ownerError}=await sb.from('profiles')
+    .select('id,role').eq('id',training.created_by).maybeSingle();
+  if(ownerError) return {data:[], error:ownerError};
+
+  let rows=[];
+  if(owner?.role==='admin'){
+    // Historical admin default: all creators.
+    rows=[{training_id:training.id,target_type:'all_creators',target_id:null}];
+  }else if(owner?.role==='manager'){
+    const {data:manager,error:managerError}=await sb.from('managers')
+      .select('id').eq('user_id',training.created_by).eq('active',true).maybeSingle();
+    if(managerError) return {data:[], error:managerError};
+    const {data:teams,error:teamsError}=manager
+      ? await sb.from('teams').select('id').eq('manager_id',manager.id)
+      : {data:[],error:null};
+    if(teamsError) return {data:[], error:teamsError};
+    rows=(teams||[]).map(t=>({training_id:training.id,target_type:'team',target_id:t.id}));
+  }
+
+  if(!rows.length) return {data:[], error:new Error('Este entrenamiento no tiene una audiencia válida configurada.')};
+  const {data:inserted,error:insertError}=await sb.from('live_training_audience').insert(rows).select('id,target_type,target_id');
+  if(insertError) return {data:[], error:insertError};
+  return {data:inserted||rows,error:null};
+}
+
 async function notifyLiveTrainingAudience(training){
   if(!training?.id) return;
   try{
-    const {data:aud,error:ae}=await sb.from('live_training_audience')
-      .select('target_type,target_id').eq('training_id',training.id);
-    if(ae){ console.warn('No se pudo consultar la audiencia del LIVE:',ae.message); return; }
+    const {data:aud,error:ae}=await ensureLiveTrainingAudience(training);
+    if(ae){ console.warn('No se pudo asegurar la audiencia del LIVE:',ae.message); return; }
     const rows=aud||[];
     const creatorIds=new Set();
     if(rows.some(a=>a.target_type==='all_creators')){
@@ -2575,21 +2602,6 @@ async function notifyLiveTrainingAudience(training){
       const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true).in('manager_id',managerIds);
       (creators||[]).forEach(c=>creatorIds.add(c.id));
     }
-    // Compatibilidad: entrenamientos creados antes de guardar explícitamente
-    // la audiencia por equipo pueden no tener filas en live_training_audience.
-    // En ese caso, si el instructor es un manager, notificamos a los creadores
-    // que actualmente pertenecen a los equipos administrados por ese manager.
-    if(!creatorIds.size && training.created_by){
-      const {data:manager}=await sb.from('managers').select('id').eq('user_id',training.created_by).eq('active',true).maybeSingle();
-      if(manager){
-        const {data:teams}=await sb.from('teams').select('id').eq('manager_id',manager.id);
-        const teamIds=(teams||[]).map(t=>t.id).filter(Boolean);
-        if(teamIds.length){
-          const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true).in('team_id',teamIds);
-          (creators||[]).forEach(c=>creatorIds.add(c.id));
-        }
-      }
-    }
     if(!creatorIds.size) return;
     const message=`El entrenamiento “${training.title||'Grayxon'}” ya está EN VIVO. Entra ahora desde Grayxon.`;
     const results=await Promise.all([...creatorIds].map(uid=>notifyCreator(uid,'🔴 Entrenamiento EN VIVO',message,'live-training')));
@@ -2598,19 +2610,6 @@ async function notifyLiveTrainingAudience(training){
   }catch(e){ console.warn('No se pudieron enviar avisos del LIVE:',e); }
 }
 
-async function startLiveTraining(id){
-  if(!id)return;
-  const {data,error}=await sb.from('live_trainings').update({status:'live',started_at:new Date().toISOString(),ended_at:null}).eq('id',id).eq('status','scheduled').select('id,title,description,room_name,created_by,instructor_name,scheduled_at,status,started_at').single();
-  if(error){toast(error.code==='23505'?'Ya hay otro entrenamiento EN VIVO. Finalízalo antes de iniciar uno nuevo.':error.message);return;}
-  currentLiveTraining=data;
-  pendingLiveTrainingAutoStart=data;
-  // La notificación se crea después de poner el LIVE en estado real.
-  // El trigger existente de notifications se encarga del push al celular
-  // cuando el creador ya tiene una suscripción Push activa.
-  await notifyLiveTrainingAudience(data);
-  nav('live-training');
-}
-async function finishLiveTraining(id){if(!confirm('¿Finalizar este entrenamiento?'))return;const endedAt=new Date().toISOString();const {data,error}=await sb.from('live_trainings').update({status:'finished',ended_at:endedAt}).eq('id',id).eq('status','live').select('id,title').single();if(error){toast(error.message);return;}await sb.from('live_training_participants').update({left_at:endedAt}).eq('training_id',id).is('left_at',null);toast(`“${data?.title||'Entrenamiento'}” finalizado ✓`);render();}
 async function deleteLiveTraining(id){
   if(profile?.role!=='admin'){toast('Solo un administrador puede eliminar el historial de entrenamientos.');return;}
   if(!confirm('¿Eliminar este entrenamiento del historial? Esta acción no se puede deshacer.'))return;
@@ -2667,13 +2666,16 @@ async function startLiveTraining(id){
   if(!t||t.status!=='scheduled')return toast('Este entrenamiento ya no está programado.');
   const can=profile?.role==='admin'||(profile?.role==='manager'&&t.created_by===session?.user?.id);
   if(!can)return toast('Solo el instructor o un administrador puede iniciar este entrenamiento.');
+
+  // Before going LIVE, repair any legacy training that has no audience rows.
+  const {error:audienceError}=await ensureLiveTrainingAudience(t);
+  if(audienceError){toast(audienceError.message||'Este entrenamiento no tiene una audiencia válida.');return;}
+
   const {data,error}=await sb.from('live_trainings').update({status:'live',started_at:new Date().toISOString(),ended_at:null}).eq('id',id).eq('status','scheduled').select('id,title,description,room_name,created_by,instructor_name,scheduled_at,status,started_at').single();
   if(error){toast(error.code==='23505'?'Ya hay otro entrenamiento EN VIVO. Finalízalo antes de iniciar uno nuevo.':error.message);return;}
   currentLiveTraining=data;
   pendingLiveTrainingAutoStart=data;
-  // Crear la notificación DESPUÉS de confirmar que el entrenamiento quedó LIVE.
-  // La declaración anterior de esta función quedó duplicada en el build base;
-  // esta es la que realmente ejecuta JavaScript y debe contener el aviso.
+  // Create the in-app notifications only after the database confirms LIVE.
   await notifyLiveTrainingAudience(data);
   nav('live-training');
 }
