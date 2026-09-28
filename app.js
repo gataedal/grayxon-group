@@ -258,7 +258,7 @@ function ensureLiveTrainingPage() {
     const style = document.createElement('style');
     style.id = 'grayxon-live-training-styles';
     style.textContent = `
-      .live-training-page{max-width:1180px;margin:0 auto!important;padding:18px 20px 55px!important}
+      .live-training-page{max-width:1180px;margin:0 auto!important;padding:10px 20px 55px!important}
       .live-training-hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:24px}
       .live-training-kicker{font-size:11px;letter-spacing:.18em;color:#9aa0ab;font-weight:800}
       .live-training-hero h1{margin:8px 0 10px;font-size:clamp(32px,4vw,48px);letter-spacing:-.03em}
@@ -293,10 +293,11 @@ function ensureLiveTrainingPage() {
       .live-training-space-card .space-progress{background:rgba(255,255,255,.07)}
       #live-training.page-section{display:block!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important;align-self:auto!important}
       #live-training.page-section{position:relative!important;top:auto!important;bottom:auto!important;transform:none!important;float:none!important;clear:both!important;order:initial!important;}
+      .page-section[hidden], #space[hidden], #home[hidden], #benefits[hidden], #auth[hidden], #manager[hidden], #training[hidden], #live-training[hidden], #missions[hidden], #profile[hidden], #admin[hidden]{display:none!important;}
       .live-training-space-card .space-progress span{width:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}
       @media(max-width:800px){
         #live-training.page-section{display:block!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important}
-        .live-training-page{width:100%;max-width:none;box-sizing:border-box;margin:0!important;padding:14px 14px 34px!important}
+        .live-training-page{width:100%;max-width:none;box-sizing:border-box;margin:0!important;padding:10px 14px 34px!important}
         .live-training-hero{display:block;margin-bottom:16px}
         .live-training-hero h1{font-size:34px;line-height:1.08;margin:7px 0 10px}
         .live-training-hero p{font-size:15px;line-height:1.55}
@@ -334,7 +335,17 @@ function nav(p, push = true) {
     history.pushState({page:p}, '', url);
   }
   current = p;
-  pages.forEach(id => { const el=$('#'+id); if(el) el.classList.toggle('hidden', id !== p); });
+  // Hide every portal page robustly. Some mobile styles can override the .hidden class,
+  // so we also use the native hidden property and an explicit CSS rule below.
+  pages.forEach(id => {
+    const el = $('#'+id);
+    if (!el) return;
+    const isActive = id === p;
+    el.classList.toggle('hidden', !isActive);
+    el.hidden = !isActive;
+    if (isActive) el.removeAttribute('aria-hidden');
+    else el.setAttribute('aria-hidden','true');
+  });
   if (p !== 'live-training' && jaasApi) destroyJaasMeeting();
   if (p === 'space') { try { renderSpaceShell(); } catch(e) { console.error(e); } }
   Promise.resolve(render()).catch(e => console.warn('Render:', e));
