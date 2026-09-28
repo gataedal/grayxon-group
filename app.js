@@ -10,7 +10,7 @@ const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_PUBLISHABLE_KEY)
 // GRAYXON PUSH V2
 // The VAPID public key is safe to expose in the browser. The private key remains
 // exclusively in the Supabase Edge Function `grayxon-push`.
-const GRAYXON_VAPID_PUBLIC_KEY = 'c294f30869d697932b4eafbcdb28fdee82f0ed6bdec6245fae5a694bbd56e070';
+const GRAYXON_VAPID_PUBLIC_KEY = 'BIdCS8TZ7hC_cC3krXcLbkW7YNZKMuYJM-5egWej63jdGrcTei4wiTuXW3hENBMIrrSnYoj2gptF0NGJ_4THZz8';
 let pushRegistrationPromise = null;
 let grayxonInstallPrompt = null;
 
