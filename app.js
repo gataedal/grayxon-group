@@ -4491,6 +4491,47 @@ window.addEventListener('popstate', () => {
   window.scrollTo(0, 0);
 });
 
+async function handleGrayxonDeepLinkUrl(urlValue) {
+  try {
+    const parsed = new URL(String(urlValue || ''), window.location.href);
+    const page = parsed.hash.replace(/^#/, '') || 'home';
+    const deepLiveMatch = page.match(/^live-training\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+    if (!(session && profile?.role === 'creator' && deepLiveMatch)) return false;
+
+    const liveId = deepLiveMatch[1];
+    const { data: targetLive } = await sb.from('live_trainings')
+      .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+      .eq('id', liveId)
+      .eq('status', 'live')
+      .maybeSingle();
+
+    if (!targetLive) return false;
+    currentLiveTraining = targetLive;
+    pendingLiveTrainingAutoStart = { id: targetLive.id };
+    if (window.location.hash !== `#live-training/${targetLive.id}`) {
+      window.history.replaceState({ page: 'live-training' }, '', `${window.location.pathname}${window.location.search}#live-training/${targetLive.id}`);
+    }
+    if (current !== 'live-training') {
+      current = 'live-training';
+      render();
+    } else {
+      ensureLiveTrainingPage();
+    }
+    updateCreatorSpaceFloat();
+    updateCreatorTopNav();
+    window.scrollTo(0, 0);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+window.addEventListener('message', async (event) => {
+  const data = event?.data;
+  if (!data || data.type !== 'GRAYXON_NOTIFICATION_NAVIGATE' || !data.url) return;
+  await handleGrayxonDeepLinkUrl(data.url);
+});
+
 window.addEventListener('hashchange', async () => {
   const page = window.location.hash.replace(/^#/, '') || 'home';
   const deepLiveMatch = page.match(/^live-training\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
