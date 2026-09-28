@@ -314,6 +314,9 @@ function ensureLiveTrainingPage() {
       .live-training-space-card .space-progress{background:rgba(255,255,255,.07)}
       #live-training.page-section{display:block!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important;align-self:auto!important}
       #live-training.page-section{position:relative!important;top:auto!important;bottom:auto!important;transform:none!important;float:none!important;clear:both!important;order:initial!important;}
+      header.top,.top{position:relative!important;z-index:5000!important}
+      .profile-menu-wrap{z-index:5001!important}
+      #profileMenu{z-index:5002!important}
       body.grayxon-live-training-active #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #live-training .live-training-hero,
@@ -364,6 +367,27 @@ function ensureLiveTrainingPage() {
   return el;
 }
 
+function ensureCreatorSpaceFloat(){
+  let btn=document.getElementById('grayxonCreatorSpaceFloat');
+  if(btn)return btn;
+  btn=document.createElement('button');
+  btn.id='grayxonCreatorSpaceFloat';
+  btn.type='button';
+  btn.className='grayxon-creator-space-float';
+  btn.innerHTML='<span class="grayxon-creator-space-float-icon">⌂</span><span>Tu espacio</span>';
+  btn.setAttribute('aria-label','Volver a Tu espacio');
+  btn.addEventListener('click',()=>{ if(session?.user?.id) nav('space'); });
+  document.body.appendChild(btn);
+  return btn;
+}
+
+function updateCreatorSpaceFloat(){
+  const btn=ensureCreatorSpaceFloat();
+  const visible=!!session && profile?.role==='creator' && current!=='space' && current!=='auth' && current!=='home' && current!=='live-training';
+  btn.classList.toggle('is-visible',visible);
+  btn.setAttribute('aria-hidden',visible?'false':'true');
+}
+
 function nav(p, push = true) {
   const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'];
   if (!pages.includes(p)) p = 'home';
@@ -372,6 +396,7 @@ function nav(p, push = true) {
   if (session && p === 'home') {
     p = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
   }
+  if (session && p === 'space' && profile?.role === 'manager') p = 'manager';
   if (p === 'live-training') ensureLiveTrainingPage();
   if (push && current !== p) {
     const url = p === 'home'
@@ -380,6 +405,7 @@ function nav(p, push = true) {
     history.pushState({page:p}, '', url);
   }
   current = p;
+  updateCreatorSpaceFloat();
 
   // Estado global de la sección de entrenamientos.
   document.body.classList.toggle('grayxon-live-training-active', p === 'live-training');
@@ -699,7 +725,9 @@ async function creatorDashboardTpl(){
   const mp=new Map((missionProgress||[]).map(x=>[x.mission_id,x]));
   const visibleMissions=(missions||[]).filter(m=>(!m.week_start||m.week_start<=today)&&(!m.week_end||m.week_end>=today)&&(!m.assigned_to||m.assigned_to===uid));
   const missionPct=m=>{const x=mp.get(m.id);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;const target=Number(m.target||0);return target>0?Math.min(100,Math.round(Number(x.value||0)/target*100)):0;};
-  const missionCompletion=visibleMissions.length?Math.round(visibleMissions.reduce((sum,m)=>sum+missionPct(m),0)/visibleMissions.length):0;
+  const hasActiveMissions=visibleMissions.length>0;
+  const missionCompletion=hasActiveMissions?Math.round(visibleMissions.reduce((sum,m)=>sum+missionPct(m),0)/visibleMissions.length):null;
+  const missionCompletionLabel=hasActiveMissions?`${missionCompletion}%`:'—';
   const completedMissions=visibleMissions.filter(m=>missionPct(m)>=100).length;
   const lessonDone=new Set((lessonProgress||[]).map(x=>x.lesson_id));
   const lessonTotal=(lessons||[]).length; const lessonCompleted=(lessons||[]).filter(x=>lessonDone.has(x.id)).length;
@@ -714,7 +742,7 @@ async function creatorDashboardTpl(){
   const trainingDesc=activeTraining?activeTraining.title:'Cuando Grayxon inicie un entrenamiento podrás entrar desde aquí.';
   const trainingCard=`<button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><span class="creator-dashboard-card-meta">${esc(trainingMeta)}</span><strong>Entrenamientos</strong><p>${esc(trainingDesc)}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
   const formationCard=`<button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><span class="creator-dashboard-card-meta">${formationPct}%</span><strong>Formación</strong><p>${lessonTotal?`${lessonCompleted} de ${lessonTotal} lecciones completadas.`:'Aún no hay formación publicada.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
-  const missionsCard=`<button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">${missionCompletion}%</span><strong>Tus misiones</strong><p>${visibleMissions.length?`${completedMissions} de ${visibleMissions.length} completadas esta semana.`:'No tienes misiones activas.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
+  const missionsCard=`<button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">${missionCompletionLabel}</span><strong>Tus misiones</strong><p>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} activas completadas.`:'No tienes tareas pendientes.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
     <section class="creator-dashboard-hero">
@@ -726,9 +754,8 @@ async function creatorDashboardTpl(){
     <section class="creator-performance">
       <div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div>
       <div class="creator-performance-grid">
-        <div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>${missionCompletion}%</strong></div><div class="space-progress"><span style="width:${missionCompletion}%"></span></div><small>${completedMissions} de ${visibleMissions.length} misiones activas completadas.</small></div>
+        <div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>${missionCompletionLabel}</strong></div><div class="space-progress"><span style="width:${missionCompletion||0}%"></span></div><small>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} misiones activas completadas.`:'No tienes tareas pendientes esta semana.'}</small></div>
         <div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>${formationPct}%</strong></div><div class="space-progress"><span style="width:${formationPct}%"></span></div><small>${lessonCompleted} de ${lessonTotal} lecciones completadas.</small></div>
-        <div class="creator-metric"><div class="creator-metric-top"><span>ENTRENAMIENTOS</span><strong>${activeTraining?'EN VIVO':'—'}</strong></div><div class="space-progress"><span style="width:${activeTraining?'100':'0'}%"></span></div><small>${activeTraining?`Ahora: ${esc(activeTraining.title)}`:'No hay un entrenamiento activo en este momento.'}</small></div>
       </div>
     </section>
     <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}</div>
@@ -1073,9 +1100,9 @@ async function liveTrainingTpl() {
   if(!session){el.innerHTML=authTpl();return;}
   profile=await getProfile();
   if(!profile||!profile.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2><p class="muted">Tu acceso al portal de Grayxon ha sido desactivado. Si crees que esto es un error o necesitas volver a ingresar, contacta con tu manager.</p></div>';destroyJaasMeeting();return;}
+  const training=await fetchActiveLiveTraining(); currentLiveTraining=training;
   const isHost=!!training?.created_by && training.created_by===session?.user?.id;
   const isModerator=profile.role==='admin'||profile.role==='manager';
-  const training=await fetchActiveLiveTraining(); currentLiveTraining=training;
   const backPage=isModerator?(profile.role==='admin'?'admin':'manager'):'space';
   if(!training){
     el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamientos en vivo 🎥</h1><p>Cuando Grayxon inicie un entrenamiento, aparecerá aquí automáticamente.</p></div><button class="secondary" data-space-action="${backPage}">← ${isHost?'Volver al panel':'Tu espacio'}</button></div><section class="live-training-feature"><div class="live-training-feature-inner live-training-empty-state"><span class="live-training-idle-icon">○</span><h2>No hay un entrenamiento en vivo</h2><p class="live-training-subtitle">En este momento no hay ninguna sesión activa. El estado <b>EN VIVO</b> solo aparecerá cuando un administrador o manager inicie un entrenamiento.</p></div></section></div>`;
@@ -1128,17 +1155,15 @@ async function trainingTpl() {
   window._done = done;
 }
 
-async function openLesson(id) {
-  const l = (window._lessons || []).find(x => x.id === id);
-  if (!l) return;
-  selectedLesson = l;
+async function renderSelectedLesson(l) {
+  if (!l || !$('#lessonView')) return;
   let media = '';
   if (l.type === 'video' && l.video_path) {
     const { data, error } = await sb.storage.from('training-videos').createSignedUrl(l.video_path, 3600);
     if (!error && data?.signedUrl) media = `<div class="video-wrap"><video id="lessonVideo" class="video" controls playsinline preload="metadata" src="${data.signedUrl}"></video><div id="videoCompletion" class="video-hint">▶ Reproduce el video completo. Al terminar, tu avance se guardará automáticamente.</div></div>`;
   } else if (l.type === 'resource' && l.resource_path) {
     const { data, error } = await sb.storage.from('training-resources').createSignedUrl(l.resource_path, 3600);
-    if (!error && data?.signedUrl) media = `<a class="secondary" href="${data.signedUrl}" target="_blank">Abrir recurso</a>`;
+    if (!error && data?.signedUrl) media = `<a class="secondary" href="${data.signedUrl}" target="_blank" rel="noopener noreferrer">Abrir recurso</a>`;
   }
   const isVideo = l.type === 'video' && !!l.video_path;
   const alreadyDone = window._done.has(l.id);
@@ -1155,11 +1180,9 @@ async function openLesson(id) {
       });
     }
   } else {
-    $('#completeLesson').onclick = () => completeLesson(l.id);
+    $('#completeLesson')?.addEventListener('click', () => completeLesson(l.id));
   }
 
-  // On mobile, show the selected lesson as its own screen instead of placing
-  // the player after the entire module list.
   if (window.matchMedia('(max-width: 800px)').matches) {
     const modulesList = $('.modules-list');
     if (modulesList) modulesList.classList.add('mobile-lesson-open');
@@ -1170,6 +1193,30 @@ async function openLesson(id) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  }
+}
+
+async function openLesson(id, options = {}) {
+  const l = (window._lessons || []).find(x => x.id === id);
+  if (!l) return;
+  selectedLesson = l;
+  window._done.add(id);
+  toast('Lección completada ✓');
+
+  const currentIndex = (window._lessons || []).findIndex(x => x.id === id);
+  const next = currentIndex >= 0 ? window._lessons[currentIndex + 1] : null;
+
+  await trainingTpl();
+  bind();
+
+  if (options.autoAdvance && next) {
+    await openLesson(next.id);
+    toast(`Siguiente tema: ${next.title}`);
+  } else if (options.autoAdvance && !next) {
+    $('#lessonView').innerHTML = `<div class="empty-lesson completion-final"><div class="empty-icon">✓</div><h2>¡Formación completada!</h2><p class="muted">Terminaste todas las lecciones disponibles en Grayxon Group.</p></div>`;
+    toast('¡Terminaste toda la formación! 🎉');
+  } else {
+    await renderSelectedLesson(l);
   }
 }
 
@@ -1213,7 +1260,8 @@ async function completeLesson(id, options = {}) {
     $('#lessonView').innerHTML = `<div class="empty-lesson completion-final"><div class="empty-icon">✓</div><h2>¡Formación completada!</h2><p class="muted">Terminaste todas las lecciones disponibles en Grayxon Group.</p></div>`;
     toast('¡Terminaste toda la formación! 🎉');
   } else {
-    await openLesson(id);
+    const selected = (window._lessons || []).find(x => x.id === id);
+    if (selected) await renderSelectedLesson(selected);
   }
 }
 
@@ -2593,6 +2641,54 @@ sb.auth.onAuthStateChange((event,newSession)=>{
     }
   `;
   document.head.appendChild(style);
+})();
+
+/* v18 · creator navigation + TikTok LIVE visual accents */
+(function applyV18Visuals(){
+  if(document.getElementById('grayxon-v18-visuals')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-v18-visuals';
+  style.textContent=`
+    .grayxon-creator-space-float{
+      position:fixed!important;right:18px!important;bottom:18px!important;z-index:4900!important;
+      display:flex!important;align-items:center!important;gap:8px!important;
+      min-height:46px!important;padding:0 15px!important;border-radius:999px!important;
+      border:1px solid rgba(37,244,238,.38)!important;
+      background:linear-gradient(135deg,rgba(14,20,24,.96),rgba(18,12,19,.96))!important;
+      color:#fff!important;font-weight:850!important;font-size:12px!important;
+      box-shadow:0 12px 32px rgba(0,0,0,.34),-5px 0 18px rgba(37,244,238,.12),5px 0 18px rgba(254,44,85,.12)!important;
+      opacity:0!important;pointer-events:none!important;transform:translateY(10px) scale(.96)!important;
+      transition:opacity .18s ease,transform .18s ease,box-shadow .18s ease!important;
+      cursor:pointer!important;overflow:hidden!important;
+    }
+    .grayxon-creator-space-float:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#25f4ee,#fe2c55);border-radius:999px 0 0 999px}
+    .grayxon-creator-space-float.is-visible{opacity:1!important;pointer-events:auto!important;transform:none!important}
+    .grayxon-creator-space-float:hover{box-shadow:0 16px 38px rgba(0,0,0,.42),-6px 0 20px rgba(37,244,238,.18),6px 0 20px rgba(254,44,85,.18)!important}
+    .grayxon-creator-space-float-icon{font-size:19px;line-height:1}
+
+    /* Acentos laterales estilo TikTok LIVE, sin cambiar el branding Grayxon. */
+    .creator-dashboard .creator-dashboard-card{box-shadow:inset 3px 0 0 rgba(37,244,238,.75),0 12px 30px rgba(0,0,0,.14)!important}
+    .creator-dashboard .creator-dashboard-card:nth-child(2){box-shadow:inset 3px 0 0 rgba(254,44,85,.78),0 12px 30px rgba(0,0,0,.14)!important}
+    .creator-dashboard .creator-dashboard-card:nth-child(3){box-shadow:inset 3px 0 0 rgba(177,110,255,.72),0 12px 30px rgba(0,0,0,.14)!important}
+    .creator-dashboard .creator-dashboard-card:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.13)!important}
+    .creator-dashboard .creator-assignment-card{box-shadow:inset 3px 0 0 rgba(37,244,238,.65),0 12px 30px rgba(0,0,0,.12)!important}
+    .creator-dashboard .creator-performance{position:relative;overflow:hidden}
+    .creator-dashboard .creator-performance:before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:4px;background:linear-gradient(180deg,#25f4ee,#fe2c55);opacity:.75}
+    .creator-dashboard .creator-metric{border-color:rgba(255,255,255,.09)!important;background:rgba(255,255,255,.025)!important}
+    .creator-dashboard .creator-metric:nth-child(1){box-shadow:inset 2px 0 0 rgba(254,44,85,.65)}
+    .creator-dashboard .creator-metric:nth-child(2){box-shadow:inset 2px 0 0 rgba(37,244,238,.65)}
+    .creator-dashboard .creator-profile-incomplete{border-left:3px solid #fe2c55!important;border-right:1px solid rgba(37,244,238,.16)!important}
+    .manager-page .grayxon-manager-accordion,.manager-page .manager-creators-section,.manager-page .manager-task-accordion{position:relative}
+    .manager-page .grayxon-manager-accordion:before,.manager-page .manager-creators-section:before,.manager-page .manager-task-accordion:before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:4px;background:linear-gradient(180deg,#25f4ee,#fe2c55);opacity:.75;pointer-events:none}
+    .manager-page .manager-creators-section:before{background:#25f4ee}
+    .manager-page .manager-task-accordion:before{background:#fe2c55}
+    @media(max-width:800px){
+      .grayxon-creator-space-float{right:13px!important;bottom:13px!important;min-height:44px!important;padding:0 13px!important}
+    }
+  `;
+  document.head.appendChild(style);
+  ensureCreatorSpaceFloat();
+  updateCreatorSpaceFloat();
 })();
 
 init();
