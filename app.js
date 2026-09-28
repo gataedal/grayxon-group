@@ -90,7 +90,7 @@ async function showGrayxonPushPrompt(){
   // database row (for example after clearing account data) and do not bother the creator.
   try{
     if('serviceWorker' in navigator && 'PushManager' in window){
-      const registration=await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.register('./sw.js?v=43',{scope:'./'});
+      const registration=await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.register('./sw.js?v=42',{scope:'./'});
       const existing=await registration?.pushManager?.getSubscription();
       if(existing){
         if('Notification' in window && Notification.permission==='granted'){
@@ -163,7 +163,7 @@ async function registerGrayxonPush({requestPermission=false}={}) {
   pushRegistrationPromise = (async () => {
     try {
       ensureGrayxonPwaLinks();
-      const registration = await navigator.serviceWorker.register('./sw.js?v=43', { scope: './' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=42', { scope: './' });
       await navigator.serviceWorker.ready;
 
       let permission = Notification.permission;
@@ -458,12 +458,10 @@ async function openNotification(id) {
     if (target.startsWith('#')) { window.location.hash = target.slice(1); return; }
     if (/^(https?:|mailto:|tel:)/i.test(target)) { window.location.href = target; return; }
     const page = target.replace(/^\//, '').split(/[?#]/)[0].toLowerCase();
-    // LIVE: un UUID solo se interpreta como entrenamiento cuando la notificación
-    // realmente es de tipo training + destino live-training. Nunca adivinamos
-    // que cualquier UUID pertenece a un LIVE (podría ser una misión, tarea, etc.).
-    if(profile?.role==='creator' && n.type==='training' && n.link_page==='live-training' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(page)){
+    // LIVE: si la notificación guarda el UUID del entrenamiento, abrimos exactamente ese LIVE.
+    if(profile?.role==='creator' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(page)){
       const {data:targetLive}=await sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').eq('id',page).eq('status','live').maybeSingle();
-      if(targetLive){ currentLiveTraining=targetLive; pendingLiveTrainingAutoStart={id:targetLive.id}; nav('live-training'); return; }
+      if(targetLive){ currentLiveTraining=targetLive; pendingLiveTrainingAutoStart={id:targetLive.id}; window.location.hash=`live-training/${targetLive.id}`; nav('live-training'); return; }
     }
     const targetMap = {
       dashboard:'space', space:'space', 'mi-espacio':'space',
@@ -4157,68 +4155,26 @@ async function init() {
   else updateNotificationsUI();
   updateHeaderAccessUI();
 
-  // Deep-link universal para notificaciones Push. El Service Worker conserva
-  // tipo + página + destino, de modo que el clic no tenga que adivinar qué es un UUID.
-  let pushNotificationTarget = null;
-  try {
-    const rawPush = window.location.hash.replace(/^#/, '');
-    if (rawPush.startsWith('push/')) {
-      const encoded = rawPush.slice(5);
-      const decoded = decodeURIComponent(escape(atob(encoded)));
-      const parsed = JSON.parse(decoded);
-      if (parsed && (parsed.type || parsed.link_page || parsed.link_target)) pushNotificationTarget = parsed;
-    }
-  } catch (_) {}
-
-  const hashRaw = window.location.hash.replace(/^#/, '');
-  const livePushMatch = hashRaw.match(/^live-training\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
-  const requestedLiveTrainingId = livePushMatch ? livePushMatch[1] : null;
-  const universalPushTarget = pushNotificationTarget;
-  const universalPushLiveId = universalPushTarget?.type==='training' && universalPushTarget?.link_page==='live-training' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(universalPushTarget?.link_target||'')) ? String(universalPushTarget.link_target) : null;
-  const hashPage = universalPushLiveId || requestedLiveTrainingId ? 'live-training' : (universalPushTarget ? (universalPushTarget.link_page || 'space') : hashRaw);
+  const hashPage = window.location.hash.replace(/^#/, '');
   const roleHome = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
+  const deepLiveMatch = hashPage.match(/^live-training\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+  if (session && profile?.role === 'creator' && deepLiveMatch) {
+    const liveId = deepLiveMatch[1];
+    const { data: targetLive } = await sb.from('live_trainings')
+      .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+      .eq('id', liveId)
+      .eq('status', 'live')
+      .maybeSingle();
+    if (targetLive) {
+      currentLiveTraining = targetLive;
+      pendingLiveTrainingAutoStart = { id: targetLive.id };
+      nav('live-training', false);
+      if(session && profile?.role==='creator') setTimeout(showGrayxonPushPrompt,1200);
+      return;
+    }
+  }
   const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(hashPage) ? hashPage : null;
   const initialPage = session ? (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome) : (requestedPage || 'home');
-  const liveTargetId = universalPushLiveId || requestedLiveTrainingId;
-  if (session && profile?.role === 'creator' && liveTargetId) {
-    try {
-      const { data: pushLive } = await sb.from('live_trainings')
-        .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
-        .eq('id', liveTargetId)
-        .eq('status', 'live')
-        .maybeSingle();
-      if (pushLive) {
-        currentLiveTraining = pushLive;
-        pendingLiveTrainingAutoStart = { id: pushLive.id };
-      }
-    } catch (error) {
-      console.warn('No se pudo recuperar el LIVE objetivo de la notificación:', error);
-    }
-  }
-
-  // Para destinos no-LIVE, navegamos usando link_page/type sin reinterpretar el
-  // UUID como LIVE. Las misiones conservan además su semana asociada.
-  if (session && universalPushTarget && !universalPushLiveId) {
-    const targetPage = String(universalPushTarget.link_page || 'space').replace(/^\//,'').toLowerCase();
-    const destinationMap = {
-      missions:'missions', mission:'missions',
-      training:'training', formation:'training',
-      'live-training':'live-training',
-      manager:'manager', profile:'profile', 'mi-perfil':'profile',
-      space:'space', dashboard:'space', 'mi-espacio':'space', admin:'admin',
-      home:'home', benefits:'benefits', auth:'auth'
-    };
-    const pushDestination = destinationMap[targetPage] || 'space';
-    if (pushDestination === 'missions') {
-      pendingNotificationTarget = { type:'missions', weekStart:universalPushTarget.related_week_start || null, weekEnd:universalPushTarget.related_week_end || null, target:universalPushTarget.link_target || null };
-    }
-    nav(pushDestination, false);
-    if (pushDestination === 'live-training') {
-      const live=await fetchCreatorLiveTrainingFast();
-      if(live){ currentLiveTraining=live; pendingLiveTrainingAutoStart={id:live.id}; }
-    }
-    return;
-  }
   nav(initialPage, false);
   if(session && profile?.role==='creator') setTimeout(showGrayxonPushPrompt,1200);
 }
