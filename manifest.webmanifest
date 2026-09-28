@@ -1,0 +1,19 @@
+{
+  "name": "Grayxon Academy",
+  "short_name": "Grayxon",
+  "description": "Portal oficial de Grayxon Group.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./assets/grayxon-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
