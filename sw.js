@@ -44,6 +44,14 @@ self.addEventListener('notificationclick', event => {
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of clientsList) {
       if ('focus' in client) {
+        // Cuando Grayxon ya está abierto, no dependemos únicamente de client.navigate().
+        // En PWA/móvil puede cambiar el foco sin entregar de forma fiable el hash al router.
+        // Enviamos el destino directamente a la app y dejamos navigate() como fallback.
+        try {
+          if ('postMessage' in client) {
+            client.postMessage({ type: 'GRAYXON_NOTIFICATION_NAVIGATE', url: absolute });
+          }
+        } catch (_) {}
         try {
           if (client.url !== absolute && 'navigate' in client) await client.navigate(absolute);
         } catch (_) {}
