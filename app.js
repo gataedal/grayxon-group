@@ -465,13 +465,25 @@ async function openNotification(id) {
       manager:'manager', admin:'admin', home:'home', benefits:'benefits', auth:'auth'
     };
     const destination = targetMap[page];
-    if (destination) { nav(destination); return; }
+    if (destination) {
+      if(destination==='live-training' && profile?.role==='creator'){
+        const live=await fetchCreatorLiveTrainingFast();
+        if(live){ currentLiveTraining=live; pendingLiveTrainingAutoStart={id:live.id}; }
+      }
+      nav(destination); return;
+    }
   }
   if (n.link_page === 'missions') {
     pendingNotificationTarget = { type:'missions', weekStart:n.related_week_start || null, weekEnd:n.related_week_end || null };
     nav('missions');
   } else if (n.link_page === 'training') nav('training');
-  else if (n.link_page === 'live-training') nav('live-training');
+  else if (n.link_page === 'live-training') {
+    if(profile?.role==='creator'){
+      const live=await fetchCreatorLiveTrainingFast();
+      if(live){ currentLiveTraining=live; pendingLiveTrainingAutoStart={id:live.id}; }
+    }
+    nav('live-training');
+  }
   else if (n.link_page === 'manager') nav('manager');
   else nav('space');
 }
@@ -1154,7 +1166,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[]),
     safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}),[]),
     safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[]),
-    safe(fetchActiveLiveTraining(), null, 7000)
+    safe(fetchCreatorLiveTrainingFast(), null, 4500)
   ]);
 
   // Si el usuario ya navegó a otra pantalla, este render atrasado no debe tocarla.
@@ -1346,6 +1358,55 @@ async function saveMissionProgress(id){
 }
 
 
+async function fetchCreatorLiveTrainingFast(){
+  if(!session?.user?.id) return null;
+  const uid=session.user.id;
+  try{
+    const p=profile || await getProfile();
+    const {data:rawLive,error:liveError}=await sb.from('live_trainings')
+      .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+      .eq('status','live')
+      .order('started_at',{ascending:false});
+    if(liveError || !rawLive?.length) return null;
+    const liveIds=rawLive.map(t=>t.id);
+    const {data:aud,error:audError}=await sb.from('live_training_audience')
+      .select('training_id,target_type,target_id')
+      .in('training_id',liveIds);
+    if(audError) return null;
+    const teamId=p?.team_id||null;
+    const allowedIds=new Set((aud||[]).filter(a=>
+      a.target_type==='all_creators' ||
+      (a.target_type==='creator' && a.target_id===uid) ||
+      (a.target_type==='team' && teamId && a.target_id===teamId)
+    ).map(a=>a.training_id));
+    let active=rawLive.find(t=>allowedIds.has(t.id))||null;
+    if(active) return active;
+    const adminCreated=rawLive.filter(t=>t.created_by && !(aud||[]).some(a=>a.training_id===t.id));
+    if(adminCreated.length){
+      const {data:owners}=await sb.from('profiles').select('id,role').in('id',[...new Set(adminCreated.map(t=>t.created_by))]);
+      const adminIds=new Set((owners||[]).filter(o=>o.role==='admin').map(o=>o.id));
+      active=adminCreated.find(t=>adminIds.has(t.created_by))||null;
+      if(active) return active;
+    }
+    if(teamId){
+      const managerUserIds=[...new Set(rawLive.map(t=>t.created_by).filter(Boolean))];
+      if(managerUserIds.length){
+        const {data:managerRows}=await sb.from('managers').select('id,user_id').in('user_id',managerUserIds).eq('active',true);
+        const managerIds=(managerRows||[]).map(m=>m.id);
+        if(managerIds.length){
+          const {data:managedTeam}=await sb.from('teams').select('id,manager_id').eq('id',teamId).in('manager_id',managerIds).maybeSingle();
+          if(managedTeam?.manager_id){
+            const managerByUser=new Map((managerRows||[]).map(m=>[m.user_id,m.id]));
+            active=rawLive.find(t=>managerByUser.get(t.created_by)===managedTeam.manager_id)||null;
+            if(active) return active;
+          }
+        }
+      }
+    }
+    return null;
+  }catch(e){ console.warn('No se pudo consultar rápidamente el LIVE del creador:',e?.message||e); return null; }
+}
+
 async function fetchActiveLiveTraining(){
   const fallback=null;
   try {
@@ -1451,7 +1512,7 @@ async function refreshLiveTrainingCard(){
   const target=card||dashboardCard;
   if(!target)return;
   try{
-    let live=await fetchActiveLiveTraining();
+    let live=profile?.role==='creator' ? await fetchCreatorLiveTrainingFast() : await fetchActiveLiveTraining();
 
     // Dashboard fallback: use the exact same visibility model as the creator
     // Entrenamientos page. This avoids leaving Mi espacio on "Sin sesión activa"
@@ -1818,7 +1879,9 @@ async function creatorTrainingsTpl(){
       }
     }
   }
-  const activeLive=liveTrainings[0]||null;
+  const pendingId=pendingLiveTrainingAutoStart?.id||null;
+  const activeLive=(pendingId && (rawLive||[]).find(t=>t.id===pendingId)) || liveTrainings[0] || null;
+  if(pendingId) pendingLiveTrainingAutoStart=null;
   currentLiveTraining=activeLive||null;
 
   // Historial real = entrenamientos donde el creador tiene un registro de
@@ -4321,6 +4384,7 @@ sb.auth.onAuthStateChange((event,newSession)=>{
   document.head.appendChild(style);
 })();
 
+try{ sessionStorage.removeItem('grayxon_live_diag'); }catch(_){}
 init();
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(profile?.role==='creator') { registerGrayxonPush({requestPermission:false}).catch(()=>{}); setTimeout(()=>showGrayxonPushPrompt(),500); } } });
