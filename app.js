@@ -317,7 +317,7 @@ function ensureLiveTrainingPage() {
       header.top,.top{position:relative!important;z-index:5000!important}
       .profile-menu-wrap{z-index:5001!important}
       #profileMenu{z-index:5002!important}
-      body.grayxon-live-training-active #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
+      body.grayxon-live-training-active #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important} body.grayxon-live-training-active #live-training{display:block!important;visibility:visible!important}
       body.grayxon-live-training-call #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #live-training .live-training-hero,
       body.grayxon-live-training-call #live-training .live-training-feature{display:none!important}
@@ -415,6 +415,7 @@ function nav(p, push = true) {
   }
   if (session && p === 'space' && profile?.role === 'manager') p = 'manager';
   if (p === 'live-training') ensureLiveTrainingPage();
+  if (p === 'live-training') { const se=$('#space'); if(se){se.hidden=true;se.classList.add('hidden');se.style.setProperty('display','none','important');} document.body.classList.add('grayxon-live-training-active'); }
   if (push && current !== p) {
     const url = p === 'home'
       ? `${window.location.pathname}${window.location.search}`
@@ -584,7 +585,7 @@ const profileCountries = [
   ['CO','Colombia'],['MX','México'],['AR','Argentina'],['CL','Chile'],['PE','Perú'],['EC','Ecuador'],['VE','Venezuela'],['PA','Panamá'],['CR','Costa Rica'],['GT','Guatemala'],['SV','El Salvador'],['HN','Honduras'],['NI','Nicaragua'],['DO','República Dominicana'],['BO','Bolivia'],['PY','Paraguay'],['UY','Uruguay'],['CU','Cuba'],['HT','Haití']
 ];
 const bankSeed = {
-  CO:['Bancolombia','Banco de Bogotá','Davivienda','BBVA Colombia','Banco de Occidente','Banco Popular','Banco AV Villas','Scotiabank Colpatria','Itaú Colombia','Banco Caja Social','Banco Falabella','Banco W','Lulo Bank','Nu Colombia'],
+  CO:['Bancolombia','Banco de Bogotá','Davivienda','BBVA Colombia','Banco de Occidente','Banco Popular','Banco AV Villas','Banco Agrario de Colombia','Banco Caja Social','Banco Falabella','Banco Finandina','Banco Pichincha','Banco W','Banco Serfinanza','Bancoomeva','Bancamía','Mundo Mujer','Scotiabank Colpatria','Itaú Colombia','Lulo Bank','Nu Colombia','Nequi','Daviplata','dale!','MOVii','RappiPay'],
   MX:['BBVA México','Santander México','Banorte','Citibanamex','HSBC México','Scotiabank México','Banco Azteca','BanCoppel','Inbursa','Afirme','Banregio','Hey Banco'],
   AR:['Banco Nación','Banco Provincia','Banco Galicia','Santander Argentina','BBVA Argentina','Banco Macro','ICBC Argentina','HSBC Argentina','Banco Credicoop','Brubank'],
   CL:['Banco de Chile','BancoEstado','Santander Chile','BCI','Scotiabank Chile','Itaú Chile','Banco Falabella','Banco Ripley','Tenpo'],
@@ -610,25 +611,41 @@ function profileInitial(p = profile){
 }
 async function loadProfileDetails(){
   if (!session?.user?.id) return { details:null, payment:null };
-  const [{data: d}, {data: pm}] = await Promise.all([
-    sb.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(),
-    sb.from('payment_methods').select('*').eq('user_id', session.user.id).order('is_primary',{ascending:false}).order('updated_at',{ascending:false}).limit(1).maybeSingle()
+  const uid=session.user.id;
+  const [dRes, pRes] = await Promise.all([
+    sb.from('profile_details').select('*').eq('user_id', uid).maybeSingle(),
+    // Do not use maybeSingle() here: older data can contain more than one payment row.
+    // We keep the newest primary row without allowing a duplicate to break the profile.
+    sb.from('payment_methods').select('*').eq('user_id', uid).order('is_primary',{ascending:false}).order('updated_at',{ascending:false}).limit(1)
   ]);
-  profileDetails=d||null; paymentMethod=pm||null; return {details:profileDetails,payment:paymentMethod};
+  const paymentRows=Array.isArray(pRes?.data) ? pRes.data : [];
+  // Payment data is optional. A read-policy error must not poison the entire profile UI.
+  profileDetails=dRes?.data||null;
+  paymentMethod=paymentRows[0]||null;
+  return {details:profileDetails,payment:paymentMethod,detailsError:dRes?.error||null,paymentError:pRes?.error||null};
 }
+function normalizeCountryCode(value){
+  const v=String(value||'').trim();
+  if(!v)return 'CO';
+  if(profileCountries.some(([c])=>c===v))return v;
+  const found=profileCountries.find(([,name])=>name.toLowerCase()===v.toLowerCase());
+  return found?.[0]||'CO';
+}
+
 function profileTpl(){
   if (!session || !profile) return authTpl();
   const d=profileDetails||{}; const pm=paymentMethod||{};
   const avatar = d.avatar_url ? `<img class="profile-avatar-img" src="${esc(d.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
   const countries=profileCountries.map(([c,n])=>`<option value="${c}" ${d.country===c?'selected':''}>${n}</option>`).join('');
-  const banks=(bankSeed[pm.bank_country || d.country]||[]).map(b=>`<option value="${esc(b)}" ${pm.bank_name===b?'selected':''}>${esc(b)}</option>`).join('');
+  const bankCountry=normalizeCountryCode(pm.bank_country || d.country || 'CO');
+  const banks=(bankSeed[bankCountry]||[]).map(b=>`<option value="${esc(b)}" ${pm.bank_name===b?'selected':''}>${esc(b)}</option>`).join('');
   return `<div class="profile-page">
     <div class="profile-head card"><div class="profile-avatar-wrap profile-avatar-editable">${avatar}<button type="button" class="avatar-edit-fab" id="profilePhotoEdit" aria-label="Cambiar foto">✎</button><button type="button" class="avatar-delete-fab ${d.avatar_url ? '' : 'hidden'}" id="deleteProfileAvatar" aria-label="Eliminar foto">🗑</button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div><div class="eyebrow">MI PERFIL</div><h1>${esc(profile.full_name||profile.username)}</h1><p class="muted">@${esc(profile.username)} · ${profile.role==='admin'?'Administrador':profile.role==='manager'?'Manager':'Creador'}</p><div id="profileAvatarStatus" class="muted small" style="margin-top:8px"></div></div></div>
     <div class="card"><h2>Información personal</h2>${field('pEmail','Correo electrónico',d.email||'')}${field('pPhone','Número de teléfono',d.phone||'')}
       <label class="field"><span>País</span><select id="pCountry">${countries}</select></label>${field('pState','Estado / Departamento / Provincia',d.state_region||'')}${field('pCity','Ciudad',d.city||'')}${field('pAddress','Dirección',d.address||'',true)}
     </div>
     <div class="card"><h2>Información de pagos</h2><label class="field"><span>Método de pago</span><select id="pMethod"><option value="bank" ${pm.method_type!=='paypal'?'selected':''}>Cuenta bancaria</option><option value="paypal" ${pm.method_type==='paypal'?'selected':''}>PayPal</option></select></label>
-      <div id="bankFields" ${pm.method_type==='paypal'?'style="display:none"':''}><label class="field"><span>País del banco</span><select id="pBankCountry">${profileCountries.map(([c,n])=>`<option value="${c}" ${pm.bank_country===c?'selected':''}>${n}</option>`).join('')}</select></label><label class="field"><span>Banco</span><select id="pBank"><option value="">Selecciona tu banco</option>${banks}</select></label><label class="field"><span>Tipo de cuenta</span><select id="pAccountType"><option value="savings" ${pm.account_type==='savings'?'selected':''}>Ahorros</option><option value="checking" ${pm.account_type==='checking'?'selected':''}>Corriente</option><option value="other" ${pm.account_type==='other'?'selected':''}>Otro</option></select></label>${field('pAccountNumber','Número de cuenta',pm.account_number||'')}</div>
+      <div id="bankFields" ${pm.method_type==='paypal'?'style="display:none"':''}><label class="field"><span>País del banco</span><select id="pBankCountry">${profileCountries.map(([c,n])=>`<option value="${c}" ${bankCountry===c?'selected':''}>${n}</option>`).join('')}</select></label><label class="field"><span>Banco</span><select id="pBank"><option value="">Selecciona tu banco</option>${banks}</select></label><label class="field"><span>Tipo de cuenta</span><select id="pAccountType"><option value="savings" ${pm.account_type==='savings'?'selected':''}>Ahorros</option><option value="checking" ${pm.account_type==='checking'?'selected':''}>Corriente</option><option value="other" ${pm.account_type==='other'?'selected':''}>Otro</option></select></label>${field('pAccountNumber','Número de cuenta',pm.account_number||'')}</div>
       <div id="paypalFields" ${pm.method_type==='paypal'?'':'style="display:none"'}>${field('pPaypal','Correo de PayPal',pm.paypal_email||'')}</div>
       <label class="field"><span>Preferencia</span><label style="display:flex;gap:8px;align-items:center;color:#ddd"><input id="pPrimary" type="checkbox" ${pm.is_primary!==false?'checked':''}> Usar como método principal de pago</label></label>
     </div>
@@ -725,14 +742,41 @@ async function creatorDashboardTpl(){
   ensureCreatorDashboardStyles();
   if(!session){ $('#space').innerHTML=authTpl(); return; }
   const uid=session.user.id;
-  // Al volver desde Mi perfil/Misiones, renderiza una base inmediata y luego
-  // reemplázala con el dashboard completo. Así nunca queda una vista antigua
-  // o un estado de carga atrapado por una consulta lenta.
   const spaceEl=$('#space');
-  if(spaceEl && !spaceEl.querySelector('.creator-dashboard')){
-    spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-loading"><section class="creator-dashboard-hero"><div class="creator-dashboard-avatar"><span>${esc(profileInitial())}</span></div><div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span></div></section><div class="creator-dashboard-loading-card">Cargando tu espacio…</div></div>`;
+
+  // Pintamos inmediatamente un dashboard real, usando el contexto ya disponible.
+  // Las consultas se refrescan en segundo plano para que volver desde Mi perfil/Misiones
+  // nunca deje la pantalla atrapada en "Cargando...".
+  const cachedName=profile?.full_name||profile?.username||'Grayxon';
+  const cachedUser=profile?.username||'creador';
+  const cachedAvatar=profileDetails?.avatar_url ? `<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
+  if(spaceEl){
+    spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
+      <section class="creator-dashboard-hero">
+        <div class="creator-dashboard-avatar">${cachedAvatar}</div>
+        <div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(cachedName)}</h1><span class="creator-username">@${esc(cachedUser)}</span></div>
+        <div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div>
+      </section>
+      <div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando tu información…</small></div></div></div>
+      <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid">
+        <div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando tus misiones…</small></div>
+        <div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando tu formación…</small></div>
+      </div></section>
+      <div class="creator-dashboard-grid">
+        <button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><span class="creator-dashboard-card-meta">—</span><strong>Formación</strong><p>Ver tu formación de Grayxon.</p><span class="creator-dashboard-card-arrow">›</span></button>
+        <button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><span class="creator-dashboard-card-meta">—</span><strong>Entrenamientos</strong><p>Consulta tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button>
+        <button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">—</span><strong>Tus misiones</strong><p>Consulta tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>
+      </div>
+    </div>`;
+    bind();
   }
-  const safe=async(promise,fallback,ms=3000)=>{try{const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve({data:fallback,error:true}),ms))]);return r?.error?fallback:(r?.data??fallback);}catch{return fallback;}};
+
+  const safe=async(promise,fallback,ms=2200)=>{
+    try{
+      const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve({data:fallback,error:true}),ms))]);
+      return r?.error?fallback:(r?.data??fallback);
+    }catch{return fallback;}
+  };
 
   const [assignment, profileRow, details, payment, lessons, lessonProgress, missions, missionProgress, activeTraining] = await Promise.all([
     loadCreatorAssignment(),
@@ -746,6 +790,9 @@ async function creatorDashboardTpl(){
     fetchActiveLiveTraining().catch(()=>null)
   ]);
 
+  // Si el usuario ya navegó a otra pantalla, este render atrasado no debe tocarla.
+  if(current!=='space' || !session?.user?.id || session.user.id!==uid) return;
+
   if(profileRow) profile=profileRow;
   if(details!==undefined) profileDetails=details;
   if(payment!==undefined) paymentMethod=payment;
@@ -755,7 +802,6 @@ async function creatorDashboardTpl(){
   const completionValues=[d.email,d.phone,d.country,d.state_region,d.city,d.address,d.avatar_url,pm.method_type&&(pm.method_type==='paypal'?pm.paypal_email:pm.account_number)];
   const completionCount=completionValues.filter(Boolean).length;
   const completionPct=Math.round(completionCount/8*100);
-
   const today=new Date().toISOString().slice(0,10);
   const mp=new Map((missionProgress||[]).map(x=>[x.mission_id,x]));
   const visibleMissions=(missions||[]).filter(m=>(!m.week_start||m.week_start<=today)&&(!m.week_end||m.week_end>=today)&&(!m.assigned_to||m.assigned_to===uid));
@@ -767,41 +813,43 @@ async function creatorDashboardTpl(){
   const lessonDone=new Set((lessonProgress||[]).map(x=>x.lesson_id));
   const lessonTotal=(lessons||[]).length; const lessonCompleted=(lessons||[]).filter(x=>lessonDone.has(x.id)).length;
   const formationPct=lessonTotal?Math.round(lessonCompleted/lessonTotal*100):0;
-
   const team=assignment?.team; const manager=assignment?.manager;
   const managerContact=manager?.phone?`<a class="creator-contact-btn" href="${esc(managerWhatsapp(manager.phone))}" target="_blank" rel="noopener noreferrer">WhatsApp · Contactar ↗</a>`:'';
   const managerBlock=team?`<div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>${esc(team.name)}</strong><small>Manager: <b>${esc(manager?.name||'Sin manager asignado')}</b></small></div></div>${managerContact}</div>`:`<div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Sin equipo asignado</strong><small>Cuando tengas un equipo aparecerá aquí tu manager.</small></div></div></div>`;
-
   const profileIncomplete=completionPct<100?`<div class="creator-profile-incomplete"><div><strong>Completa tu perfil · ${completionPct}%</strong><small>${completionCount} de 8 datos completos. Mantén tu información actualizada.</small></div><button class="primary small" data-space-action="profile">Completar perfil</button></div>`:'';
   const trainingMeta=activeTraining?'🔴 EN VIVO':'Sin sesión activa';
-  const trainingDesc=activeTraining?activeTraining.title:'Cuando Grayxon inicie un entrenamiento podrás entrar desde aquí.';
+  const trainingDesc=activeTraining?activeTraining.title:'Consulta tus entrenamientos desde aquí.';
   const trainingCard=`<button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><span class="creator-dashboard-card-meta">${esc(trainingMeta)}</span><strong>Entrenamientos</strong><p>${esc(trainingDesc)}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
   const formationCard=`<button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><span class="creator-dashboard-card-meta">${formationPct}%</span><strong>Formación</strong><p>${lessonTotal?`${lessonCompleted} de ${lessonTotal} lecciones completadas.`:'Aún no hay formación publicada.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
   const missionsCard=`<button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">${missionCompletionLabel}</span><strong>Tus misiones</strong><p>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} activas completadas.`:'No tienes tareas pendientes.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero">
-      <div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div>
-      <div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span></div>
-      <div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div>
-    </section>
+    <section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div></section>
     ${managerBlock}
-    <section class="creator-performance">
-      <div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div>
-      <div class="creator-performance-grid">
-        <div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>${missionCompletionLabel}</strong></div><div class="space-progress"><span style="width:${missionCompletion||0}%"></span></div><small>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} misiones activas completadas.`:'No tienes tareas pendientes esta semana.'}</small></div>
-        <div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>${formationPct}%</strong></div><div class="space-progress"><span style="width:${formationPct}%"></span></div><small>${lessonCompleted} de ${lessonTotal} lecciones completadas.</small></div>
-      </div>
-    </section>
-    <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}</div>
-    ${profileIncomplete}
+    <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>${missionCompletionLabel}</strong></div><div class="space-progress"><span style="width:${missionCompletion||0}%"></span></div><small>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} misiones activas completadas.`:'No tienes tareas pendientes esta semana.'}</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>${formationPct}%</strong></div><div class="space-progress"><span style="width:${formationPct}%"></span></div><small>${lessonCompleted} de ${lessonTotal} lecciones completadas.</small></div></div></section>
+    <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}</div>${profileIncomplete}
   </div>`;
+  bind();
+}
+
+function renderCreatorSpaceImmediate(){
+  ensureCreatorDashboardStyles();
+  if(!session||profile?.role!=='creator') return;
+  const el=$('#space'); if(!el)return;
+  const name=profile?.full_name||profile?.username||'Grayxon';
+  const user=profile?.username||'creador';
+  const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
+  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(name)}</h1><span class="creator-username">@${esc(user)}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span></div></section><div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando…</small></div></div></div><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button></div></div>`;
   bind();
 }
 
 async function spaceTpl(){
   if(!session){$('#space').innerHTML=authTpl();return;}
-  if(profile?.role==='creator') return creatorDashboardTpl();
+  if(profile?.role==='creator'){
+    renderCreatorSpaceImmediate();
+    await creatorDashboardTpl();
+    return;
+  }
   return renderSpaceShell();
 }
 
@@ -1141,28 +1189,71 @@ async function startGrayxonLiveTraining(training, options={}){
   }
 }
 
-async function liveTrainingTpl() {
+async function markLiveTrainingViewed(trainingId){
+  if(!trainingId||!session?.user?.id)return false;
+  const {error}=await sb.from('live_training_views').upsert({training_id:trainingId,user_id:session.user.id,viewed_at:new Date().toISOString()},{onConflict:'training_id,user_id'});
+  if(error){console.warn('No se pudo registrar la visualización:',error.message);return false;}
+  return true;
+}
+
+function showCreatorTrainingDetail(training){
+  const existing=document.querySelector('.grayxon-training-detail-modal'); if(existing) existing.remove();
+  const el=document.createElement('div');
+  el.className='modal-backdrop grayxon-training-detail-modal';
+  el.innerHTML=`<div class="card modal" style="max-width:700px"><div class="row"><div><div class="eyebrow">GRAYXON · ENTRENAMIENTO</div><h2>${esc(training.title)}</h2></div><button class="secondary" id="closeCreatorTrainingDetail">Cerrar</button></div><div class="hr"></div><div class="grid"><div class="item"><b>Instructor</b><div class="muted small">${esc(training.instructor_name||'Grayxon')}</div></div><div class="item"><b>Fecha</b><div class="muted small">${formatDateTime(training.started_at||training.scheduled_at||training.created_at)}</div></div><div class="item"><b>Duración</b><div class="muted small">${liveTrainingDuration(training.started_at,training.ended_at)}</div></div><div class="item"><b>Estado</b><div class="muted small">${training.status==='live'?'EN VIVO':training.status==='scheduled'?'Programado':'Completado'}</div></div></div><div class="item" style="margin-top:18px"><b>Contenido</b><p class="muted" style="margin:8px 0 0;line-height:1.65">${esc(training.description||'Este entrenamiento no tiene una descripción adicional.')}</p></div>${training.status==='live'?'<div style="margin-top:18px"><button class="primary" id="detailEnterLive">Entrar al entrenamiento</button></div>':''}</div>`;
+  document.body.appendChild(el);
+  $('#closeCreatorTrainingDetail').onclick=()=>el.remove();
+  $('#detailEnterLive')?.addEventListener('click',async()=>{el.remove();await markLiveTrainingViewed(training.id);pendingLiveTrainingAutoStart={id:training.id};nav('live-training');});
+}
+
+async function creatorTrainingsTpl(){
   const el=ensureLiveTrainingPage();
+  document.body.classList.add('grayxon-live-training-active');
+  const spaceEl=$('#space'); if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
   if(!session){el.innerHTML=authTpl();return;}
   profile=await getProfile();
-  if(!profile||!profile.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2><p class="muted">Tu acceso al portal de Grayxon ha sido desactivado. Si crees que esto es un error o necesitas volver a ingresar, contacta con tu manager.</p></div>';destroyJaasMeeting();return;}
+  if(!profile?.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2></div>';return;}
+  const [trRes,viewRes]=await Promise.all([
+    sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').in('status',['scheduled','live','finished']).order('scheduled_at',{ascending:false}).order('created_at',{ascending:false}),
+    sb.from('live_training_views').select('training_id,viewed_at').eq('user_id',session.user.id)
+  ]);
+  if(trRes.error){el.innerHTML=`<div class="live-training-page"><div class="live-training-feature"><div class="live-training-feature-inner"><h2>No pudimos cargar tus entrenamientos</h2><p class="muted">${esc(trRes.error.message)}</p></div></div></div>`;return;}
+  const views=new Map((viewRes.data||[]).map(v=>[v.training_id,v]));
+  const trainings=(trRes.data||[]).filter(t=>t.status!=='cancelled');
+  const pending=trainings.filter(t=>!views.has(t.id));
+  const completed=trainings.filter(t=>views.has(t.id));
+  const card=(t,seen)=>{
+    const live=t.status==='live';
+    const status=live?'🔴 EN VIVO':t.status==='scheduled'?'PROGRAMADO':'COMPLETADO';
+    return `<div class="creator-training-item"><button type="button" class="creator-training-toggle" data-creator-training-toggle="${t.id}" aria-expanded="false"><span class="creator-training-toggle-main"><span class="creator-training-icon">🎥</span><span><strong>${esc(t.title)}</strong><small>${esc(status)} · ${esc(t.instructor_name||'Grayxon')}</small></span></span><span class="creator-training-chevron">›</span></button><div class="creator-training-detail hidden" id="creator-training-detail-${t.id}"><div class="creator-training-detail-grid"><span><b>Instructor</b>${esc(t.instructor_name||'Grayxon')}</span><span><b>Fecha</b>${formatDateTime(t.started_at||t.scheduled_at||t.created_at)}</span><span><b>Duración</b>${live?'En vivo':liveTrainingDuration(t.started_at,t.ended_at)}</span></div><p class="muted creator-training-description">${esc(t.description||'Este entrenamiento no tiene una descripción adicional.')}</p><div class="creator-training-detail-actions"><button type="button" class="primary small" data-view-creator-training="${t.id}">${seen?'Ver de nuevo':'Ver'}</button></div></div></div>`;
+  };
+  el.innerHTML=`<div class="live-training-page creator-training-library"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Tus entrenamientos 🎥</h1><p>Encuentra aquí los entrenamientos que Grayxon ha puesto a tu disposición.</p></div></div><section class="creator-training-section"><div class="creator-training-section-head"><div><div class="eyebrow">PENDIENTES</div><h2>Por ver</h2></div><span>${pending.length}</span></div><div class="creator-training-list">${pending.length?pending.map(t=>card(t,false)).join(''):'<div class="creator-training-empty">No tienes entrenamientos pendientes. 🖤</div>'}</div></section><section class="creator-training-section"><div class="creator-training-section-head"><div><div class="eyebrow">COMPLETADOS</div><h2>Ya vistos</h2></div><span>${completed.length}</span></div><div class="creator-training-list">${completed.length?completed.map(t=>card(t,true)).join(''):'<div class="creator-training-empty">Todavía no has visto entrenamientos.</div>'}</div></section></div>`;
+  bind();
+  $$('[data-creator-training-toggle]').forEach(b=>b.onclick=()=>{const id=b.dataset.creatorTrainingToggle;const d=$('#creator-training-detail-'+id);if(!d)return;const open=!d.classList.contains('hidden');d.classList.toggle('hidden');b.setAttribute('aria-expanded',open?'false':'true');b.classList.toggle('open',!open);});
+  $$('[data-view-creator-training]').forEach(b=>b.onclick=async()=>{const t=trainings.find(x=>x.id===b.dataset.viewCreatorTraining);if(!t)return;await markLiveTrainingViewed(t.id);if(t.status==='live'){pendingLiveTrainingAutoStart={id:t.id};nav('live-training');}else{showCreatorTrainingDetail(t);const parent=b.closest('.creator-training-item');parent?.querySelector('.creator-training-toggle')?.classList.add('open');toast('Entrenamiento marcado como visto ✓');}});
+}
+
+async function liveTrainingTpl() {
+  if(profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session')) return creatorTrainingsTpl();
+  const el=ensureLiveTrainingPage();
+  document.body.classList.add('grayxon-live-training-active');
+  const spaceEl=$('#space'); if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
+  if(!session){el.innerHTML=authTpl();return;}
+  profile=await getProfile();
+  if(!profile||!profile.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2></div>';destroyJaasMeeting();return;}
   const training=await fetchActiveLiveTraining(); currentLiveTraining=training;
   const isHost=!!training?.created_by && training.created_by===session?.user?.id;
   const isModerator=profile.role==='admin'||profile.role==='manager';
   const backPage=isModerator?(profile.role==='admin'?'admin':'manager'):'space';
   if(!training){
-    el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamientos en vivo 🎥</h1><p>Cuando Grayxon inicie un entrenamiento, aparecerá aquí automáticamente.</p></div>${isHost || profile?.role!=='creator' ? `<button class="secondary" data-space-action="${backPage}">← ${isHost?'Volver al panel':'Tu espacio'}</button>` : ''}</div><section class="live-training-feature"><div class="live-training-feature-inner live-training-empty-state"><span class="live-training-idle-icon">○</span><h2>No hay un entrenamiento en vivo</h2><p class="live-training-subtitle">En este momento no hay ninguna sesión activa. El estado <b>EN VIVO</b> solo aparecerá cuando un administrador o manager inicie un entrenamiento.</p></div></section></div>`;
+    el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamientos en vivo 🎥</h1><p>Cuando Grayxon inicie un entrenamiento, aparecerá aquí automáticamente.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← ${isHost?'Volver al panel':'Volver'}</button>`:''}</div><section class="live-training-feature live-training-empty-compact"><div class="live-training-feature-inner live-training-empty-state"><span class="live-training-idle-icon">○</span><h2>No hay un entrenamiento en vivo</h2><p class="live-training-subtitle">En este momento no hay ninguna sesión activa.</p></div></section></div>`;
     bind();return;
   }
-  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isHost || profile?.role!=='creator' ? `<button class="secondary" data-space-action="${backPage}">← ${isHost?'Volver al panel':'Tu espacio'}</button>` : ''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">${isHost?'🎙️':'👥'} <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div class="live-training-toolbar"><div class="live-training-toolbar-copy"><strong>${esc(training.title)}</strong><span>${isHost?'Tienes permisos de anfitrión para dirigir el entrenamiento.':isModerator?'Tienes permisos de moderación.':'Conectado con tu cuenta Grayxon.'}</span></div><span class="pill ok">Acceso protegido</span></div><div id="grayxonJaasMeet" class="live-training-meet"><div class="live-training-loading"><div><strong>Preparando el entrenamiento…</strong><span>La videollamada se abrirá aquí.</span></div></div></div></div></div></div>`;
+  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div id="grayxonJaasMeet" class="live-training-meet"></div></div></div></div>`;
   bind();
-  const autoStart = pendingLiveTrainingAutoStart?.id === training.id;
-  if(autoStart) pendingLiveTrainingAutoStart=null;
+  const autoStart=pendingLiveTrainingAutoStart?.id===training.id;if(autoStart)pendingLiveTrainingAutoStart=null;
   $('#enterGrayxonTraining')?.addEventListener('click',async()=>{const btn=$('#enterGrayxonTraining'),wrap=$('#grayxonTrainingRoomWrap'),hero=$('.live-training-hero'),feature=$('.live-training-feature');document.body.classList.add('grayxon-live-training-call');if(btn){btn.disabled=true;btn.textContent='Entrando…';}if(hero){hero.classList.add('hidden');hero.hidden=true;hero.style.setProperty('display','none','important');}if(feature){feature.classList.add('hidden');feature.hidden=true;feature.style.setProperty('display','none','important');}if(wrap){wrap.classList.remove('hidden');wrap.hidden=false;wrap.style.setProperty('display','block','important');}window.scrollTo(0,0);await startGrayxonLiveTraining(training);});
-  if(autoStart){
-    const btn=$('#enterGrayxonTraining');
-    if(btn) btn.click();
-  }
+  if(autoStart) $('#enterGrayxonTraining')?.click();
 }
 
 async function trainingTpl() {
@@ -1532,41 +1623,53 @@ async function adminManagerTasks(){
 }
 
 async function adminTeamModal(teamId){
-  const [{data:team,error:te},{data:creators,error:ce},{data:manager,error:me}]=await Promise.all([
+  const [{data:team,error:te},{data:creators,error:ce},{data:managerRow,error:me}]=await Promise.all([
     sb.from('teams').select('id,name,manager_id').eq('id',teamId).single(),
     sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('team_id',teamId).eq('role','creator').order('full_name'),
-    sb.from('teams').select('manager_id,managers:manager_id(id,name,username,active)').eq('id',teamId).maybeSingle()
+    sb.from('teams').select('manager_id,managers:manager_id(id,name,username,active,user_id,phone,email)').eq('id',teamId).maybeSingle()
   ]);
   if(te||ce) return toast((te||ce)?.message||'No se pudo cargar el equipo.');
-  const m = manager?.managers || null;
-  const ids=(creators||[]).map(c=>c.id);
-  let missions=[], progress=[];
-  if(ids.length){
-    const [mr,pr]=await Promise.all([
-      sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,created_at').in('assigned_to',ids).order('week_start',{ascending:false}).order('created_at',{ascending:false}),
-      sb.from('mission_progress').select('mission_id,user_id,value,completed').in('user_id',ids)
-    ]);
-    if(mr.error||pr.error) return toast((mr.error||pr.error)?.message||'No se pudieron cargar las misiones del equipo.');
-    missions=mr.data||[]; progress=pr.data||[];
-  }
-  let tasks=[];
-  if(team?.manager_id){
-    const tr=await sb.from('manager_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('manager_id',team.manager_id).order('assigned_at',{ascending:false});
-    if(tr.error) return toast(tr.error.message);
-    tasks=tr.data||[];
-  }
-  const prog=new Map((progress||[]).map(x=>[`${x.user_id}:${x.mission_id}`,x]));
+  const m=managerRow?.managers||null; const ids=(creators||[]).map(c=>c.id);
+  const [mr,pr,tr,trainRes]=await Promise.all([
+    ids.length?sb.from('missions').select('id,title,description,type,target,week_start,week_end,assigned_to,published,created_at,created_by,created_by_role').in('assigned_to',ids).order('week_start',{ascending:false}).order('created_at',{ascending:false}):Promise.resolve({data:[],error:null}),
+    ids.length?sb.from('mission_progress').select('mission_id,user_id,value,completed').in('user_id',ids):Promise.resolve({data:[],error:null}),
+    team?.manager_id?sb.from('manager_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('manager_id',team.manager_id).order('assigned_at',{ascending:false}):Promise.resolve({data:[],error:null}),
+    sb.from('live_trainings').select('id,title,description,instructor_name,created_by,created_at,scheduled_at,started_at,ended_at,status').order('created_at',{ascending:false})
+  ]);
+  if(mr.error||pr.error||tr.error||trainRes.error) return toast((mr.error||pr.error||tr.error||trainRes.error)?.message||'No se pudo cargar el dashboard del equipo.');
+  const missions=mr.data||[], progress=pr.data||[], tasks=tr.data||[], allTrainings=trainRes.data||[];
+  const [audRes,partRes]=await Promise.all([
+    allTrainings.length?sb.from('live_training_audience').select('training_id,target_type,target_id').in('training_id',allTrainings.map(t=>t.id)):Promise.resolve({data:[],error:null}),
+    allTrainings.length?sb.from('live_training_participants').select('training_id,user_id,joined_at,left_at,duration_seconds').in('training_id',allTrainings.map(t=>t.id)):Promise.resolve({data:[],error:null})
+  ]);
+  const audience=audRes.data||[], participants=partRes.data||[];
+  const teamTrainings=allTrainings.filter(t=>audience.some(a=>a.training_id===t.id && a.target_type==='team' && a.target_id===teamId) || (m?.user_id===t.created_by));
+  const prog=new Map(progress.map(x=>[`${x.user_id}:${x.mission_id}`,x]));
   const pct=(mission,userId)=>{const x=prog.get(`${userId}:${mission.id}`);if(!x)return 0;if(mission.type==='checkbox')return x.completed?100:0;const target=Number(mission.target||0);return target>0?Math.min(100,Math.round(Number(x.value||0)/target*100)):0;};
-  const weekKey=m=>`${m.week_start||'sin-fecha'}|${m.week_end||''}`;
-  const groups={}; (missions||[]).forEach(x=>(groups[weekKey(x)] ||= []).push(x));
-  const weekHtml=Object.entries(groups).map(([key,ms],i)=>{const [ws,we]=key.split('|');return `<div class="item" style="margin-top:10px"><button type="button" class="secondary" style="width:100%;text-align:left" data-team-week="${esc(`tw${i}`)}">📅 ${esc(ws)}${we?` → ${esc(we)}`:''} · ${ms.length} misión${ms.length===1?'':'es'}</button><div id="tw${i}" class="hidden" style="margin-top:8px">${ms.map(x=>{const c=(creators||[]).find(u=>u.id===x.assigned_to);const p=pct(x,x.assigned_to);return `<div class="item"><div class="row"><div><b>${esc(x.title)}</b><div class="muted small">${esc(c?.full_name||c?.username||'Creador')} · ${x.published?'Publicada':'Oculta'}</div>${x.description?`<div class="muted small">${esc(x.description)}</div>`:''}<div class="muted small" style="margin-top:5px">Progreso: <b>${p}%</b> · ${p>=100?'✓ Completada':'En progreso'}</div></div><span class="pill ${p>=100?'ok':''}">${p}%</span></div></div>`;}).join('')}</div></div>`;}).join('') || '<div class="item"><span class="muted small">No hay misiones asignadas a los creadores de este equipo.</span></div>';
-  const creatorHtml=(creators||[]).map(c=>{const cm=missions.filter(x=>x.assigned_to===c.id);return `<div class="item"><div class="row"><div><b>${esc(c.full_name||c.username)}</b><div class="muted small">@${esc(c.username)} · ${c.active?'Activo':'Inactivo'}</div></div><span class="pill">${cm.length} misión${cm.length===1?'':'es'}</span></div></div>`;}).join('') || '<div class="item"><span class="muted small">Este equipo no tiene creadores asignados.</span></div>';
-  const taskHtml=tasks.map(t=>`<div class="item"><div class="row"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small">${esc(t.description)}</div>`:''}<div class="muted small">Asignada: ${formatDateTime(t.assigned_at)}${t.due_at?` · Vence: ${formatDateTime(t.due_at)}`:''}${t.completed_at?` · Lista: ${formatDateTime(t.completed_at)}`:''}</div></div><span class="pill ${t.completed?'ok':''}">${t.completed?'✓ Lista':'Pendiente'}</span></div></div>`).join('') || '<div class="item"><span class="muted small">El manager de este equipo no tiene tareas asignadas.</span></div>';
-  const el=document.createElement('div'); el.className='modal-backdrop';
-  el.innerHTML=`<div class="card modal" style="max-width:900px"><div class="row"><div><div class="eyebrow">EQUIPO</div><h2>${esc(team?.name||'Equipo')}</h2><p class="muted small">Manager: ${esc(m?.name||'Sin manager')}</p></div><button class="secondary" id="closeAdminTeam">Cerrar</button></div><div class="card" style="margin-top:14px"><h3>👥 Creadores del equipo</h3>${creatorHtml}</div><div class="card" style="margin-top:14px"><h3>🎯 Misiones de los creadores</h3><p class="muted small">Aquí aparecen las misiones asignadas por los managers, incluidas las que aún no tienen progreso.</p>${weekHtml}</div><div class="card" style="margin-top:14px"><h3>📋 Tareas del manager</h3>${taskHtml}</div></div>`;
+  const monthKey=d=>{const dt=d?new Date(d):null;if(!dt||Number.isNaN(dt.getTime()))return 'Sin fecha';return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}`;};
+  const monthLabel=k=>{if(k==='Sin fecha')return k;const [y,mo]=k.split('-');return new Date(Number(y),Number(mo)-1,1).toLocaleDateString('es-CO',{month:'long',year:'numeric'});};
+  const monthMap={}; missions.forEach(x=>{(monthMap[monthKey(x.week_start||x.created_at)] ||= []).push(x);});
+  const months=Object.keys(monthMap).sort().reverse();
+  const monthHtml=months.length?months.map((mk,i)=>{
+    const ms=monthMap[mk]; const completed=ms.filter(x=>pct(x,x.assigned_to)>=100).length; const byCreator=new Map();
+    ms.forEach(x=>{const arr=byCreator.get(x.assigned_to)||[];arr.push(x);byCreator.set(x.assigned_to,arr);});
+    const rows=(creators||[]).map(c=>{const cm=byCreator.get(c.id)||[]; const done=cm.filter(x=>pct(x,c.id)>=100).length; return `<div class="item"><div class="row"><div><b>${esc(c.full_name||c.username)}</b><div class="muted small">${cm.length?`${cm.length} misión${cm.length===1?'':'es'} asignada${cm.length===1?'':'s'} · ${done} completada${done===1?'':'s'}`:'Sin tareas asignadas este mes'}</div></div><span class="pill ${cm.length&&done===cm.length?'ok':''}">${cm.length?`${done}/${cm.length}`:'Sin tareas'}</span></div>${cm.length?`<div class="team-month-missions">${cm.map(x=>`<div class="item"><div class="row"><div><b>${esc(x.title)}</b><div class="muted small">${esc(x.week_start||'')} → ${esc(x.week_end||'')} · ${x.created_by_role==='manager'?'Asignada por manager':'Asignada desde administración'}</div></div><span class="pill ${pct(x,c.id)>=100?'ok':''}">${pct(x,c.id)}%</span></div></div>`).join('')}</div>`:''}</div>`;}).join('');
+    return `<div class="item team-performance-month"><button type="button" class="team-dashboard-accordion" data-team-month="tm-${i}"><span>📅 ${esc(monthLabel(mk))}</span><span class="team-dashboard-chevron">›</span></button><div id="tm-${i}" class="hidden team-dashboard-panel"><div class="team-month-summary"><span>${ms.length} misiones</span><span>${completed} completadas</span><span>${Math.max(0,(creators||[]).filter(c=>!(byCreator.get(c.id)||[]).length).length)} sin tareas</span></div>${rows}</div></div>`;
+  }).join(''):'<div class="item"><span class="muted small">Aún no hay historial de misiones para este equipo.</span></div>';
+  const creatorHtml=(creators||[]).map(c=>{const cm=missions.filter(x=>x.assigned_to===c.id);return `<div class="item"><button type="button" class="team-dashboard-accordion" data-team-creator="tc-${c.id}"><span><b>${esc(c.full_name||c.username)}</b><small>@${esc(c.username)} · ${c.active?'Activo':'Inactivo'} · ${cm.length} misión${cm.length===1?'':'es'}</small></span><span class="team-dashboard-chevron">›</span></button><div id="tc-${c.id}" class="hidden team-dashboard-panel">${cm.length?cm.map(x=>`<div class="item"><div class="row"><div><b>${esc(x.title)}</b><div class="muted small">${esc(x.week_start||'')} → ${esc(x.week_end||'')}</div></div><span class="pill ${pct(x,c.id)>=100?'ok':''}">${pct(x,c.id)}%</span></div></div>`).join(''):'<div class="muted small">Este creador no tiene misiones registradas.</div>'}</div></div>`;}).join('') || '<div class="item"><span class="muted small">Este equipo no tiene creadores asignados.</span></div>';
+  const taskHtml=tasks.length?tasks.map(t=>`<div class="item"><div class="row"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small">${esc(t.description)}</div>`:''}<div class="muted small">Asignada: ${formatDateTime(t.assigned_at)}${t.due_at?` · Vence: ${formatDateTime(t.due_at)}`:''}${t.completed_at?` · Lista: ${formatDateTime(t.completed_at)}`:''}</div></div><div class="inline"><span class="pill ${t.completed?'ok':''}">${t.completed?'✓ Lista':'Pendiente'}</span><button class="secondary small danger" data-delete-manager-task="${t.id}">Eliminar</button></div></div></div>`).join(''):'<div class="item"><span class="muted small">El manager no tiene tareas asignadas.</span></div>';
+  const trainingHtml=teamTrainings.length?teamTrainings.map(t=>{const n=new Set(participants.filter(p=>p.training_id===t.id&&p.user_id!==t.created_by).map(p=>p.user_id)).size;return `<div class="item"><button type="button" class="team-dashboard-accordion" data-team-training="tt-${t.id}"><span><b>${esc(t.title)}</b><small>${esc(t.instructor_name||'Grayxon')} · ${formatDateTime(t.started_at||t.scheduled_at||t.created_at)} · ${n} participantes</small></span><span class="team-dashboard-chevron">›</span></button><div id="tt-${t.id}" class="hidden team-dashboard-panel"><div class="grid"><div class="item"><b>Estado</b><div class="muted small">${t.status==='live'?'EN VIVO':t.status==='scheduled'?'Programado':'Finalizado'}</div></div><div class="item"><b>Duración</b><div class="muted small">${liveTrainingDuration(t.started_at,t.ended_at)}</div></div><div class="item"><b>Instructor</b><div class="muted small">${esc(t.instructor_name||'Grayxon')}</div></div></div><button class="secondary small" data-view-live-history="${t.id}">Ver historial</button></div></div>`;}).join(''):'<div class="item"><span class="muted small">No hay entrenamientos dirigidos a este equipo.</span></div>';
+  const el=document.createElement('div');el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal team-dashboard-modal"><div class="row"><div><div class="eyebrow">DASHBOARD DEL EQUIPO</div><h2>${esc(team?.name||'Equipo')}</h2><p class="muted small">Manager: ${esc(m?.name||'Sin manager')}</p></div><button class="secondary" id="closeAdminTeam">Cerrar</button></div><div class="team-dashboard-stats"><div class="item"><b>${creators.length}</b><small>CREADORES</small></div><div class="item"><b>${missions.length}</b><small>MISIONES</small></div><div class="item"><b>${teamTrainings.length}</b><small>ENTRENAMIENTOS</small></div><div class="item"><b>${tasks.length}</b><small>TAREAS MANAGER</small></div></div><section class="team-dashboard-section"><button class="team-dashboard-section-head" data-team-section="team-creators"><span>👥 Creadores</span><span>›</span></button><div id="team-creators" class="team-dashboard-section-body hidden">${creatorHtml}</div></section><section class="team-dashboard-section"><button class="team-dashboard-section-head" data-team-section="team-trainings"><span>🎥 Entrenamientos</span><span>›</span></button><div id="team-trainings" class="team-dashboard-section-body hidden">${trainingHtml}</div></section><section class="team-dashboard-section"><div class="team-dashboard-section-head static"><span>📋 Tareas del manager</span><span class="inline"><button class="primary small" id="teamAssignTask">+ Asignar tarea</button><span>${tasks.length}</span></span></div><div class="team-dashboard-section-body">${taskHtml}</div></section><section class="team-dashboard-section"><button class="team-dashboard-section-head" data-team-section="team-performance"><span>📊 Desempeño</span><span>›</span></button><div id="team-performance" class="team-dashboard-section-body hidden"><p class="muted small">Selecciona un mes para revisar lo que el manager hizo con cada creador, las misiones asignadas y quienes quedaron sin tareas.</p>${monthHtml}</div></section></div>`;
   document.body.appendChild(el);
   $('#closeAdminTeam').onclick=()=>el.remove();
-  el.querySelectorAll('[data-team-week]').forEach(b=>b.onclick=()=>{const p=$('#'+b.dataset.teamWeek);if(p)p.classList.toggle('hidden');});
+  el.querySelectorAll('[data-team-section]').forEach(b=>b.onclick=()=>{const p=$('#'+b.dataset.teamSection);if(!p)return;p.classList.toggle('hidden');b.classList.toggle('open');});
+  el.querySelectorAll('[data-team-month]').forEach(b=>b.onclick=()=>{const p=$('#'+b.dataset.teamMonth);if(p)p.classList.toggle('hidden');b.classList.toggle('open');});
+  el.querySelectorAll('[data-team-creator]').forEach(b=>b.onclick=()=>{const p=$('#'+b.dataset.teamCreator);if(p)p.classList.toggle('hidden');b.classList.toggle('open');});
+  el.querySelectorAll('[data-team-training]').forEach(b=>b.onclick=()=>{const p=$('#'+b.dataset.teamTraining);if(p)p.classList.toggle('hidden');b.classList.toggle('open');});
+  el.querySelectorAll('[data-delete-manager-task]').forEach(b=>b.onclick=()=>deleteManagerTask(b.dataset.deleteManagerTask));
+  $('#teamAssignTask').onclick=()=>{el.remove();managerTaskModal();};
+  el.querySelectorAll('[data-view-live-history]').forEach(b=>b.onclick=()=>openLiveTrainingHistory(b.dataset.viewLiveHistory));
 }
 
 async function deleteManagerTask(id){
@@ -1708,11 +1811,12 @@ async function adminTpl(c) {
   else if (adminView === 'home') body = adminHome(c.home);
   else if (adminView === 'benefits') body = adminBenefits(c.benefits);
   else if (adminView === 'creators') body = await adminCreators();
+  else if (adminView === 'users') body = await adminUsers();
   else if (adminView === 'teams') body = await adminTeams();
   else if (adminView === 'manager_tasks') body = await adminManagerTasks();
   else if (adminView === 'live_trainings') body = await liveTrainingManagementTpl('admin');
   else body = await adminFormation();
-  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['creators','Creadores'],['teams','Equipos y managers'],['manager_tasks','Asignar tareas'],['live_trainings','Entrenamientos'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
+  $('#admin').innerHTML = `<div class="admin-shell"><aside class="admin-side"><b>ADMIN</b><div class="hr"></div>${[['dashboard','Resumen'],['home','Inicio'],['benefits','Beneficios y requisitos'],['users','Todos los usuarios'],['creators','Creadores'],['teams','Equipos y managers'],['manager_tasks','Asignar tareas'],['live_trainings','Entrenamientos'],['formation','Formación']].map(([id,t]) => `<button class="${adminView === id ? 'active' : ''}" data-admin="${id}">${t}</button>`).join('')}<div class="hr"></div><button id="adminLogout">Cerrar sesión</button></aside><div>${body}</div></div>`;
 }
 
 function field(id, label, val, area = false) {
@@ -1726,6 +1830,57 @@ function adminHome(h) {
 function adminBenefits(b) {
   const preview = b.image_url ? `<div class="media-preview"><img src="${esc(b.image_url)}" alt="Imagen actual"><div class="muted small">Imagen actual. Selecciona otra para reemplazarla.</div></div>` : `<div class="media-empty">No hay imagen destacada configurada.</div>`;
   return `<div class="card"><h2>Beneficios y requisitos</h2><p class="muted small">Aquí puedes editar el contenido público y agregar una imagen destacada que aparecerá en esta sección.</p>${field('bTitle','Título',b.title || 'Beneficios y requisitos')}${field('bIntro','Introducción',b.intro,true)}<div class="field"><label>Imagen destacada</label><input id="bImage" type="file" accept="image/png,image/jpeg,image/webp"><div id="bImagePreview" style="margin-top:10px">${preview}</div><div class="muted small" style="margin-top:7px">Recomendado: JPG, PNG o WebP. Idealmente 1600 px de ancho o menos.</div></div>${field('bBenefits','Beneficios (uno por línea)',(b.benefits || []).join('\n'),true)}${field('bReq','Requisitos (uno por línea)',(b.requirements || []).join('\n'),true)}<button class="primary" id="saveBenefits">Guardar cambios</button><div id="benefitsProgress" class="muted small" style="margin-top:10px"></div><div id="benefitsErr" class="error"></div></div>`;
+}
+
+async function adminUsers(){
+  const [{data:users,error:ue},{data:teams},{data:managers}] = await Promise.all([
+    sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').order('full_name'),
+    sb.from('teams').select('id,name').order('name'),
+    sb.from('managers').select('id,name,user_id,active').order('name')
+  ]);
+  if(ue) return `<div class="card"><h2>Todos los usuarios</h2><div class="error">${esc(ue.message)}</div></div>`;
+  const tm=new Map((teams||[]).map(x=>[x.id,x.name]));
+  const mm=new Map((managers||[]).map(x=>[x.id,x]));
+  const roleLabel=r=>r==='admin'?'Administrador':r==='manager'?'Manager':'Creador';
+  const rows=(users||[]).map(u=>{
+    const m=mm.get(u.manager_id);
+    return `<div class="item admin-user-row"><div class="admin-user-main"><div><b>${esc(u.full_name||u.username||'Usuario')}</b><div class="muted small">@${esc(u.username||'—')} · ${roleLabel(u.role)} · ${u.active?'Activo':'Inactivo'}</div><div class="muted small">${esc(tm.get(u.team_id)||'Sin equipo')}${m?` · Manager: ${esc(m.name)}`:''}</div></div><span class="pill ${u.active?'ok':''}">${u.active?'Activo':'Inactivo'}</span></div><div class="admin-user-actions"><select class="admin-user-role" data-user-role="${u.id}"><option value="creator" ${u.role==='creator'?'selected':''}>Creador</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option></select><button class="secondary small" data-save-user-role="${u.id}">Guardar rol</button><button class="secondary small" data-view-user="${u.id}">Ver información</button><button class="secondary small ${u.active?'danger':'ok'}" data-toggle-user="${u.id}">${u.active?'Desactivar':'Activar'}</button>${u.id!==session?.user?.id?`<button class="secondary small danger" data-delete-user="${u.id}">Eliminar</button>`:''}</div></div>`;
+  }).join('');
+  return `<div class="card admin-users-page"><div class="row"><div><h2>Todos los usuarios</h2><p class="muted small">Administra el acceso y el rol de todas las cuentas Grayxon. Los cambios de rol respetan la estructura de equipos y managers.</p></div><span class="pill">${(users||[]).length} usuarios</span></div><div class="admin-users-list" style="margin-top:18px">${rows||'<div class="item"><span class="muted small">No hay usuarios.</span></div>'}</div></div>`;
+}
+
+async function adminUserModal(id){
+  const [{data:p,error:pe},{data:d},{data:pm},{data:teams},{data:managers}]=await Promise.all([
+    sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').eq('id',id).single(),
+    sb.from('profile_details').select('*').eq('user_id',id).maybeSingle(),
+    sb.from('payment_methods').select('*').eq('user_id',id).order('is_primary',{ascending:false}).limit(1).maybeSingle(),
+    sb.from('teams').select('id,name').order('name'),
+    sb.from('managers').select('id,name').order('name')
+  ]);
+  if(pe||!p)return toast(pe?.message||'No se encontró el usuario.');
+  const tm=new Map((teams||[]).map(x=>[x.id,x.name])), mm=new Map((managers||[]).map(x=>[x.id,x.name]));
+  const safe=x=>x?esc(x):'—';
+  const el=document.createElement('div');el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal creator-profile-modal"><div class="row"><div><div class="eyebrow">USUARIO</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.role==='admin'?'Administrador':p.role==='manager'?'Manager':'Creador'} · ${p.active?'Activo':'Inactivo'}</div></div><button class="secondary" id="closeAdminUser">Cerrar</button></div><div class="hr"></div><h3>Información personal</h3><div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div><h3 style="margin-top:22px">Pago</h3><div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco / medio: ${safe(pm?.bank_name)}</div><div class="item">País: ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div><div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(tm.get(p.team_id))} · <b>Manager:</b> ${safe(mm.get(p.manager_id))}</div></div>`;
+  document.body.appendChild(el); $('#closeAdminUser').onclick=()=>el.remove();
+}
+
+async function saveAdminUserRole(id, role){
+  const {error}=await sb.rpc('admin_set_user_role',{p_user_id:id,p_role:role});
+  if(error)return toast(error.message); toast('Rol actualizado ✓'); await render();
+}
+async function toggleAdminUser(id){
+  const {data:p,error}=await sb.from('profiles').select('active,full_name,username').eq('id',id).single();
+  if(error)return toast(error.message);
+  const next=!p.active;
+  const {error:e}=await sb.rpc('admin_set_user_active',{p_user_id:id,p_active:next});
+  if(e)return toast(e.message); toast(next?'Usuario activado ✓':'Usuario desactivado ✓'); await render();
+}
+async function deleteAdminUser(id){
+  if(id===session?.user?.id)return toast('No puedes eliminar tu propia cuenta de administrador desde aquí.');
+  if(!confirm('¿Eliminar definitivamente este usuario y su acceso a Grayxon? Esta acción no se puede deshacer.'))return;
+  const {error}=await sb.rpc('admin_delete_user',{p_user_id:id});
+  if(error)return toast(error.message); toast('Usuario eliminado ✓'); await render();
 }
 
 async function adminCreators() {
@@ -2291,6 +2446,7 @@ function bind() {
   $$('[data-complete-mission]').forEach(b => b.onclick = () => completeMission(b.dataset.completeMission));
   $$('[data-save-mission]').forEach(b => b.onclick = () => saveMissionProgress(b.dataset.saveMission));
   $$('[data-mission-week]').forEach(b => b.onclick = () => { const id = b.dataset.missionWeek; const panel = $('#details-' + id); if (panel) panel.classList.toggle('hidden'); b.classList.toggle('open'); });
+  $$('[data-creator-training-toggle]').forEach(b=>b.onclick=()=>{const id=b.dataset.creatorTrainingToggle;const panel=$('#creator-training-detail-'+id);if(!panel)return;const open=panel.classList.contains('hidden');panel.classList.toggle('hidden',!open);b.classList.toggle('open',open);b.setAttribute('aria-expanded',open?'true':'false');});
   if (pendingNotificationTarget?.type === 'missions') {
     const target = pendingNotificationTarget;
     pendingNotificationTarget = null;
@@ -2316,6 +2472,10 @@ function bind() {
   $('#newManagerTask')?.addEventListener('click',managerTaskModal);
   $$('[data-toggle-creator]').forEach(b => b.onclick = () => toggleCreator(b.dataset.toggleCreator));
   $$('[data-view-profile]').forEach(b => b.onclick = () => adminProfileModal(b.dataset.viewProfile));
+  $$('[data-save-user-role]').forEach(b => b.onclick = () => { const sel = $(`[data-user-role="${b.dataset.saveUserRole}"]`); if(sel) saveAdminUserRole(b.dataset.saveUserRole, sel.value); });
+  $$('[data-toggle-user]').forEach(b => b.onclick = () => toggleAdminUser(b.dataset.toggleUser));
+  $$('[data-delete-user]').forEach(b => b.onclick = () => deleteAdminUser(b.dataset.deleteUser));
+  $$('[data-view-user]').forEach(b => b.onclick = () => adminUserModal(b.dataset.viewUser));
   $('#newTeamManager')?.addEventListener('click',()=>teamManagerModal());
   $$('[data-view-team]').forEach(b=>b.onclick=()=>adminTeamModal(b.dataset.viewTeam));
   $$('[data-edit-team]').forEach(b=>b.onclick=()=>editTeam(b.dataset.editTeam));
@@ -2330,9 +2490,13 @@ function bind() {
   // Account menu is wired once globally below. Do not bind it here on every render.
   const saveProfileBtn = $('#saveProfile');
   if (saveProfileBtn) saveProfileBtn.onclick = saveProfile;
-  $('#pMethod')?.addEventListener('change', togglePaymentFields);
-  $('#pCountry')?.addEventListener('change', () => {});
-  $('#pBankCountry')?.addEventListener('change', populateBanks);
+  // bind() runs after every render; use direct handlers so payment listeners are never duplicated.
+  const pMethodEl=$('#pMethod');
+  if(pMethodEl) pMethodEl.onchange=togglePaymentFields;
+  const pBankCountryEl=$('#pBankCountry');
+  if(pBankCountryEl) pBankCountryEl.onchange=()=>populateBanks();
+  togglePaymentFields();
+  populateBanks();
   $('#profileAvatar')?.addEventListener('change', uploadProfileAvatar);
   $('#profilePhotoEdit')?.addEventListener('click', () => {
     const input = $('#profileAvatar');
@@ -2363,8 +2527,21 @@ async function editLesson(id) {
 }
 
 
-function togglePaymentFields(){ const paypal=$('#pMethod')?.value==='paypal'; if($('#bankFields')) $('#bankFields').style.display=paypal?'none':''; if($('#paypalFields')) $('#paypalFields').style.display=paypal?'':'none'; }
-function populateBanks(){ const c=$('#pBankCountry')?.value; const sel=$('#pBank'); if(!sel) return; const banks=bankSeed[c]||[]; sel.innerHTML='<option value="">Selecciona tu banco</option>'+banks.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join(''); }
+function togglePaymentFields(){
+  const paypal=$('#pMethod')?.value==='paypal';
+  if($('#bankFields')) $('#bankFields').style.display=paypal?'none':'';
+  if($('#paypalFields')) $('#paypalFields').style.display=paypal?'':'none';
+}
+function populateBanks(){
+  const country=normalizeCountryCode($('#pBankCountry')?.value||'CO');
+  const sel=$('#pBank');
+  if(!sel) return;
+  const banks=Array.isArray(bankSeed[country]) ? bankSeed[country] : [];
+  const current=paymentMethod?.bank_name||'';
+  const canKeepCurrent=current && banks.includes(current);
+  sel.innerHTML='<option value="">Selecciona tu banco</option>'+banks.map(b=>`<option value="${esc(b)}" ${canKeepCurrent && current===b?'selected':''}>${esc(b)}</option>`).join('');
+  if(!canKeepCurrent) sel.value='';
+}
 async function uploadProfileAvatar(){
   const file=$('#profileAvatar')?.files?.[0]; if(!file||!session) return; const status=$('#profileAvatarStatus');
   if(file.size>5*1024*1024){ if(status) status.textContent='La foto debe pesar menos de 5 MB.'; return; }
@@ -2396,14 +2573,50 @@ async function deleteProfileAvatar(){
 
 async function saveProfile(){
   const err=$('#profileErr'); if(err) err.textContent=''; if(!session) return;
-  const d={user_id:session.user.id,email:$('#pEmail')?.value.trim()||null,phone:$('#pPhone')?.value.trim()||null,country:$('#pCountry')?.value||null,state_region:$('#pState')?.value.trim()||null,city:$('#pCity')?.value.trim()||null,address:$('#pAddress')?.value.trim()||null,updated_at:new Date().toISOString()};
-  const {error:de}=await sb.from('profile_details').upsert(d); if(de){if(err)err.textContent=de.message;return;}
-  const method=$('#pMethod')?.value==='paypal'?'paypal':'bank'; const pm={user_id:session.user.id,method_type:method,is_primary:$('#pPrimary')?.checked,updated_at:new Date().toISOString()};
-  if(method==='paypal'){pm.paypal_email=$('#pPaypal')?.value.trim()||null;pm.bank_country=null;pm.bank_name=null;pm.account_type=null;pm.account_number=null;} else {pm.bank_country=$('#pBankCountry')?.value||null;pm.bank_name=$('#pBank')?.value||null;pm.account_type=$('#pAccountType')?.value||null;pm.account_number=$('#pAccountNumber')?.value.trim()||null;pm.paypal_email=null;}
-  const {data:existing}=await sb.from('payment_methods').select('id').eq('user_id',session.user.id).order('is_primary',{ascending:false}).limit(1).maybeSingle();
-  const {error:pe}=existing?.id ? await sb.from('payment_methods').update(pm).eq('id',existing.id) : await sb.from('payment_methods').insert(pm);
-  if(pe){if(err)err.textContent=pe.message;return;}
-  toast('Perfil guardado ✓'); await loadProfileDetails(); updateProfileBadge(); closeProfileMenu(); nav('space');
+  const btn=$('#saveProfile'); if(btn) btn.disabled=true;
+  try{
+    const uid=session.user.id;
+    const d={user_id:uid,email:$('#pEmail')?.value.trim()||null,phone:$('#pPhone')?.value.trim()||null,country:$('#pCountry')?.value||null,state_region:$('#pState')?.value.trim()||null,city:$('#pCity')?.value.trim()||null,address:$('#pAddress')?.value.trim()||null,updated_at:new Date().toISOString()};
+    const {error:de}=await sb.from('profile_details').upsert(d);
+    if(de) throw new Error(`Información personal: ${de.message}`);
+
+    const method=$('#pMethod')?.value==='paypal'?'paypal':'bank';
+    const pm={user_id:uid,method_type:method,is_primary:$('#pPrimary')?.checked,updated_at:new Date().toISOString()};
+    if(method==='paypal'){
+      pm.paypal_email=$('#pPaypal')?.value.trim()||null;
+      pm.bank_country=null;pm.bank_name=null;pm.account_type=null;pm.account_number=null;
+    } else {
+      pm.bank_country=normalizeCountryCode($('#pBankCountry')?.value||'CO');
+      pm.bank_name=$('#pBank')?.value||null;
+      pm.account_type=$('#pAccountType')?.value||null;
+      pm.account_number=$('#pAccountNumber')?.value.trim()||null;
+      pm.paypal_email=null;
+    }
+
+    // Read as a list so duplicate legacy rows cannot produce a maybeSingle() error.
+    const {data:existingRows,error:readPaymentError}=await sb.from('payment_methods')
+      .select('id,is_primary,updated_at')
+      .eq('user_id',uid)
+      .order('is_primary',{ascending:false})
+      .order('updated_at',{ascending:false})
+      .limit(1);
+    if(readPaymentError) throw new Error(`Información de pago: ${readPaymentError.message}`);
+    const existing=existingRows?.[0];
+    const paymentResult=existing?.id
+      ? await sb.from('payment_methods').update(pm).eq('id',existing.id)
+      : await sb.from('payment_methods').insert(pm);
+    if(paymentResult?.error) throw new Error(`Información de pago: ${paymentResult.error.message}`);
+
+    await loadProfileDetails();
+    updateProfileBadge();
+    toast('Perfil guardado ✓');
+    closeProfileMenu();
+    nav('space');
+  }catch(e){
+    if(err) err.textContent=e?.message||'No se pudo guardar la información.';
+  }finally{
+    if(btn) btn.disabled=false;
+  }
 }
 function updateProfileBadge(){
   const openMySpace=$('#openMySpace'); if(openMySpace) openMySpace.style.display='none';
@@ -2745,6 +2958,44 @@ sb.auth.onAuthStateChange((event,newSession)=>{
   ensureCreatorSpaceFloat();
   updateCreatorSpaceFloat();
   updateCreatorTopNav();
+})();
+
+/* v24 · creator training library */
+(function applyV24TrainingLibraryStyles(){
+  if(document.getElementById('grayxon-v24-training-library')) return;
+  const style=document.createElement('style'); style.id='grayxon-v24-training-library';
+  style.textContent=`
+    .creator-training-library{max-width:980px!important}
+    .creator-training-section{margin-top:22px}
+    .creator-training-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:10px}
+    .creator-training-section-head h2{margin:4px 0 0;font-size:21px}
+    .creator-training-section-head>span{min-width:32px;height:32px;padding:0 9px;border-radius:999px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);font-size:12px;font-weight:900}
+    .creator-training-list{display:grid;gap:9px}
+    .creator-training-item{border:1px solid rgba(255,255,255,.09);border-radius:16px;background:rgba(255,255,255,.025);overflow:hidden;box-shadow:inset 3px 0 0 rgba(37,244,238,.55)}
+    .creator-training-item:nth-child(even){box-shadow:inset 3px 0 0 rgba(254,44,85,.55)}
+    .creator-training-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:transparent;border:0;color:#fff;text-align:left}
+    .creator-training-toggle-main{display:flex;align-items:center;gap:12px;min-width:0}.creator-training-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);flex:0 0 38px}.creator-training-toggle strong{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.creator-training-toggle small{display:block;margin-top:4px;color:#858c98;font-size:11px}.creator-training-chevron{font-size:22px;color:#858c98;transition:transform .16s ease}.creator-training-toggle.open .creator-training-chevron{transform:rotate(90deg)}
+    .creator-training-detail{padding:0 16px 15px 66px}.creator-training-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.creator-training-detail-grid span{display:block;padding:9px 10px;border:1px solid rgba(255,255,255,.07);border-radius:11px;background:rgba(0,0,0,.12);color:#dfe3e8;font-size:11px}.creator-training-detail-grid b{display:block;color:#7f8793;font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}.creator-training-description{line-height:1.55;margin:11px 0}.creator-training-detail-actions{display:flex;justify-content:flex-end}.creator-training-empty{padding:17px;border:1px dashed rgba(255,255,255,.10);border-radius:14px;color:#858c98;text-align:center;background:rgba(255,255,255,.018)}
+    @media(max-width:800px){.creator-training-detail{padding-left:16px}.creator-training-detail-grid{grid-template-columns:1fr 1fr}.creator-training-toggle{padding:13px 14px}}
+  `; document.head.appendChild(style);
+})();
+
+(function applyV24CreatorReturnCleanup(){
+  if(document.getElementById('grayxon-v24-return-cleanup')) return;
+  const style=document.createElement('style'); style.id='grayxon-v24-return-cleanup'; style.textContent=`
+    body.grayxon-creator-session #missions .missions-page > .row > button[data-space-action="space"],
+    body.grayxon-creator-session #training .row > button[data-space-action="space"],
+    body.grayxon-creator-session #live-training .live-training-hero > button[data-space-action="space"]{display:none!important}
+  `; document.head.appendChild(style);
+})();
+
+/* GRAYXON v26 · Payment flow hardening and compact navigation */
+(function applyV25Styles(){
+  if(document.getElementById('grayxon-v25-styles')) return;
+  const style=document.createElement('style');style.id='grayxon-v26-styles';style.textContent=`
+    .admin-users-list{display:grid;gap:10px}.admin-user-row{padding:14px}.admin-user-main{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.admin-user-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}.admin-user-role{min-width:130px;border:1px solid rgba(255,255,255,.10);background:#111318;color:#fff;border-radius:10px;padding:8px 10px}.team-dashboard-modal{max-width:980px!important}.team-dashboard-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.team-dashboard-stats .item{text-align:center;padding:13px}.team-dashboard-stats b{display:block;font-size:23px}.team-dashboard-stats small{display:block;color:#858c98;letter-spacing:.08em;font-weight:800;font-size:9px;margin-top:3px}.team-dashboard-section{margin-top:12px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.018);overflow:hidden}.team-dashboard-section-head{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px;border:0;background:transparent;color:#fff;font-weight:800;text-align:left}.team-dashboard-section-head.static{cursor:default}.team-dashboard-section-body{padding:0 14px 14px}.team-dashboard-accordion{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;border:0;background:transparent;color:#fff;text-align:left;padding:12px 6px}.team-dashboard-accordion small{display:block;color:#858c98;font-weight:500;margin-top:4px}.team-dashboard-chevron{transition:transform .16s ease;color:#858c98}.team-dashboard-accordion.open .team-dashboard-chevron{transform:rotate(90deg)}.team-month-summary{display:flex;gap:8px;flex-wrap:wrap;padding:10px 0}.team-month-summary span{padding:6px 9px;border-radius:999px;background:rgba(37,244,238,.06);border:1px solid rgba(37,244,238,.12);font-size:10px;color:#cbd2da}.team-month-missions{display:grid;gap:7px;margin-top:8px}.live-training-empty-compact{margin-top:14px!important}.live-training-empty-compact .live-training-empty-state{padding:24px 20px!important}.live-training-empty-compact .live-training-idle-icon{width:34px;height:34px;font-size:18px}.live-training-empty-compact h2{font-size:18px;margin:10px 0 5px}.live-training-empty-compact p{font-size:12px;line-height:1.45}.profile-payment-note{font-size:11px;color:#7f8793;margin-top:5px}
+    @media(max-width:800px){.team-dashboard-stats{grid-template-columns:1fr 1fr}.admin-user-actions>*{flex:1 1 auto}.team-dashboard-section-head{padding:14px}.team-dashboard-modal{width:calc(100vw - 20px)!important}}
+  `;document.head.appendChild(style);
 })();
 
 init();
