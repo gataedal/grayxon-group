@@ -254,11 +254,26 @@ function ensureLiveTrainingPage() {
     const style = document.createElement('style');
     style.id = 'grayxon-live-training-styles';
     style.textContent = `
-      .live-training-page{max-width:1180px;margin:0 auto;padding:28px 20px 50px}
-      .live-training-hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
-      .live-training-hero h1{margin:7px 0 8px}
-      .live-training-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;border:1px solid rgba(254,44,85,.45);background:rgba(254,44,85,.08);color:#ff7d9a;font-size:11px;font-weight:800;letter-spacing:.08em}
+      .live-training-page{max-width:1180px;margin:0 auto;padding:30px 20px 55px}
+      .live-training-hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:24px}
+      .live-training-kicker{font-size:11px;letter-spacing:.18em;color:#9aa0ab;font-weight:800}
+      .live-training-hero h1{margin:8px 0 10px;font-size:clamp(32px,4vw,48px);letter-spacing:-.03em}
+      .live-training-hero p{max-width:720px;margin:0;color:#a7adb7;font-size:16px;line-height:1.6}
+      .live-training-badge{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border-radius:999px;border:1px solid rgba(254,44,85,.45);background:rgba(254,44,85,.08);color:#ff7d9a;font-size:11px;font-weight:900;letter-spacing:.08em}
       .live-training-badge-dot{width:7px;height:7px;border-radius:50%;background:#fe2c55;box-shadow:0 0 12px rgba(254,44,85,.75)}
+      .live-training-feature{position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.11);border-radius:24px;background:linear-gradient(145deg,#11141a 0%,#0a0c10 58%,#08090c 100%);box-shadow:0 24px 80px rgba(0,0,0,.30)}
+      .live-training-feature:before{content:"";position:absolute;inset:-120px auto auto -80px;width:300px;height:300px;border-radius:50%;background:rgba(37,244,238,.08);filter:blur(50px);pointer-events:none}
+      .live-training-feature:after{content:"";position:absolute;right:-90px;bottom:-120px;width:360px;height:360px;border-radius:50%;background:rgba(254,44,85,.08);filter:blur(60px);pointer-events:none}
+      .live-training-feature-inner{position:relative;z-index:1;padding:28px}
+      .live-training-feature-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+      .live-training-title{margin:10px 0 7px;color:#fff;font-size:clamp(24px,3vw,34px);letter-spacing:-.02em}
+      .live-training-subtitle{margin:0;color:#9ba1ab;line-height:1.55;max-width:680px}
+      .live-training-meta{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0}
+      .live-training-meta-item{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.025);color:#d9dde4;font-size:13px}
+      .live-training-meta-item b{color:#fff}
+      .live-training-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+      .live-training-enter{min-width:205px}
+      .live-training-access{font-size:12px;color:#7dd3a9}
       .live-training-shell{margin-top:22px;overflow:hidden;border:1px solid rgba(255,255,255,.10);border-radius:20px;background:#0b0d11;box-shadow:0 20px 70px rgba(0,0,0,.28)}
       .live-training-toolbar{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
       .live-training-toolbar-copy strong{display:block;color:#fff}
@@ -266,7 +281,7 @@ function ensureLiveTrainingPage() {
       .live-training-meet{min-height:650px;background:#050608}
       .live-training-loading{min-height:650px;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px;color:#aeb3bd}
       .live-training-loading strong{display:block;color:#fff;font-size:18px;margin-bottom:8px}
-      .live-training-error{padding:28px;text-align:center}
+      .live-training-error{padding:45px 28px;text-align:center}
       .live-training-error h3{margin:0 0 8px;color:#fff}
       .live-training-error p{margin:0 auto 18px;max-width:620px;color:#9298a3}
       .live-training-space-card{position:relative}
@@ -275,8 +290,15 @@ function ensureLiveTrainingPage() {
       .live-training-space-card .space-progress span{width:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}
       @media(max-width:800px){
         .live-training-page{padding:20px 14px 36px}
-        .live-training-hero{display:block}
+        .live-training-hero{display:block;margin-bottom:18px}
         .live-training-hero .secondary{margin-top:14px}
+        .live-training-feature-inner{padding:22px 18px}
+        .live-training-feature-top{display:block}
+        .live-training-badge{margin-top:14px}
+        .live-training-meta{display:grid;grid-template-columns:1fr 1fr}
+        .live-training-meta-item{min-height:42px}
+        .live-training-actions{display:block}
+        .live-training-enter{width:100%;margin-bottom:10px}
         .live-training-meet,.live-training-loading{min-height:560px}
         .live-training-toolbar{align-items:flex-start;flex-direction:column}
       }
@@ -782,35 +804,68 @@ async function liveTrainingTpl() {
     return;
   }
 
+  const isHost = profile?.role === 'admin' || profile?.role === 'manager';
+
   el.innerHTML = `<div class="live-training-page">
     <div class="live-training-hero">
       <div>
-        <div class="eyebrow">GRAYXON · ENTRENAMIENTOS</div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <h1>Entrenamientos en vivo 🎥</h1>
-          <span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span>
-        </div>
-        <p class="muted">Participa directamente desde tu cuenta Grayxon. No necesitas otro usuario ni otra contraseña.</p>
+        <div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div>
+        <h1>Entrenamientos en vivo 🎥</h1>
+        <p>Participa en los entrenamientos de Grayxon directamente desde tu cuenta. Sin otro usuario, sin otra contraseña y sin salir del portal.</p>
       </div>
       <button class="secondary" data-space-action="space">← Tu espacio</button>
     </div>
 
-    <div class="live-training-shell">
-      <div class="live-training-toolbar">
-        <div class="live-training-toolbar-copy">
-          <strong>Entrenamiento Grayxon LIVE</strong>
-          <span>${profile?.role === 'admin' || profile?.role === 'manager' ? 'Tienes permisos de anfitrión para dirigir el entrenamiento.' : 'Conectado con tu cuenta Grayxon.'}</span>
+    <section class="live-training-feature">
+      <div class="live-training-feature-inner">
+        <div class="live-training-feature-top">
+          <div>
+            <span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span>
+            <h2 class="live-training-title">Entrenamiento Grayxon LIVE</h2>
+            <p class="live-training-subtitle">Una sala privada integrada al portal para que el equipo pueda aprender, participar y recibir acompañamiento en tiempo real.</p>
+          </div>
         </div>
-        <span class="pill ok">Acceso protegido</span>
+
+        <div class="live-training-meta">
+          <span class="live-training-meta-item">🎓 <b>Sesión:</b>&nbsp; Entrenamiento Grayxon</span>
+          <span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; Grayxon Group</span>
+          <span class="live-training-meta-item">🔒 <b>Acceso:</b>&nbsp; Cuenta Grayxon</span>
+          <span class="live-training-meta-item">${isHost ? '🎙️' : '👥'} <b>Rol:</b>&nbsp; ${isHost ? 'Anfitrión' : 'Participante'}</span>
+        </div>
+
+        <div class="live-training-actions">
+          <button class="primary live-training-enter" id="enterGrayxonTraining">Entrar al entrenamiento</button>
+          <span class="live-training-access">✓ Acceso protegido con tu cuenta Grayxon</span>
+        </div>
       </div>
-      <div id="grayxonJaasMeet" class="live-training-meet">
-        <div class="live-training-loading"><div><strong>Preparando el entrenamiento…</strong><span>La videollamada se abrirá aquí.</span></div></div>
+    </section>
+
+    <div id="grayxonTrainingRoomWrap" class="hidden">
+      <div class="live-training-shell">
+        <div class="live-training-toolbar">
+          <div class="live-training-toolbar-copy">
+            <strong>Grayxon Live Training</strong>
+            <span>${isHost ? 'Tienes permisos de anfitrión para dirigir el entrenamiento.' : 'Conectado con tu cuenta Grayxon.'}</span>
+          </div>
+          <span class="pill ok">Acceso protegido</span>
+        </div>
+        <div id="grayxonJaasMeet" class="live-training-meet">
+          <div class="live-training-loading"><div><strong>Preparando el entrenamiento…</strong><span>La videollamada se abrirá aquí.</span></div></div>
+        </div>
       </div>
     </div>
   </div>`;
 
   bind();
-  await startGrayxonLiveTraining();
+  $('#enterGrayxonTraining')?.addEventListener('click', async () => {
+    const btn = $('#enterGrayxonTraining');
+    const wrap = $('#grayxonTrainingRoomWrap');
+    if (btn) { btn.disabled = true; btn.textContent = 'Preparando entrada…'; }
+    wrap?.classList.remove('hidden');
+    wrap?.scrollIntoView({behavior:'smooth', block:'start'});
+    await startGrayxonLiveTraining();
+    if (btn) { btn.disabled = false; btn.textContent = 'Volver a entrar al entrenamiento'; }
+  });
 }
 
 async function trainingTpl() {
