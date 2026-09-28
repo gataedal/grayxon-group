@@ -276,7 +276,22 @@ function ensureLiveTrainingPage() {
       .live-training-meta-item{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.025);color:#d9dde4;font-size:13px}
       .live-training-meta-item b{color:#fff}
       .live-training-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-      .live-training-enter{min-width:205px}
+      .live-training-enter{
+        min-width:210px;
+        min-height:48px;
+        padding:13px 24px;
+        border-radius:14px;
+        font-size:15px;
+        font-weight:900;
+        letter-spacing:.01em;
+        box-shadow:0 10px 28px rgba(0,0,0,.22);
+        transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
+      }
+      .live-training-enter:hover{
+        transform:translateY(-1px);
+        box-shadow:0 14px 34px rgba(0,0,0,.30);
+        filter:brightness(1.04);
+      }
       .live-training-access{font-size:12px;color:#7dd3a9}
       .live-training-shell{margin-top:22px;overflow:hidden;border:1px solid rgba(255,255,255,.10);border-radius:20px;background:#0b0d11;box-shadow:0 20px 70px rgba(0,0,0,.28)}
       .live-training-toolbar{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
@@ -312,7 +327,16 @@ function ensureLiveTrainingPage() {
         .live-training-meta-item{width:100%;min-width:0;min-height:0;box-sizing:border-box;padding:11px 12px;display:flex;align-items:flex-start;white-space:normal;overflow:hidden;line-height:1.35}
         .live-training-meta-item b{flex:0 0 auto}
         .live-training-actions{display:block}
-        .live-training-enter{width:100%;min-width:0;margin-bottom:9px;box-sizing:border-box}
+        .live-training-enter{
+          width:100%;
+          min-width:0;
+          min-height:52px;
+          margin-bottom:0;
+          box-sizing:border-box;
+          border-radius:15px;
+          font-size:16px;
+          font-weight:900;
+        }
         .live-training-access{display:block;line-height:1.45}
         .live-training-meet,.live-training-loading{min-height:560px}
         .live-training-toolbar{align-items:flex-start;flex-direction:column}
@@ -346,6 +370,18 @@ function nav(p, push = true) {
     if (isActive) el.removeAttribute('aria-hidden');
     else el.setAttribute('aria-hidden','true');
   });
+  // Entrenamientos is a dedicated page: keep the Tu espacio shell hidden while it is active.
+  const spaceEl = $('#space');
+  if (spaceEl) {
+    spaceEl.style.display = p === 'live-training' ? 'none' : '';
+    if (p === 'live-training') {
+      spaceEl.hidden = true;
+      spaceEl.setAttribute('aria-hidden','true');
+    } else if (p === 'space') {
+      spaceEl.hidden = false;
+      spaceEl.removeAttribute('aria-hidden');
+    }
+  }
   if (p !== 'live-training' && jaasApi) destroyJaasMeeting();
   if (p === 'space') { try { renderSpaceShell(); } catch(e) { console.error(e); } }
   Promise.resolve(render()).catch(e => console.warn('Render:', e));
@@ -852,15 +888,12 @@ async function liveTrainingTpl() {
         </div>
 
         <div class="live-training-meta">
-          <span class="live-training-meta-item">🎓 <b>Sesión:</b>&nbsp; Entrenamiento Grayxon</span>
           <span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; Grayxon Group</span>
-          <span class="live-training-meta-item">🔒 <b>Acceso:</b>&nbsp; Cuenta Grayxon</span>
           <span class="live-training-meta-item">${isHost ? '🎙️' : '👥'} <b>Rol:</b>&nbsp; ${isHost ? 'Anfitrión' : 'Participante'}</span>
         </div>
 
         <div class="live-training-actions">
-          <button class="primary live-training-enter" id="enterGrayxonTraining">Entrar al entrenamiento</button>
-          <span class="live-training-access">✓ Acceso protegido con tu cuenta Grayxon</span>
+          <button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button>
         </div>
       </div>
     </section>
@@ -889,7 +922,7 @@ async function liveTrainingTpl() {
     wrap?.classList.remove('hidden');
     wrap?.scrollIntoView({behavior:'smooth', block:'start'});
     await startGrayxonLiveTraining();
-    if (btn) { btn.disabled = false; btn.textContent = 'Volver a entrar al entrenamiento'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
   });
 }
 
