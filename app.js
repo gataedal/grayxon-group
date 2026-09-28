@@ -379,8 +379,8 @@ function ensureCreatorSpaceFloat(){
   btn.id='grayxonCreatorSpaceFloat';
   btn.type='button';
   btn.className='grayxon-creator-space-float';
-  btn.innerHTML='<span class="grayxon-creator-space-float-icon">⌂</span><span>Tu espacio</span>';
-  btn.setAttribute('aria-label','Volver a Tu espacio');
+  btn.innerHTML='<span class="grayxon-creator-space-float-icon">⌂</span><span>Mi espacio</span>';
+  btn.setAttribute('aria-label','Volver a Mi espacio');
   btn.addEventListener('click',()=>{ if(session?.user?.id) nav('space'); });
   document.body.appendChild(btn);
   return btn;
@@ -410,6 +410,10 @@ function updateCreatorTopNav(){
   });
 }
 
+function isCreatorSession(){
+  return !!session && (profile?.role === 'creator' || document.body.classList.contains('grayxon-creator-session'));
+}
+
 function nav(p, push = true) {
   const thisNav = ++navGeneration;
   const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'];
@@ -421,10 +425,10 @@ function nav(p, push = true) {
   }
   if (session && p === 'space' && profile?.role === 'manager') p = 'manager';
   if (p === 'live-training') ensureLiveTrainingPage();
-  // Para creadores, Tu espacio debe volver a pintar inmediatamente el dashboard real.
+  // Para creadores, Mi espacio debe volver a pintar inmediatamente el dashboard real.
   // Evita pasar primero por el shell antiguo con estados de carga al volver desde
   // Misiones, Mi perfil o Formación.
-  if (p === 'space' && profile?.role === 'creator') renderCreatorSpaceImmediate();
+  if (p === 'space' && isCreatorSession()) renderCreatorSpaceImmediate();
   if (p === 'live-training') { const se=$('#space'); if(se){se.hidden=true;se.classList.add('hidden');se.style.setProperty('display','none','important');} document.body.classList.add('grayxon-live-training-active'); }
   if (push && current !== p) {
     const url = p === 'home'
@@ -433,7 +437,7 @@ function nav(p, push = true) {
     history.pushState({page:p}, '', url);
   }
   current = p;
-  if(p==='space' && profile?.role==='creator') startCreatorLiveDashboardWatcher(); else stopCreatorLiveDashboardWatcher();
+  if(p==='space' && isCreatorSession()) startCreatorLiveDashboardWatcher(); else stopCreatorLiveDashboardWatcher();
   updateCreatorSpaceFloat();
   updateCreatorTopNav();
 
@@ -451,7 +455,7 @@ function nav(p, push = true) {
     else el.setAttribute('aria-hidden','true');
   });
 
-  // Tu espacio debe desaparecer COMPLETAMENTE mientras estamos en Entrenamientos,
+  // Mi espacio debe desaparecer COMPLETAMENTE mientras estamos en Entrenamientos,
   // incluso si alguna regla móvil intenta mostrar .page-section.
   const spaceEl = $('#space');
   if (spaceEl) {
@@ -470,12 +474,14 @@ function nav(p, push = true) {
 
   if (p !== 'live-training' && jaasApi) destroyJaasMeeting();
   // El render de la página activa lo controla render(). Para creadores no
-  // pintamos el shell antiguo aquí porque provocaba el estado "Cargando tu espacio..."
+  // pintamos el shell antiguo aquí porque provocaba el estado "Cargando mi espacio..."
   // al volver desde Misiones/Mi perfil.
-  // Para creadores, Tu espacio ya fue pintado de inmediato. No dejamos que un render
+  // Para creadores, Mi espacio ya fue pintado de inmediato. No dejamos que un render
   // asíncrono antiguo vuelva a pisarlo mientras el usuario navega.
-  if (p === 'space' && profile?.role === 'creator') {
-    Promise.resolve(creatorDashboardTpl(thisNav)).catch(e => console.warn('Creator dashboard:', e));
+  if (p === 'space' && isCreatorSession()) {
+    // Nunca bloqueamos la navegación esperando datos remotos. El dashboard ya está visible;
+    // la actualización se ejecuta en segundo plano y solo pinta si seguimos en Mi espacio.
+    creatorDashboardTpl(thisNav).catch(e => console.warn('Creator dashboard:', e));
   } else {
     Promise.resolve(render()).catch(e => console.warn('Render:', e));
   }
@@ -489,7 +495,7 @@ function renderSpaceShell(){
   const el=$('#space'); if(!el) return;
   if(!session){ el.innerHTML=authTpl(); return; }
   const base=profile||{full_name:session.user.user_metadata?.full_name||'',username:session.user.user_metadata?.username||session.user.email?.split('@')[0]||'creador'};
-  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-card space-team-card-loading"><div class="space-team-card-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong></div></div></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}<button class="space-card card live-training-space-card" data-space-action="live-training"><span class="space-card-icon">🎥</span><div class="space-card-main"><div class="space-card-top"><strong>Entrenamientos</strong><span class="live-training-card-status">Sin entrenamiento</span></div><p class="live-training-card-title">Consulta los entrenamientos en vivo de Grayxon.</p><div class="space-progress"><span style="width:0%"></span></div><small class="live-training-card-detail">Cuando haya uno activo aparecerá aquí.</small></div><span class="space-card-arrow">›</span></button></div></div>`;
+  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">MI ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-card space-team-card-loading"><div class="space-team-card-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong></div></div></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}<button class="space-card card live-training-space-card" data-space-action="live-training"><span class="space-card-icon">🎥</span><div class="space-card-main"><div class="space-card-top"><strong>Entrenamientos</strong><span class="live-training-card-status">Sin entrenamiento</span></div><p class="live-training-card-title">Consulta los entrenamientos en vivo de Grayxon.</p><div class="space-progress"><span style="width:0%"></span></div><small class="live-training-card-detail">Cuando haya uno activo aparecerá aquí.</small></div><span class="space-card-arrow">›</span></button></div></div>`;
   bind();
   refreshLiveTrainingCard();
 }
@@ -546,7 +552,7 @@ function homeTpl(h) {
           <div class="home-menu-heading">NUESTRO MENÚ</div>
           <div class="hero-actions">
             <button class="hero-action hero-action-primary" data-page="benefits">Beneficios y requisitos <span>›</span></button>
-            <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Tu espacio <span>›</span></button>
+            <button class="hero-action hero-action-secondary" data-page="auth" data-auth-mode="creator">Mi espacio <span>›</span></button>
           </div>
         </section>
 
@@ -688,7 +694,7 @@ async function getProfile() {
 async function loadCreatorAssignment(){
   if(!session?.user?.id) return {team:null,manager:null};
   // Nunca permitir que una consulta lenta de equipo/manager bloquee
-  // la carga de Tu espacio al volver desde Misiones o Mi perfil.
+  // la carga de Mi espacio al volver desde Misiones o Mi perfil.
   const fallback={team:null,manager:null};
   try {
     const work=(async()=>{
@@ -773,7 +779,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
       <section class="creator-dashboard-hero">
         <div class="creator-dashboard-avatar">${cachedAvatar}</div>
-        <div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(cachedName)}</h1><span class="creator-username">@${esc(cachedUser)}</span></div>
+        <div class="creator-dashboard-identity"><div class="eyebrow">MI ESPACIO</div><h1>${esc(cachedName)}</h1><span class="creator-username">@${esc(cachedUser)}</span></div>
         <div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div>
       </section>
       <div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando tu información…</small></div></div></div>
@@ -843,7 +849,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const missionsCard=`<button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">${missionCompletionLabel}</span><strong>Tus misiones</strong><p>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} activas completadas.`:'No tienes tareas pendientes.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div></section>
+    <section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><div class="eyebrow">MI ESPACIO</div><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div></section>
     ${managerBlock}
     <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>${missionCompletionLabel}</strong></div><div class="space-progress"><span style="width:${missionCompletion||0}%"></span></div><small>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} misiones activas completadas.`:'No tienes tareas pendientes esta semana.'}</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>${formationPct}%</strong></div><div class="space-progress"><span style="width:${formationPct}%"></span></div><small>${lessonCompleted} de ${lessonTotal} lecciones completadas.</small></div></div></section>
     <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}</div>${profileIncomplete}
@@ -858,7 +864,7 @@ function renderCreatorSpaceImmediate(){
   const name=profile?.full_name||profile?.username||'Grayxon';
   const user=profile?.username||'creador';
   const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
-  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(name)}</h1><span class="creator-username">@${esc(user)}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span></div></section><div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando…</small></div></div></div><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button></div></div>`;
+  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><div class="eyebrow">MI ESPACIO</div><h1>${esc(name)}</h1><span class="creator-username">@${esc(user)}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span></div></section><div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando…</small></div></div></div><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button></div></div>`;
   bind();
 }
 
@@ -948,7 +954,7 @@ async function missionsTpl() {
   const congratulations = currentWeekComplete ? `<div class="card mission-congrats"><div style="font-size:34px">🎉</div><div><h3 style="margin:0 0 5px">¡Felicidades!</h3><p class="muted" style="margin:0">Has completado todas las misiones para esta semana. 🖤</p></div></div>` : '';
   const section = (title,icon,groups,type,emptyText) => `<section class="mission-section"><div class="mission-section-head"><div><div class="eyebrow">${icon} ${title.toUpperCase()}</div><p class="muted small">${type==='assigned'?'Abre una semana para ver todas sus misiones y completar tus objetivos.':'Abre una semana para consultar las misiones que completaste o cuya semana ya terminó.'}</p></div><span class="mission-count">${groups.length}</span></div><div class="mission-weeks-list">${groupDetails(groups,type) || `<div class="card mission-empty compact"><h3>${emptyText}</h3><p class="muted small">${type==='assigned'?'Cuando Grayxon te asigne nuevas misiones aparecerán aquí.':'Cuando completes misiones o termine una semana, aparecerán aquí.'}</p></div>`}</div></section>`;
 
-  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Tus objetivos 🎯</h1><p class="muted">Tus misiones están organizadas por semanas. Toca una semana para ver todas las misiones que contiene.</p></div>${(profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session'))?'':`<button class="secondary" data-space-action="space" aria-label="Volver a Tu espacio">← Tu espacio</button>`}</div>${congratulations}${section('Misiones asignadas','🎯',assignedGroups,'assigned','No tienes misiones asignadas')}${section('Misiones completadas','✓',completedGroups,'completed','Aún no tienes historial de misiones')}</div>`;
+  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Tus objetivos 🎯</h1><p class="muted">Tus misiones están organizadas por semanas. Toca una semana para ver todas las misiones que contiene.</p></div>${(profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session'))?'':`<button class="secondary" data-space-action="space" aria-label="Volver a Mi espacio">← Mi espacio</button>`}</div>${congratulations}${section('Misiones asignadas','🎯',assignedGroups,'assigned','No tienes misiones asignadas')}${section('Misiones completadas','✓',completedGroups,'completed','Aún no tienes historial de misiones')}</div>`;
 }
 
 async function focusNextPendingMission(currentId=null){
@@ -1547,7 +1553,7 @@ async function trainingTpl() {
   };
 
   $('#training').innerHTML = `<div class="formation-page">
-    <div class="row"><div><div class="eyebrow">FORMACIÓN</div><h1 style="margin:7px 0">Aprende con Grayxon 🎓</h1><p class="muted">Aquí encontrarás tus módulos y lecciones. Abre un módulo para ver su contenido.</p></div>${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Tu espacio</button>'}</div>
+    <div class="row"><div><div class="eyebrow">FORMACIÓN</div><h1 style="margin:7px 0">Aprende con Grayxon 🎓</h1><p class="muted">Aquí encontrarás tus módulos y lecciones. Abre un módulo para ver su contenido.</p></div>${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Mi espacio</button>'}</div>
     <div class="card formation-progress-card" style="margin-top:18px"><div class="row"><div><b>Tu progreso</b><div class="muted small">${totalDone} de ${totalLessons} lecciones completadas</div></div><b class="progress-percent">${totalPct}%</b></div><div class="progress-track"><div class="progress-fill" style="width:${totalPct}%"></div></div></div>
     <div class="formation-groups" style="margin-top:22px">
       ${sectionHtml('Por ver','POR VER',pendingModules,'pending','No tienes módulos pendientes. 🎉',pendingModules.length>0)}
@@ -1570,9 +1576,13 @@ function getModuleLessons(moduleId){
 }
 
 function getNextLessonAfter(id){
-  const lessons = window._lessons || [];
-  const index = lessons.findIndex(x => x.id === id);
-  return index >= 0 ? (lessons[index + 1] || null) : null;
+  const lesson = getLessonById(id);
+  if(!lesson) return null;
+  const lessons = getModuleLessons(lesson.module_id);
+  const done = window._done || new Set();
+  const currentIndex = lessons.findIndex(x => x.id === id);
+  if(currentIndex < 0) return null;
+  return lessons.slice(currentIndex + 1).find(x => !done.has(x.id)) || null;
 }
 
 function getNextPendingModuleLesson(currentModuleId){
@@ -1581,15 +1591,10 @@ function getNextPendingModuleLesson(currentModuleId){
   const done = window._done || new Set();
   const currentIndex = modules.findIndex(m => m.id === currentModuleId);
   for(let i = Math.max(0, currentIndex + 1); i < modules.length; i++){
-    const moduleLessons = lessons.filter(l => l.module_id === modules[i].id);
-    const firstPending = moduleLessons.find(l => !done.has(l.id));
-    if(firstPending) return firstPending;
-  }
-  // If there is no later module, look for any other pending module. This also
-  // handles published modules whose order changed after a user started.
-  for(const m of modules){
-    if(m.id === currentModuleId) continue;
-    const firstPending = lessons.filter(l => l.module_id === m.id).find(l => !done.has(l.id));
+    const firstPending = lessons
+      .filter(l => l.module_id === modules[i].id)
+      .sort((a,b) => Number(a.sort_order||0)-Number(b.sort_order||0))
+      .find(l => !done.has(l.id));
     if(firstPending) return firstPending;
   }
   return null;
@@ -1597,8 +1602,8 @@ function getNextPendingModuleLesson(currentModuleId){
 
 function showModuleCompletionPopup(module, nextLesson){
   return new Promise(resolve => {
-    const nextLabel = nextLesson ? `Siguiente: ${nextLesson.title}` : 'Ya completaste toda la formación disponible.';
-    const destinationLabel = nextLesson ? 'Ir al siguiente módulo' : 'Ir a Tu espacio';
+    const nextLabel = nextLesson ? `Siguiente contenido: ${nextLesson.title}` : 'Ya completaste toda la formación disponible.';
+    const destinationLabel = nextLesson ? 'Continuar' : 'Ir a Mi espacio';
     const el = modal(`
       <div class="module-completion-popup">
         <div class="module-completion-icon">✓</div>
@@ -1624,24 +1629,70 @@ function showModuleCompletionPopup(module, nextLesson){
   });
 }
 
-async function advanceAfterLesson(id){
+let lessonAdvanceTimer = null;
+
+function dismissLessonAdvancePrompt(){
+  if(lessonAdvanceTimer){ clearTimeout(lessonAdvanceTimer); lessonAdvanceTimer = null; }
+  document.getElementById('lessonNextPrompt')?.remove();
+}
+
+function showLessonAdvancePrompt(nextLesson, delayMs = 3500){
+  dismissLessonAdvancePrompt();
+  return new Promise(resolve => {
+    const host = document.createElement('div');
+    host.id = 'lessonNextPrompt';
+    host.className = 'lesson-next-prompt';
+    host.innerHTML = `
+      <div class="lesson-next-prompt-copy">
+        <span class="eyebrow">SIGUIENTE CONTENIDO</span>
+        <strong>${esc(nextLesson?.title || 'Siguiente contenido')}</strong>
+        <span class="lesson-next-countdown">Continuando automáticamente… <b>${Math.ceil(delayMs / 1000)}</b></span>
+      </div>
+      <button type="button" class="primary lesson-next-prompt-btn">Continuar →</button>`;
+    document.body.appendChild(host);
+
+    let remaining = Math.ceil(delayMs / 1000);
+    const countdown = host.querySelector('.lesson-next-countdown b');
+    const interval = setInterval(() => {
+      remaining -= 1;
+      if(countdown) countdown.textContent = Math.max(0, remaining);
+      if(remaining <= 0) clearInterval(interval);
+    }, 1000);
+
+    const go = async () => {
+      clearInterval(interval);
+      if(lessonAdvanceTimer){ clearTimeout(lessonAdvanceTimer); lessonAdvanceTimer = null; }
+      host.remove();
+      resolve(true);
+      await openLesson(nextLesson.id, {skipReload:true});
+    };
+    host.querySelector('.lesson-next-prompt-btn')?.addEventListener('click', go, {once:true});
+    lessonAdvanceTimer = setTimeout(go, delayMs);
+  });
+}
+
+async function advanceAfterLesson(id, options = {}){
   const lesson = getLessonById(id);
   if(!lesson) return;
-  const next = getNextLessonAfter(id);
+
+  const nextSameModule = getNextLessonAfter(id);
+  if(nextSameModule){
+    if(options.fromVideo){
+      await showLessonAdvancePrompt(nextSameModule);
+    } else {
+      await openLesson(nextSameModule.id, {skipReload:true});
+      toast(`Siguiente contenido: ${nextSameModule.title}`);
+    }
+    return;
+  }
+
   const moduleLessons = getModuleLessons(lesson.module_id);
   const done = window._done || new Set();
   const moduleComplete = moduleLessons.length > 0 && moduleLessons.every(l => done.has(l.id));
-
   if(moduleComplete){
     const module = (window._modules || []).find(m => m.id === lesson.module_id);
     const nextModuleLesson = getNextPendingModuleLesson(lesson.module_id);
     await showModuleCompletionPopup(module, nextModuleLesson);
-    return;
-  }
-
-  if(next && next.module_id === lesson.module_id){
-    await openLesson(next.id, {skipReload:true});
-    toast(`Siguiente contenido: ${next.title}`);
   }
 }
 
@@ -1663,11 +1714,11 @@ async function renderSelectedLesson(l) {
 
   if (isVideo) {
     const video = $('#lessonVideo');
-    if (video && !alreadyDone) {
+    if (video) {
       video.addEventListener('ended', async () => {
         const hint = $('#videoCompletion');
-        if (hint) hint.textContent = '✓ Video terminado. Guardando tu avance…';
-        await completeLesson(l.id, { autoAdvance: true });
+        if (hint) hint.textContent = alreadyDone ? '✓ Video terminado. Preparando el siguiente contenido…' : '✓ Video terminado. Guardando tu avance…';
+        await completeLesson(l.id, { autoAdvance: true, fromVideo: true });
       }, {once:true});
     }
   } else {
@@ -1703,7 +1754,7 @@ async function completeLesson(id, options = {}) {
 
   // If the lesson was already completed, the Continue button simply advances.
   if(window._done.has(id)){
-    await advanceAfterLesson(id);
+    await advanceAfterLesson(id, {fromVideo: !!options.fromVideo});
     return;
   }
 
@@ -1733,12 +1784,9 @@ async function completeLesson(id, options = {}) {
   window._done.add(id);
   toast('Lección completada ✓');
 
-  // Advance immediately from the current lesson. Refresh the formation list
-  // afterward so the user is never stranded on the completed content.
-  await advanceAfterLesson(id);
-  if (current === 'training') {
-    trainingTpl().then(() => bind()).catch(err => console.warn('Refresh formación:', err));
-  }
+  // Avanzamos sobre la vista actual. No refrescamos Formación después porque ese render
+  // podía destruir la lección que acabábamos de abrir. El progreso local ya está actualizado.
+  await advanceAfterLesson(id, {fromVideo: !!options.fromVideo});
 }
 
 
@@ -3411,7 +3459,7 @@ sb.auth.onAuthStateChange((event,newSession)=>{
     .grayxon-creator-space-float:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#25f4ee,#fe2c55);border-radius:999px 0 0 999px}
     .grayxon-creator-space-float.is-visible{opacity:1!important;pointer-events:auto!important;transform:none!important}
     .grayxon-creator-space-float:hover{box-shadow:0 16px 38px rgba(0,0,0,.42),-6px 0 20px rgba(37,244,238,.18),6px 0 20px rgba(254,44,85,.18)!important}
-    /* Creator navigation: the floating Tu espacio button is the only return control. */
+    /* Creator navigation: the floating Mi espacio button is the only return control. */
     body.grayxon-creator-session .missions-page > .row > .secondary,
     body.grayxon-creator-session .live-training-page .live-training-hero > .secondary,
     body.grayxon-creator-session .training-page > .row > .secondary,
@@ -3600,6 +3648,19 @@ window.addEventListener('hashchange', () => {
 });
 /* v23 · creator space return stability */
 
+
+/* GRAYXON v38 · next-content prompt for video lessons */
+(function ensureLessonNextPromptStyles(){
+  if(document.getElementById('grayxon-v38-next-content')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-v38-next-content';
+  style.textContent=`
+    .lesson-next-prompt{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9998;width:min(760px,calc(100vw - 28px));display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 16px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(13,15,20,.96);box-shadow:0 18px 60px rgba(0,0,0,.45);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+    .lesson-next-prompt-copy{display:grid;gap:3px;min-width:0}.lesson-next-prompt-copy .eyebrow{font-size:9px;letter-spacing:.16em;color:#858c98}.lesson-next-prompt-copy strong{font-size:14px;line-height:1.3;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lesson-next-countdown{font-size:10px;color:#aeb5bf}.lesson-next-prompt-btn{white-space:nowrap;min-height:38px;padding:0 16px}
+    @media(max-width:640px){.lesson-next-prompt{bottom:12px;width:calc(100vw - 20px);padding:12px;gap:10px}.lesson-next-prompt-copy strong{font-size:13px}.lesson-next-prompt-btn{min-height:36px;padding:0 12px;font-size:12px}}
+  `;
+  document.head.appendChild(style);
+})();
 
 /* GRAYXON v35 · live dashboard + focused formation content */
 (function applyV35Fixes(){
