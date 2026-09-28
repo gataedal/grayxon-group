@@ -461,7 +461,7 @@ async function openNotification(id) {
     // LIVE: si la notificación guarda el UUID del entrenamiento, abrimos exactamente ese LIVE.
     if(profile?.role==='creator' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(page)){
       const {data:targetLive}=await sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').eq('id',page).eq('status','live').maybeSingle();
-      if(targetLive){ currentLiveTraining=targetLive; pendingLiveTrainingAutoStart={id:targetLive.id}; window.location.hash=`live-training/${targetLive.id}`; nav('live-training'); return; }
+      if(targetLive){ currentLiveTraining=targetLive; pendingLiveTrainingAutoStart={id:targetLive.id}; window.location.hash=`live-training/${targetLive.id}`; nav('live-training', false); return; }
     }
     const targetMap = {
       dashboard:'space', space:'space', 'mi-espacio':'space',
