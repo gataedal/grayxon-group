@@ -370,6 +370,34 @@ function toast(t) {
   setTimeout(() => $('#toast').classList.add('hidden'), 2400);
 }
 
+// V33.9 diagnostic panel: temporary, visible on-screen diagnostics for LIVE notifications.
+// It does not write to the database and can be removed after the root cause is confirmed.
+function showLiveNotificationDiagnostic(title, lines = []) {
+  try {
+    document.getElementById('grayxonLiveDiag')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'grayxonLiveDiag';
+    wrap.innerHTML = `
+      <div style="position:fixed;inset:18px 18px auto auto;z-index:20000;width:min(560px,calc(100vw - 36px));pointer-events:none">
+        <div class="card" style="padding:18px;border:1px solid rgba(37,244,238,.45);background:rgba(9,11,15,.98);box-shadow:0 20px 70px rgba(0,0,0,.55);pointer-events:auto">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="font-size:25px;line-height:1">🔎</div>
+            <div style="flex:1;min-width:0">
+              <div class="eyebrow">GRAYXON · DIAGNÓSTICO V33.9</div>
+              <h3 style="margin:5px 0 10px">${esc(title)}</h3>
+              <div style="font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.65;white-space:pre-wrap;overflow:auto;max-height:52vh;color:#e8edf2">${lines.map(x=>esc(x)).join('\n')}</div>
+            </div>
+            <button type="button" class="secondary small" id="closeGrayxonLiveDiag">Cerrar</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+    document.getElementById('closeGrayxonLiveDiag')?.addEventListener('click', () => wrap.remove());
+  } catch (e) {
+    console.warn('No se pudo mostrar el diagnóstico LIVE:', e);
+  }
+}
+
 function errorText(error, fallbackText = 'Ocurrió un error.') {
   return error?.message || fallbackText;
 }
@@ -2636,34 +2664,91 @@ async function ensureLiveTrainingAudience(training){
 }
 
 async function notifyLiveTrainingAudience(training){
-  if(!training?.id) return;
+  const diag = [];
+  if(!training?.id){
+    showLiveNotificationDiagnostic('No se pudo iniciar el diagnóstico', ['Falta training.id.']);
+    return {ok:false,stage:'input',error:'Falta training.id'};
+  }
   try{
+    diag.push(`Entrenamiento: ${training.title||'—'}`);
+    diag.push(`ID: ${training.id}`);
+    diag.push('1. LIVE confirmado por la base de datos: OK');
+
     const {data:aud,error:ae}=await ensureLiveTrainingAudience(training);
-    if(ae){ console.warn('No se pudo asegurar la audiencia del LIVE:',ae.message); return; }
+    if(ae){
+      diag.push(`2. Audiencia: ERROR · ${ae.message||ae.code||ae}`);
+      showLiveNotificationDiagnostic('Falló la audiencia del LIVE', diag);
+      console.warn('No se pudo asegurar la audiencia del LIVE:',ae);
+      return {ok:false,stage:'audience',error:ae.message||String(ae)};
+    }
     const rows=aud||[];
+    diag.push(`2. Filas de audiencia: ${rows.length}`);
+    diag.push(rows.length ? `   Tipos: ${rows.map(a=>a.target_type).join(', ')}` : '   ⚠️ Sin filas de audiencia');
+
     const creatorIds=new Set();
     if(rows.some(a=>a.target_type==='all_creators')){
-      const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true);
+      const {data:creators,error}=await sb.from('profiles').select('id,username').eq('role','creator').eq('active',true);
+      if(error){
+        diag.push(`3. Buscar creadores: ERROR · ${error.message}`);
+        showLiveNotificationDiagnostic('Falló la búsqueda de creadores', diag);
+        return {ok:false,stage:'creators',error:error.message};
+      }
       (creators||[]).forEach(c=>creatorIds.add(c.id));
+      diag.push(`3. Creadores activos encontrados: ${creators?.length||0}`);
+      if(creators?.length) diag.push(`   Usuarios: ${creators.slice(0,8).map(c=>c.username||c.id).join(', ')}`);
     }
     const teamIds=rows.filter(a=>a.target_type==='team'&&a.target_id).map(a=>a.target_id);
     if(teamIds.length){
-      const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true).in('team_id',teamIds);
-      (creators||[]).forEach(c=>creatorIds.add(c.id));
+      const {data:creators,error}=await sb.from('profiles').select('id,username').eq('role','creator').eq('active',true).in('team_id',teamIds);
+      if(error){
+        diag.push(`3. Buscar creadores por equipo: ERROR · ${error.message}`);
+      } else {
+        (creators||[]).forEach(c=>creatorIds.add(c.id));
+        diag.push(`3. Creadores por equipo: ${creators?.length||0}`);
+      }
     }
     const directIds=rows.filter(a=>a.target_type==='creator'&&a.target_id).map(a=>a.target_id);
     directIds.forEach(id=>creatorIds.add(id));
+    if(directIds.length) diag.push(`3. Creadores directos: ${directIds.length}`);
+
     const managerIds=rows.filter(a=>a.target_type==='manager'&&a.target_id).map(a=>a.target_id);
     if(managerIds.length){
-      const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true).in('manager_id',managerIds);
-      (creators||[]).forEach(c=>creatorIds.add(c.id));
+      const {data:creators,error}=await sb.from('profiles').select('id,username').eq('role','creator').eq('active',true).in('manager_id',managerIds);
+      if(error){
+        diag.push(`3. Buscar creadores por manager: ERROR · ${error.message}`);
+      } else {
+        (creators||[]).forEach(c=>creatorIds.add(c.id));
+        diag.push(`3. Creadores por manager: ${creators?.length||0}`);
+      }
     }
-    if(!creatorIds.size) return;
+
+    if(!creatorIds.size){
+      diag.push('4. Notificaciones: NO SE EJECUTARON · 0 creadores destinatarios');
+      showLiveNotificationDiagnostic('LIVE iniciado, pero no hay destinatarios', diag);
+      return {ok:false,stage:'recipients',error:'0 creadores destinatarios'};
+    }
+
     const message=`El entrenamiento “${training.title||'Grayxon'}” ya está EN VIVO. Entra ahora desde Grayxon.`;
+    diag.push(`4. Intentando crear ${creatorIds.size} notificación(es)...`);
     const results=await Promise.all([...creatorIds].map(uid=>notifyLiveTrainingCreator(uid,'🔴 Entrenamiento EN VIVO',message)));
     const failed=results.filter(r=>!r?.ok);
-    if(failed.length) console.warn('Algunos avisos de LIVE no se pudieron crear:',failed);
-  }catch(e){ console.warn('No se pudieron enviar avisos del LIVE:',e); }
+    const okCount=results.filter(r=>r?.ok).length;
+    diag.push(`5. Resultado: ${okCount}/${results.length} creada(s)`);
+    if(failed.length){
+      failed.slice(0,5).forEach((r,i)=>diag.push(`   ❌ Error ${i+1}: ${r.error||'error desconocido'}`));
+      showLiveNotificationDiagnostic('El LIVE arrancó, pero falló la notificación', diag);
+      console.warn('Algunos avisos de LIVE no se pudieron crear:',failed);
+      return {ok:false,stage:'notifications',created:okCount,total:results.length,failed};
+    }
+    diag.push('   ✅ Notificación(es) creada(s) correctamente.');
+    showLiveNotificationDiagnostic('Notificación LIVE creada', diag);
+    return {ok:true,stage:'notifications',created:okCount,total:results.length};
+  }catch(e){
+    diag.push(`❌ ERROR INESPERADO: ${e?.message||e}`);
+    showLiveNotificationDiagnostic('Error inesperado al crear avisos', diag);
+    console.warn('No se pudieron enviar avisos del LIVE:',e);
+    return {ok:false,stage:'exception',error:e?.message||String(e)};
+  }
 }
 
 async function deleteLiveTraining(id){
@@ -2732,7 +2817,9 @@ async function startLiveTraining(id){
   currentLiveTraining=data;
   pendingLiveTrainingAutoStart=data;
   // Create the in-app notifications only after the database confirms LIVE.
-  await notifyLiveTrainingAudience(data);
+  const notificationResult = await notifyLiveTrainingAudience(data);
+  if(notificationResult?.ok) toast('Entrenamiento EN VIVO + aviso enviado ✓');
+  else if(notificationResult?.stage) toast('Entrenamiento EN VIVO. Revisa el diagnóstico.');
   nav('live-training');
 }
 async function finishLiveTraining(id){if(!id)return;const {data:t}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();if(!t||t.status!=='live')return toast('Este entrenamiento no está EN VIVO.');const can=profile?.role==='admin'||(profile?.role==='manager'&&t.created_by===session?.user?.id);if(!can)return toast('No tienes permiso para finalizar este entrenamiento.');if(!confirm('¿Finalizar este entrenamiento?'))return;const endedAt=new Date().toISOString();const {data,error}=await sb.from('live_trainings').update({status:'finished',ended_at:endedAt}).eq('id',id).eq('status','live').select('id,title').single();if(error){toast(error.message);return;}await sb.from('live_training_participants').update({left_at:endedAt}).eq('training_id',id).is('left_at',null);toast(`“${data?.title||'Entrenamiento'}” finalizado ✓`);render();}
