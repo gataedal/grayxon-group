@@ -367,6 +367,11 @@ function ensureLiveTrainingPage() {
 function nav(p, push = true) {
   const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'];
   if (!pages.includes(p)) p = 'home';
+  // Una cuenta autenticada nunca vuelve a la portada pública por accidente.
+  // Su entrada natural siempre es su espacio/panel correspondiente.
+  if (session && p === 'home') {
+    p = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
+  }
   if (p === 'live-training') ensureLiveTrainingPage();
   if (push && current !== p) {
     const url = p === 'home'
@@ -616,18 +621,126 @@ function managerWhatsapp(phone){
   return raw ? `https://wa.me/${raw}` : '#';
 }
 
+function ensureCreatorDashboardStyles(){
+  if($('#grayxon-creator-dashboard-styles')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-creator-dashboard-styles';
+  style.textContent=`
+    .creator-dashboard{max-width:980px;margin:0 auto;display:grid;gap:14px}
+    .creator-dashboard-hero{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;padding:20px 22px;border:1px solid rgba(255,255,255,.08);border-radius:20px;background:linear-gradient(145deg,rgba(20,22,27,.98),rgba(10,11,14,.98));box-shadow:0 18px 50px rgba(0,0,0,.18)}
+    .creator-dashboard-avatar{width:74px;height:74px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#16191e;border:1px solid rgba(255,255,255,.13);font-size:25px;font-weight:900;color:#fff;flex:0 0 74px}
+    .creator-dashboard-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+    .creator-dashboard-identity h1{margin:3px 0 4px;font-size:27px;line-height:1.1}
+    .creator-dashboard-identity .creator-username{color:#8f96a2;font-size:13px}
+    .creator-dashboard-role{justify-self:end;text-align:right}
+    .creator-dashboard-role .role-pill{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid rgba(255,255,255,.09);border-radius:999px;background:rgba(255,255,255,.035);font-size:11px;font-weight:800;color:#d9dce1}
+    .creator-dashboard-role small{display:block;color:#7d8490;margin-top:6px}
+    .creator-assignment-card{display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;padding:16px 18px;border:1px solid rgba(255,255,255,.08);border-radius:17px;background:rgba(255,255,255,.025)}
+    .creator-assignment-main{display:flex;align-items:center;gap:13px;min-width:0}
+    .creator-assignment-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);font-size:20px;flex:0 0 42px}
+    .creator-assignment-main strong{display:block;font-size:15px}
+    .creator-assignment-main small{display:block;color:#858c98;margin-top:4px;line-height:1.4}
+    .creator-contact-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:0 14px;border:1px solid rgba(37,244,238,.2);border-radius:12px;background:rgba(37,244,238,.06);color:#dff; text-decoration:none;font-weight:800;font-size:12px}
+    .creator-performance{padding:18px;border:1px solid rgba(255,255,255,.08);border-radius:18px;background:rgba(255,255,255,.025)}
+    .creator-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:13px}
+    .creator-section-head h2{margin:2px 0 0;font-size:19px}
+    .creator-performance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .creator-metric{padding:13px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(0,0,0,.12)}
+    .creator-metric-top{display:flex;justify-content:space-between;align-items:center;gap:8px}.creator-metric-top span{color:#8a919d;font-size:11px;font-weight:800}.creator-metric-top strong{font-size:19px}
+    .creator-metric .space-progress{margin-top:10px}.creator-metric small{display:block;color:#777f8b;margin-top:7px;font-size:10px;line-height:1.4}
+    .creator-dashboard-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .creator-dashboard-card{min-height:145px;padding:17px;border:1px solid rgba(255,255,255,.08);border-radius:17px;background:rgba(255,255,255,.025);color:#fff;text-align:left;position:relative;overflow:hidden}
+    .creator-dashboard-card:hover{background:rgba(255,255,255,.04)}
+    .creator-dashboard-card-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);font-size:19px;margin-bottom:13px}
+    .creator-dashboard-card strong{display:block;font-size:15px}.creator-dashboard-card p{margin:5px 0 0;color:#858c98;font-size:11px;line-height:1.45}.creator-dashboard-card-meta{position:absolute;right:14px;top:14px;color:#8b929d;font-size:11px;font-weight:800}.creator-dashboard-card-arrow{position:absolute;right:14px;bottom:13px;color:#7d8490;font-size:21px}
+    .creator-profile-incomplete{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 15px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.02)}
+    .creator-profile-incomplete strong{display:block;font-size:13px}.creator-profile-incomplete small{display:block;color:#858c98;margin-top:4px}.creator-profile-incomplete .primary{white-space:nowrap}
+    @media(max-width:800px){
+      .creator-dashboard{gap:11px}.creator-dashboard-hero{grid-template-columns:auto 1fr;gap:12px;padding:15px 16px;border-radius:17px}.creator-dashboard-avatar{width:58px;height:58px;flex-basis:58px;font-size:20px}.creator-dashboard-identity h1{font-size:20px}.creator-dashboard-role{grid-column:1/-1;justify-self:stretch;text-align:left}.creator-dashboard-role .role-pill{padding:6px 9px}.creator-dashboard-role small{display:inline;margin-left:7px}.creator-assignment-card{grid-template-columns:1fr;gap:11px;padding:14px}.creator-contact-btn{width:100%}.creator-performance{padding:14px}.creator-performance-grid{grid-template-columns:1fr;gap:8px}.creator-metric{padding:11px}.creator-dashboard-grid{grid-template-columns:1fr 1fr;gap:9px}.creator-dashboard-card{min-height:128px;padding:14px}.creator-profile-incomplete{align-items:flex-start;flex-direction:column}.creator-profile-incomplete .primary{width:100%}
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function creatorDashboardAvatar(){
+  if(profileDetails?.avatar_url) return `<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`;
+  return `<span>${esc(profileInitial())}</span>`;
+}
+
+async function creatorDashboardTpl(){
+  ensureCreatorDashboardStyles();
+  if(!session){ $('#space').innerHTML=authTpl(); return; }
+  const uid=session.user.id;
+  const safe=async(promise,fallback,ms=3000)=>{try{const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve({data:fallback,error:true}),ms))]);return r?.error?fallback:(r?.data??fallback);}catch{return fallback;}};
+
+  const [assignment, profileRow, details, payment, lessons, lessonProgress, missions, missionProgress, activeTraining] = await Promise.all([
+    loadCreatorAssignment(),
+    safe(sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('id',uid).maybeSingle(),profile),
+    safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),profileDetails),
+    safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),paymentMethod),
+    safe(sb.from('lessons').select('id').eq('published',true),[]),
+    safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[]),
+    safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}),[]),
+    safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[]),
+    fetchActiveLiveTraining().catch(()=>null)
+  ]);
+
+  if(profileRow) profile=profileRow;
+  if(details!==undefined) profileDetails=details;
+  if(payment!==undefined) paymentMethod=payment;
+  currentLiveTraining=activeTraining||null;
+
+  const d=profileDetails||{}; const pm=paymentMethod||{};
+  const completionValues=[d.email,d.phone,d.country,d.state_region,d.city,d.address,d.avatar_url,pm.method_type&&(pm.method_type==='paypal'?pm.paypal_email:pm.account_number)];
+  const completionCount=completionValues.filter(Boolean).length;
+  const completionPct=Math.round(completionCount/8*100);
+
+  const today=new Date().toISOString().slice(0,10);
+  const mp=new Map((missionProgress||[]).map(x=>[x.mission_id,x]));
+  const visibleMissions=(missions||[]).filter(m=>(!m.week_start||m.week_start<=today)&&(!m.week_end||m.week_end>=today)&&(!m.assigned_to||m.assigned_to===uid));
+  const missionPct=m=>{const x=mp.get(m.id);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;const target=Number(m.target||0);return target>0?Math.min(100,Math.round(Number(x.value||0)/target*100)):0;};
+  const missionCompletion=visibleMissions.length?Math.round(visibleMissions.reduce((sum,m)=>sum+missionPct(m),0)/visibleMissions.length):0;
+  const completedMissions=visibleMissions.filter(m=>missionPct(m)>=100).length;
+  const lessonDone=new Set((lessonProgress||[]).map(x=>x.lesson_id));
+  const lessonTotal=(lessons||[]).length; const lessonCompleted=(lessons||[]).filter(x=>lessonDone.has(x.id)).length;
+  const formationPct=lessonTotal?Math.round(lessonCompleted/lessonTotal*100):0;
+
+  const team=assignment?.team; const manager=assignment?.manager;
+  const managerContact=manager?.phone?`<a class="creator-contact-btn" href="${esc(managerWhatsapp(manager.phone))}" target="_blank" rel="noopener noreferrer">WhatsApp · Contactar ↗</a>`:'';
+  const managerBlock=team?`<div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>${esc(team.name)}</strong><small>Manager: <b>${esc(manager?.name||'Sin manager asignado')}</b></small></div></div>${managerContact}</div>`:`<div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Sin equipo asignado</strong><small>Cuando tengas un equipo aparecerá aquí tu manager.</small></div></div></div>`;
+
+  const profileIncomplete=completionPct<100?`<div class="creator-profile-incomplete"><div><strong>Completa tu perfil · ${completionPct}%</strong><small>${completionCount} de 8 datos completos. Mantén tu información actualizada.</small></div><button class="primary small" data-space-action="profile">Completar perfil</button></div>`:'';
+  const trainingMeta=activeTraining?'🔴 EN VIVO':'Sin sesión activa';
+  const trainingDesc=activeTraining?activeTraining.title:'Cuando Grayxon inicie un entrenamiento podrás entrar desde aquí.';
+  const trainingCard=`<button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><span class="creator-dashboard-card-meta">${esc(trainingMeta)}</span><strong>Entrenamientos</strong><p>${esc(trainingDesc)}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
+  const formationCard=`<button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><span class="creator-dashboard-card-meta">${formationPct}%</span><strong>Formación</strong><p>${lessonTotal?`${lessonCompleted} de ${lessonTotal} lecciones completadas.`:'Aún no hay formación publicada.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
+  const missionsCard=`<button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">${missionCompletion}%</span><strong>Tus misiones</strong><p>${visibleMissions.length?`${completedMissions} de ${visibleMissions.length} completadas esta semana.`:'No tienes misiones activas.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
+
+  $('#space').innerHTML=`<div class="creator-dashboard">
+    <section class="creator-dashboard-hero">
+      <div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div>
+      <div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span></div>
+      <div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div>
+    </section>
+    ${managerBlock}
+    <section class="creator-performance">
+      <div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div>
+      <div class="creator-performance-grid">
+        <div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>${missionCompletion}%</strong></div><div class="space-progress"><span style="width:${missionCompletion}%"></span></div><small>${completedMissions} de ${visibleMissions.length} misiones activas completadas.</small></div>
+        <div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>${formationPct}%</strong></div><div class="space-progress"><span style="width:${formationPct}%"></span></div><small>${lessonCompleted} de ${lessonTotal} lecciones completadas.</small></div>
+        <div class="creator-metric"><div class="creator-metric-top"><span>ENTRENAMIENTOS</span><strong>${activeTraining?'EN VIVO':'—'}</strong></div><div class="space-progress"><span style="width:${activeTraining?'100':'0'}%"></span></div><small>${activeTraining?`Ahora: ${esc(activeTraining.title)}`:'No hay un entrenamiento activo en este momento.'}</small></div>
+      </div>
+    </section>
+    <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}</div>
+    ${profileIncomplete}
+  </div>`;
+  bind();
+}
+
 async function spaceTpl(){
   if(!session){$('#space').innerHTML=authTpl();return;}
-  if(!$('#space')?.innerHTML.trim()) renderSpaceShell();
-  const uid=session.user.id;
-  // Cargar el perfil en paralelo; no bloquea la pantalla.
-  getProfile().then(p=>{ if(!p)return; profile=p; const h=$('#space h1'); if(h)h.innerHTML=`Hola, ${esc(p.username||'creador')} 👋`; updateProfileBadge(); }).catch(()=>{});
-  const safe=async(promise,fallback,ms=2500)=>{try{const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve({data:fallback,error:true}),ms))]);return r?.error?fallback:(r?.data??fallback);}catch{return fallback;}};
-  const profileP=Promise.all([safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),null),safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),null)]).then(([d,pm])=>{const n=[d?.email,d?.phone,d?.country,d?.state_region,d?.city,d?.address,d?.avatar_url,pm?.method_type&&(pm.method_type==='paypal'?pm.paypal_email:pm.account_number)].filter(Boolean).length;const pct=Math.round(n/8*100);updateSpaceCard('profile',pct,pct===100?'Perfil completo':`${n} de 8 datos completos`);return pct;});
-  const trainingP=Promise.all([safe(sb.from('lessons').select('id').eq('published',true),[]),safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[])]).then(([ls,lp])=>{const done=new Set((lp||[]).map(x=>x.lesson_id));const total=(ls||[]).length;const fin=(ls||[]).filter(x=>done.has(x.id)).length;const pct=total?Math.round(fin/total*100):0;updateSpaceCard('training',pct,total?`${fin} de ${total} lecciones completadas`:'Aún no hay formación publicada');return pct;});
-  const missionsP=Promise.all([safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}),[]),safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[])]).then(([ms,mp])=>{const today=new Date().toISOString().slice(0,10);const active=(ms||[]).filter(m=>(!m.week_start||m.week_start<=today)&&(!m.week_end||m.week_end>=today)&&(!m.assigned_to||m.assigned_to===uid));const map=new Map((mp||[]).map(x=>[x.mission_id,x]));const pctFor=m=>{const x=map.get(m.id);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0};const total=active.length,done=active.filter(m=>pctFor(m)>=100).length,pct=total?Math.round(active.reduce((a,m)=>a+pctFor(m),0)/total):0;updateSpaceCard('missions',pct,total?`${done} de ${total} misiones completadas`:'No hay misiones activas esta semana');return pct;});
-  const teamP=loadCreatorAssignment().then(a=>{updateSpaceTeam(a);return 0;}).catch(()=>{updateSpaceTeam({team:null,manager:null});return 0;});
-  Promise.all([profileP,trainingP,missionsP,teamP]).then(v=>{const pct=Math.round((v[0]+v[1]+v[2])/3);const el=$('#spaceOverallPct');if(el)el.textContent=`${pct}%`;}).catch(()=>{});
+  if(profile?.role==='creator') return creatorDashboardTpl();
+  return renderSpaceShell();
 }
 
 async function missionsTpl() {
@@ -1364,7 +1477,7 @@ async function adminTeamModal(teamId){
 
 async function deleteManagerTask(id){
   if(!confirm('¿Eliminar esta tarea del manager?')) return;
-  const {error}=await sb.from('manager_tasks').delete().eq('id',id);
+  const {error}=await sb.rpc('delete_manager_task',{p_task_id:id});
   if(error) return toast(error.message);
   toast('Tarea eliminada ✓');
   render();
@@ -2198,6 +2311,7 @@ async function saveProfile(){
   toast('Perfil guardado ✓'); await loadProfileDetails(); updateProfileBadge(); closeProfileMenu(); nav('space');
 }
 function updateProfileBadge(){
+  const openMySpace=$('#openMySpace'); if(openMySpace) openMySpace.style.display='none';
   const b=$('#mobileProfile'); if(!b)return;
   if(profileDetails?.avatar_url)b.innerHTML=`<img src="${esc(profileDetails.avatar_url)}" alt="Perfil">`; else b.textContent=profileInitial();
   const name=$('#profileMenuName'); const role=$('#profileMenuRole');
@@ -2336,6 +2450,8 @@ async function init() {
   const openMyProfile = $('#openMyProfile');
   const openMySpace = $('#openMySpace');
   const menuLogout = $('#menuLogout');
+  // El menú de avatar queda reducido a Mi perfil + Cerrar sesión.
+  if(openMySpace) openMySpace.style.display='none';
 
   if (notificationsBtn) notificationsBtn.addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -2371,7 +2487,9 @@ async function init() {
   updateHeaderAccessUI();
 
   const hashPage = window.location.hash.replace(/^#/, '');
-  const initialPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(hashPage) ? hashPage : 'home';
+  const roleHome = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
+  const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(hashPage) ? hashPage : null;
+  const initialPage = session ? (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome) : (requestedPage || 'home');
   nav(initialPage, false);
 }
 
