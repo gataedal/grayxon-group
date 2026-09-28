@@ -382,7 +382,7 @@ async function loadNotifications() {
   updateNotificationsUI();
 }
 
-function notificationIcon(type) { return type === 'mission' ? '🎯' : type === 'formation' ? '🎓' : type === 'manager_task' ? '📋' : type === 'manager_assignment' ? '👥' : '🔔'; }
+function notificationIcon(type) { return type === 'mission' ? '🎯' : type === 'training' ? '🎥' : type === 'formation' ? '🎓' : type === 'manager_task' ? '📋' : type === 'manager_assignment' ? '👥' : '🔔'; }
 
 function updateNotificationsUI() {
   const btn = $('#notificationsBtn');
@@ -477,14 +477,70 @@ async function notifyCreators(title, message, linkPage='space') {
 async function notifyCreator(userId, title, message, linkPage='space', weekStart=null, weekEnd=null) {
   if (!userId) return {ok:false,error:'Falta el ID del creador.'};
   const payload = { user_id:userId, type:'mission', title, message, link_page:linkPage, link_target:linkPage, related_week_start:weekStart || null, related_week_end:weekEnd || null };
-  // Usamos el RPC ya creado en la configuración de notificaciones.
+  // Las misiones conservan exactamente su flujo actual.
   const rpc = await sb.rpc('create_notification', { p_user_id:userId, p_type:'mission', p_title:title, p_message:message, p_link_page:linkPage, p_week_start:weekStart || null, p_week_end:weekEnd || null });
   if (!rpc.error) return {ok:true};
-  // Respaldo directo para administradores; la política RLS de v26 permite INSERT a admins.
   const direct = await sb.from('notifications').insert(payload);
   if (!direct.error) return {ok:true};
   const detail = `RPC: ${rpc.error.message || rpc.error.code || 'error desconocido'} · INSERT: ${direct.error.message || direct.error.code || 'error desconocido'}`;
   console.warn('No se pudo crear la notificación:', {rpc:rpc.error, direct:direct.error, userId});
+  return {ok:false,error:detail};
+}
+
+async function notifyLiveTrainingCreator(userId, title, message) {
+  if (!userId) return {ok:false,error:'Falta el ID del creador.'};
+  const linkPage='live-training';
+  const payload = {
+    user_id:userId,
+    type:'training',
+    title,
+    message,
+    link_page:linkPage,
+    link_target:linkPage,
+    related_week_start:null,
+    related_week_end:null
+  };
+
+  // LIVE tiene su propio tipo de notificación; no reutilizamos el tipo mission.
+  const rpc = await sb.rpc('create_notification', {
+    p_user_id:userId,
+    p_type:'training',
+    p_title:title,
+    p_message:message,
+    p_link_page:linkPage,
+    p_week_start:null,
+    p_week_end:null
+  });
+  if (!rpc.error) return {ok:true};
+
+  // Compatibilidad: algunas instalaciones antiguas solo contemplan los tipos
+  // existentes en la migración original. En ese caso usamos formation, pero
+  // mantenemos link_target=live-training para que abra el LIVE.
+  const fallbackPayload={...payload,type:'formation'};
+  const rpcFallback=await sb.rpc('create_notification', {
+    p_user_id:userId,
+    p_type:'formation',
+    p_title:title,
+    p_message:message,
+    p_link_page:linkPage,
+    p_week_start:null,
+    p_week_end:null
+  });
+  if(!rpcFallback.error)return {ok:true};
+
+  // Último respaldo para un admin/usuario con permiso de INSERT.
+  const direct=await sb.from('notifications').insert(payload);
+  if(!direct.error)return {ok:true};
+  const directFallback=await sb.from('notifications').insert(fallbackPayload);
+  if(!directFallback.error)return {ok:true};
+
+  const detail=[
+    `RPC training: ${rpc.error?.message||rpc.error?.code||'error'}`,
+    `RPC formation: ${rpcFallback.error?.message||rpcFallback.error?.code||'error'}`,
+    `INSERT training: ${direct.error?.message||direct.error?.code||'error'}`,
+    `INSERT formation: ${directFallback.error?.message||directFallback.error?.code||'error'}`
+  ].join(' · ');
+  console.warn('No se pudo crear la notificación del LIVE:', {userId,detail});
   return {ok:false,error:detail};
 }
 
@@ -2604,7 +2660,7 @@ async function notifyLiveTrainingAudience(training){
     }
     if(!creatorIds.size) return;
     const message=`El entrenamiento “${training.title||'Grayxon'}” ya está EN VIVO. Entra ahora desde Grayxon.`;
-    const results=await Promise.all([...creatorIds].map(uid=>notifyCreator(uid,'🔴 Entrenamiento EN VIVO',message,'live-training')));
+    const results=await Promise.all([...creatorIds].map(uid=>notifyLiveTrainingCreator(uid,'🔴 Entrenamiento EN VIVO',message)));
     const failed=results.filter(r=>!r?.ok);
     if(failed.length) console.warn('Algunos avisos de LIVE no se pudieron crear:',failed);
   }catch(e){ console.warn('No se pudieron enviar avisos del LIVE:',e); }
