@@ -1528,41 +1528,73 @@ async function fetchCreatorLiveTrainingForDashboard(){
   if(!session?.user?.id) return null;
   const uid=session.user.id;
   try{
-    // Esta consulta es deliberadamente idéntica al criterio que usa
-    // Entrenamientos, pero aislada del resto de Mi espacio.
-    const [liveResult, profileResult]=await Promise.all([
-      sb.from('live_trainings')
-        .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
-        .eq('status','live')
-        .order('started_at',{ascending:false}),
-      sb.from('profiles').select('id,role,active,team_id,manager_id').eq('id',uid).maybeSingle()
-    ]);
-    if(liveResult.error || !liveResult.data?.length) return null;
-    const p=profileResult.data || profile || {};
-    const ids=liveResult.data.map(t=>t.id);
-    const {data:aud,error:audError}=await sb.from('live_training_audience')
-      .select('training_id,target_type,target_id').in('training_id',ids);
-    if(audError) return null;
-    const allowed=new Set((aud||[]).filter(a=>
-      a.target_type==='all_creators' ||
-      (a.target_type==='creator' && a.target_id===uid) ||
-      (a.target_type==='team' && p.team_id && a.target_id===p.team_id)
-    ).map(a=>a.training_id));
-    let live=liveResult.data.find(t=>allowed.has(t.id)) || null;
-    if(live) return live;
+    // Mi espacio usa una comprobación mínima y directa. Primero busca LIVE activos
+    // y, para all_creators, no depende de team_id/manager_id ni de otra carga del dashboard.
+    const {data:liveRows,error:liveError}=await sb.from('live_trainings')
+      .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+      .eq('status','live')
+      .order('started_at',{ascending:false});
+    if(liveError || !liveRows?.length) return null;
 
-    // Compatibilidad: LIVE administrativo antiguo sin fila de audiencia.
-    const noAudience=liveResult.data.filter(t=>!(aud||[]).some(a=>a.training_id===t.id));
+    const ids=liveRows.map(t=>t.id);
+    const {data:aud,error:audError}=await sb.from('live_training_audience')
+      .select('training_id,target_type,target_id')
+      .in('training_id',ids);
+    if(audError) return null;
+
+    // 1) Público: no requiere ningún dato adicional del perfil.
+    const publicLiveIds=new Set((aud||[])
+      .filter(a=>a.target_type==='all_creators')
+      .map(a=>a.training_id));
+    const publicLive=liveRows.find(t=>publicLiveIds.has(t.id));
+    if(publicLive) return publicLive;
+
+    // 2) Creator específico / equipo: ahora sí cargamos el perfil fresco.
+    const {data:p}=await sb.from('profiles')
+      .select('id,role,active,team_id,manager_id')
+      .eq('id',uid)
+      .maybeSingle();
+    const teamId=p?.team_id||profile?.team_id||null;
+
+    const directLive=liveRows.find(t=>(aud||[]).some(a=>
+      a.training_id===t.id && (
+        (a.target_type==='creator' && a.target_id===uid) ||
+        (a.target_type==='team' && teamId && a.target_id===teamId)
+      )
+    ));
+    if(directLive) return directLive;
+
+    // 3) Compatibilidad con LIVE antiguos sin audiencia: admin => todos los creadores.
+    const noAudience=liveRows.filter(t=>!(aud||[]).some(a=>a.training_id===t.id));
     if(noAudience.length){
-      const {data:owners}=await sb.from('profiles').select('id,role').in('id',[...new Set(noAudience.map(t=>t.created_by).filter(Boolean))]);
-      const admins=new Set((owners||[]).filter(x=>x.role==='admin').map(x=>x.id));
-      live=noAudience.find(t=>admins.has(t.created_by))||null;
-      if(live) return live;
+      const ownerIds=[...new Set(noAudience.map(t=>t.created_by).filter(Boolean))];
+      if(ownerIds.length){
+        const {data:owners}=await sb.from('profiles').select('id,role').in('id',ownerIds);
+        const admins=new Set((owners||[]).filter(x=>x.role==='admin').map(x=>x.id));
+        const legacyAdmin=noAudience.find(t=>admins.has(t.created_by));
+        if(legacyAdmin) return legacyAdmin;
+      }
     }
 
+    // 4) Compatibilidad con LIVE antiguos creados por un manager sin fila de audiencia.
+    if(teamId){
+      const creatorManagerUserIds=[...new Set(liveRows.map(t=>t.created_by).filter(Boolean))];
+      if(creatorManagerUserIds.length){
+        const {data:managerRows}=await sb.from('managers').select('id,user_id').in('user_id',creatorManagerUserIds).eq('active',true);
+        const managerByUser=new Map((managerRows||[]).map(m=>[m.user_id,m.id]));
+        const managerIds=[...(managerByUser.values())];
+        if(managerIds.length){
+          const {data:teamRow}=await sb.from('teams').select('id,manager_id').eq('id',teamId).in('manager_id',managerIds).maybeSingle();
+          if(teamRow?.manager_id){
+            const legacyManager=liveRows.find(t=>managerByUser.get(t.created_by)===teamRow.manager_id && !(aud||[]).some(a=>a.training_id===t.id));
+            if(legacyManager) return legacyManager;
+          }
+        }
+      }
+    }
     return null;
   }catch(e){
-    console.warn('Dashboard LIVE:',e?.message||e);
+    console.warn('Dashboard LIVE directo:',e?.message||e);
     return null;
   }
 }
@@ -1573,55 +1605,36 @@ async function refreshLiveTrainingCard(){
   const target=card||dashboardCard;
   if(!target)return;
   try{
-    let live=profile?.role==='creator' ? await fetchCreatorLiveTrainingForDashboard() : await fetchActiveLiveTraining();
-
-    // Dashboard fallback: use the exact same visibility model as the creator
-    // Entrenamientos page. This avoids leaving Mi espacio on "Sin sesión activa"
-    // when the generic helper times out or returns null while the creator can
-    // already see the LIVE in Entrenamientos.
-    if(!live && profile?.role==='creator' && session?.user?.id){
-      const uid=session.user.id;
-      const {data:rawLive,error:liveError}=await sb.from('live_trainings')
-        .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
-        .eq('status','live')
-        .order('started_at',{ascending:false});
-      if(!liveError && rawLive?.length){
-        const ids=rawLive.map(t=>t.id);
-        const {data:aud}=await sb.from('live_training_audience')
-          .select('training_id,target_type,target_id')
-          .in('training_id',ids);
-        const teamId=profile?.team_id||null;
-        const allowed=new Set((aud||[]).filter(a=>
-          a.target_type==='all_creators' ||
-          (a.target_type==='creator' && a.target_id===uid) ||
-          (a.target_type==='team' && teamId && a.target_id===teamId)
-        ).map(a=>a.training_id));
-        live=rawLive.find(t=>allowed.has(t.id))||null;
-      }
-    }
-
+    const live=profile?.role==='creator'
+      ? await fetchCreatorLiveTrainingForDashboard()
+      : await fetchActiveLiveTraining();
     currentLiveTraining=live||null;
-    const status=(card||dashboardCard)?.querySelector('.live-training-card-status') || dashboardCard?.querySelector('.creator-dashboard-card-meta');
-    const title=(card||dashboardCard)?.querySelector('.live-training-card-title');
-    const detail=(card||dashboardCard)?.querySelector('.live-training-card-detail');
-    const bar=card?.querySelector('.space-progress span');
-    const meta=dashboardCard?.querySelector('.creator-dashboard-card-meta');
-    const desc=dashboardCard?.querySelector('p');
+
+    const status=target.querySelector('.live-training-card-status') || target.querySelector('.creator-dashboard-card-meta');
+    const title=target.querySelector('.live-training-card-title');
+    const detail=target.querySelector('.live-training-card-detail');
+    const bar=target.querySelector('.space-progress span');
+    const desc=target.querySelector('p');
+
     if(live){
       if(status)status.textContent='🔴 EN VIVO';
-      if(meta)meta.textContent='🔴 EN VIVO';
       if(title)title.textContent=live.title;
       if(desc)desc.textContent=live.title;
-      if(detail)detail.textContent=`Instructor: ${live.instructor_name||'Grayxon'} · Entra directamente al entrenamiento.`;
+      if(detail)detail.textContent='🔴 EN VIVO · Entra ahora al entrenamiento →';
       if(bar)bar.style.width='100%';
+      target.dataset.liveTrainingId=live.id;
+      target.classList.add('live-training-active-card');
+      target.setAttribute('aria-label',`Entrar al entrenamiento en vivo: ${live.title}`);
       return;
     }
+
     if(status)status.textContent='Sin sesión activa';
-    if(meta)meta.textContent='Sin sesión activa';
     if(title)title.textContent='Consulta tus entrenamientos en vivo de Grayxon.';
     if(desc)desc.textContent='Cuando haya uno activo aparecerá aquí.';
     if(detail)detail.textContent='Cuando haya uno activo aparecerá aquí.';
     if(bar)bar.style.width='0%';
+    target.classList.remove('live-training-active-card');
+    delete target.dataset.liveTrainingId;
   }catch(e){
     console.warn('No se pudo actualizar la tarjeta de LIVE:',e?.message||e);
   }
