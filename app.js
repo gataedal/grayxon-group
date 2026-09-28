@@ -26,7 +26,14 @@ window.addEventListener('appinstalled', () => {
 });
 
 function isGrayxonStandalone(){
-  return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true || String(document.referrer||'').startsWith('android-app://');
+  try {
+    return Boolean(
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      window.matchMedia?.('(display-mode: fullscreen)').matches ||
+      window.navigator.standalone === true ||
+      String(document.referrer||'').startsWith('android-app://')
+    );
+  } catch (_) { return window.navigator.standalone === true; }
 }
 
 function showGrayxonInstallHelp(){
@@ -75,15 +82,36 @@ function refreshGrayxonPwaPreferenceUI(){
   }
 }
 
-function showGrayxonPushPrompt(){
+async function showGrayxonPushPrompt(){
   if(!session?.user?.id || profile?.role!=='creator' || !isGrayxonStandalone()) return;
   if(document.getElementById('grayxonPushPrompt')) return;
-  if('Notification' in window && Notification.permission==='granted') return;
+
+  // If this installation already has a valid subscription, silently repair the
+  // database row (for example after clearing account data) and do not bother the creator.
+  try{
+    if('serviceWorker' in navigator && 'PushManager' in window){
+      const registration=await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.register('./sw.js?v=42',{scope:'./'});
+      const existing=await registration?.pushManager?.getSubscription();
+      if(existing){
+        if('Notification' in window && Notification.permission==='granted'){
+          await registerGrayxonPush({requestPermission:false});
+          return;
+        }
+      }
+    }
+  }catch(e){ console.warn('Estado de suscripción Grayxon:',e); }
+
+  if('Notification' in window && Notification.permission==='granted'){
+    // Permission exists but there is no subscription yet: show the repair/activation prompt.
+  } else if(!('PushManager' in window)) {
+    return;
+  }
+
   const wrap=document.createElement('div');
   wrap.id='grayxonPushPrompt';
   wrap.innerHTML=`<div style="position:fixed;inset:auto 14px 14px 14px;z-index:10000;display:flex;justify-content:center;pointer-events:none">
-    <div class="card" style="width:min(520px,100%);padding:18px 18px 16px;border:1px solid rgba(255,255,255,.12);box-shadow:0 18px 55px rgba(0,0,0,.45);pointer-events:auto;background:rgba(15,17,21,.98)">
-      <div style="display:flex;gap:13px;align-items:flex-start"><div style="font-size:28px;line-height:1">🔔</div><div style="flex:1"><div class="eyebrow">GRAYXON · AVISOS</div><h3 style="margin:5px 0 5px">Activa las notificaciones</h3><p class="muted small" style="margin:0;line-height:1.55">Recibe avisos importantes sobre entrenamientos, tareas y novedades de Grayxon.</p></div></div>
+    <div class="card" style="width:min(520px,100%);padding:18px 18px 16px;border:1px solid rgba(254,44,85,.24);box-shadow:0 18px 55px rgba(0,0,0,.48);pointer-events:auto;background:rgba(15,17,21,.98)">
+      <div style="display:flex;gap:13px;align-items:flex-start"><div style="font-size:28px;line-height:1">🔔</div><div style="flex:1"><div class="eyebrow">GRAYXON · AVISOS</div><h3 style="margin:5px 0 5px">Activa las notificaciones</h3><p class="muted small" style="margin:0;line-height:1.55">Recibe en tu celular avisos de entrenamientos, tareas y novedades de Grayxon, incluso cuando no estés dentro del portal.</p></div></div>
       <div class="inline" style="margin-top:14px;justify-content:flex-end"><button type="button" class="secondary small" id="closeGrayxonPushPrompt">Ahora no</button><button type="button" class="primary small" id="activateGrayxonPushPrompt">🔔 Activar</button></div>
     </div>
   </div>`;
@@ -99,7 +127,6 @@ function showGrayxonPushPrompt(){
     else toast('No se pudieron activar las notificaciones.');
   });
 }
-
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -136,7 +163,7 @@ async function registerGrayxonPush({requestPermission=false}={}) {
   pushRegistrationPromise = (async () => {
     try {
       ensureGrayxonPwaLinks();
-      const registration = await navigator.serviceWorker.register('./sw.js?v=41', { scope: './' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=42', { scope: './' });
       await navigator.serviceWorker.ready;
 
       let permission = Notification.permission;
@@ -1292,6 +1319,28 @@ async function fetchActiveLiveTraining(){
       ).map(a=>a.training_id));
       const audienceLive=trainings.find(t=>allowed.has(t.id));
       if(audienceLive) return audienceLive;
+
+      // Compatibilidad con entrenamientos creados por un manager antes de que
+      // guardáramos explícitamente la audiencia por equipo. En ese caso el
+      // acceso se deriva del manager que creó el entrenamiento y del equipo
+      // actual del creador. No amplía el acceso a sesiones de otros managers.
+      const creatorTeamId=p?.team_id||null;
+      if(creatorTeamId){
+        const managerUserIds=[...new Set(trainings.map(t=>t.created_by).filter(Boolean))];
+        if(managerUserIds.length){
+          const {data:managerRows}=await sb.from('managers').select('id,user_id').in('user_id',managerUserIds).eq('active',true);
+          const managerIds=(managerRows||[]).map(m=>m.id);
+          if(managerIds.length){
+            const {data:managedTeams}=await sb.from('teams').select('id,manager_id').eq('id',creatorTeamId).in('manager_id',managerIds);
+            const managerByUser=new Map((managerRows||[]).map(m=>[m.user_id,m.id]));
+            const teamManagerId=managedTeams?.[0]?.manager_id;
+            if(teamManagerId){
+              const ownedLive=trainings.find(t=>managerByUser.get(t.created_by)===teamManagerId);
+              if(ownedLive) return ownedLive;
+            }
+          }
+        }
+      }
 
       // Último respaldo seguro: si el creador ya está dentro de un LIVE, su
       // propia fila de participante confirma qué entrenamiento está viendo.
@@ -2463,6 +2512,15 @@ async function createLiveTrainingModal(){
         if(type==='creators') rows=[...document.querySelectorAll('[data-lt-creator]:checked')].map(x=>({training_id:created.id,target_type:'creator',target_id:x.value}));
         if(!rows.length)throw new Error('Selecciona al menos un equipo, manager o creador para este entrenamiento.');
         const {error:ae}=await sb.from('live_training_audience').insert(rows);if(ae)throw ae;
+      } else if(profile?.role==='manager'){
+        // Los entrenamientos creados por un manager deben quedar dirigidos
+        // explícitamente a los creadores de su(s) equipo(s). Antes faltaba
+        // esta fila de audiencia y por eso Mi espacio podía no detectar el LIVE.
+        const {data:me}=await sb.from('managers').select('id').eq('user_id',session.user.id).eq('active',true).maybeSingle();
+        const {data:teams}=me ? await sb.from('teams').select('id').eq('manager_id',me.id) : {data:[]};
+        const rows=(teams||[]).map(t=>({training_id:created.id,target_type:'team',target_id:t.id}));
+        if(!rows.length)throw new Error('Tu manager no tiene un equipo asignado para este entrenamiento.');
+        const {error:ae}=await sb.from('live_training_audience').insert(rows);if(ae)throw ae;
       }
       close();toast('Entrenamiento creado ✓');render();
     }catch(e){
@@ -2471,7 +2529,48 @@ async function createLiveTrainingModal(){
   };
 }
 
-async function startLiveTraining(id){if(!id)return;const {data,error}=await sb.from('live_trainings').update({status:'live',started_at:new Date().toISOString(),ended_at:null}).eq('id',id).eq('status','scheduled').select('id,title,description,room_name,created_by,instructor_name,scheduled_at,status,started_at').single();if(error){toast(error.code==='23505'?'Ya hay otro entrenamiento EN VIVO. Finalízalo antes de iniciar uno nuevo.':error.message);return;}currentLiveTraining=data;pendingLiveTrainingAutoStart=data;nav('live-training');}
+async function notifyLiveTrainingAudience(training){
+  if(!training?.id) return;
+  try{
+    const {data:aud,error:ae}=await sb.from('live_training_audience')
+      .select('target_type,target_id').eq('training_id',training.id);
+    if(ae){ console.warn('No se pudo consultar la audiencia del LIVE:',ae.message); return; }
+    const rows=aud||[];
+    const creatorIds=new Set();
+    if(rows.some(a=>a.target_type==='all_creators')){
+      const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true);
+      (creators||[]).forEach(c=>creatorIds.add(c.id));
+    }
+    const teamIds=rows.filter(a=>a.target_type==='team'&&a.target_id).map(a=>a.target_id);
+    if(teamIds.length){
+      const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true).in('team_id',teamIds);
+      (creators||[]).forEach(c=>creatorIds.add(c.id));
+    }
+    const directIds=rows.filter(a=>a.target_type==='creator'&&a.target_id).map(a=>a.target_id);
+    directIds.forEach(id=>creatorIds.add(id));
+    const managerIds=rows.filter(a=>a.target_type==='manager'&&a.target_id).map(a=>a.target_id);
+    if(managerIds.length){
+      const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true).in('manager_id',managerIds);
+      (creators||[]).forEach(c=>creatorIds.add(c.id));
+    }
+    if(!creatorIds.size) return;
+    const message=`El entrenamiento “${training.title||'Grayxon'}” ya está EN VIVO. Entra ahora desde Grayxon.`;
+    await Promise.all([...creatorIds].map(uid=>notifyCreator(uid,'🔴 Entrenamiento EN VIVO',message,'live-training')));
+  }catch(e){ console.warn('No se pudieron enviar avisos del LIVE:',e); }
+}
+
+async function startLiveTraining(id){
+  if(!id)return;
+  const {data,error}=await sb.from('live_trainings').update({status:'live',started_at:new Date().toISOString(),ended_at:null}).eq('id',id).eq('status','scheduled').select('id,title,description,room_name,created_by,instructor_name,scheduled_at,status,started_at').single();
+  if(error){toast(error.code==='23505'?'Ya hay otro entrenamiento EN VIVO. Finalízalo antes de iniciar uno nuevo.':error.message);return;}
+  currentLiveTraining=data;
+  pendingLiveTrainingAutoStart=data;
+  // La notificación se crea después de poner el LIVE en estado real.
+  // El trigger existente de notifications se encarga del push al celular
+  // cuando el creador ya tiene una suscripción Push activa.
+  await notifyLiveTrainingAudience(data);
+  nav('live-training');
+}
 async function finishLiveTraining(id){if(!confirm('¿Finalizar este entrenamiento?'))return;const endedAt=new Date().toISOString();const {data,error}=await sb.from('live_trainings').update({status:'finished',ended_at:endedAt}).eq('id',id).eq('status','live').select('id,title').single();if(error){toast(error.message);return;}await sb.from('live_training_participants').update({left_at:endedAt}).eq('training_id',id).is('left_at',null);toast(`“${data?.title||'Entrenamiento'}” finalizado ✓`);render();}
 async function deleteLiveTraining(id){
   if(profile?.role!=='admin'){toast('Solo un administrador puede eliminar el historial de entrenamientos.');return;}
@@ -3980,7 +4079,7 @@ sb.auth.onAuthStateChange((event,newSession)=>{
 
 init();
 
-document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(profile?.role==='creator') setTimeout(showGrayxonPushPrompt,500); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(profile?.role==='creator') { registerGrayxonPush({requestPermission:false}).catch(()=>{}); setTimeout(()=>showGrayxonPushPrompt(),500); } } });
 setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 5000);
 
 window.addEventListener('popstate', () => {
