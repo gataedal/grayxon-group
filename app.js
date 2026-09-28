@@ -4491,8 +4491,36 @@ window.addEventListener('popstate', () => {
   window.scrollTo(0, 0);
 });
 
-window.addEventListener('hashchange', () => {
+window.addEventListener('hashchange', async () => {
   const page = window.location.hash.replace(/^#/, '') || 'home';
+  const deepLiveMatch = page.match(/^live-training\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+
+  // Deep-link LIVE: también debe funcionar cuando Grayxon ya está abierto.
+  // No modificamos el flujo normal de live-training; solo interceptamos URLs con UUID.
+  if (session && profile?.role === 'creator' && deepLiveMatch) {
+    const liveId = deepLiveMatch[1];
+    const { data: targetLive } = await sb.from('live_trainings')
+      .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+      .eq('id', liveId)
+      .eq('status', 'live')
+      .maybeSingle();
+
+    if (targetLive) {
+      currentLiveTraining = targetLive;
+      pendingLiveTrainingAutoStart = { id: targetLive.id };
+      if (current !== 'live-training') {
+        current = 'live-training';
+        render();
+      } else {
+        ensureLiveTrainingPage();
+      }
+      updateCreatorSpaceFloat();
+      updateCreatorTopNav();
+      window.scrollTo(0, 0);
+      return;
+    }
+  }
+
   if (page === 'live-training') ensureLiveTrainingPage();
   if (!['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(page)) return;
   if (current === page) return;
