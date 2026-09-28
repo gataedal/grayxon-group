@@ -1258,84 +1258,113 @@ async function creatorTrainingsTpl(){
   profile=await getProfile();
   if(!profile?.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2></div>';return;}
 
-  const [trRes,viewRes]=await Promise.all([
-    sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').in('status',['scheduled','live','finished']).order('scheduled_at',{ascending:false}).order('created_at',{ascending:false}),
-    sb.from('live_training_views').select('training_id,viewed_at').eq('user_id',session.user.id)
-  ]);
-  if(trRes.error){el.innerHTML=`<div class="live-training-page"><div class="live-training-feature"><div class="live-training-feature-inner"><h2>No pudimos cargar tus entrenamientos</h2><p class="muted">${esc(trRes.error.message)}</p></div></div></div>`;return;}
+  // Para CREADORES, la pantalla de Entrenamientos no es una biblioteca de
+  // entrenamientos programados. Solo debe destacar un LIVE al que realmente
+  // pueda entrar. El resto de la pantalla es un historial compacto de los
+  // entrenamientos a los que efectivamente asistió.
+  const {data:rawLive,error:liveError}=await sb.from('live_trainings')
+    .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+    .eq('status','live')
+    .order('started_at',{ascending:false});
+  if(liveError){
+    el.innerHTML=`<div class="live-training-page"><div class="live-training-feature"><div class="live-training-feature-inner"><h2>No pudimos cargar tus entrenamientos</h2><p class="muted">${esc(liveError.message)}</p></div></div></div>`;
+    return;
+  }
 
-  // La policy de live_trainings ya restringe el acceso del creador. No obstante,
-  // filtramos también por audiencia para que una segmentación de managers nunca
-  // termine apareciendo accidentalmente en la interfaz del creador.
-  const rawTrainings=trRes.data||[];
-  const ids=rawTrainings.map(t=>t.id);
-  const {data:audience}=ids.length
-    ? await sb.from('live_training_audience').select('training_id,target_type,target_id').in('training_id',ids)
+  const uid=session.user.id;
+  const p=profile||{};
+  const liveIds=(rawLive||[]).map(t=>t.id);
+  const {data:liveAudience}=liveIds.length
+    ? await sb.from('live_training_audience').select('training_id,target_type,target_id').in('training_id',liveIds)
     : {data:[]};
-  const uid=session.user.id, p=profile||{};
-  const allowedIds=new Set((audience||[]).filter(a =>
+
+  // IMPORTANTE: target_type=manager NUNCA da acceso a un creador.
+  const allowedLiveIds=new Set((liveAudience||[]).filter(a =>
     a.target_type==='all_creators' ||
     (a.target_type==='creator' && a.target_id===uid) ||
-    (a.target_type==='team' && a.target_id===p.team_id) ||
-    (a.target_type==='manager' && a.target_id===p.manager_id)
+    (a.target_type==='team' && a.target_id===p.team_id)
   ).map(a=>a.training_id));
-  const trainings=rawTrainings.filter(t=>allowedIds.has(t.id) && t.status!=='cancelled');
 
-  const views=new Map((viewRes.data||[]).map(v=>[v.training_id,v]));
-  const pending=trainings.filter(t=>!views.has(t.id));
-  const completed=trainings.filter(t=>views.has(t.id));
+  const liveTrainings=(rawLive||[]).filter(t=>allowedLiveIds.has(t.id));
+  const activeLive=liveTrainings[0]||null;
 
-  const card=(t,seen)=>{
-    const live=t.status==='live';
-    const scheduled=t.status==='scheduled';
-    const status=live?'🔴 EN VIVO':scheduled?'PROGRAMADO':'COMPLETADO';
-    const buttonLabel=live?'Entrar al vivo':scheduled?'Ver detalles':'Ver detalles';
-    return `<div class="creator-training-item">
-      <button type="button" class="creator-training-toggle" data-creator-training-toggle="${t.id}" aria-expanded="false">
-        <span class="creator-training-toggle-main"><span class="creator-training-icon">🎥</span><span><strong>${esc(t.title)}</strong><small>${esc(status)} · ${esc(t.instructor_name||'Grayxon')}</small></span></span>
-        <span class="creator-training-chevron">›</span>
-      </button>
-      <div class="creator-training-detail hidden" id="creator-training-detail-${t.id}">
-        <div class="creator-training-detail-grid">
-          <span><b>Instructor</b>${esc(t.instructor_name||'Grayxon')}</span>
-          <span><b>Fecha</b>${formatDateTime(t.started_at||t.scheduled_at||t.created_at)}</span>
-          <span><b>Duración</b>${live?'En vivo':t.status==='finished'?liveTrainingDuration(t.started_at,t.ended_at):'Programado'}</span>
-        </div>
-        <p class="muted creator-training-description">${esc(t.description||'Este entrenamiento no tiene una descripción adicional.')}</p>
-        <div class="creator-training-detail-actions">
-          <button type="button" class="${live?'primary':'secondary'} small" data-view-creator-training="${t.id}">${buttonLabel}</button>
-        </div>
+  // Historial real = entrenamientos donde el creador tiene un registro de
+  // participación. Una simple apertura/visualización no cuenta como asistencia.
+  const {data:participantRows, error:participantError}=await sb.from('live_training_participants')
+    .select('training_id,joined_at,left_at,duration_seconds')
+    .eq('user_id',uid)
+    .order('joined_at',{ascending:false});
+
+  let attended=[];
+  if(!participantError && participantRows?.length){
+    const attendedIds=[...new Set(participantRows.map(r=>r.training_id).filter(Boolean))];
+    const {data:attendedTrainings}=await sb.from('live_trainings')
+      .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+      .in('id',attendedIds)
+      .order('started_at',{ascending:false});
+    const tm=new Map((attendedTrainings||[]).map(t=>[t.id,t]));
+    attended=participantRows.map(r=>({training:tm.get(r.training_id),participant:r})).filter(x=>x.training);
+  }
+
+  const uniqueAttended=[];
+  const seenAttended=new Set();
+  for(const item of attended){
+    if(seenAttended.has(item.training.id)) continue;
+    seenAttended.add(item.training.id);
+    uniqueAttended.push(item);
+  }
+
+  const liveCard=activeLive ? `<section class="creator-live-now-section">
+    <div class="eyebrow">ENTRENAMIENTO EN VIVO</div>
+    <div class="creator-live-now-card">
+      <div class="creator-live-now-copy">
+        <div class="creator-live-now-badge"><span></span> EN VIVO</div>
+        <h2>${esc(activeLive.title)}</h2>
+        <p class="muted">Instructor: ${esc(activeLive.instructor_name||'Grayxon')}</p>
+        ${activeLive.description?`<p class="muted small">${esc(activeLive.description)}</p>`:''}
       </div>
-    </div>`;
-  };
+      <button type="button" class="primary" id="enterCreatorLiveNow">Entrar al entrenamiento</button>
+    </div>
+  </section>` : '';
+
+  const historyItems=uniqueAttended.map(({training:t,participant:r})=>`<div class="creator-attended-item">
+    <div class="creator-attended-main">
+      <span class="creator-training-icon">🎥</span>
+      <span><strong>${esc(t.title)}</strong><small>${esc(t.instructor_name||'Grayxon')} · ${formatDateTime(t.started_at||t.scheduled_at||t.created_at)}</small></span>
+    </div>
+    <span class="creator-attended-duration">${t.started_at ? liveTrainingDuration(r.joined_at,r.left_at||t.ended_at) : 'Asistencia registrada'}</span>
+  </div>`).join('');
 
   el.innerHTML=`<div class="live-training-page creator-training-library">
-    <div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Tus entrenamientos 🎥</h1><p>Los entrenamientos en vivo que Grayxon ha puesto a tu disposición.</p></div></div>
-    <section class="creator-training-section"><div class="creator-training-section-head"><div><div class="eyebrow">PENDIENTES</div><h2>Por ver</h2></div><span>${pending.length}</span></div>
-      <div class="creator-training-list">${pending.length?pending.map(t=>card(t,false)).join(''):'<div class="creator-training-empty">No tienes entrenamientos pendientes. 🖤</div>'}</div>
-    </section>
-    <section class="creator-training-section"><div class="creator-training-section-head"><div><div class="eyebrow">COMPLETADOS</div><h2>Ya vistos</h2></div><span>${completed.length}</span></div>
-      <div class="creator-training-list">${completed.length?completed.map(t=>card(t,true)).join(''):'<div class="creator-training-empty">Todavía no has visto entrenamientos.</div>'}</div>
+    <div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Tus entrenamientos 🎥</h1><p>Entra directamente cuando un entrenamiento esté EN VIVO y consulta abajo tu historial de asistencia.</p></div></div>
+    ${liveCard}
+    <section class="creator-attended-section">
+      <button type="button" class="creator-attended-toggle" id="creatorAttendedToggle" aria-expanded="false">
+        <span><span class="eyebrow">HISTORIAL</span><strong>Entrenamientos a los que asististe</strong></span>
+        <span class="creator-attended-toggle-right"><b>${uniqueAttended.length}</b><span class="creator-training-chevron">›</span></span>
+      </button>
+      <div id="creatorAttendedPanel" class="creator-attended-panel hidden">
+        ${historyItems || '<div class="creator-training-empty">Todavía no has asistido a ningún entrenamiento.</div>'}
+      </div>
     </section>
   </div>`;
-  bind();
-  $$('[data-creator-training-toggle]').forEach(b=>b.onclick=()=>{
-    const id=b.dataset.creatorTrainingToggle,d=$('#creator-training-detail-'+id);
-    if(!d)return;const open=d.classList.contains('hidden');
-    d.classList.toggle('hidden',!open);b.setAttribute('aria-expanded',open?'true':'false');b.classList.toggle('open',open);
+
+  $('#enterCreatorLiveNow')?.addEventListener('click',async()=>{
+    if(!activeLive)return;
+    pendingLiveTrainingAutoStart={id:activeLive.id};
+    nav('live-training');
   });
-  $$('[data-view-creator-training]').forEach(b=>b.onclick=async()=>{
-    const t=trainings.find(x=>x.id===b.dataset.viewCreatorTraining);if(!t)return;
-    if(t.status==='live'){
-      // EN VIVO: entrar directamente. No se marca como visto hasta haber entrado.
-      pendingLiveTrainingAutoStart={id:t.id};nav('live-training');
-      return;
-    }
-    // Programados/finalizados: solo mostrar sus datos. No existe grabación JaaS
-    // integrada todavía, así que nunca prometemos "ver de nuevo".
-    showCreatorTrainingDetail(t);
+  $('#creatorAttendedToggle')?.addEventListener('click',()=>{
+    const panel=$('#creatorAttendedPanel');
+    const btn=$('#creatorAttendedToggle');
+    if(!panel||!btn)return;
+    const open=panel.classList.contains('hidden');
+    panel.classList.toggle('hidden',!open);
+    btn.setAttribute('aria-expanded',open?'true':'false');
+    btn.classList.toggle('open',open);
   });
 }
+
 async function liveTrainingTpl() {
   if(profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session')) return creatorTrainingsTpl();
   const el=ensureLiveTrainingPage();
@@ -3304,6 +3333,28 @@ sb.auth.onAuthStateChange((event,newSession)=>{
 })();
 
 /* v24 · creator training library */
+(function applyV31TrainingAndFormationStyles(){
+  if(document.getElementById('grayxon-v31-training-creator-ui')) return;
+  const style=document.createElement('style'); style.id='grayxon-v31-training-creator-ui'; style.textContent=`
+    .formation-module-accordion{background:#0f1115!important;border:1px solid rgba(255,255,255,.10)!important;border-radius:16px!important;overflow:hidden!important}
+    .formation-module-toggle{appearance:none!important;-webkit-appearance:none!important;background:#0f1115!important;color:#fff!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:14px 16px!important;text-transform:none!important;letter-spacing:normal!important;min-height:68px!important}
+    .formation-module-toggle:hover{background:#151820!important}
+    .formation-module-copy strong{color:#fff!important}
+    .formation-module-copy small{color:#858c98!important}
+    .formation-module-meta{color:#aeb5bf!important}
+    .formation-module-number{background:rgba(37,244,238,.04)!important}
+    .creator-live-now-section{margin-top:24px}
+    .creator-live-now-card{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:20px;border:1px solid rgba(37,244,238,.28);border-radius:20px;background:linear-gradient(145deg,rgba(37,244,238,.07),rgba(255,255,255,.025));box-shadow:0 18px 55px rgba(0,0,0,.22)}
+    .creator-live-now-copy h2{margin:8px 0 5px;color:#fff;font-size:24px}.creator-live-now-copy p{margin:4px 0;line-height:1.5}
+    .creator-live-now-badge{display:inline-flex;align-items:center;gap:7px;color:#6ee7b7;font-size:11px;font-weight:900;letter-spacing:.08em}.creator-live-now-badge span{width:8px;height:8px;border-radius:50%;background:#fe2c55;box-shadow:0 0 12px rgba(254,44,85,.7)}
+    .creator-attended-section{margin-top:26px;border:1px solid rgba(255,255,255,.09);border-radius:18px;background:rgba(255,255,255,.018);overflow:hidden}
+    .creator-attended-toggle{width:100%;display:flex!important;align-items:center;justify-content:space-between;gap:12px;text-align:left!important;background:#101217!important;color:#fff!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:17px 18px!important;appearance:none!important;-webkit-appearance:none!important}
+    .creator-attended-toggle>span:first-child{display:grid;gap:4px}.creator-attended-toggle strong{font-size:16px}.creator-attended-toggle-right{display:flex;align-items:center;gap:10px;color:#9aa0ab}.creator-attended-toggle-right b{min-width:30px;height:30px;padding:0 8px;display:grid;place-items:center;border-radius:999px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);font-size:11px}.creator-attended-toggle.open .creator-training-chevron{transform:rotate(90deg)}
+    .creator-attended-panel{padding:10px 12px 12px;border-top:1px solid rgba(255,255,255,.07)}.creator-attended-panel.hidden{display:none!important}.creator-attended-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 8px;border-bottom:1px solid rgba(255,255,255,.06)}.creator-attended-item:last-child{border-bottom:0}.creator-attended-main{display:flex;align-items:center;gap:10px;min-width:0}.creator-attended-main strong{display:block;color:#fff;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.creator-attended-main small{display:block;margin-top:3px;color:#858c98;font-size:10px}.creator-attended-duration{color:#858c98;font-size:10px;white-space:nowrap}
+    @media(max-width:800px){.creator-live-now-card{display:block;padding:17px}.creator-live-now-card .primary{width:100%;margin-top:14px}.creator-live-now-copy h2{font-size:21px}.creator-attended-item{align-items:flex-start}.creator-attended-duration{padding-top:4px}}
+  `; document.head.appendChild(style);
+})();
+
 (function applyV24TrainingLibraryStyles(){
   if(document.getElementById('grayxon-v24-training-library')) return;
   const style=document.createElement('style'); style.id='grayxon-v24-training-library';
