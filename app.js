@@ -835,9 +835,22 @@ async function startGrayxonLiveTraining() {
 
     api.addEventListener?.('readyToClose', () => {
       destroyJaasMeeting();
-      if ($('#grayxonJaasMeet')) {
-        $('#grayxonJaasMeet').innerHTML = `<div class="live-training-loading"><div><strong>Saliste del entrenamiento</strong><span>Puedes volver a entrar cuando quieras.</span><div style="margin-top:18px"><button class="primary" id="rejoinGrayxonTraining">Volver a entrar</button></div></div></div>`;
-        $('#rejoinGrayxonTraining')?.addEventListener('click', startGrayxonLiveTraining);
+
+      // Al salir de la videollamada, ocultamos completamente la sala.
+      // El usuario vuelve a ver la tarjeta del entrenamiento y puede entrar de nuevo.
+      const wrap = $('#grayxonTrainingRoomWrap');
+      const meet = $('#grayxonJaasMeet');
+      const btn = $('#enterGrayxonTraining');
+
+      if (meet) {
+        meet.innerHTML = `<div class="live-training-loading"><div><strong>Preparando el entrenamiento…</strong><span>La videollamada se abrirá aquí.</span></div></div>`;
+      }
+
+      wrap?.classList.add('hidden');
+
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
       }
     });
   } catch (error) {
