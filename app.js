@@ -90,7 +90,7 @@ async function showGrayxonPushPrompt(){
   // database row (for example after clearing account data) and do not bother the creator.
   try{
     if('serviceWorker' in navigator && 'PushManager' in window){
-      const registration=await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.register('./sw.js?v=42',{scope:'./'});
+      const registration=await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.register('./sw.js?v=43',{scope:'./'});
       const existing=await registration?.pushManager?.getSubscription();
       if(existing){
         if('Notification' in window && Notification.permission==='granted'){
@@ -163,7 +163,7 @@ async function registerGrayxonPush({requestPermission=false}={}) {
   pushRegistrationPromise = (async () => {
     try {
       ensureGrayxonPwaLinks();
-      const registration = await navigator.serviceWorker.register('./sw.js?v=42', { scope: './' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=43', { scope: './' });
       await navigator.serviceWorker.ready;
 
       let permission = Notification.permission;
@@ -448,204 +448,51 @@ async function markAllNotifications() {
   toast('Notificaciones marcadas como leídas ✓');
 }
 
-async function routeGrayxonNotificationTarget({
-  linkPage = 'space',
-  linkTarget = null,
-  weekStart = null,
-  weekEnd = null,
-  fromPush = false
-} = {}) {
-  try {
-    const page = String(linkPage || 'space').trim().toLowerCase();
-    const target = String(linkTarget || '').trim();
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-    // External destinations remain external.
-    if (/^(https?:|mailto:|tel:)/i.test(target)) {
-      window.location.href = target;
-      return true;
-    }
-
-    // Explicit hash destination, kept for backwards compatibility.
-    if (target.startsWith('#')) {
-      const hashPage = target.slice(1).toLowerCase();
-      if (['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(hashPage)) {
-        nav(hashPage, false);
-        return true;
-      }
-    }
-
-    let targetType = '';
-    let targetId = '';
-    if (target.includes(':')) {
-      const splitAt = target.indexOf(':');
-      targetType = target.slice(0, splitAt).trim().toLowerCase();
-      targetId = target.slice(splitAt + 1).trim();
-    }
-
-    // LIVE: accepts live-training:UUID, live:UUID, or the legacy bare UUID.
-    if (page === 'live-training' || page === 'live' || targetType === 'live-training' || targetType === 'live' || uuidRegex.test(target)) {
-      let liveId = '';
-      if (targetType === 'live-training' || targetType === 'live') liveId = targetId;
-      else if (uuidRegex.test(target)) liveId = target;
-
-      if (liveId && uuidRegex.test(liveId)) {
-        const { data: targetLive, error } = await sb
-          .from('live_trainings')
-          .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
-          .eq('id', liveId)
-          .eq('status', 'live')
-          .maybeSingle();
-
-        if (error) console.warn('Grayxon: no se pudo cargar el LIVE objetivo:', error.message);
-        if (targetLive) {
-          currentLiveTraining = targetLive;
-          pendingLiveTrainingAutoStart = { id: targetLive.id };
-          nav('live-training', false);
-          return true;
-        }
-
-        // A legacy bare UUID can also belong to another destination.
-        if (uuidRegex.test(target) && page === 'training') {
-          pendingNotificationTarget = { type: 'lesson', lessonId: target };
-          nav('training', false);
-          return true;
-        }
-        if (uuidRegex.test(target) && (page === 'missions' || page === 'mission')) {
-          pendingNotificationTarget = { type: 'missions', missionId: target, weekStart: weekStart || null, weekEnd: weekEnd || null };
-          nav('missions', false);
-          return true;
-        }
-        if (uuidRegex.test(target) && (page === 'manager' || page === 'manager-task' || page === 'task')) {
-          pendingNotificationTarget = { type: 'manager-task', taskId: target };
-          nav('manager', false);
-          return true;
-        }
-      }
-
-      // Generic LIVE notification without a specific UUID: use the live session available to this user.
-      if (page === 'live-training' || page === 'live' || targetType === 'live-training' || targetType === 'live') {
-        if (profile?.role === 'creator') {
-          const live = await fetchCreatorLiveTrainingFast();
-          if (live) {
-            currentLiveTraining = live;
-            pendingLiveTrainingAutoStart = { id: live.id };
-          }
-        }
-        nav('live-training', false);
-        return true;
-      }
-    }
-
-    // Formation lesson/content.
-    if (targetType === 'lesson' || targetType === 'content') {
-      if (uuidRegex.test(targetId)) {
-        pendingNotificationTarget = { type: 'lesson', lessonId: targetId };
-        nav('training', false);
-        return true;
-      }
-      nav('training', false);
-      return true;
-    }
-
-    // Formation module.
-    if (targetType === 'module') {
-      if (uuidRegex.test(targetId)) {
-        pendingNotificationTarget = { type: 'module', moduleId: targetId };
-      }
-      nav('training', false);
-      return true;
-    }
-
-    // Exact mission, or the existing weekly-mission destination.
-    if (targetType === 'mission') {
-      pendingNotificationTarget = {
-        type: 'missions',
-        missionId: uuidRegex.test(targetId) ? targetId : null,
-        weekStart: weekStart || null,
-        weekEnd: weekEnd || null
-      };
-      nav('missions', false);
-      return true;
-    }
-
-    if (page === 'missions' || page === 'mission') {
-      pendingNotificationTarget = {
-        type: 'missions',
-        missionId: null,
-        weekStart: weekStart || null,
-        weekEnd: weekEnd || null
-      };
-      nav('missions', false);
-      return true;
-    }
-
-    // Exact manager task.
-    if (targetType === 'manager-task' || targetType === 'task') {
-      pendingNotificationTarget = {
-        type: 'manager-task',
-        taskId: uuidRegex.test(targetId) ? targetId : null
-      };
-      nav('manager', false);
-      return true;
-    }
-
-    // General destinations.
-    const targetMap = {
-      dashboard: 'space',
-      space: 'space',
-      'mi-espacio': 'space',
-      training: 'training',
-      formation: 'training',
-      'live-training': 'live-training',
-      live: 'live-training',
-      missions: 'missions',
-      mission: 'missions',
-      profile: 'profile',
-      'mi-perfil': 'profile',
-      manager: 'manager',
-      admin: 'admin',
-      home: 'home',
-      benefits: 'benefits',
-      auth: 'auth'
-    };
-
-    const destination = targetMap[page] || targetMap[target.toLowerCase()];
-    if (destination) {
-      if (destination === 'live-training' && profile?.role === 'creator') {
-        const live = await fetchCreatorLiveTrainingFast();
-        if (live) {
-          currentLiveTraining = live;
-          pendingLiveTrainingAutoStart = { id: live.id };
-        }
-      }
-      nav(destination, false);
-      return true;
-    }
-
-    // Safe fallback for old/unknown notifications.
-    nav('space', false);
-    return true;
-  } catch (error) {
-    console.warn('Grayxon: error procesando destino de notificación:', error);
-    return false;
-  }
-}
-
 async function openNotification(id) {
   const n = notifications.find(x => x.id === id);
   if (!n) return;
-
   await markNotificationRead(id);
   $('#notificationsPanel')?.classList.add('hidden');
-
-  await routeGrayxonNotificationTarget({
-    linkPage: n.link_page,
-    linkTarget: n.link_target,
-    weekStart: n.related_week_start,
-    weekEnd: n.related_week_end,
-    fromPush: false
-  });
+  if (n.link_target) {
+    const target = String(n.link_target);
+    if (target.startsWith('#')) { window.location.hash = target.slice(1); return; }
+    if (/^(https?:|mailto:|tel:)/i.test(target)) { window.location.href = target; return; }
+    const page = target.replace(/^\//, '').split(/[?#]/)[0].toLowerCase();
+    // LIVE: un UUID solo se interpreta como entrenamiento cuando la notificación
+    // realmente es de tipo training + destino live-training. Nunca adivinamos
+    // que cualquier UUID pertenece a un LIVE (podría ser una misión, tarea, etc.).
+    if(profile?.role==='creator' && n.type==='training' && n.link_page==='live-training' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(page)){
+      const {data:targetLive}=await sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').eq('id',page).eq('status','live').maybeSingle();
+      if(targetLive){ currentLiveTraining=targetLive; pendingLiveTrainingAutoStart={id:targetLive.id}; nav('live-training'); return; }
+    }
+    const targetMap = {
+      dashboard:'space', space:'space', 'mi-espacio':'space',
+      training:'training', formation:'training', 'live-training':'live-training',
+      missions:'missions', mission:'missions', profile:'profile', 'mi-perfil':'profile',
+      manager:'manager', admin:'admin', home:'home', benefits:'benefits', auth:'auth'
+    };
+    const destination = targetMap[page];
+    if (destination) {
+      if(destination==='live-training' && profile?.role==='creator'){
+        const live=await fetchCreatorLiveTrainingFast();
+        if(live){ currentLiveTraining=live; pendingLiveTrainingAutoStart={id:live.id}; }
+      }
+      nav(destination); return;
+    }
+  }
+  if (n.link_page === 'missions') {
+    pendingNotificationTarget = { type:'missions', weekStart:n.related_week_start || null, weekEnd:n.related_week_end || null };
+    nav('missions');
+  } else if (n.link_page === 'training') nav('training');
+  else if (n.link_page === 'live-training') {
+    if(profile?.role==='creator'){
+      const live=await fetchCreatorLiveTrainingFast();
+      if(live){ currentLiveTraining=live; pendingLiveTrainingAutoStart={id:live.id}; }
+    }
+    nav('live-training');
+  }
+  else if (n.link_page === 'manager') nav('manager');
+  else nav('space');
 }
 
 function toggleNotifications() {
@@ -656,47 +503,9 @@ function toggleNotifications() {
   if (!panel.classList.contains('hidden')) renderNotificationsPanel();
 }
 
-async function notifyCreators(title, message, linkPage='space', linkTarget=null) {
-  // Keep the existing RPC for notifications without a precise destination.
-  if (!linkTarget) {
-    const { error } = await sb.rpc('notify_all_creators', {
-      p_type: 'formation',
-      p_title: title,
-      p_message: message,
-      p_link_page: linkPage
-    });
-    if (error) console.warn('No se pudo crear la notificación:', error.message);
-    return;
-  }
-
-  // When a precise destination exists, store it on every active creator row.
-  // This lets both the in-app notification center and Push deep-link to the exact item.
-  const { data: creators, error: creatorsError } = await sb
-    .from('profiles')
-    .select('id')
-    .eq('role', 'creator')
-    .eq('active', true);
-
-  if (creatorsError) {
-    console.warn('No se pudieron cargar los creadores para notificar:', creatorsError.message);
-    return;
-  }
-
-  const rows = (creators || []).map(creator => ({
-    user_id: creator.id,
-    type: 'formation',
-    title,
-    message,
-    link_page: linkPage,
-    link_target: linkTarget,
-    related_week_start: null,
-    related_week_end: null
-  }));
-
-  if (!rows.length) return;
-
-  const { error } = await sb.from('notifications').insert(rows);
-  if (error) console.warn('No se pudo crear la notificación dirigida:', error.message);
+async function notifyCreators(title, message, linkPage='space') {
+  const { error } = await sb.rpc('notify_all_creators', { p_type: 'formation', p_title: title, p_message: message, p_link_page: linkPage });
+  if (error) console.warn('No se pudo crear la notificación:', error.message);
 }
 
 async function notifyCreator(userId, title, message, linkPage='space', weekStart=null, weekEnd=null) {
@@ -2611,7 +2420,7 @@ async function managerTpl(){
   const creatorRows=(creators||[]).map(creatorCard).join('') || '<div class="item"><p class="muted small" style="margin:0">No tienes creadores asignados actualmente.</p></div>';
   const tasksRes=await sb.from('manager_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('manager_id',me?.id||'').order('completed',{ascending:true}).order('assigned_at',{ascending:false});
   const tasks=tasksRes.data||[];
-  const taskHtml=tasks.length?tasks.map(t=>`<div class="item manager-task-row ${t.completed?'task-done':''}" data-manager-task-id="${t.id}"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><div>${t.completed?'<span class="pill ok">✓ Lista</span>':'<button class="primary small" data-complete-manager-task="'+t.id+'">Marcar como lista</button>'}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">No tienes tareas asignadas.</p></div>';
+  const taskHtml=tasks.length?tasks.map(t=>`<div class="item manager-task-row ${t.completed?'task-done':''}"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><div>${t.completed?'<span class="pill ok">✓ Lista</span>':'<button class="primary small" data-complete-manager-task="'+t.id+'">Marcar como lista</button>'}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">No tienes tareas asignadas.</p></div>';
   const managerUpcomingRes=await sb.from('live_trainings').select('id,title,scheduled_at,status,instructor_name,created_by').eq('status','scheduled').order('scheduled_at',{ascending:true}).limit(10);
   const managerUpcoming=(managerUpcomingRes.data||[]).filter(t=>t.scheduled_at && new Date(t.scheduled_at)>=new Date()).slice(0,3);
   const managerUpcomingCard=managerUpcoming.length?`<div class="card manager-upcoming-training"><div class="eyebrow">PRÓXIMOS ENTRENAMIENTOS</div><h3 style="margin:6px 0 10px">🎥 Tienes entrenamientos programados</h3><div class="list">${managerUpcoming.map(t=>`<div class="item"><div class="row"><div><b>${esc(t.title)}</b><div class="muted small">${formatDateTime(t.scheduled_at)} · ${esc(t.instructor_name||'Grayxon')}</div></div><span class="pill">Programado</span></div></div>`).join('')}</div></div>`:'';
@@ -2870,7 +2679,7 @@ function managerTaskModal(){
     const {data,error}=await sb.from('manager_tasks').insert({manager_id:managerId,title,description,due_at:due,assigned_by:session.user.id}).select('id').single();
     if(error){$('#mtErr').textContent=error.message;btn.disabled=false;return;}
     const {data:m}=await sb.from('managers').select('user_id,name').eq('id',managerId).single();
-    if(m?.user_id){await sb.from('notifications').insert({user_id:m.user_id,type:'manager_task',title:'Nueva tarea asignada',message:`Tienes una nueva tarea: ${title}`,link_page:'manager',link_target:`manager-task:${data.id}`});}
+    if(m?.user_id){await sb.from('notifications').insert({user_id:m.user_id,type:'manager_task',title:'Nueva tarea asignada',message:`Tienes una nueva tarea: ${title}`,link_page:'manager'});}
     el.remove();toast('Tarea asignada ✓');render();
   };
 }
@@ -3659,7 +3468,7 @@ async function editModule(id) {
     const { data: before } = await sb.from('modules').select('published,title').eq('id', id).single();
     const { error } = await sb.from('modules').update({ title, description: $('#moduleDesc').value.trim(), published: nextPublished }).eq('id', id);
     if (error) { $('#moduleErr').textContent = error.message; return; }
-    if (!before?.published && nextPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${title}.`, 'training', `module:${id}`);
+    if (!before?.published && nextPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${title}.`, 'training');
     el.remove(); toast('Módulo actualizado ✓'); render();
   };
 }
@@ -3786,9 +3595,9 @@ async function saveLesson(existing, moduleId, el) {
     }
     const payload = { module_id: moduleId, title, description, type, content, video_path, resource_path, sort_order, published };
     const wasPublished = !!existing?.published;
-    const result = existing ? await sb.from('lessons').update(payload).eq('id', existing.id).select('id').maybeSingle() : await sb.from('lessons').insert(payload).select('id').single();
+    const result = existing ? await sb.from('lessons').update(payload).eq('id', existing.id) : await sb.from('lessons').insert(payload);
     if (result.error) throw result.error;
-    if (published && !wasPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${title}.`, 'training', `lesson:${result.data?.id || existing?.id || ''}`);
+    if (published && !wasPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${title}.`, 'training');
     el.remove(); toast(existing ? 'Lección actualizada ✓' : 'Lección creada ✓'); render();
   } catch (e) {
     err.textContent = errorText(e);
@@ -3804,7 +3613,7 @@ async function toggleModule(id) {
   const { data: moduleRow } = await sb.from('modules').select('title').eq('id', id).single();
   const { error: e } = await sb.from('modules').update({ published: nextPublished }).eq('id', id);
   if (e) return toast(e.message);
-  if (nextPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${moduleRow?.title || 'un nuevo módulo'}.`, 'training', `module:${id}`);
+  if (nextPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${moduleRow?.title || 'un nuevo módulo'}.`, 'training');
   toast(data.published ? 'Módulo ocultado' : 'Módulo publicado ✓'); render();
 }
 
@@ -3815,7 +3624,7 @@ async function toggleLesson(id) {
   const { data: lessonRow } = await sb.from('lessons').select('title').eq('id', id).single();
   const { error: e } = await sb.from('lessons').update({ published: nextPublished }).eq('id', id);
   if (e) return toast(e.message);
-  if (nextPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${lessonRow?.title || 'una nueva lección'}.`, 'training', `lesson:${id}`);
+  if (nextPublished) await notifyCreators('Nuevo contenido de formación', `Se ha agregado nuevo contenido para tu formación: ${lessonRow?.title || 'una nueva lección'}.`, 'training');
   toast(data.published ? 'Lección ocultada' : 'Lección publicada ✓'); render();
 }
 
@@ -3992,67 +3801,15 @@ function bind() {
   $$('[data-save-mission]').forEach(b => b.onclick = () => saveMissionProgress(b.dataset.saveMission));
   $$('[data-mission-week]').forEach(b => b.onclick = () => { const id = b.dataset.missionWeek; const panel = $('#details-' + id); if (panel) panel.classList.toggle('hidden'); b.classList.toggle('open'); });
   $$('[data-creator-training-toggle]').forEach(b=>b.onclick=()=>{const id=b.dataset.creatorTrainingToggle;const panel=$('#creator-training-detail-'+id);if(!panel)return;const open=panel.classList.contains('hidden');panel.classList.toggle('hidden',!open);b.classList.toggle('open',open);b.setAttribute('aria-expanded',open?'true':'false');});
-  if (pendingNotificationTarget) {
+  if (pendingNotificationTarget?.type === 'missions') {
     const target = pendingNotificationTarget;
     pendingNotificationTarget = null;
-
-    if (target.type === 'missions') {
-      let missionCard = null;
-
-      if (target.missionId) {
-        missionCard = document.querySelector(`[data-mission-card-id="${CSS.escape(target.missionId)}"]`);
-      }
-
-      if (missionCard) {
-        const panel = missionCard.closest('.mission-week-details');
-        const weekButton = panel?.previousElementSibling?.querySelector('[data-mission-week]');
-        if (panel) panel.classList.remove('hidden');
-        if (weekButton) weekButton.classList.add('open');
-        setTimeout(() => missionCard.scrollIntoView({behavior:'smooth', block:'center'}), 80);
-      } else {
-        const btn = $$('[data-mission-week]').find(b =>
-          (b.dataset.weekStart || '') === (target.weekStart || '') &&
-          (b.dataset.weekEnd || '') === (target.weekEnd || '')
-        );
-        if (btn) {
-          const panel = $('#details-' + btn.dataset.missionWeek);
-          if (panel) {
-            panel.classList.remove('hidden');
-            btn.classList.add('open');
-            setTimeout(() => btn.scrollIntoView({behavior:'smooth', block:'center'}), 60);
-          }
-        }
-      }
-    } else if (target.type === 'lesson' && current === 'training') {
-      const lesson = getLessonById(target.lessonId);
-      if (lesson) setTimeout(() => openLesson(lesson.id, {skipReload:true}), 60);
-    } else if (target.type === 'module' && current === 'training') {
-      const moduleButton = $$('[data-formation-module-toggle]').find(b =>
-        String(b.dataset.formationModuleToggle || '').includes(target.moduleId)
-      );
-      if (moduleButton) {
-        const panel = $('#' + moduleButton.dataset.formationModuleToggle);
-        if (panel) {
-          panel.classList.remove('hidden');
-          moduleButton.classList.add('is-open');
-          moduleButton.setAttribute('aria-expanded', 'true');
-          setTimeout(() => moduleButton.scrollIntoView({behavior:'smooth', block:'center'}), 60);
-        }
-      }
-    } else if (target.type === 'manager-task' && current === 'manager') {
-      const taskRow = target.taskId
-        ? document.querySelector(`[data-manager-task-id="${CSS.escape(target.taskId)}"]`)
-        : null;
-      if (taskRow) {
-        setTimeout(() => {
-          taskRow.scrollIntoView({behavior:'smooth', block:'center'});
-          taskRow.classList.add('grayxon-notification-focus');
-          setTimeout(() => taskRow.classList.remove('grayxon-notification-focus'), 2200);
-        }, 80);
-      }
+    const btn = $$('[data-mission-week]').find(b => (b.dataset.weekStart || '') === (target.weekStart || '') && (b.dataset.weekEnd || '') === (target.weekEnd || ''));
+    if (btn) {
+      const panel = $('#details-' + btn.dataset.missionWeek);
+      if (panel) { panel.classList.remove('hidden'); btn.classList.add('open'); setTimeout(() => btn.scrollIntoView({ behavior:'smooth', block:'center' }), 60); }
     }
   }
-
   $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
   $$('[data-manager-creator-toggle]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.managerCreatorToggle;
@@ -4355,49 +4112,6 @@ async function saveBenefits() {
   else { toast('Beneficios y requisitos guardados ✓'); if (progress) progress.textContent = 'Cambios guardados correctamente.'; render(); }
 }
 
-(function ensureGrayxonNotificationFocusStyle(){
-  if(document.getElementById('grayxon-notification-focus-style')) return;
-  const style=document.createElement('style');
-  style.id='grayxon-notification-focus-style';
-  style.textContent=`
-    .grayxon-notification-focus{
-      animation:grayxonNotificationFocus 2.2s ease;
-    }
-    @keyframes grayxonNotificationFocus{
-      0%{box-shadow:0 0 0 0 rgba(254,44,85,0)}
-      20%{box-shadow:0 0 0 5px rgba(254,44,85,.28)}
-      60%{box-shadow:0 0 0 5px rgba(37,244,238,.18)}
-      100%{box-shadow:0 0 0 0 rgba(254,44,85,0)}
-    }
-  `;
-  document.head.appendChild(style);
-})();
-
-async function handleGrayxonPushDeepLink() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('grayxonPush') !== '1') return false;
-
-  const linkPage = params.get('page') || params.get('link_page') || 'space';
-  const linkTarget = params.get('target') || params.get('link_target') || null;
-  const weekStart = params.get('weekStart') || null;
-  const weekEnd = params.get('weekEnd') || null;
-
-  const handled = await routeGrayxonNotificationTarget({
-    linkPage,
-    linkTarget,
-    weekStart,
-    weekEnd,
-    fromPush: true
-  });
-
-  if (handled) {
-    const cleanUrl = `${window.location.pathname}${window.location.hash || ''}`;
-    history.replaceState(history.state, '', cleanUrl);
-  }
-
-  return handled;
-}
-
 async function init() {
   // Account controls live in the persistent header, so bind them once.
   const profileBtn = $('#mobileProfile');
@@ -4443,15 +4157,69 @@ async function init() {
   else updateNotificationsUI();
   updateHeaderAccessUI();
 
-  const handledPushDeepLink = session ? await handleGrayxonPushDeepLink() : false;
+  // Deep-link universal para notificaciones Push. El Service Worker conserva
+  // tipo + página + destino, de modo que el clic no tenga que adivinar qué es un UUID.
+  let pushNotificationTarget = null;
+  try {
+    const rawPush = window.location.hash.replace(/^#/, '');
+    if (rawPush.startsWith('push/')) {
+      const encoded = rawPush.slice(5);
+      const decoded = decodeURIComponent(escape(atob(encoded)));
+      const parsed = JSON.parse(decoded);
+      if (parsed && (parsed.type || parsed.link_page || parsed.link_target)) pushNotificationTarget = parsed;
+    }
+  } catch (_) {}
 
-  if (!handledPushDeepLink) {
-    const hashPage = window.location.hash.replace(/^#/, '');
-    const roleHome = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
-    const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(hashPage) ? hashPage : null;
-    const initialPage = session ? (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome) : (requestedPage || 'home');
-    nav(initialPage, false);
+  const hashRaw = window.location.hash.replace(/^#/, '');
+  const livePushMatch = hashRaw.match(/^live-training\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+  const requestedLiveTrainingId = livePushMatch ? livePushMatch[1] : null;
+  const universalPushTarget = pushNotificationTarget;
+  const universalPushLiveId = universalPushTarget?.type==='training' && universalPushTarget?.link_page==='live-training' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(universalPushTarget?.link_target||'')) ? String(universalPushTarget.link_target) : null;
+  const hashPage = universalPushLiveId || requestedLiveTrainingId ? 'live-training' : (universalPushTarget ? (universalPushTarget.link_page || 'space') : hashRaw);
+  const roleHome = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
+  const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(hashPage) ? hashPage : null;
+  const initialPage = session ? (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome) : (requestedPage || 'home');
+  const liveTargetId = universalPushLiveId || requestedLiveTrainingId;
+  if (session && profile?.role === 'creator' && liveTargetId) {
+    try {
+      const { data: pushLive } = await sb.from('live_trainings')
+        .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+        .eq('id', liveTargetId)
+        .eq('status', 'live')
+        .maybeSingle();
+      if (pushLive) {
+        currentLiveTraining = pushLive;
+        pendingLiveTrainingAutoStart = { id: pushLive.id };
+      }
+    } catch (error) {
+      console.warn('No se pudo recuperar el LIVE objetivo de la notificación:', error);
+    }
   }
+
+  // Para destinos no-LIVE, navegamos usando link_page/type sin reinterpretar el
+  // UUID como LIVE. Las misiones conservan además su semana asociada.
+  if (session && universalPushTarget && !universalPushLiveId) {
+    const targetPage = String(universalPushTarget.link_page || 'space').replace(/^\//,'').toLowerCase();
+    const destinationMap = {
+      missions:'missions', mission:'missions',
+      training:'training', formation:'training',
+      'live-training':'live-training',
+      manager:'manager', profile:'profile', 'mi-perfil':'profile',
+      space:'space', dashboard:'space', 'mi-espacio':'space', admin:'admin',
+      home:'home', benefits:'benefits', auth:'auth'
+    };
+    const pushDestination = destinationMap[targetPage] || 'space';
+    if (pushDestination === 'missions') {
+      pendingNotificationTarget = { type:'missions', weekStart:universalPushTarget.related_week_start || null, weekEnd:universalPushTarget.related_week_end || null, target:universalPushTarget.link_target || null };
+    }
+    nav(pushDestination, false);
+    if (pushDestination === 'live-training') {
+      const live=await fetchCreatorLiveTrainingFast();
+      if(live){ currentLiveTraining=live; pendingLiveTrainingAutoStart={id:live.id}; }
+    }
+    return;
+  }
+  nav(initialPage, false);
   if(session && profile?.role==='creator') setTimeout(showGrayxonPushPrompt,1200);
 }
 
