@@ -383,16 +383,21 @@ function ensureCreatorSpaceFloat(){
 
 function updateCreatorSpaceFloat(){
   const btn=ensureCreatorSpaceFloat();
+  const creatorSession=!!session && (profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session'));
   const inLiveCall=document.body.classList.contains('grayxon-live-training-call');
-  const visible=!!session && profile?.role==='creator' && current!=='space' && current!=='auth' && current!=='home' && !inLiveCall;
+  const visible=creatorSession && current!=='space' && current!=='auth' && current!=='home' && !inLiveCall;
+  document.body.classList.toggle('grayxon-creator-session',creatorSession);
   btn.classList.toggle('is-visible',visible);
   btn.style.setProperty('display', visible ? 'flex' : 'none', 'important');
+  btn.style.setProperty('opacity', visible ? '1' : '0', 'important');
+  btn.style.setProperty('pointer-events', visible ? 'auto' : 'none', 'important');
+  btn.style.setProperty('transform', visible ? 'none' : 'translateY(10px) scale(.96)', 'important');
   btn.setAttribute('aria-hidden',visible?'false':'true');
 }
 
 function updateCreatorTopNav(){
   const buttons=$$('[data-page="space"]');
-  const hide=!!session && profile?.role==='creator';
+  const hide=!!session && (profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session'));
   buttons.forEach(b=>{
     b.classList.toggle('hidden',hide);
     b.style.setProperty('display',hide?'none':'', 'important');
@@ -859,7 +864,7 @@ async function missionsTpl() {
   const congratulations = currentWeekComplete ? `<div class="card mission-congrats"><div style="font-size:34px">🎉</div><div><h3 style="margin:0 0 5px">¡Felicidades!</h3><p class="muted" style="margin:0">Has completado todas las misiones para esta semana. 🖤</p></div></div>` : '';
   const section = (title,icon,groups,type,emptyText) => `<section class="mission-section"><div class="mission-section-head"><div><div class="eyebrow">${icon} ${title.toUpperCase()}</div><p class="muted small">${type==='assigned'?'Abre una semana para ver todas sus misiones y completar tus objetivos.':'Abre una semana para consultar las misiones que completaste o cuya semana ya terminó.'}</p></div><span class="mission-count">${groups.length}</span></div><div class="mission-weeks-list">${groupDetails(groups,type) || `<div class="card mission-empty compact"><h3>${emptyText}</h3><p class="muted small">${type==='assigned'?'Cuando Grayxon te asigne nuevas misiones aparecerán aquí.':'Cuando completes misiones o termine una semana, aparecerán aquí.'}</p></div>`}</div></section>`;
 
-  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Tus objetivos 🎯</h1><p class="muted">Tus misiones están organizadas por semanas. Toca una semana para ver todas las misiones que contiene.</p></div>${profile?.role==='creator'?'':`<button class="secondary" data-space-action="space" aria-label="Volver a Tu espacio">← Tu espacio</button>`}</div>${congratulations}${section('Misiones asignadas','🎯',assignedGroups,'assigned','No tienes misiones asignadas')}${section('Misiones completadas','✓',completedGroups,'completed','Aún no tienes historial de misiones')}</div>`;
+  $('#missions').innerHTML = `<div class="missions-page"><div class="row"><div><div class="eyebrow">TUS MISIONES</div><h1 style="margin:7px 0">Tus objetivos 🎯</h1><p class="muted">Tus misiones están organizadas por semanas. Toca una semana para ver todas las misiones que contiene.</p></div>${(profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session'))?'':`<button class="secondary" data-space-action="space" aria-label="Volver a Tu espacio">← Tu espacio</button>`}</div>${congratulations}${section('Misiones asignadas','🎯',assignedGroups,'assigned','No tienes misiones asignadas')}${section('Misiones completadas','✓',completedGroups,'completed','Aún no tienes historial de misiones')}</div>`;
 }
 
 async function focusNextPendingMission(currentId=null){
@@ -1162,7 +1167,7 @@ async function trainingTpl() {
   const totalPct = totalLessons ? Math.round(totalDone / totalLessons * 100) : 0;
   const nextPending = orderedLessons.find(l => !done.has(l.id));
 
-  $('#training').innerHTML = `<div class="row"><div><div class="eyebrow">FORMACIÓN</div><h1 style="margin:7px 0">Aprende con Grayxon 🎓</h1><p class="muted">Avanza por los módulos a tu ritmo. Los videos se completan automáticamente cuando terminan.</p></div>${profile?.role==='creator'?'':`<button class="secondary" data-space-action="space">← Tu espacio</button>`}</div>
+  $('#training').innerHTML = `<div class="row"><div><div class="eyebrow">FORMACIÓN</div><h1 style="margin:7px 0">Aprende con Grayxon 🎓</h1><p class="muted">Avanza por los módulos a tu ritmo. Los videos se completan automáticamente cuando terminan.</p></div>${(profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session'))?'':`<button class="secondary" data-space-action="space">← Tu espacio</button>`}</div>
   <div class="card progress-card" style="margin-top:20px"><div class="row"><div><b>Tu progreso</b><div class="muted small">${totalDone} de ${totalLessons} lecciones completadas</div></div><b class="progress-percent">${totalPct}%</b></div><div class="progress-track"><div class="progress-fill" style="width:${totalPct}%"></div></div></div>
   <div class="training-grid" style="margin-top:22px"><div class="modules-list">${(modules || []).map((m, mi) => { const ml = orderedLessons.filter(l => l.module_id === m.id); const md = ml.filter(l => done.has(l.id)).length; const pct = ml.length ? Math.round(md / ml.length * 100) : 0; return `<div class="module ${pct === 100 && ml.length ? 'module-complete' : ''}"><div class="module-head"><div class="module-number">${String(mi + 1).padStart(2,'0')}</div><div class="module-copy"><div class="module-title">${esc(m.title)}</div><p class="muted small">${esc(m.description || '')}</p></div><div class="module-status">${pct === 100 && ml.length ? '✓' : `${md}/${ml.length}`}</div></div><div class="module-progress"><span style="width:${pct}%"></span></div><div class="module-label">${pct === 100 && ml.length ? 'Módulo completado' : `${md} de ${ml.length} completadas`}</div>${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}"><button data-lesson="${l.id}"><span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}</small></span></button>${nextPending?.id === l.id ? '<span class="next-badge">SIGUIENTE</span>' : ''}</div>`).join('')}</div>`; }).join('') || '<div class="card"><p class="muted">Todavía no hay formación publicada.</p></div>'}</div><div class="lesson-view" id="lessonView"><div class="empty-lesson"><div class="empty-icon">▶</div><h2>Comienza tu formación</h2><p class="muted">Selecciona una lección para empezar. En móvil, el reproductor ocupará esta pantalla para que puedas ver el contenido sin buscarlo abajo.</p></div></div></div>`;
   window._lessons = orderedLessons;
@@ -2434,6 +2439,7 @@ async function login() {
 
   session = data.session;
   profile = await getProfile();
+  document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator');
   await loadProfileDetails();
   await loadNotifications();
   if (!profile?.active) {
@@ -2450,7 +2456,7 @@ async function login() {
 }
 
 async function logout() {
-  await sb.auth.signOut(); session = null; profile = null; profileDetails = null; paymentMethod = null; notifications = []; $('#notificationsPanel')?.classList.add('hidden'); updateHeaderAccessUI(); updateProfileBadge(); updateNotificationsUI(); nav('home');
+  await sb.auth.signOut(); session = null; profile = null; document.body.classList.remove('grayxon-creator-session'); profileDetails = null; paymentMethod = null; notifications = []; $('#notificationsPanel')?.classList.add('hidden'); updateHeaderAccessUI(); updateProfileBadge(); updateNotificationsUI(); nav('home');
 }
 
 async function saveHome() {
@@ -2545,7 +2551,7 @@ async function init() {
 
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (session) { profile = await getProfile(); await loadProfileDetails(); await loadNotifications(); }
+  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); await loadProfileDetails(); await loadNotifications(); }
   else updateNotificationsUI();
   updateHeaderAccessUI();
 
@@ -2679,6 +2685,13 @@ sb.auth.onAuthStateChange((event,newSession)=>{
     .grayxon-creator-space-float:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#25f4ee,#fe2c55);border-radius:999px 0 0 999px}
     .grayxon-creator-space-float.is-visible{opacity:1!important;pointer-events:auto!important;transform:none!important}
     .grayxon-creator-space-float:hover{box-shadow:0 16px 38px rgba(0,0,0,.42),-6px 0 20px rgba(37,244,238,.18),6px 0 20px rgba(254,44,85,.18)!important}
+    /* Creator navigation: the floating Tu espacio button is the only return control. */
+    body.grayxon-creator-session .missions-page > .row > .secondary,
+    body.grayxon-creator-session .live-training-page .live-training-hero > .secondary,
+    body.grayxon-creator-session .training-page > .row > .secondary,
+    body.grayxon-creator-session .training-page .secondary[data-space-action="space"]{
+      display:none!important;
+    }
     .grayxon-creator-space-float-icon{font-size:19px;line-height:1}
 
     /* Acentos laterales estilo TikTok LIVE, sin cambiar el branding Grayxon. */
