@@ -308,6 +308,16 @@ function ensureLiveTrainingPage() {
       .live-training-space-card .space-progress{background:rgba(255,255,255,.07)}
       #live-training.page-section{display:block!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important;align-self:auto!important}
       #live-training.page-section{position:relative!important;top:auto!important;bottom:auto!important;transform:none!important;float:none!important;clear:both!important;order:initial!important;}
+      body.grayxon-live-training-active #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
+      body.grayxon-live-training-call #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
+      body.grayxon-live-training-call #live-training .live-training-hero,
+      body.grayxon-live-training-call #live-training .live-training-feature{display:none!important}
+      body.grayxon-live-training-call #grayxonTrainingRoomWrap{display:block!important;visibility:visible!important;margin:0!important;padding:0!important}
+      body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
+      body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-toolbar{display:none!important}
+      body.grayxon-live-training-call #grayxonJaasMeet{min-height:0!important;height:calc(100vh - 8px)!important;background:#050608!important}
+      body.grayxon-live-training-call #grayxonJaasMeet iframe{height:100%!important;min-height:0!important}
+      body.grayxon-live-training-call .live-training-loading{display:none!important}
       .page-section[hidden], #space[hidden], #home[hidden], #benefits[hidden], #auth[hidden], #manager[hidden], #training[hidden], #live-training[hidden], #missions[hidden], #profile[hidden], #admin[hidden]{display:none!important;}
       .live-training-space-card .space-progress span{width:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}
       @media(max-width:800px){
@@ -359,8 +369,11 @@ function nav(p, push = true) {
     history.pushState({page:p}, '', url);
   }
   current = p;
-  // Hide every portal page robustly. Some mobile styles can override the .hidden class,
-  // so we also use the native hidden property and an explicit CSS rule below.
+
+  // Estado global de la sección de entrenamientos.
+  document.body.classList.toggle('grayxon-live-training-active', p === 'live-training');
+
+  // Hide every portal page robustly.
   pages.forEach(id => {
     const el = $('#'+id);
     if (!el) return;
@@ -370,18 +383,24 @@ function nav(p, push = true) {
     if (isActive) el.removeAttribute('aria-hidden');
     else el.setAttribute('aria-hidden','true');
   });
-  // Entrenamientos is a dedicated page: keep the Tu espacio shell hidden while it is active.
+
+  // Tu espacio debe desaparecer COMPLETAMENTE mientras estamos en Entrenamientos,
+  // incluso si alguna regla móvil intenta mostrar .page-section.
   const spaceEl = $('#space');
   if (spaceEl) {
-    spaceEl.style.display = p === 'live-training' ? 'none' : '';
     if (p === 'live-training') {
       spaceEl.hidden = true;
       spaceEl.setAttribute('aria-hidden','true');
+      spaceEl.classList.add('hidden');
+      spaceEl.style.setProperty('display', 'none', 'important');
     } else if (p === 'space') {
       spaceEl.hidden = false;
       spaceEl.removeAttribute('aria-hidden');
+      spaceEl.classList.remove('hidden');
+      spaceEl.style.removeProperty('display');
     }
   }
+
   if (p !== 'live-training' && jaasApi) destroyJaasMeeting();
   if (p === 'space') { try { renderSpaceShell(); } catch(e) { console.error(e); } }
   Promise.resolve(render()).catch(e => console.warn('Render:', e));
@@ -795,7 +814,7 @@ async function startGrayxonLiveTraining() {
   if (!host) return;
 
   destroyJaasMeeting();
-  host.innerHTML = `<div id="grayxonJaasLoading" class="live-training-loading"><div><strong>Preparando tu entrada…</strong><span>Estamos conectando tu cuenta Grayxon con el entrenamiento.</span></div></div>`;
+  host.innerHTML = `<div id="grayxonJaasLoading" class="live-training-loading" aria-hidden="true"></div>`;
 
   try {
     const [{ token, roomName }, JitsiMeetExternalAPI] = await Promise.all([
@@ -836,33 +855,22 @@ async function startGrayxonLiveTraining() {
     api.addEventListener?.('readyToClose', () => {
       destroyJaasMeeting();
 
-      // Al salir, la sala desaparece por completo del layout.
-      // Dejamos visible nuevamente la ficha del entrenamiento para poder entrar otra vez.
+      // Salir de la llamada devuelve inmediatamente al usuario a Tu espacio.
+      // No dejamos la sala, el estado de salida ni la ficha de entrenamiento debajo.
+      document.body.classList.remove('grayxon-live-training-call');
+
       const wrap = $('#grayxonTrainingRoomWrap');
       const meet = $('#grayxonJaasMeet');
-      const btn = $('#enterGrayxonTraining');
-      const hero = $('.live-training-hero');
-      const feature = $('.live-training-feature');
 
-      if (meet) {
-        meet.innerHTML = `<div class="live-training-loading"><div><strong>Preparando el entrenamiento…</strong><span>La videollamada se abrirá aquí.</span></div></div>`;
-      }
+      if (meet) meet.innerHTML = '';
 
       if (wrap) {
         wrap.classList.add('hidden');
         wrap.hidden = true;
-        wrap.style.display = 'none';
+        wrap.style.setProperty('display', 'none', 'important');
       }
 
-      hero?.classList.remove('hidden');
-      feature?.classList.remove('hidden');
-      if (hero) { hero.hidden = false; hero.style.display = ''; }
-      if (feature) { feature.hidden = false; feature.style.display = ''; }
-
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Entrar';
-      }
+      nav('space', false);
     });
   } catch (error) {
     console.error('GRAYXON JAAAS ERROR:', error);
@@ -922,7 +930,7 @@ async function liveTrainingTpl() {
       </div>
     </section>
 
-    <div id="grayxonTrainingRoomWrap" class="hidden">
+    <div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important">
       <div class="live-training-shell">
         <div class="live-training-toolbar">
           <div class="live-training-toolbar-copy">
@@ -945,32 +953,30 @@ async function liveTrainingTpl() {
     const hero = $('.live-training-hero');
     const feature = $('.live-training-feature');
 
+    document.body.classList.add('grayxon-live-training-call');
+
     if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
 
-    // Una vez que el usuario entra, la ficha deja de ocupar espacio:
-    // la pantalla queda dedicada únicamente a la reunión.
+    // Una vez que entra, desaparece toda la ficha y queda únicamente la llamada.
     if (hero) {
       hero.classList.add('hidden');
       hero.hidden = true;
-      hero.style.display = 'none';
+      hero.style.setProperty('display', 'none', 'important');
     }
     if (feature) {
       feature.classList.add('hidden');
       feature.hidden = true;
-      feature.style.display = 'none';
+      feature.style.setProperty('display', 'none', 'important');
     }
 
     if (wrap) {
       wrap.classList.remove('hidden');
       wrap.hidden = false;
-      wrap.style.display = 'block';
+      wrap.style.setProperty('display', 'block', 'important');
     }
 
-    wrap?.scrollIntoView({behavior:'smooth', block:'start'});
+    window.scrollTo(0, 0);
     await startGrayxonLiveTraining();
-
-    // El botón de la ficha ya no es visible mientras la reunión está activa.
-    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
   });
 }
 
