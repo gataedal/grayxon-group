@@ -1,4 +1,4 @@
-// GRAYXON BUILD V33.1
+// GRAYXON BUILD V33.2
 const CFG = window.GRAYXON_CONFIG || {};
 // Auth uses a syntactically valid internal domain. Users still log in only with
 // their Grayxon username; this address is never shown in the portal UI.
@@ -64,30 +64,37 @@ async function installGrayxonApp(){
 }
 
 function refreshGrayxonPwaPreferenceUI(){
-  const installBtn=$('#installGrayxonApp');
-  const installStatus=$('#grayxonInstallStatus');
-  const pushBtn=$('#enableGrayxonPushProfile');
-  const pushStatus=$('#grayxonPushStatus');
+  const installBtn=$('#installGrayxonDashboard');
   const installed=isGrayxonStandalone();
-  if(installStatus){
-    installStatus.textContent=installed ? 'Grayxon ya está instalada en este dispositivo.' : 'Instala Grayxon para tenerla siempre a mano.';
-  }
   if(installBtn){
-    installBtn.textContent=installed ? '✓ Grayxon instalada' : '📲 Instalar Grayxon';
-    installBtn.disabled=installed;
+    installBtn.style.display=installed ? 'none' : '';
+    installBtn.disabled=false;
   }
-  if(pushStatus){
-    const supported='Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
-    if(!supported) pushStatus.textContent='Las notificaciones no están disponibles en este navegador.';
-    else if(Notification.permission==='granted') pushStatus.textContent='🟢 Notificaciones activadas en este dispositivo.';
-    else if(Notification.permission==='denied') pushStatus.textContent='Las notificaciones están bloqueadas. Revísalas en los permisos del navegador.';
-    else pushStatus.textContent='Recibe avisos importantes de Grayxon.';
-  }
-  if(pushBtn){
-    const granted='Notification' in window && Notification.permission==='granted';
-    pushBtn.textContent=granted ? '🟢 Notificaciones activadas' : '🔔 Activar notificaciones';
-    pushBtn.disabled=granted;
-  }
+}
+
+function showGrayxonPushPrompt(){
+  if(!session?.user?.id || profile?.role!=='creator' || !isGrayxonStandalone()) return;
+  if(!('Notification' in window) || !('PushManager' in window) || !('serviceWorker' in navigator)) return;
+  if(Notification.permission!=='default') return;
+  if(document.getElementById('grayxonPushPrompt')) return;
+  const wrap=document.createElement('div');
+  wrap.id='grayxonPushPrompt';
+  wrap.innerHTML=`<div style="position:fixed;inset:auto 14px 14px 14px;z-index:10000;display:flex;justify-content:center;pointer-events:none">
+    <div class="card" style="width:min(520px,100%);padding:18px 18px 16px;border:1px solid rgba(255,255,255,.12);box-shadow:0 18px 55px rgba(0,0,0,.45);pointer-events:auto;background:rgba(15,17,21,.98)">
+      <div style="display:flex;gap:13px;align-items:flex-start"><div style="font-size:28px;line-height:1">🔔</div><div style="flex:1"><div class="eyebrow">GRAYXON · AVISOS</div><h3 style="margin:5px 0 5px">Activa las notificaciones</h3><p class="muted small" style="margin:0;line-height:1.55">Recibe avisos importantes sobre entrenamientos, tareas y novedades de Grayxon.</p></div></div>
+      <div class="inline" style="margin-top:14px;justify-content:flex-end"><button type="button" class="secondary small" id="closeGrayxonPushPrompt">Ahora no</button><button type="button" class="primary small" id="activateGrayxonPushPrompt">🔔 Activar</button></div>
+    </div>
+  </div>`;
+  document.body.appendChild(wrap);
+  $('#closeGrayxonPushPrompt')?.addEventListener('click',()=>wrap.remove());
+  $('#activateGrayxonPushPrompt')?.addEventListener('click',async()=>{
+    const btn=$('#activateGrayxonPushPrompt'); if(btn) btn.disabled=true;
+    const subscription=await registerGrayxonPush({requestPermission:true});
+    wrap.remove();
+    if(subscription) toast('Notificaciones activadas ✓');
+    else if('Notification' in window && Notification.permission==='denied') toast('Las notificaciones quedaron bloqueadas en el navegador.');
+    else toast('No se pudieron activar las notificaciones.');
+  });
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -890,18 +897,6 @@ function profileTpl(){
       <div id="paypalFields" ${pm.method_type==='paypal'?'':'style="display:none"'}>${field('pPaypal','Correo de PayPal',pm.paypal_email||'')}</div>
       <label class="field"><span>Preferencia</span><label style="display:flex;gap:8px;align-items:center;color:#ddd"><input id="pPrimary" type="checkbox" ${pm.is_primary!==false?'checked':''}> Usar como método principal de pago</label></label>
     </div>
-    <div class="card grayxon-preferences-card">
-      <div class="eyebrow">GRAYXON · PREFERENCIAS</div>
-      <h2 style="margin-top:6px">Tu experiencia Grayxon</h2>
-      <div class="grayxon-preference-item">
-        <div><strong>📲 Instalar Grayxon</strong><p id="grayxonInstallStatus" class="muted small">Instala Grayxon para tenerla siempre a mano.</p></div>
-        <button type="button" class="secondary small" id="installGrayxonApp">📲 Instalar Grayxon</button>
-      </div>
-      <div class="grayxon-preference-item">
-        <div><strong>🔔 Notificaciones</strong><p id="grayxonPushStatus" class="muted small">Recibe avisos importantes de Grayxon.</p></div>
-        <button type="button" class="secondary small" id="enableGrayxonPushProfile">🔔 Activar notificaciones</button>
-      </div>
-    </div>
     <div class="profile-save-wrap"><button class="primary profile-save-btn" id="saveProfile">Guardar</button></div><div id="profileErr" class="error"></div>
   </div>`;
 }
@@ -1022,7 +1017,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
       <section class="creator-dashboard-hero">
         <div class="creator-dashboard-avatar">${cachedAvatar}</div>
         <div class="creator-dashboard-identity"><div class="eyebrow">MI ESPACIO</div><h1>${esc(cachedName)}</h1><span class="creator-username">@${esc(cachedUser)}</span></div>
-        <div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div>
+        <div class="creator-dashboard-role" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary small" id="installGrayxonDashboard" style="white-space:nowrap">📲 Instalar Grayxon</button><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div>
       </section>
       <div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando tu información…</small></div></div></div>
       <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid">
@@ -1091,7 +1086,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const missionsCard=`<button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">${missionCompletionLabel}</span><strong>Tus misiones</strong><p>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} activas completadas.`:'No tienes tareas pendientes.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><div class="eyebrow">MI ESPACIO</div><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div></section>
+    <section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><div class="eyebrow">MI ESPACIO</div><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span></div><div class="creator-dashboard-role" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary small" id="installGrayxonDashboard" style="white-space:nowrap">📲 Instalar Grayxon</button><span class="role-pill">● CREADOR GRAYXON</span><small>Tu cuenta está activa</small></div></section>
     ${managerBlock}
     <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>${missionCompletionLabel}</strong></div><div class="space-progress"><span style="width:${missionCompletion||0}%"></span></div><small>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} misiones activas completadas.`:'No tienes tareas pendientes esta semana.'}</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>${formationPct}%</strong></div><div class="space-progress"><span style="width:${formationPct}%"></span></div><small>${lessonCompleted} de ${lessonTotal} lecciones completadas.</small></div></div></section>
     <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}</div>${profileIncomplete}
@@ -1107,7 +1102,7 @@ function renderCreatorSpaceImmediate(){
   const name=profile?.full_name||profile?.username||'Grayxon';
   const user=profile?.username||'creador';
   const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
-  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><div class="eyebrow">MI ESPACIO</div><h1>${esc(name)}</h1><span class="creator-username">@${esc(user)}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span></div></section><div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando…</small></div></div></div><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button></div></div>`;
+  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><div class="eyebrow">MI ESPACIO</div><h1>${esc(name)}</h1><span class="creator-username">@${esc(user)}</span></div><div class="creator-dashboard-role" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary small" id="installGrayxonDashboard" style="white-space:nowrap">📲 Instalar Grayxon</button><span class="role-pill">● CREADOR GRAYXON</span></div></section><div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando…</small></div></div></div><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button></div></div>`;
   bind();
 }
 
@@ -1285,7 +1280,8 @@ async function fetchActiveLiveTraining(){
         .select('training_id,target_type,target_id')
         .in('training_id',trainings.map(t=>t.id));
       if(ae) return fallback;
-      const p=profile||{};
+      const {data:creatorRow}=await sb.from('profiles').select('id,role,active,team_id').eq('id',uid).maybeSingle();
+      const p=creatorRow||profile||{};
       const allowed=new Set((aud||[]).filter(a =>
         a.target_type==='all_creators' ||
         (a.target_type==='creator' && a.target_id===uid) ||
@@ -3324,14 +3320,7 @@ function bind() {
   togglePaymentFields();
   populateBanks();
   ensureGrayxonPreferencesStyles();
-  $('#installGrayxonApp')?.addEventListener('click',installGrayxonApp);
-  $('#enableGrayxonPushProfile')?.addEventListener('click',async()=>{
-    const subscription=await registerGrayxonPush({requestPermission:true});
-    refreshGrayxonPwaPreferenceUI();
-    if(subscription) toast('Notificaciones activadas ✓');
-    else if('Notification' in window && Notification.permission==='denied') toast('Las notificaciones están bloqueadas en el navegador.');
-    else if(subscription===null) toast('No se pudo activar las notificaciones. Revisa los permisos del navegador.');
-  });
+  $('#installGrayxonDashboard')?.addEventListener('click',installGrayxonApp);
   refreshGrayxonPwaPreferenceUI();
   $('#profileAvatar')?.addEventListener('change', uploadProfileAvatar);
   $('#profilePhotoEdit')?.addEventListener('click', () => {
@@ -3528,8 +3517,8 @@ async function login() {
   }
 
   updateHeaderAccessUI();
-  registerGrayxonPush({requestPermission:false});
   nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
+  if(profile.role==='creator') setTimeout(showGrayxonPushPrompt,900);
 }
 
 async function logout() {
@@ -3628,7 +3617,7 @@ async function init() {
 
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); await loadProfileDetails(); await loadNotifications(); registerGrayxonPush({requestPermission:false}); }
+  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); await loadProfileDetails(); await loadNotifications(); }
   else updateNotificationsUI();
   updateHeaderAccessUI();
 
@@ -3637,6 +3626,7 @@ async function init() {
   const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(hashPage) ? hashPage : null;
   const initialPage = session ? (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome) : (requestedPage || 'home');
   nav(initialPage, false);
+  if(session && profile?.role==='creator') setTimeout(showGrayxonPushPrompt,1200);
 }
 
 sb.auth.onAuthStateChange((event,newSession)=>{
@@ -3925,7 +3915,7 @@ sb.auth.onAuthStateChange((event,newSession)=>{
 
 init();
 
-document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(profile?.role==='creator') setTimeout(showGrayxonPushPrompt,500); } });
 setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 5000);
 
 window.addEventListener('popstate', () => {
