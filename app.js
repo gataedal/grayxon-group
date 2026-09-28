@@ -1,4 +1,4 @@
-// GRAYXON BUILD V33.2
+// GRAYXON BUILD V33.4
 const CFG = window.GRAYXON_CONFIG || {};
 // Auth uses a syntactically valid internal domain. Users still log in only with
 // their Grayxon username; this address is never shown in the portal UI.
@@ -26,7 +26,7 @@ window.addEventListener('appinstalled', () => {
 });
 
 function isGrayxonStandalone(){
-  return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true || String(document.referrer||'').startsWith('android-app://');
 }
 
 function showGrayxonInstallHelp(){
@@ -69,14 +69,16 @@ function refreshGrayxonPwaPreferenceUI(){
   if(installBtn){
     installBtn.style.display=installed ? 'none' : '';
     installBtn.disabled=false;
+    installBtn.style.border='1px solid rgba(254,44,85,.45)';
+    installBtn.style.boxShadow='0 8px 24px rgba(254,44,85,.18)';
+    installBtn.style.fontWeight='800';
   }
 }
 
 function showGrayxonPushPrompt(){
   if(!session?.user?.id || profile?.role!=='creator' || !isGrayxonStandalone()) return;
-  if(!('Notification' in window) || !('PushManager' in window) || !('serviceWorker' in navigator)) return;
-  if(Notification.permission!=='default') return;
   if(document.getElementById('grayxonPushPrompt')) return;
+  if('Notification' in window && Notification.permission==='granted') return;
   const wrap=document.createElement('div');
   wrap.id='grayxonPushPrompt';
   wrap.innerHTML=`<div style="position:fixed;inset:auto 14px 14px 14px;z-index:10000;display:flex;justify-content:center;pointer-events:none">
@@ -92,7 +94,8 @@ function showGrayxonPushPrompt(){
     const subscription=await registerGrayxonPush({requestPermission:true});
     wrap.remove();
     if(subscription) toast('Notificaciones activadas ✓');
-    else if('Notification' in window && Notification.permission==='denied') toast('Las notificaciones quedaron bloqueadas en el navegador.');
+    else if('Notification' in window && Notification.permission==='denied') toast('Las notificaciones están bloqueadas. Actívalas desde los permisos de Grayxon.');
+    else if(!('Notification' in window) || !('PushManager' in window)) toast('Este dispositivo no permite notificaciones web en esta instalación.');
     else toast('No se pudieron activar las notificaciones.');
   });
 }
@@ -1287,7 +1290,22 @@ async function fetchActiveLiveTraining(){
         (a.target_type==='creator' && a.target_id===uid) ||
         (a.target_type==='team' && a.target_id===p.team_id)
       ).map(a=>a.training_id));
-      return trainings.find(t=>allowed.has(t.id))||fallback;
+      const audienceLive=trainings.find(t=>allowed.has(t.id));
+      if(audienceLive) return audienceLive;
+
+      // Último respaldo seguro: si el creador ya está dentro de un LIVE, su
+      // propia fila de participante confirma qué entrenamiento está viendo.
+      // Esto no concede acceso a ninguna sesión nueva; solo refleja una sesión
+      // en la que el usuario ya está participando.
+      const {data:participating}=await sb.from('live_training_participants')
+        .select('training_id')
+        .eq('user_id',uid)
+        .is('left_at',null)
+        .in('training_id',trainings.map(t=>t.id))
+        .order('joined_at',{ascending:false})
+        .limit(1);
+      const participatingId=participating?.[0]?.training_id;
+      return trainings.find(t=>t.id===participatingId)||fallback;
     }
     return fallback;
   } catch(e){
@@ -1640,6 +1658,7 @@ async function creatorTrainingsTpl(){
 
   const liveTrainings=(rawLive||[]).filter(t=>allowedLiveIds.has(t.id));
   const activeLive=liveTrainings[0]||null;
+  currentLiveTraining=activeLive||null;
 
   // Historial real = entrenamientos donde el creador tiene un registro de
   // participación. Una simple apertura/visualización no cuenta como asistencia.
@@ -2794,9 +2813,15 @@ function currentWeekRange(){
 }
 function validMissionLink(url){
   if(!url) return null;
-  const v=url.trim();
+  let v=String(url).trim();
   if(!v) return null;
-  try { const u=new URL(v); return ['http:','https:'].includes(u.protocol) ? u.href : null; }
+  // Para que el formulario sea más amable, aceptamos también tiktok.com/... o www.tiktok.com/...
+  // y añadimos HTTPS automáticamente. Los esquemas distintos de HTTP/HTTPS siguen bloqueados.
+  if(!/^https?:\/\//i.test(v)){
+    if(/^[^\s/]+\.[^\s/]+(?:[/?#].*)?$/i.test(v)) v=`https://${v}`;
+    else return null;
+  }
+  try { const u=new URL(v); return ['http:','https:'].includes(u.protocol) && u.hostname ? u.href : null; }
   catch { return null; }
 }
 
