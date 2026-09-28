@@ -651,14 +651,23 @@ async function getProfile() {
 
 async function loadCreatorAssignment(){
   if(!session?.user?.id) return {team:null,manager:null};
+  // Nunca permitir que una consulta lenta de equipo/manager bloquee
+  // la carga de Tu espacio al volver desde Misiones o Mi perfil.
+  const fallback={team:null,manager:null};
   try {
-    const {data:pr,error:pe} = await sb.from('profiles').select('team_id').eq('id',session.user.id).maybeSingle();
-    if(pe || !pr?.team_id) return {team:null,manager:null};
-    const {data:team,error:te} = await sb.from('teams').select('id,name,manager_id').eq('id',pr.team_id).maybeSingle();
-    if(te || !team) return {team:null,manager:null};
-    const {data:manager} = team.manager_id ? await sb.from('managers').select('id,name,phone,email').eq('id',team.manager_id).maybeSingle() : {data:null};
-    return {team,manager:manager||null};
-  } catch(e) { return {team:null,manager:null}; }
+    const work=(async()=>{
+      const {data:pr,error:pe} = await sb.from('profiles').select('team_id').eq('id',session.user.id).maybeSingle();
+      if(pe || !pr?.team_id) return fallback;
+      const {data:team,error:te} = await sb.from('teams').select('id,name,manager_id').eq('id',pr.team_id).maybeSingle();
+      if(te || !team) return fallback;
+      const {data:manager} = team.manager_id ? await sb.from('managers').select('id,name,phone,email').eq('id',team.manager_id).maybeSingle() : {data:null};
+      return {team,manager:manager||null};
+    })();
+    return await Promise.race([
+      work,
+      new Promise(resolve=>setTimeout(()=>resolve(fallback),3500))
+    ]);
+  } catch(e) { return fallback; }
 }
 function managerWhatsapp(phone){
   const raw=String(phone||'').replace(/[^0-9]/g,'');
@@ -671,6 +680,7 @@ function ensureCreatorDashboardStyles(){
   style.id='grayxon-creator-dashboard-styles';
   style.textContent=`
     .creator-dashboard{max-width:980px;margin:0 auto;display:grid;gap:14px}
+    .creator-dashboard-loading-card{min-height:120px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.08);border-radius:18px;background:rgba(15,16,20,.96);color:#8f96a2;font-size:14px}
     .creator-dashboard-hero{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;padding:20px 22px;border:1px solid rgba(255,255,255,.08);border-radius:20px;background:linear-gradient(145deg,rgba(20,22,27,.98),rgba(10,11,14,.98));box-shadow:0 18px 50px rgba(0,0,0,.18)}
     .creator-dashboard-avatar{width:74px;height:74px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#16191e;border:1px solid rgba(255,255,255,.13);font-size:25px;font-weight:900;color:#fff;flex:0 0 74px}
     .creator-dashboard-avatar img{width:100%;height:100%;object-fit:cover;display:block}
@@ -715,6 +725,13 @@ async function creatorDashboardTpl(){
   ensureCreatorDashboardStyles();
   if(!session){ $('#space').innerHTML=authTpl(); return; }
   const uid=session.user.id;
+  // Al volver desde Mi perfil/Misiones, renderiza una base inmediata y luego
+  // reemplázala con el dashboard completo. Así nunca queda una vista antigua
+  // o un estado de carga atrapado por una consulta lenta.
+  const spaceEl=$('#space');
+  if(spaceEl && !spaceEl.querySelector('.creator-dashboard')){
+    spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-loading"><section class="creator-dashboard-hero"><div class="creator-dashboard-avatar"><span>${esc(profileInitial())}</span></div><div class="creator-dashboard-identity"><div class="eyebrow">TU ESPACIO</div><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span></div><div class="creator-dashboard-role"><span class="role-pill">● CREADOR GRAYXON</span></div></section><div class="creator-dashboard-loading-card">Cargando tu espacio…</div></div>`;
+  }
   const safe=async(promise,fallback,ms=3000)=>{try{const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve({data:fallback,error:true}),ms))]);return r?.error?fallback:(r?.data??fallback);}catch{return fallback;}};
 
   const [assignment, profileRow, details, payment, lessons, lessonProgress, missions, missionProgress, activeTraining] = await Promise.all([
@@ -914,9 +931,19 @@ async function saveMissionProgress(id){
 
 
 async function fetchActiveLiveTraining(){
-  const {data,error}=await sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').eq('status','live').order('started_at',{ascending:false}).limit(1).maybeSingle();
-  if(error){ console.warn('No se pudo consultar el entrenamiento activo:',error.message); return null; }
-  return data||null;
+  const fallback=null;
+  try {
+    const query=sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').eq('status','live').order('started_at',{ascending:false}).limit(1).maybeSingle();
+    const result=await Promise.race([
+      query,
+      new Promise(resolve=>setTimeout(()=>resolve({data:null,error:new Error('timeout')}),3500))
+    ]);
+    if(result?.error){ console.warn('No se pudo consultar el entrenamiento activo:',result.error.message); return fallback; }
+    return result?.data||fallback;
+  } catch(e){
+    console.warn('No se pudo consultar el entrenamiento activo:',e?.message||e);
+    return fallback;
+  }
 }
 async function refreshLiveTrainingCard(){
   const card=document.querySelector('.live-training-space-card'); if(!card)return;
@@ -2746,3 +2773,4 @@ window.addEventListener('hashchange', () => {
   updateCreatorSpaceFloat();
   window.scrollTo(0, 0);
 });
+/* v23 · creator space return stability */
