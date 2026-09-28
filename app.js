@@ -1177,8 +1177,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     safe(sb.from('lessons').select('id').eq('published',true),[]),
     safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[]),
     safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}),[]),
-    safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[]),
-    safe(fetchCreatorLiveTrainingFast(), null, 4500)
+    safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[])
   ]);
 
   // Si el usuario ya navegó a otra pantalla, este render atrasado no debe tocarla.
@@ -1187,7 +1186,10 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   if(profileRow) profile=profileRow;
   if(details!==undefined) profileDetails=details;
   if(payment!==undefined) paymentMethod=payment;
-  currentLiveTraining=activeTraining||null;
+  // LIVE se resuelve por separado y directamente sobre la tarjeta.
+  // No dejamos que una consulta lenta del dashboard pueda pintar un estado
+  // falso de "Sin sesión activa" después de que el LIVE ya esté disponible.
+  currentLiveTraining=null;
 
   const d=profileDetails||{}; const pm=paymentMethod||{};
   const completionValues=[d.email,d.phone,d.country,d.state_region,d.city,d.address,d.avatar_url,pm.method_type&&(pm.method_type==='paypal'?pm.paypal_email:pm.account_number)];
@@ -1208,8 +1210,8 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const managerContact=manager?.phone?`<a class="creator-contact-btn" href="${esc(managerWhatsapp(manager.phone))}" target="_blank" rel="noopener noreferrer">WhatsApp · Contactar ↗</a>`:'';
   const managerBlock=team?`<div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>${esc(team.name)}</strong><small>Manager: <b>${esc(manager?.name||'Sin manager asignado')}</b></small></div></div>${managerContact}</div>`:`<div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Sin equipo asignado</strong><small>Cuando tengas un equipo aparecerá aquí tu manager.</small></div></div></div>`;
   const profileIncomplete=completionPct<100?`<div class="creator-profile-incomplete"><div><strong>Completa tu perfil · ${completionPct}%</strong><small>${completionCount} de 8 datos completos. Mantén tu información actualizada.</small></div><button class="primary small" data-space-action="profile">Completar perfil</button></div>`:'';
-  const trainingMeta=activeTraining?'🔴 EN VIVO':'Sin sesión activa';
-  const trainingDesc=activeTraining?activeTraining.title:'Consulta tus entrenamientos desde aquí.';
+  const trainingMeta='Buscando LIVE…';
+  const trainingDesc='Comprobando si hay un entrenamiento en vivo…';
   const trainingCard=`<button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><span class="creator-dashboard-card-meta">${esc(trainingMeta)}</span><strong>Entrenamientos</strong><p>${esc(trainingDesc)}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
   const formationCard=`<button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><span class="creator-dashboard-card-meta">${formationPct}%</span><strong>Formación</strong><p>${lessonTotal?`${lessonCompleted} de ${lessonTotal} lecciones completadas.`:'Aún no hay formación publicada.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
   const missionsCard=`<button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">${missionCompletionLabel}</span><strong>Tus misiones</strong><p>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} activas completadas.`:'No tienes tareas pendientes.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
@@ -1222,6 +1224,8 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   </div>`;
   bind();
   refreshLiveTrainingCard();
+  setTimeout(()=>{ if(current==='space' && isCreatorSession()) refreshLiveTrainingCard(); },300);
+  setTimeout(()=>{ if(current==='space' && isCreatorSession()) refreshLiveTrainingCard(); },1500);
 }
 
 function renderCreatorSpaceImmediate(){
@@ -1520,13 +1524,56 @@ async function fetchActiveLiveTraining(){
     return fallback;
   }
 }
+async function fetchCreatorLiveTrainingForDashboard(){
+  if(!session?.user?.id) return null;
+  const uid=session.user.id;
+  try{
+    // Esta consulta es deliberadamente idéntica al criterio que usa
+    // Entrenamientos, pero aislada del resto de Mi espacio.
+    const [liveResult, profileResult]=await Promise.all([
+      sb.from('live_trainings')
+        .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+        .eq('status','live')
+        .order('started_at',{ascending:false}),
+      sb.from('profiles').select('id,role,active,team_id,manager_id').eq('id',uid).maybeSingle()
+    ]);
+    if(liveResult.error || !liveResult.data?.length) return null;
+    const p=profileResult.data || profile || {};
+    const ids=liveResult.data.map(t=>t.id);
+    const {data:aud,error:audError}=await sb.from('live_training_audience')
+      .select('training_id,target_type,target_id').in('training_id',ids);
+    if(audError) return null;
+    const allowed=new Set((aud||[]).filter(a=>
+      a.target_type==='all_creators' ||
+      (a.target_type==='creator' && a.target_id===uid) ||
+      (a.target_type==='team' && p.team_id && a.target_id===p.team_id)
+    ).map(a=>a.training_id));
+    let live=liveResult.data.find(t=>allowed.has(t.id)) || null;
+    if(live) return live;
+
+    // Compatibilidad: LIVE administrativo antiguo sin fila de audiencia.
+    const noAudience=liveResult.data.filter(t=>!(aud||[]).some(a=>a.training_id===t.id));
+    if(noAudience.length){
+      const {data:owners}=await sb.from('profiles').select('id,role').in('id',[...new Set(noAudience.map(t=>t.created_by).filter(Boolean))]);
+      const admins=new Set((owners||[]).filter(x=>x.role==='admin').map(x=>x.id));
+      live=noAudience.find(t=>admins.has(t.created_by))||null;
+      if(live) return live;
+    }
+
+    return null;
+  }catch(e){
+    console.warn('Dashboard LIVE:',e?.message||e);
+    return null;
+  }
+}
+
 async function refreshLiveTrainingCard(){
   const card=document.querySelector('.live-training-space-card');
   const dashboardCard=document.querySelector('.creator-dashboard-card[data-space-action="live-training"]');
   const target=card||dashboardCard;
   if(!target)return;
   try{
-    let live=profile?.role==='creator' ? await fetchCreatorLiveTrainingFast() : await fetchActiveLiveTraining();
+    let live=profile?.role==='creator' ? await fetchCreatorLiveTrainingForDashboard() : await fetchActiveLiveTraining();
 
     // Dashboard fallback: use the exact same visibility model as the creator
     // Entrenamientos page. This avoids leaving Mi espacio on "Sin sesión activa"
