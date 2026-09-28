@@ -383,8 +383,10 @@ function ensureCreatorSpaceFloat(){
 
 function updateCreatorSpaceFloat(){
   const btn=ensureCreatorSpaceFloat();
-  const visible=!!session && profile?.role==='creator' && current!=='space' && current!=='auth' && current!=='home' && current!=='live-training';
+  const inLiveCall=document.body.classList.contains('grayxon-live-training-call');
+  const visible=!!session && profile?.role==='creator' && current!=='space' && current!=='auth' && current!=='home' && !inLiveCall;
   btn.classList.toggle('is-visible',visible);
+  btn.style.setProperty('display', visible ? 'flex' : 'none', 'important');
   btn.setAttribute('aria-hidden',visible?'false':'true');
 }
 
@@ -1080,6 +1082,7 @@ async function startGrayxonLiveTraining(training, options={}){
       // A participant closing their own call must not finish the training.
       destroyJaasMeeting();
       document.body.classList.remove('grayxon-live-training-call');
+      updateCreatorSpaceFloat();
       const wrap=$('#grayxonTrainingRoomWrap'),meet=$('#grayxonJaasMeet');
       if(meet)meet.innerHTML='';
       if(wrap){wrap.classList.add('hidden');wrap.hidden=true;wrap.style.setProperty('display','none','important');}
@@ -2702,6 +2705,7 @@ window.addEventListener('popstate', () => {
   if (page === 'live-training') ensureLiveTrainingPage();
   current = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(page) ? page : 'home';
   render();
+  updateCreatorSpaceFloat();
   window.scrollTo(0, 0);
 });
 
@@ -2712,5 +2716,6 @@ window.addEventListener('hashchange', () => {
   if (current === page) return;
   current = page;
   render();
+  updateCreatorSpaceFloat();
   window.scrollTo(0, 0);
 });
