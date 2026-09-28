@@ -287,18 +287,27 @@ function ensureLiveTrainingPage() {
       .live-training-space-card{position:relative}
       .live-training-space-card .live-training-card-status{color:#6ee7b7;font-size:11px;font-weight:900;letter-spacing:.05em;white-space:nowrap}
       .live-training-space-card .space-progress{background:rgba(255,255,255,.07)}
+      #live-training.page-section{display:block!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important;align-self:auto!important}
       .live-training-space-card .space-progress span{width:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}
       @media(max-width:800px){
-        .live-training-page{padding:20px 14px 36px}
-        .live-training-hero{display:block;margin-bottom:18px}
-        .live-training-hero .secondary{margin-top:14px}
-        .live-training-feature-inner{padding:22px 18px}
+        #live-training.page-section{display:block!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important}
+        .live-training-page{width:100%;max-width:none;box-sizing:border-box;padding:18px 14px 34px}
+        .live-training-hero{display:block;margin-bottom:16px}
+        .live-training-hero h1{font-size:34px;line-height:1.08;margin:7px 0 10px}
+        .live-training-hero p{font-size:15px;line-height:1.55}
+        .live-training-hero .secondary{margin-top:13px}
+        .live-training-feature{width:100%;box-sizing:border-box;border-radius:20px}
+        .live-training-feature-inner{padding:20px 16px}
         .live-training-feature-top{display:block}
-        .live-training-badge{margin-top:14px}
-        .live-training-meta{display:grid;grid-template-columns:1fr 1fr}
-        .live-training-meta-item{min-height:42px}
+        .live-training-badge{margin-top:13px}
+        .live-training-title{font-size:25px;line-height:1.15;margin:9px 0 8px}
+        .live-training-subtitle{font-size:14px;line-height:1.5}
+        .live-training-meta{display:grid;grid-template-columns:1fr;gap:9px;margin:18px 0}
+        .live-training-meta-item{width:100%;min-width:0;min-height:0;box-sizing:border-box;padding:11px 12px;display:flex;align-items:flex-start;white-space:normal;overflow:hidden;line-height:1.35}
+        .live-training-meta-item b{flex:0 0 auto}
         .live-training-actions{display:block}
-        .live-training-enter{width:100%;margin-bottom:10px}
+        .live-training-enter{width:100%;min-width:0;margin-bottom:9px;box-sizing:border-box}
+        .live-training-access{display:block;line-height:1.45}
         .live-training-meet,.live-training-loading{min-height:560px}
         .live-training-toolbar{align-items:flex-start;flex-direction:column}
       }
@@ -811,7 +820,7 @@ async function liveTrainingTpl() {
       <div>
         <div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div>
         <h1>Entrenamientos en vivo 🎥</h1>
-        <p>Participa en los entrenamientos de Grayxon directamente desde tu cuenta. Sin otro usuario, sin otra contraseña y sin salir del portal.</p>
+        <p></p>
       </div>
       <button class="secondary" data-space-action="space">← Tu espacio</button>
     </div>
@@ -821,8 +830,8 @@ async function liveTrainingTpl() {
         <div class="live-training-feature-top">
           <div>
             <span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span>
-            <h2 class="live-training-title">Entrenamiento Grayxon LIVE</h2>
-            <p class="live-training-subtitle">Una sala privada integrada al portal para que el equipo pueda aprender, participar y recibir acompañamiento en tiempo real.</p>
+            <h2 class="live-training-title">Básicos de TikTok LIVE</h2>
+            <p class="live-training-subtitle"></p>
           </div>
         </div>
 
