@@ -795,7 +795,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   };
 
   const [assignment, profileRow, details, payment, lessons, lessonProgress, missions, missionProgress, activeTraining] = await Promise.all([
-    loadCreatorAssignment(),
+    safe(loadCreatorAssignment(), assignment || null, 2200),
     safe(sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('id',uid).maybeSingle(),profile),
     safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),profileDetails),
     safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),paymentMethod),
@@ -803,7 +803,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[]),
     safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}),[]),
     safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[]),
-    fetchActiveLiveTraining().catch(()=>null)
+    safe(fetchActiveLiveTraining(), null, 2200)
   ]);
 
   // Si el usuario ya navegó a otra pantalla, este render atrasado no debe tocarla.
@@ -1279,7 +1279,7 @@ async function enterCreatorLiveTraining(training){
   const spaceEl=$('#space');
   if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
   if(history.state?.page!=='live-training') history.pushState({page:'live-training'},'',`${window.location.pathname}${window.location.search}#live-training`);
-  await liveTrainingTpl();
+  await liveTrainingTpl(training);
   $('#enterGrayxonTraining')?.click();
 }
 
@@ -1426,6 +1426,7 @@ async function trainingTpl() {
     return;
   }
   profile = await getProfile();
+  ensureFormationMobileV34Styles();
   if (!profile || !profile.active) {
     await sb.auth.signOut();
     session = null;
@@ -1692,11 +1693,12 @@ async function completeLesson(id, options = {}) {
   window._done.add(id);
   toast('Lección completada ✓');
 
-  // Refresh the formation groups/progress before deciding whether the module
-  // is complete. This keeps Por ver / Completados synchronized immediately.
-  await trainingTpl();
-  bind();
+  // Advance immediately from the current lesson. Refresh the formation list
+  // afterward so the user is never stranded on the completed content.
   await advanceAfterLesson(id);
+  if (current === 'training') {
+    trainingTpl().then(() => bind()).catch(err => console.warn('Refresh formación:', err));
+  }
 }
 
 
@@ -2836,6 +2838,37 @@ function updateHeaderAccessUI(){
     btn.textContent='👤 Mi espacio';
     btn.onclick=()=>nav('space');
   }
+}
+
+
+function ensureFormationMobileV34Styles(){
+  if(document.getElementById('grayxon-formation-mobile-v34')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-formation-mobile-v34';
+  style.textContent=`
+    #training .formation-page{width:100%!important;box-sizing:border-box!important}
+    #training .formation-groups{display:grid!important;gap:10px!important}
+    #training .formation-group{background:#0f1115!important;border:1px solid rgba(255,255,255,.10)!important;border-radius:16px!important;overflow:hidden!important}
+    #training .formation-group-toggle{display:flex!important;width:100%!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;min-height:60px!important;padding:13px 14px!important;background:#0f1115!important;color:#fff!important;border:0!important;box-shadow:none!important;text-align:left!important}
+    #training .formation-group-toggle strong{font-size:16px!important;line-height:1.2!important;color:#fff!important}
+    #training .formation-group-toggle .eyebrow{font-size:9px!important;letter-spacing:.15em!important;color:#858c98!important}
+    #training .formation-group-toggle-right{display:flex!important;align-items:center!important;gap:8px!important}
+    #training .formation-group-toggle-right b{min-width:28px!important;height:28px!important;padding:0 7px!important;display:grid!important;place-items:center!important;border-radius:999px!important;border:1px solid rgba(255,255,255,.10)!important;background:rgba(255,255,255,.035)!important;color:#cfd5dc!important;font-size:10px!important}
+    #training .formation-group-panel.hidden{display:none!important}
+    #training .formation-group-panel{background:#0b0d11!important;padding:0 8px 8px!important;border-top:1px solid rgba(255,255,255,.07)!important}
+    #training .formation-group-list{display:grid!important;gap:7px!important;padding-top:8px!important}
+    #training .formation-module-accordion{background:#11141a!important;border:1px solid rgba(255,255,255,.08)!important;border-radius:13px!important;overflow:hidden!important}
+    #training .formation-module-toggle{display:grid!important;grid-template-columns:32px minmax(0,1fr) auto!important;align-items:center!important;gap:9px!important;width:100%!important;min-height:55px!important;padding:10px 11px!important;background:#11141a!important;color:#fff!important;border:0!important;box-shadow:none!important;text-align:left!important}
+    #training .formation-module-number{width:30px!important;height:30px!important;border-radius:9px!important;font-size:9px!important}
+    #training .formation-module-copy strong{font-size:13px!important;color:#fff!important;line-height:1.25!important}
+    #training .formation-module-copy small{font-size:10px!important;color:#858c98!important;line-height:1.3!important}
+    #training .formation-module-meta{font-size:10px!important;color:#aeb5bf!important}
+    #training .formation-module-panel{background:#0d1014!important;padding:10px 11px 11px!important;border-top:1px solid rgba(255,255,255,.07)!important}
+    #training .formation-lessons-list .lesson{display:flex!important;min-width:0!important}
+    #training .formation-lessons-list .lesson button{background:transparent!important;border:0!important;color:#fff!important;text-align:left!important;padding:9px 5px!important}
+    #training .formation-group.is-open .formation-group-chevron{transform:rotate(90deg)!important}
+  `;
+  document.head.appendChild(style);
 }
 
 function bind() {
