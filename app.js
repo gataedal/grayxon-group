@@ -390,6 +390,16 @@ function updateCreatorSpaceFloat(){
   btn.setAttribute('aria-hidden',visible?'false':'true');
 }
 
+function updateCreatorTopNav(){
+  const buttons=$$('[data-page="space"]');
+  const hide=!!session && profile?.role==='creator';
+  buttons.forEach(b=>{
+    b.classList.toggle('hidden',hide);
+    b.style.setProperty('display',hide?'none':'', 'important');
+    b.setAttribute('aria-hidden',hide?'true':'false');
+  });
+}
+
 function nav(p, push = true) {
   const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'];
   if (!pages.includes(p)) p = 'home';
@@ -408,6 +418,7 @@ function nav(p, push = true) {
   }
   current = p;
   updateCreatorSpaceFloat();
+  updateCreatorTopNav();
 
   // Estado global de la sección de entrenamientos.
   document.body.classList.toggle('grayxon-live-training-active', p === 'live-training');
@@ -2212,6 +2223,7 @@ function toggleProfileMenu(){
 function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classList.add('hidden'); }
 
 function updateHeaderAccessUI(){
+  updateCreatorTopNav();
   const btn=$('#adminOpen');
   if(!btn) return;
   if(!session){
@@ -2692,6 +2704,7 @@ sb.auth.onAuthStateChange((event,newSession)=>{
   document.head.appendChild(style);
   ensureCreatorSpaceFloat();
   updateCreatorSpaceFloat();
+  updateCreatorTopNav();
 })();
 
 init();
@@ -2706,6 +2719,7 @@ window.addEventListener('popstate', () => {
   current = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(page) ? page : 'home';
   render();
   updateCreatorSpaceFloat();
+  updateCreatorTopNav();
   window.scrollTo(0, 0);
 });
 
