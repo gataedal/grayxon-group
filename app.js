@@ -370,38 +370,8 @@ function toast(t) {
   setTimeout(() => $('#toast').classList.add('hidden'), 2400);
 }
 
-// V33.9 diagnostic panel: temporary, visible on-screen diagnostics for LIVE notifications.
-// It does not write to the database and can be removed after the root cause is confirmed.
-function showLiveNotificationDiagnostic(title, lines = [], persist = true) {
-  try {
-    if (persist) {
-      try {
-        sessionStorage.setItem('grayxon_live_diag', JSON.stringify({title, lines, at: Date.now()}));
-      } catch (_) {}
-    }
-    document.getElementById('grayxonLiveDiag')?.remove();
-    const wrap = document.createElement('div');
-    wrap.id = 'grayxonLiveDiag';
-    wrap.innerHTML = `
-      <div style="position:fixed;inset:18px 18px auto auto;z-index:20000;width:min(560px,calc(100vw - 36px));pointer-events:none">
-        <div class="card" style="padding:18px;border:1px solid rgba(37,244,238,.45);background:rgba(9,11,15,.98);box-shadow:0 20px 70px rgba(0,0,0,.55);pointer-events:auto">
-          <div style="display:flex;align-items:flex-start;gap:12px">
-            <div style="font-size:25px;line-height:1">🔎</div>
-            <div style="flex:1;min-width:0">
-              <div class="eyebrow">GRAYXON · DIAGNÓSTICO V33.9</div>
-              <h3 style="margin:5px 0 10px">${esc(title)}</h3>
-              <div style="font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.65;white-space:pre-wrap;overflow:auto;max-height:52vh;color:#e8edf2">${lines.map(x=>esc(x)).join('\n')}</div>
-            </div>
-            <button type="button" class="secondary small" id="closeGrayxonLiveDiag">Cerrar</button>
-          </div>
-        </div>
-      </div>`;
-    document.body.appendChild(wrap);
-    document.getElementById('closeGrayxonLiveDiag')?.addEventListener('click', () => wrap.remove());
-  } catch (e) {
-    console.warn('No se pudo mostrar el diagnóstico LIVE:', e);
-  }
-}
+// LIVE notification diagnostics are intentionally silent in production.
+function showLiveNotificationDiagnostic() {}
 
 function errorText(error, fallbackText = 'Ocurrió un error.') {
   return error?.message || fallbackText;
@@ -501,6 +471,7 @@ async function openNotification(id) {
     pendingNotificationTarget = { type:'missions', weekStart:n.related_week_start || null, weekEnd:n.related_week_end || null };
     nav('missions');
   } else if (n.link_page === 'training') nav('training');
+  else if (n.link_page === 'live-training') nav('live-training');
   else if (n.link_page === 'manager') nav('manager');
   else nav('space');
 }
@@ -1480,7 +1451,33 @@ async function refreshLiveTrainingCard(){
   const target=card||dashboardCard;
   if(!target)return;
   try{
-    const live=await fetchActiveLiveTraining();
+    let live=await fetchActiveLiveTraining();
+
+    // Dashboard fallback: use the exact same visibility model as the creator
+    // Entrenamientos page. This avoids leaving Mi espacio on "Sin sesión activa"
+    // when the generic helper times out or returns null while the creator can
+    // already see the LIVE in Entrenamientos.
+    if(!live && profile?.role==='creator' && session?.user?.id){
+      const uid=session.user.id;
+      const {data:rawLive,error:liveError}=await sb.from('live_trainings')
+        .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+        .eq('status','live')
+        .order('started_at',{ascending:false});
+      if(!liveError && rawLive?.length){
+        const ids=rawLive.map(t=>t.id);
+        const {data:aud}=await sb.from('live_training_audience')
+          .select('training_id,target_type,target_id')
+          .in('training_id',ids);
+        const teamId=profile?.team_id||null;
+        const allowed=new Set((aud||[]).filter(a=>
+          a.target_type==='all_creators' ||
+          (a.target_type==='creator' && a.target_id===uid) ||
+          (a.target_type==='team' && teamId && a.target_id===teamId)
+        ).map(a=>a.training_id));
+        live=rawLive.find(t=>allowed.has(t.id))||null;
+      }
+    }
+
     currentLiveTraining=live||null;
     const status=(card||dashboardCard)?.querySelector('.live-training-card-status') || dashboardCard?.querySelector('.creator-dashboard-card-meta');
     const title=(card||dashboardCard)?.querySelector('.live-training-card-title');
@@ -1507,7 +1504,6 @@ async function refreshLiveTrainingCard(){
     console.warn('No se pudo actualizar la tarjeta de LIVE:',e?.message||e);
   }
 }
-
 
 function stopCreatorLiveDashboardWatcher(){
   creatorLiveDashboardWatcherToken++;
@@ -1916,12 +1912,10 @@ async function liveTrainingTpl(trainingOverride=null) {
   if(!training){
     el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamientos en vivo 🎥</h1><p>Cuando Grayxon inicie un entrenamiento, aparecerá aquí automáticamente.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← ${isHost?'Volver al panel':'Volver'}</button>`:''}</div><section class="live-training-feature live-training-empty-compact"><div class="live-training-feature-inner live-training-empty-state"><span class="live-training-idle-icon">○</span><h2>No hay un entrenamiento en vivo</h2><p class="live-training-subtitle">En este momento no hay ninguna sesión activa.</p></div></section></div>`;
     bind();
-    restoreLiveNotificationDiagnostic();
     return;
   }
   el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div id="grayxonJaasMeet" class="live-training-meet"></div></div></div></div>`;
   bind();
-  restoreLiveNotificationDiagnostic();
   const autoStart=pendingLiveTrainingAutoStart?.id===training.id;if(autoStart)pendingLiveTrainingAutoStart=null;
   $('#enterGrayxonTraining')?.addEventListener('click',async()=>{const btn=$('#enterGrayxonTraining'),wrap=$('#grayxonTrainingRoomWrap'),hero=$('.live-training-hero'),feature=$('.live-training-feature');document.body.classList.add('grayxon-live-training-call');if(btn){btn.disabled=true;btn.textContent='Entrando…';}if(hero){hero.classList.add('hidden');hero.hidden=true;hero.style.setProperty('display','none','important');}if(feature){feature.classList.add('hidden');feature.hidden=true;feature.style.setProperty('display','none','important');}if(wrap){wrap.classList.remove('hidden');wrap.hidden=false;wrap.style.setProperty('display','block','important');}window.scrollTo(0,0);await startGrayxonLiveTraining(training);});
   if(autoStart) $('#enterGrayxonTraining')?.click();
