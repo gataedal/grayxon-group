@@ -4,7 +4,7 @@ const CFG = window.GRAYXON_CONFIG || {};
 const LOGIN_EMAIL_DOMAIN = 'users.grayxongroup.com';
 const LEGACY_LOGIN_EMAIL_DOMAIN = 'users.grayxon.local';
 const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_PUBLISHABLE_KEY);
-const GRAYXON_VAPID_PUBLIC_KEY = 'c294f30869d697932b4eafbcdb28fdee82f0ed6bdec6245fae5a694bbd56e070';
+const GRAYXON_VAPID_PUBLIC_KEY = 'BLiuhrsAKGp0C12NayolkLrYe08mDdCGMImx3TbUxex1OvZDmBg8PmyqUpFtn_Qju5AoetmD6MWG2fUvs1QQUhw';
 let pushRegistrationPromise = null;
 async function createManagerAccess(body){
   const { data: sessionData } = await sb.auth.getSession();
