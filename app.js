@@ -1578,11 +1578,14 @@ function getModuleLessons(moduleId){
 function getNextLessonAfter(id){
   const lesson = getLessonById(id);
   if(!lesson) return null;
-  const lessons = getModuleLessons(lesson.module_id);
-  const done = window._done || new Set();
+  const lessons = getModuleLessons(lesson.module_id)
+    .slice()
+    .sort((a,b) => Number(a.sort_order||0) - Number(b.sort_order||0));
   const currentIndex = lessons.findIndex(x => x.id === id);
   if(currentIndex < 0) return null;
-  return lessons.slice(currentIndex + 1).find(x => !done.has(x.id)) || null;
+  // En revisión también debe existir un “Siguiente contenido”: aquí buscamos
+  // el siguiente contenido real del módulo, aunque ya esté completado.
+  return lessons[currentIndex + 1] || null;
 }
 
 function getNextPendingModuleLesson(currentModuleId){
@@ -1602,8 +1605,8 @@ function getNextPendingModuleLesson(currentModuleId){
 
 function showModuleCompletionPopup(module, nextLesson){
   return new Promise(resolve => {
-    const nextLabel = nextLesson ? `Siguiente contenido: ${nextLesson.title}` : 'Ya completaste toda la formación disponible.';
-    const destinationLabel = nextLesson ? 'Continuar' : 'Ir a Mi espacio';
+    const nextLabel = nextLesson ? `Siguiente módulo: ${nextLesson.title}` : 'Has completado toda la formación disponible.';
+    const destinationLabel = nextLesson ? 'Continuar formación →' : 'Ir a Formación →';
     const el = modal(`
       <div class="module-completion-popup">
         <div class="module-completion-icon">✓</div>
@@ -1612,9 +1615,10 @@ function showModuleCompletionPopup(module, nextLesson){
         <p class="module-completion-message">Has completado <strong>${esc(module?.title || 'este módulo')}</strong>.</p>
         <div class="module-completion-next">${esc(nextLabel)}</div>
         <div class="inline module-completion-actions">
-          <button class="primary" id="acceptModuleCompletion">${destinationLabel}</button>
+          <button class="primary module-completion-cta" id="acceptModuleCompletion">${destinationLabel}</button>
         </div>
       </div>`);
+    el.classList.add('formation-completion-backdrop');
     const accept = $('#acceptModuleCompletion');
     const finish = async () => {
       el.remove();
@@ -1622,7 +1626,7 @@ function showModuleCompletionPopup(module, nextLesson){
       if(nextLesson){
         await openLesson(nextLesson.id, {skipReload:true});
       } else {
-        nav('space');
+        nav('training');
       }
     };
     accept?.addEventListener('click', finish);
@@ -1646,9 +1650,9 @@ function showLessonAdvancePrompt(nextLesson, delayMs = 3500){
       <div class="lesson-next-prompt-copy">
         <span class="eyebrow">SIGUIENTE CONTENIDO</span>
         <strong>${esc(nextLesson?.title || 'Siguiente contenido')}</strong>
-        <span class="lesson-next-countdown">Continuando automáticamente… <b>${Math.ceil(delayMs / 1000)}</b></span>
+        <span class="lesson-next-countdown">Abriendo automáticamente… <b>${Math.ceil(delayMs / 1000)}</b></span>
       </div>
-      <button type="button" class="primary lesson-next-prompt-btn">Continuar →</button>`;
+      <button type="button" class="primary lesson-next-prompt-btn">Siguiente →</button>`;
     document.body.appendChild(host);
 
     let remaining = Math.ceil(delayMs / 1000);
@@ -1677,6 +1681,8 @@ async function advanceAfterLesson(id, options = {}){
 
   const nextSameModule = getNextLessonAfter(id);
   if(nextSameModule){
+    // Tanto en un contenido nuevo como al repasar un contenido ya visto,
+    // primero se ofrece el siguiente contenido REAL del mismo módulo.
     if(options.fromVideo){
       await showLessonAdvancePrompt(nextSameModule);
     } else {
@@ -1686,6 +1692,8 @@ async function advanceAfterLesson(id, options = {}){
     return;
   }
 
+  // Solo el último contenido puede disparar el popup de módulo completado,
+  // y únicamente cuando todos los contenidos de ese módulo están completados.
   const moduleLessons = getModuleLessons(lesson.module_id);
   const done = window._done || new Set();
   const moduleComplete = moduleLessons.length > 0 && moduleLessons.every(l => done.has(l.id));
@@ -3683,6 +3691,83 @@ window.addEventListener('hashchange', () => {
       #training .formation-page.lesson-focus-mode>#lessonView.lesson-focus-active{padding:12px 10px 24px!important;min-height:calc(100vh - 20px)!important}
       #training .lesson-focus-active .lesson-header{margin-bottom:14px!important}
       #training .lesson-focus-active .video-wrap video{max-height:64vh!important;border-radius:10px!important}
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
+
+/* GRAYXON v39 · formación: siguiente contenido + popup centrados */
+(function applyV39FormationFlowStyles(){
+  if(document.getElementById('grayxon-v39-formation-flow')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-v39-formation-flow';
+  style.textContent=`
+    /* El aviso de siguiente contenido debe aparecer en el centro de la pantalla. */
+    .lesson-next-prompt{
+      position:fixed!important;
+      left:50%!important;
+      top:50%!important;
+      bottom:auto!important;
+      transform:translate(-50%,-50%)!important;
+      z-index:10050!important;
+      width:min(460px,calc(100vw - 30px))!important;
+      display:grid!important;
+      gap:18px!important;
+      padding:24px!important;
+      border:1px solid rgba(255,255,255,.14)!important;
+      border-radius:20px!important;
+      background:linear-gradient(145deg,rgba(18,21,27,.98),rgba(8,10,14,.98))!important;
+      box-shadow:0 28px 90px rgba(0,0,0,.58),0 0 0 1px rgba(255,255,255,.025)!important;
+      backdrop-filter:blur(18px)!important;
+      -webkit-backdrop-filter:blur(18px)!important;
+      text-align:center!important;
+    }
+    .lesson-next-prompt-copy{display:grid!important;gap:7px!important;min-width:0!important;justify-items:center!important}
+    .lesson-next-prompt-copy .eyebrow{font-size:10px!important;letter-spacing:.18em!important;color:#8f98a5!important}
+    .lesson-next-prompt-copy strong{font-size:18px!important;line-height:1.35!important;color:#fff!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+    .lesson-next-countdown{font-size:11px!important;color:#9fa7b2!important}
+    .lesson-next-prompt-btn,
+    .module-completion-cta{
+      width:100%!important;
+      min-height:46px!important;
+      border:0!important;
+      border-radius:12px!important;
+      background:linear-gradient(135deg,#f4f6f8 0%,#c5cbd2 48%,#8f969f 100%)!important;
+      color:#090b0f!important;
+      font-weight:900!important;
+      box-shadow:0 10px 28px rgba(255,255,255,.10)!important;
+      transition:transform .16s ease,filter .16s ease,box-shadow .16s ease!important;
+    }
+    .lesson-next-prompt-btn:hover,
+    .module-completion-cta:hover{filter:brightness(1.06)!important;transform:translateY(-1px)!important;box-shadow:0 14px 34px rgba(255,255,255,.14)!important}
+
+    /* Popup de módulo completado: centrado real, sin quedar pegado arriba. */
+    .formation-completion-backdrop{
+      position:fixed!important;
+      inset:0!important;
+      z-index:10040!important;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:center!important;
+      padding:20px!important;
+      box-sizing:border-box!important;
+      overflow:auto!important;
+    }
+    .formation-completion-backdrop>.modal{
+      width:min(520px,calc(100vw - 32px))!important;
+      max-width:520px!important;
+      margin:auto!important;
+      transform:none!important;
+    }
+    .formation-completion-backdrop .module-completion-popup{text-align:center!important}
+    .formation-completion-backdrop .module-completion-actions{display:flex!important;justify-content:center!important}
+    @media(max-width:640px){
+      .lesson-next-prompt{width:calc(100vw - 28px)!important;padding:20px!important;border-radius:18px!important}
+      .lesson-next-prompt-copy strong{font-size:16px!important}
+      .lesson-next-prompt-btn{min-height:44px!important}
+      .formation-completion-backdrop{padding:14px!important}
+      .formation-completion-backdrop>.modal{width:calc(100vw - 28px)!important}
     }
   `;
   document.head.appendChild(style);
