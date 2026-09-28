@@ -2382,6 +2382,101 @@ sb.auth.onAuthStateChange((event,newSession)=>{
   }
 });
 
+
+/* v15 · Manager compact layout */
+(function applyManagerCompactLayout(){
+  if(document.getElementById('grayxon-manager-compact-v15')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-manager-compact-v15';
+  style.textContent=`
+    /* Header compacto del panel de manager */
+    .manager-page .manager-hero{
+      display:flex!important;
+      align-items:center!important;
+      justify-content:space-between!important;
+      gap:16px!important;
+      padding:14px 16px!important;
+      min-height:0!important;
+    }
+    .manager-page .manager-hero > div:first-child{
+      min-width:0!important;
+      flex:1 1 auto!important;
+    }
+    .manager-page .manager-hero h1{
+      margin:3px 0 0!important;
+      font-size:clamp(21px,5.2vw,30px)!important;
+      line-height:1.08!important;
+      white-space:nowrap!important;
+      overflow:hidden!important;
+      text-overflow:ellipsis!important;
+    }
+    .manager-page .manager-hero .muted{
+      margin:6px 0 0!important;
+      font-size:11px!important;
+      line-height:1.35!important;
+    }
+    .manager-page .manager-hero-stat{
+      flex:0 0 auto!important;
+      min-width:66px!important;
+      padding:8px 10px!important;
+      border-radius:13px!important;
+    }
+    .manager-page .manager-hero-stat strong{font-size:21px!important;line-height:1!important}
+    .manager-page .manager-hero-stat span{font-size:8px!important;letter-spacing:.12em!important;margin-top:3px!important}
+
+    /* Todos los acordeones compactos y con la misma jerarquía visual */
+    .manager-page .grayxon-manager-accordion,
+    .manager-page .manager-creators-section,
+    .manager-page .manager-task-accordion{
+      margin-top:10px!important;
+      padding:0!important;
+      overflow:hidden!important;
+    }
+    .manager-page .grayxon-manager-accordion-toggle,
+    .manager-page .manager-creators-toggle{
+      min-height:0!important;
+      padding:13px 15px!important;
+    }
+    .manager-page .grayxon-manager-accordion-toggle-main{gap:10px!important}
+    .manager-page .grayxon-manager-accordion-icon{
+      width:34px!important;height:34px!important;flex-basis:34px!important;
+      border-radius:10px!important;font-size:16px!important;
+    }
+    .manager-page .grayxon-manager-accordion-copy strong,
+    .manager-page .manager-creators-toggle strong{font-size:14px!important;line-height:1.15!important}
+    .manager-page .grayxon-manager-accordion-copy small,
+    .manager-page .manager-creators-toggle small{
+      margin-top:3px!important;
+      font-size:10px!important;
+      line-height:1.3!important;
+    }
+    .manager-page .grayxon-manager-accordion-meta,
+    .manager-page .manager-creators-toggle-meta{gap:7px!important}
+    .manager-page .grayxon-manager-accordion-meta b,
+    .manager-page .manager-creators-toggle-meta b{font-size:12px!important}
+    .manager-page .grayxon-manager-accordion-chevron{font-size:20px!important}
+    .manager-page .grayxon-manager-accordion-panel{padding:0 15px 15px!important}
+    .manager-page .manager-creators-panel{padding:0 15px 15px!important}
+    .manager-page .manager-creators-toggle-meta .manager-creator-chevron{font-size:20px!important}
+
+    @media(max-width:800px){
+      .manager-page .manager-hero{
+        padding:12px 14px!important;
+        gap:10px!important;
+      }
+      .manager-page .manager-hero .eyebrow{font-size:9px!important;letter-spacing:.12em!important}
+      .manager-page .manager-hero h1{font-size:22px!important}
+      .manager-page .manager-hero .muted{display:none!important}
+      .manager-page .manager-hero-stat{min-width:58px!important;padding:7px 8px!important}
+      .manager-page .manager-hero-stat strong{font-size:19px!important}
+      .manager-page .manager-hero-stat span{font-size:7px!important}
+      .manager-page .grayxon-manager-accordion-toggle,
+      .manager-page .manager-creators-toggle{padding:12px 14px!important}
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
 init();
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && session) loadNotifications(); });
