@@ -21,6 +21,8 @@ let currentLiveTraining = null;
 let currentLiveParticipantRow = null;
 let liveTrainingEnding = false;
 let liveTrainingHostUserId = null;
+let creatorLiveDashboardWatcher = null;
+let creatorLiveDashboardWatcherToken = 0;
 let pendingLiveTrainingAutoStart = null;
 
 async function createManagerAccess(body){
@@ -431,6 +433,7 @@ function nav(p, push = true) {
     history.pushState({page:p}, '', url);
   }
   current = p;
+  if(p==='space' && profile?.role==='creator') startCreatorLiveDashboardWatcher(); else stopCreatorLiveDashboardWatcher();
   updateCreatorSpaceFloat();
   updateCreatorTopNav();
 
@@ -795,7 +798,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   };
 
   const [assignment, profileRow, details, payment, lessons, lessonProgress, missions, missionProgress, activeTraining] = await Promise.all([
-    safe(loadCreatorAssignment(), assignment || null, 2200),
+    loadCreatorAssignment(),
     safe(sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('id',uid).maybeSingle(),profile),
     safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),profileDetails),
     safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),paymentMethod),
@@ -1048,9 +1051,52 @@ async function fetchActiveLiveTraining(){
   }
 }
 async function refreshLiveTrainingCard(){
-  const card=document.querySelector('.live-training-space-card'); if(!card)return;
-  const status=card.querySelector('.live-training-card-status'), title=card.querySelector('.live-training-card-title'), detail=card.querySelector('.live-training-card-detail'), bar=card.querySelector('.space-progress span');
-  try{const live=await fetchActiveLiveTraining(); if(live){currentLiveTraining=live;if(status){status.textContent='EN VIVO';status.style.color='#6ee7b7';}if(title)title.textContent=live.title;if(detail)detail.textContent=`Instructor: ${live.instructor_name||'Grayxon'} · Entra directamente al entrenamiento.`;if(bar)bar.style.width='100%';return;} const {data:scheduled}=await sb.from('live_trainings').select('id,title,scheduled_at,instructor_name,status').eq('status','scheduled').order('scheduled_at',{ascending:true}).limit(10); const next=(scheduled||[]).find(t=>t.scheduled_at&&new Date(t.scheduled_at)>=new Date()); if(next){if(status){status.textContent='PROGRAMADO';status.style.color='';}if(title)title.textContent=next.title;if(detail)detail.textContent=`${formatDateTime(next.scheduled_at)} · ${next.instructor_name||'Grayxon'}`;if(bar)bar.style.width='55%';}else{if(status){status.textContent='Sin entrenamiento';status.style.color='';}if(title)title.textContent='Consulta los entrenamientos en vivo de Grayxon.';if(detail)detail.textContent='Cuando haya uno activo o programado aparecerá aquí.';if(bar)bar.style.width='0%';}}catch(e){console.warn('Estado de entrenamiento:',e);}
+  const card=document.querySelector('.live-training-space-card');
+  const dashboardCard=document.querySelector('.creator-dashboard-card[data-space-action="live-training"]');
+  const target=card||dashboardCard;
+  if(!target)return;
+  try{
+    const live=await fetchActiveLiveTraining();
+    currentLiveTraining=live||null;
+    const status=(card||dashboardCard)?.querySelector('.live-training-card-status') || dashboardCard?.querySelector('.creator-dashboard-card-meta');
+    const title=(card||dashboardCard)?.querySelector('.live-training-card-title');
+    const detail=(card||dashboardCard)?.querySelector('.live-training-card-detail');
+    const bar=card?.querySelector('.space-progress span');
+    const meta=dashboardCard?.querySelector('.creator-dashboard-card-meta');
+    const desc=dashboardCard?.querySelector('p');
+    if(live){
+      if(status)status.textContent='🔴 EN VIVO';
+      if(meta)meta.textContent='🔴 EN VIVO';
+      if(title)title.textContent=live.title;
+      if(desc)desc.textContent=live.title;
+      if(detail)detail.textContent=`Instructor: ${live.instructor_name||'Grayxon'} · Entra directamente al entrenamiento.`;
+      if(bar)bar.style.width='100%';
+      return;
+    }
+    if(status)status.textContent='Sin sesión activa';
+    if(meta)meta.textContent='Sin sesión activa';
+    if(title)title.textContent='Consulta tus entrenamientos en vivo de Grayxon.';
+    if(desc)desc.textContent='Cuando haya uno activo aparecerá aquí.';
+    if(detail)detail.textContent='Cuando haya uno activo aparecerá aquí.';
+    if(bar)bar.style.width='0%';
+  }catch(e){console.warn('Estado de entrenamiento:',e);}
+}
+
+function stopCreatorLiveDashboardWatcher(){
+  creatorLiveDashboardWatcherToken++;
+  if(creatorLiveDashboardWatcher){clearInterval(creatorLiveDashboardWatcher);creatorLiveDashboardWatcher=null;}
+}
+function startCreatorLiveDashboardWatcher(){
+  stopCreatorLiveDashboardWatcher();
+  if(profile?.role!=='creator' || current!=='space' || !session?.user?.id)return;
+  const token=creatorLiveDashboardWatcherToken;
+  refreshLiveTrainingCard();
+  creatorLiveDashboardWatcher=setInterval(()=>{
+    if(token!==creatorLiveDashboardWatcherToken || current!=='space' || profile?.role!=='creator'){
+      stopCreatorLiveDashboardWatcher(); return;
+    }
+    refreshLiveTrainingCard();
+  },5000);
 }
 
 function loadJaasIframeApi() {
@@ -1613,7 +1659,7 @@ async function renderSelectedLesson(l) {
   const alreadyDone = window._done.has(l.id);
   const actionLabel = 'Continuar';
   $('#lessonView').classList.remove('hidden');
-  $('#lessonView').innerHTML = `<button class="mobile-back-lessons" id="backToLessons">← Volver a módulos</button><div class="eyebrow">LECCIÓN</div><div class="lesson-header"><div><h2>${esc(l.title)}</h2><p class="muted">${esc(l.description || '')}</p></div><span class="lesson-state ${alreadyDone ? 'completed' : ''}">${alreadyDone ? '✓ COMPLETADA' : isVideo ? 'EN CURSO' : 'PENDIENTE'}</span></div>${media}${l.content ? `<div class="section">${esc(l.content).replace(/\n/g, '<br>')}</div>` : ''}${!isVideo ? `<button class="primary" id="completeLesson">${actionLabel}</button>` : ''}`;
+  $('#lessonView').innerHTML = `<div class="eyebrow">LECCIÓN</div><div class="lesson-header"><div><h2>${esc(l.title)}</h2><p class="muted">${esc(l.description || '')}</p></div><span class="lesson-state ${alreadyDone ? 'completed' : ''}">${alreadyDone ? '✓ COMPLETADA' : isVideo ? 'EN CURSO' : 'PENDIENTE'}</span></div>${media}${l.content ? `<div class="section">${esc(l.content).replace(/\n/g, '<br>')}</div>` : ''}${!isVideo ? `<button class="primary" id="completeLesson">${actionLabel}</button>` : ''}`;
 
   if (isVideo) {
     const video = $('#lessonVideo');
@@ -1630,18 +1676,12 @@ async function renderSelectedLesson(l) {
     });
   }
 
-  if (window.matchMedia('(max-width: 800px)').matches) {
-    const modulesList = $('.formation-groups');
-    if (modulesList) modulesList.classList.add('mobile-lesson-open');
-    $('#lessonView')?.classList.add('mobile-lesson-active');
-    $('#backToLessons')?.addEventListener('click', () => {
-      modulesList?.classList.remove('mobile-lesson-open');
-      $('#lessonView')?.classList.remove('mobile-lesson-active');
-      $('#lessonView')?.classList.add('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
-  }
+  const formationPage = $('#training .formation-page');
+  const modulesList = $('.formation-groups');
+  formationPage?.classList.add('lesson-focus-mode');
+  modulesList?.classList.add('lesson-focus-hidden');
+  $('#lessonView')?.classList.add('lesson-focus-active');
+  requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
 }
 
 async function openLesson(id, options = {}) {
@@ -3559,3 +3599,30 @@ window.addEventListener('hashchange', () => {
   window.scrollTo(0, 0);
 });
 /* v23 · creator space return stability */
+
+
+/* GRAYXON v35 · live dashboard + focused formation content */
+(function applyV35Fixes(){
+  if(document.getElementById('grayxon-v35-fixes')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-v35-fixes';
+  style.textContent=`
+    /* When a lesson is open, the lesson is the only formation content shown. */
+    #training .formation-page.lesson-focus-mode{max-width:none!important;width:100%!important;min-height:calc(100vh - 40px)!important}
+    #training .formation-page.lesson-focus-mode>.row,
+    #training .formation-page.lesson-focus-mode>.formation-progress-card,
+    #training .formation-page.lesson-focus-mode>.formation-groups{display:none!important}
+    #training .formation-page.lesson-focus-mode>#lessonView.lesson-focus-active{display:block!important;visibility:visible!important;position:relative!important;margin:0!important;padding:clamp(18px,4vw,42px)!important;min-height:calc(100vh - 40px)!important;width:100%!important;box-sizing:border-box!important;border:0!important;border-radius:0!important;background:#08090c!important}
+    #training .lesson-focus-active .lesson-header{max-width:1000px!important;margin:0 auto 24px!important}
+    #training .lesson-focus-active .video-wrap{width:min(1100px,100%)!important;margin:0 auto!important}
+    #training .lesson-focus-active .video-wrap video{display:block!important;width:100%!important;max-height:72vh!important;object-fit:contain!important;background:#000!important;border-radius:16px!important}
+    #training .lesson-focus-active>.section{max-width:1000px!important;margin:22px auto!important}
+    #training .lesson-focus-active>#completeLesson{display:block!important;margin:20px auto!important;min-width:190px!important}
+    @media(max-width:800px){
+      #training .formation-page.lesson-focus-mode>#lessonView.lesson-focus-active{padding:12px 10px 24px!important;min-height:calc(100vh - 20px)!important}
+      #training .lesson-focus-active .lesson-header{margin-bottom:14px!important}
+      #training .lesson-focus-active .video-wrap video{max-height:64vh!important;border-radius:10px!important}
+    }
+  `;
+  document.head.appendChild(style);
+})();
