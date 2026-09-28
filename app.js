@@ -202,7 +202,11 @@ async function registerGrayxonPush({requestPermission=false}={}) {
       pushRegistrationPromise = null;
     }
   })();
-  return pushRegistrationPromise;
+  try {
+    return await pushRegistrationPromise;
+  } finally {
+    pushRegistrationPromise = null;
+  }
 }
 
 async function deactivateCurrentPushSubscription() {
@@ -1705,7 +1709,25 @@ async function creatorTrainingsTpl(){
     (a.target_type==='team' && a.target_id===p.team_id)
   ).map(a=>a.training_id));
 
-  const liveTrainings=(rawLive||[]).filter(t=>allowedLiveIds.has(t.id));
+  let liveTrainings=(rawLive||[]).filter(t=>allowedLiveIds.has(t.id));
+
+  // Compatibilidad con LIVE antiguos de manager que no tienen audiencia guardada.
+  // Si el creador pertenece a un equipo administrado por el instructor, ese LIVE
+  // sigue siendo válido para él.
+  if(!liveTrainings.length && rawLive?.length && p.team_id){
+    const managerUserIds=[...new Set(rawLive.map(t=>t.created_by).filter(Boolean))];
+    if(managerUserIds.length){
+      const {data:managerRows}=await sb.from('managers').select('id,user_id').in('user_id',managerUserIds).eq('active',true);
+      const managerIds=(managerRows||[]).map(m=>m.id);
+      if(managerIds.length){
+        const {data:managedTeam}=await sb.from('teams').select('id,manager_id').eq('id',p.team_id).in('manager_id',managerIds).maybeSingle();
+        if(managedTeam?.manager_id){
+          const managerByUser=new Map((managerRows||[]).map(m=>[m.user_id,m.id]));
+          liveTrainings=(rawLive||[]).filter(t=>managerByUser.get(t.created_by)===managedTeam.manager_id);
+        }
+      }
+    }
+  }
   const activeLive=liveTrainings[0]||null;
   currentLiveTraining=activeLive||null;
 
@@ -2553,9 +2575,26 @@ async function notifyLiveTrainingAudience(training){
       const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true).in('manager_id',managerIds);
       (creators||[]).forEach(c=>creatorIds.add(c.id));
     }
+    // Compatibilidad: entrenamientos creados antes de guardar explícitamente
+    // la audiencia por equipo pueden no tener filas en live_training_audience.
+    // En ese caso, si el instructor es un manager, notificamos a los creadores
+    // que actualmente pertenecen a los equipos administrados por ese manager.
+    if(!creatorIds.size && training.created_by){
+      const {data:manager}=await sb.from('managers').select('id').eq('user_id',training.created_by).eq('active',true).maybeSingle();
+      if(manager){
+        const {data:teams}=await sb.from('teams').select('id').eq('manager_id',manager.id);
+        const teamIds=(teams||[]).map(t=>t.id).filter(Boolean);
+        if(teamIds.length){
+          const {data:creators}=await sb.from('profiles').select('id').eq('role','creator').eq('active',true).in('team_id',teamIds);
+          (creators||[]).forEach(c=>creatorIds.add(c.id));
+        }
+      }
+    }
     if(!creatorIds.size) return;
     const message=`El entrenamiento “${training.title||'Grayxon'}” ya está EN VIVO. Entra ahora desde Grayxon.`;
-    await Promise.all([...creatorIds].map(uid=>notifyCreator(uid,'🔴 Entrenamiento EN VIVO',message,'live-training')));
+    const results=await Promise.all([...creatorIds].map(uid=>notifyCreator(uid,'🔴 Entrenamiento EN VIVO',message,'live-training')));
+    const failed=results.filter(r=>!r?.ok);
+    if(failed.length) console.warn('Algunos avisos de LIVE no se pudieron crear:',failed);
   }catch(e){ console.warn('No se pudieron enviar avisos del LIVE:',e); }
 }
 
@@ -2630,7 +2669,13 @@ async function startLiveTraining(id){
   if(!can)return toast('Solo el instructor o un administrador puede iniciar este entrenamiento.');
   const {data,error}=await sb.from('live_trainings').update({status:'live',started_at:new Date().toISOString(),ended_at:null}).eq('id',id).eq('status','scheduled').select('id,title,description,room_name,created_by,instructor_name,scheduled_at,status,started_at').single();
   if(error){toast(error.code==='23505'?'Ya hay otro entrenamiento EN VIVO. Finalízalo antes de iniciar uno nuevo.':error.message);return;}
-  currentLiveTraining=data;pendingLiveTrainingAutoStart=data;nav('live-training');
+  currentLiveTraining=data;
+  pendingLiveTrainingAutoStart=data;
+  // Crear la notificación DESPUÉS de confirmar que el entrenamiento quedó LIVE.
+  // La declaración anterior de esta función quedó duplicada en el build base;
+  // esta es la que realmente ejecuta JavaScript y debe contener el aviso.
+  await notifyLiveTrainingAudience(data);
+  nav('live-training');
 }
 async function finishLiveTraining(id){if(!id)return;const {data:t}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();if(!t||t.status!=='live')return toast('Este entrenamiento no está EN VIVO.');const can=profile?.role==='admin'||(profile?.role==='manager'&&t.created_by===session?.user?.id);if(!can)return toast('No tienes permiso para finalizar este entrenamiento.');if(!confirm('¿Finalizar este entrenamiento?'))return;const endedAt=new Date().toISOString();const {data,error}=await sb.from('live_trainings').update({status:'finished',ended_at:endedAt}).eq('id',id).eq('status','live').select('id,title').single();if(error){toast(error.message);return;}await sb.from('live_training_participants').update({left_at:endedAt}).eq('training_id',id).is('left_at',null);toast(`“${data?.title||'Entrenamiento'}” finalizado ✓`);render();}
 async function deleteLiveTraining(id){
@@ -3334,11 +3379,50 @@ async function moveLesson(id, direction) {
   render();
 }
 
+function ensureCreatorNotificationMenuAction(){
+  const menu=$('#profileMenu');
+  if(!menu || profile?.role!=='creator' || !session?.user?.id) return;
+  let btn=$('#grayxonMenuPush');
+  if(!btn){
+    btn=document.createElement('button');
+    btn.type='button';
+    btn.id='grayxonMenuPush';
+    btn.className='secondary small';
+    btn.style.cssText='width:100%;margin-top:8px;text-align:left;justify-content:flex-start;';
+    menu.appendChild(btn);
+  }
+  const standalone=isGrayxonStandalone();
+  const hasSupport=('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
+  const denied=hasSupport && Notification.permission==='denied';
+  btn.textContent=denied ? '🔕 Notificaciones bloqueadas' : '🔔 Activar notificaciones';
+  btn.disabled=denied;
+  btn.onclick=async(e)=>{
+    e.preventDefault(); e.stopPropagation();
+    if(!hasSupport){ toast('Este dispositivo/navegador no permite notificaciones web.'); return; }
+    if(/iPhone|iPad|iPod/i.test(navigator.userAgent) && !standalone){
+      showGrayxonInstallHelp();
+      toast('En iPhone primero debes abrir Grayxon como app instalada.');
+      return;
+    }
+    const subscription=await registerGrayxonPush({requestPermission:true});
+    if(subscription){
+      toast('Notificaciones activadas ✓');
+      btn.textContent='🔔 Notificaciones activadas';
+      closeProfileMenu();
+    }else if(Notification.permission==='denied'){
+      toast('Las notificaciones están bloqueadas. Actívalas en los permisos de Grayxon.');
+    }else{
+      toast('No se pudieron activar las notificaciones.');
+    }
+  };
+}
+
 function toggleProfileMenu(){
   const menu=$('#profileMenu'); if(!menu) return;
   const willOpen=menu.classList.contains('hidden');
   menu.classList.toggle('hidden', !willOpen);
   if(willOpen){
+    ensureCreatorNotificationMenuAction();
     const name=$('#profileMenuName'); const role=$('#profileMenuRole');
     if(name) name.textContent=profile?.full_name || profile?.username || 'Mi cuenta';
     if(role) role.textContent=profile?.role==='admin' ? 'Administrador' : profile?.role==='manager' ? 'Manager' : 'Creador';
@@ -3350,6 +3434,7 @@ function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classLi
 
 function updateHeaderAccessUI(){
   updateCreatorTopNav();
+  ensureCreatorNotificationMenuAction();
   const btn=$('#adminOpen');
   if(!btn) return;
   if(!session){
@@ -3597,6 +3682,7 @@ async function saveProfile(){
   }
 }
 function updateProfileBadge(){
+  ensureCreatorNotificationMenuAction();
   const openMySpace=$('#openMySpace'); if(openMySpace) openMySpace.style.display='none';
   const b=$('#mobileProfile'); if(!b)return;
   if(profileDetails?.avatar_url)b.innerHTML=`<img src="${esc(profileDetails.avatar_url)}" alt="Perfil">`; else b.textContent=profileInitial();
