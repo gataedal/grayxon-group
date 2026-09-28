@@ -458,6 +458,11 @@ async function openNotification(id) {
     if (target.startsWith('#')) { window.location.hash = target.slice(1); return; }
     if (/^(https?:|mailto:|tel:)/i.test(target)) { window.location.href = target; return; }
     const page = target.replace(/^\//, '').split(/[?#]/)[0].toLowerCase();
+    // LIVE: si la notificación guarda el UUID del entrenamiento, abrimos exactamente ese LIVE.
+    if(profile?.role==='creator' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(page)){
+      const {data:targetLive}=await sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').eq('id',page).eq('status','live').maybeSingle();
+      if(targetLive){ currentLiveTraining=targetLive; pendingLiveTrainingAutoStart={id:targetLive.id}; nav('live-training'); return; }
+    }
     const targetMap = {
       dashboard:'space', space:'space', 'mi-espacio':'space',
       training:'training', formation:'training', 'live-training':'live-training',
@@ -514,7 +519,7 @@ async function notifyCreator(userId, title, message, linkPage='space', weekStart
   return {ok:false,error:detail};
 }
 
-async function notifyLiveTrainingCreator(userId, title, message) {
+async function notifyLiveTrainingCreator(userId, title, message, trainingId=null) {
   if (!userId) return {ok:false,error:'Falta el ID del creador.'};
   const linkPage='live-training';
   const payload = {
@@ -523,7 +528,7 @@ async function notifyLiveTrainingCreator(userId, title, message) {
     title,
     message,
     link_page:linkPage,
-    link_target:linkPage,
+    link_target:trainingId ? String(trainingId) : linkPage,
     related_week_start:null,
     related_week_end:null
   };
@@ -538,7 +543,14 @@ async function notifyLiveTrainingCreator(userId, title, message) {
     p_week_start:null,
     p_week_end:null
   });
-  if (!rpc.error) return {ok:true};
+  if (!rpc.error) {
+    // create_notification no recibe link_target; lo fijamos después con el UUID devuelto.
+    if(trainingId && rpc.data){
+      const {error:updateTargetError}=await sb.from('notifications').update({link_target:String(trainingId)}).eq('id',rpc.data).eq('user_id',userId);
+      if(updateTargetError) console.warn('No se pudo guardar el LIVE objetivo de la notificación:', updateTargetError.message);
+    }
+    return {ok:true};
+  }
 
   // Compatibilidad: algunas instalaciones antiguas solo contemplan los tipos
   // existentes en la migración original. En ese caso usamos formation, pero
@@ -1362,7 +1374,9 @@ async function fetchCreatorLiveTrainingFast(){
   if(!session?.user?.id) return null;
   const uid=session.user.id;
   try{
-    const p=profile || await getProfile();
+    // Siempre usamos el perfil fresco para que Mi espacio no dependa de un team_id/manager_id obsoleto.
+    const {data:freshProfile}=await sb.from('profiles').select('id,role,active,team_id,manager_id').eq('id',uid).maybeSingle();
+    const p=freshProfile || profile || await getProfile();
     const {data:rawLive,error:liveError}=await sb.from('live_trainings')
       .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
       .eq('status','live')
@@ -2806,7 +2820,7 @@ async function notifyLiveTrainingAudience(training){
 
     const message=`El entrenamiento “${training.title||'Grayxon'}” ya está EN VIVO. Entra ahora desde Grayxon.`;
     diag.push(`4. Intentando crear ${creatorIds.size} notificación(es)...`);
-    const results=await Promise.all([...creatorIds].map(uid=>notifyLiveTrainingCreator(uid,'🔴 Entrenamiento EN VIVO',message)));
+    const results=await Promise.all([...creatorIds].map(uid=>notifyLiveTrainingCreator(uid,'🔴 Entrenamiento EN VIVO',message,training.id)));
     const failed=results.filter(r=>!r?.ok);
     const okCount=results.filter(r=>r?.ok).length;
     diag.push(`5. Resultado: ${okCount}/${results.length} creada(s)`);
