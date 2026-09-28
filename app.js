@@ -372,8 +372,13 @@ function toast(t) {
 
 // V33.9 diagnostic panel: temporary, visible on-screen diagnostics for LIVE notifications.
 // It does not write to the database and can be removed after the root cause is confirmed.
-function showLiveNotificationDiagnostic(title, lines = []) {
+function showLiveNotificationDiagnostic(title, lines = [], persist = true) {
   try {
+    if (persist) {
+      try {
+        sessionStorage.setItem('grayxon_live_diag', JSON.stringify({title, lines, at: Date.now()}));
+      } catch (_) {}
+    }
     document.getElementById('grayxonLiveDiag')?.remove();
     const wrap = document.createElement('div');
     wrap.id = 'grayxonLiveDiag';
@@ -400,6 +405,17 @@ function showLiveNotificationDiagnostic(title, lines = []) {
 
 function errorText(error, fallbackText = 'Ocurrió un error.') {
   return error?.message || fallbackText;
+}
+
+function restoreLiveNotificationDiagnostic() {
+  try {
+    const raw = sessionStorage.getItem('grayxon_live_diag');
+    if (!raw) return;
+    const diag = JSON.parse(raw);
+    if (!diag?.title || !Array.isArray(diag.lines)) return;
+    sessionStorage.removeItem('grayxon_live_diag');
+    showLiveNotificationDiagnostic(diag.title, diag.lines, false);
+  } catch (_) {}
 }
 
 async function loadNotifications() {
@@ -1899,10 +1915,13 @@ async function liveTrainingTpl(trainingOverride=null) {
   const backPage=isModerator?(profile.role==='admin'?'admin':'manager'):'space';
   if(!training){
     el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamientos en vivo 🎥</h1><p>Cuando Grayxon inicie un entrenamiento, aparecerá aquí automáticamente.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← ${isHost?'Volver al panel':'Volver'}</button>`:''}</div><section class="live-training-feature live-training-empty-compact"><div class="live-training-feature-inner live-training-empty-state"><span class="live-training-idle-icon">○</span><h2>No hay un entrenamiento en vivo</h2><p class="live-training-subtitle">En este momento no hay ninguna sesión activa.</p></div></section></div>`;
-    bind();return;
+    bind();
+    restoreLiveNotificationDiagnostic();
+    return;
   }
   el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div id="grayxonJaasMeet" class="live-training-meet"></div></div></div></div>`;
   bind();
+  restoreLiveNotificationDiagnostic();
   const autoStart=pendingLiveTrainingAutoStart?.id===training.id;if(autoStart)pendingLiveTrainingAutoStart=null;
   $('#enterGrayxonTraining')?.addEventListener('click',async()=>{const btn=$('#enterGrayxonTraining'),wrap=$('#grayxonTrainingRoomWrap'),hero=$('.live-training-hero'),feature=$('.live-training-feature');document.body.classList.add('grayxon-live-training-call');if(btn){btn.disabled=true;btn.textContent='Entrando…';}if(hero){hero.classList.add('hidden');hero.hidden=true;hero.style.setProperty('display','none','important');}if(feature){feature.classList.add('hidden');feature.hidden=true;feature.style.setProperty('display','none','important');}if(wrap){wrap.classList.remove('hidden');wrap.hidden=false;wrap.style.setProperty('display','block','important');}window.scrollTo(0,0);await startGrayxonLiveTraining(training);});
   if(autoStart) $('#enterGrayxonTraining')?.click();
