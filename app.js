@@ -1,4 +1,4 @@
-// GRAYXON BUILD V33
+// GRAYXON BUILD V33.1
 const CFG = window.GRAYXON_CONFIG || {};
 // Auth uses a syntactically valid internal domain. Users still log in only with
 // their Grayxon username; this address is never shown in the portal UI.
@@ -12,6 +12,83 @@ const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_PUBLISHABLE_KEY)
 // exclusively in the Supabase Edge Function `grayxon-push`.
 const GRAYXON_VAPID_PUBLIC_KEY = 'c294f30869d697932b4eafbcdb28fdee82f0ed6bdec6245fae5a694bbd56e070';
 let pushRegistrationPromise = null;
+let grayxonInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  grayxonInstallPrompt = event;
+  refreshGrayxonPwaPreferenceUI();
+});
+window.addEventListener('appinstalled', () => {
+  grayxonInstallPrompt = null;
+  refreshGrayxonPwaPreferenceUI();
+  toast('Grayxon se instaló correctamente ✓');
+});
+
+function isGrayxonStandalone(){
+  return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function showGrayxonInstallHelp(){
+  const el = modal(`
+    <div class="eyebrow">GRAYXON · INSTALACIÓN</div>
+    <h2 style="margin-top:8px">Instala Grayxon 📲</h2>
+    <p class="muted" style="line-height:1.65">Añade Grayxon a la pantalla de inicio de tu dispositivo para tenerlo siempre a mano.</p>
+    <div class="item" style="margin-top:14px;line-height:1.65">
+      <b>¿Cómo hacerlo?</b>
+      <p class="muted small" style="margin:7px 0 0">Abre el menú de tu navegador y busca una opción como <b>“Instalar Grayxon”</b> o <b>“Añadir a pantalla de inicio”</b>. Después abre Grayxon desde ese nuevo icono.</p>
+    </div>
+    <div class="inline" style="margin-top:18px"><button class="primary" id="closeGrayxonInstallHelp">Entendido</button></div>
+  `);
+  $('#closeGrayxonInstallHelp')?.addEventListener('click',()=>el.remove());
+}
+
+async function installGrayxonApp(){
+  if(isGrayxonStandalone()){
+    toast('Grayxon ya está instalado ✓');
+    return;
+  }
+  if(grayxonInstallPrompt){
+    try{
+      await grayxonInstallPrompt.prompt();
+      await grayxonInstallPrompt.userChoice;
+    }catch(e){
+      console.warn('Instalación de Grayxon:',e);
+    }finally{
+      grayxonInstallPrompt=null;
+      refreshGrayxonPwaPreferenceUI();
+    }
+    return;
+  }
+  showGrayxonInstallHelp();
+}
+
+function refreshGrayxonPwaPreferenceUI(){
+  const installBtn=$('#installGrayxonApp');
+  const installStatus=$('#grayxonInstallStatus');
+  const pushBtn=$('#enableGrayxonPushProfile');
+  const pushStatus=$('#grayxonPushStatus');
+  const installed=isGrayxonStandalone();
+  if(installStatus){
+    installStatus.textContent=installed ? 'Grayxon ya está instalada en este dispositivo.' : 'Instala Grayxon para tenerla siempre a mano.';
+  }
+  if(installBtn){
+    installBtn.textContent=installed ? '✓ Grayxon instalada' : '📲 Instalar Grayxon';
+    installBtn.disabled=installed;
+  }
+  if(pushStatus){
+    const supported='Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+    if(!supported) pushStatus.textContent='Las notificaciones no están disponibles en este navegador.';
+    else if(Notification.permission==='granted') pushStatus.textContent='🟢 Notificaciones activadas en este dispositivo.';
+    else if(Notification.permission==='denied') pushStatus.textContent='Las notificaciones están bloqueadas. Revísalas en los permisos del navegador.';
+    else pushStatus.textContent='Recibe avisos importantes de Grayxon.';
+  }
+  if(pushBtn){
+    const granted='Notification' in window && Notification.permission==='granted';
+    pushBtn.textContent=granted ? '🟢 Notificaciones activadas' : '🔔 Activar notificaciones';
+    pushBtn.disabled=granted;
+  }
+}
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -796,6 +873,7 @@ function normalizeCountryCode(value){
 }
 
 function profileTpl(){
+  ensureGrayxonPreferencesStyles();
   if (!session || !profile) return authTpl();
   const d=profileDetails||{}; const pm=paymentMethod||{};
   const avatar = d.avatar_url ? `<img class="profile-avatar-img" src="${esc(d.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
@@ -811,6 +889,18 @@ function profileTpl(){
       <div id="bankFields" ${pm.method_type==='paypal'?'style="display:none"':''}><label class="field"><span>País del banco</span><select id="pBankCountry">${profileCountries.map(([c,n])=>`<option value="${c}" ${bankCountry===c?'selected':''}>${n}</option>`).join('')}</select></label><label class="field"><span>Banco</span><select id="pBank"><option value="">Selecciona tu banco</option>${banks}</select></label><label class="field"><span>Tipo de cuenta</span><select id="pAccountType"><option value="savings" ${pm.account_type==='savings'?'selected':''}>Ahorros</option><option value="checking" ${pm.account_type==='checking'?'selected':''}>Corriente</option><option value="other" ${pm.account_type==='other'?'selected':''}>Otro</option></select></label>${field('pAccountNumber','Número de cuenta',pm.account_number||'')}</div>
       <div id="paypalFields" ${pm.method_type==='paypal'?'':'style="display:none"'}>${field('pPaypal','Correo de PayPal',pm.paypal_email||'')}</div>
       <label class="field"><span>Preferencia</span><label style="display:flex;gap:8px;align-items:center;color:#ddd"><input id="pPrimary" type="checkbox" ${pm.is_primary!==false?'checked':''}> Usar como método principal de pago</label></label>
+    </div>
+    <div class="card grayxon-preferences-card">
+      <div class="eyebrow">GRAYXON · PREFERENCIAS</div>
+      <h2 style="margin-top:6px">Tu experiencia Grayxon</h2>
+      <div class="grayxon-preference-item">
+        <div><strong>📲 Instalar Grayxon</strong><p id="grayxonInstallStatus" class="muted small">Instala Grayxon para tenerla siempre a mano.</p></div>
+        <button type="button" class="secondary small" id="installGrayxonApp">📲 Instalar Grayxon</button>
+      </div>
+      <div class="grayxon-preference-item">
+        <div><strong>🔔 Notificaciones</strong><p id="grayxonPushStatus" class="muted small">Recibe avisos importantes de Grayxon.</p></div>
+        <button type="button" class="secondary small" id="enableGrayxonPushProfile">🔔 Activar notificaciones</button>
+      </div>
     </div>
     <div class="profile-save-wrap"><button class="primary profile-save-btn" id="saveProfile">Guardar</button></div><div id="profileErr" class="error"></div>
   </div>`;
@@ -896,6 +986,20 @@ function ensureCreatorDashboardStyles(){
   document.head.appendChild(style);
 }
 
+function ensureGrayxonPreferencesStyles(){
+  if(document.getElementById('grayxon-preferences-v33-1')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-preferences-v33-1';
+  style.textContent=`
+    .grayxon-preferences-card{display:grid;gap:12px}
+    .grayxon-preference-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.02)}
+    .grayxon-preference-item strong{display:block;color:#fff}.grayxon-preference-item p{margin:5px 0 0;line-height:1.45}
+    .grayxon-preference-item button{flex:0 0 auto;white-space:nowrap}
+    @media(max-width:700px){.grayxon-preference-item{align-items:flex-start;flex-direction:column}.grayxon-preference-item button{width:100%}}
+  `;
+  document.head.appendChild(style);
+}
+
 function creatorDashboardAvatar(){
   if(profileDetails?.avatar_url) return `<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`;
   return `<span>${esc(profileInitial())}</span>`;
@@ -950,7 +1054,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[]),
     safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}),[]),
     safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[]),
-    safe(fetchActiveLiveTraining(), null, 2200)
+    safe(fetchActiveLiveTraining(), null, 7000)
   ]);
 
   // Si el usuario ya navegó a otra pantalla, este render atrasado no debe tocarla.
@@ -993,6 +1097,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}</div>${profileIncomplete}
   </div>`;
   bind();
+  refreshLiveTrainingCard();
 }
 
 function renderCreatorSpaceImmediate(){
@@ -3093,16 +3198,6 @@ function toggleProfileMenu(){
 function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classList.add('hidden'); }
 
 
-function ensureGrayxonPushAccountAction(){
-  if(!session || document.getElementById('enableGrayxonPush')) return;
-  const menu=document.querySelector('#profileMenu');
-  if(!menu) return;
-  const btn=document.createElement('button');
-  btn.type='button'; btn.id='enableGrayxonPush'; btn.className='profile-menu-item';
-  btn.textContent='🔔 Activar notificaciones';
-  menu.appendChild(btn);
-  btn.addEventListener('click',enableGrayxonPushFromAccount);
-}
 
 function updateHeaderAccessUI(){
   updateCreatorTopNav();
@@ -3161,7 +3256,6 @@ function bind() {
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'space' && session) nav(profile?.role === 'manager' ? 'manager' : 'space'); else if (target === 'auth' && session) nav(profile?.role === 'manager' ? 'manager' : profile?.role === 'creator' ? 'space' : 'admin'); else nav(target); });
   $$('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
   updateHeaderAccessUI();
-  ensureGrayxonPushAccountAction();
   $('#mobileMenuBtn')?.addEventListener('click', () => { const m = $('#mobileNav'); const open = m?.classList.toggle('open'); $('#mobileMenuBtn')?.setAttribute('aria-expanded', open ? 'true' : 'false'); });
   $('#mobileAdminOpen')?.addEventListener('click', () => { if(session) nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space'); else nav('auth'); });
   $$('#mobileNav [data-page]').forEach(b => b.addEventListener('click', () => $('#mobileNav')?.classList.remove('open')));
@@ -3229,6 +3323,16 @@ function bind() {
   if(pBankCountryEl) pBankCountryEl.onchange=()=>populateBanks();
   togglePaymentFields();
   populateBanks();
+  ensureGrayxonPreferencesStyles();
+  $('#installGrayxonApp')?.addEventListener('click',installGrayxonApp);
+  $('#enableGrayxonPushProfile')?.addEventListener('click',async()=>{
+    const subscription=await registerGrayxonPush({requestPermission:true});
+    refreshGrayxonPwaPreferenceUI();
+    if(subscription) toast('Notificaciones activadas ✓');
+    else if('Notification' in window && Notification.permission==='denied') toast('Las notificaciones están bloqueadas en el navegador.');
+    else if(subscription===null) toast('No se pudo activar las notificaciones. Revisa los permisos del navegador.');
+  });
+  refreshGrayxonPwaPreferenceUI();
   $('#profileAvatar')?.addEventListener('change', uploadProfileAvatar);
   $('#profilePhotoEdit')?.addEventListener('click', () => {
     const input = $('#profileAvatar');
@@ -3424,7 +3528,7 @@ async function login() {
   }
 
   updateHeaderAccessUI();
-  registerGrayxonPush({requestPermission:true});
+  registerGrayxonPush({requestPermission:false});
   nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
 }
 
@@ -3821,7 +3925,7 @@ sb.auth.onAuthStateChange((event,newSession)=>{
 
 init();
 
-document.addEventListener('visibilitychange', () => { if (!document.hidden && session) loadNotifications(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); } });
 setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 5000);
 
 window.addEventListener('popstate', () => {
