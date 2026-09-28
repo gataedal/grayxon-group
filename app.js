@@ -4,6 +4,17 @@ const CFG = window.GRAYXON_CONFIG || {};
 const LOGIN_EMAIL_DOMAIN = 'users.grayxongroup.com';
 const LEGACY_LOGIN_EMAIL_DOMAIN = 'users.grayxon.local';
 const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_PUBLISHABLE_KEY);
+
+// Grayxon live trainings use Jitsi as a Service (JaaS).
+// The App ID is public; the private signing key stays exclusively in the
+// Supabase Edge Function `generate-jaas-jwt`.
+const JAAS_APP_ID = 'vpaas-magic-cookie-7db4f66a87d64b5696c9aa9ac4b08b7e';
+const JAAS_DOMAIN = '8x8.vc';
+const JAAS_JWT_FUNCTION = 'generate-jaas-jwt';
+const GRAYXON_LIVE_TRAINING_ROOM = 'grayxon-live-training';
+let jaasApi = null;
+let jaasApiRoom = null;
+
 async function createManagerAccess(body){
   const { data: sessionData } = await sb.auth.getSession();
   const accessToken = sessionData?.session?.access_token;
@@ -230,9 +241,56 @@ async function content() {
   return c;
 }
 
+function ensureLiveTrainingPage() {
+  let el = $('#live-training');
+  if (el) return el;
+
+  el = document.createElement('section');
+  el.id = 'live-training';
+  el.className = 'hidden page-section';
+  document.body.appendChild(el);
+
+  if (!$('#grayxon-live-training-styles')) {
+    const style = document.createElement('style');
+    style.id = 'grayxon-live-training-styles';
+    style.textContent = `
+      .live-training-page{max-width:1180px;margin:0 auto;padding:28px 20px 50px}
+      .live-training-hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
+      .live-training-hero h1{margin:7px 0 8px}
+      .live-training-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;border:1px solid rgba(254,44,85,.45);background:rgba(254,44,85,.08);color:#ff7d9a;font-size:11px;font-weight:800;letter-spacing:.08em}
+      .live-training-badge-dot{width:7px;height:7px;border-radius:50%;background:#fe2c55;box-shadow:0 0 12px rgba(254,44,85,.75)}
+      .live-training-shell{margin-top:22px;overflow:hidden;border:1px solid rgba(255,255,255,.10);border-radius:20px;background:#0b0d11;box-shadow:0 20px 70px rgba(0,0,0,.28)}
+      .live-training-toolbar{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+      .live-training-toolbar-copy strong{display:block;color:#fff}
+      .live-training-toolbar-copy span{display:block;margin-top:4px;color:#8d929c;font-size:12px}
+      .live-training-meet{min-height:650px;background:#050608}
+      .live-training-loading{min-height:650px;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px;color:#aeb3bd}
+      .live-training-loading strong{display:block;color:#fff;font-size:18px;margin-bottom:8px}
+      .live-training-error{padding:28px;text-align:center}
+      .live-training-error h3{margin:0 0 8px;color:#fff}
+      .live-training-error p{margin:0 auto 18px;max-width:620px;color:#9298a3}
+      .live-training-space-card{position:relative}
+      .live-training-space-card .live-training-card-status{color:#6ee7b7;font-size:11px;font-weight:900;letter-spacing:.05em;white-space:nowrap}
+      .live-training-space-card .space-progress{background:rgba(255,255,255,.07)}
+      .live-training-space-card .space-progress span{width:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}
+      @media(max-width:800px){
+        .live-training-page{padding:20px 14px 36px}
+        .live-training-hero{display:block}
+        .live-training-hero .secondary{margin-top:14px}
+        .live-training-meet,.live-training-loading{min-height:560px}
+        .live-training-toolbar{align-items:flex-start;flex-direction:column}
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  return el;
+}
+
 function nav(p, push = true) {
-  const pages = ['home','benefits','auth','space','manager','training','missions','profile','admin'];
+  const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'];
   if (!pages.includes(p)) p = 'home';
+  if (p === 'live-training') ensureLiveTrainingPage();
   if (push && current !== p) {
     const url = p === 'home'
       ? `${window.location.pathname}${window.location.search}`
@@ -241,6 +299,7 @@ function nav(p, push = true) {
   }
   current = p;
   pages.forEach(id => { const el=$('#'+id); if(el) el.classList.toggle('hidden', id !== p); });
+  if (p !== 'live-training' && jaasApi) destroyJaasMeeting();
   if (p === 'space') { try { renderSpaceShell(); } catch(e) { console.error(e); } }
   Promise.resolve(render()).catch(e => console.warn('Render:', e));
   window.scrollTo(0,0);
@@ -253,7 +312,7 @@ function renderSpaceShell(){
   const el=$('#space'); if(!el) return;
   if(!session){ el.innerHTML=authTpl(); return; }
   const base=profile||{full_name:session.user.user_metadata?.full_name||'',username:session.user.user_metadata?.username||session.user.email?.split('@')[0]||'creador'};
-  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-card space-team-card-loading"><div class="space-team-card-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong></div></div></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}</div></div>`;
+  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">TU ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-card space-team-card-loading"><div class="space-team-card-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong></div></div></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}<button class="space-card card live-training-space-card" data-space-action="live-training"><span class="space-card-icon">🎥</span><div class="space-card-main"><div class="space-card-top"><strong>Entrenamientos</strong><span class="live-training-card-status">EN VIVO</span></div><p>Participa en los entrenamientos en vivo de Grayxon.</p><div class="space-progress"><span></span></div><small>Entra directamente desde tu cuenta Grayxon.</small></div><span class="space-card-arrow">›</span></button></div></div>`;
   bind();
 }
 function updateSpaceTeam(a){
@@ -281,6 +340,7 @@ async function render(){
   if(current==='space') { if(profile?.role==='manager') await managerTpl(); else await spaceTpl(); }
   if(current==='manager')await managerTpl();
   if(current==='training')await trainingTpl();
+  if(current==='live-training')await liveTrainingTpl();
   if(current==='missions')await missionsTpl();
   if(current==='profile')$('#profile').innerHTML=await profileTpl();
   bind(); updateHeaderAccessUI(); updateProfileBadge(); updateNotificationsUI();
@@ -583,6 +643,174 @@ async function saveMissionProgress(id){
   const completed=true; // Guardar cierra la misión aunque la meta no se haya alcanzado; el porcentaje conserva el avance real.
   const {error}=await sb.from('mission_progress').upsert({user_id:session.user.id,mission_id:id,value,completed,updated_at:new Date().toISOString()},{onConflict:'user_id,mission_id'});
   if(error)return toast(error.message); toast(completed?'Misión guardada ✓':'Avance guardado ✓'); await refreshAfterMissionSave(id);
+}
+
+
+function loadJaasIframeApi() {
+  return new Promise((resolve, reject) => {
+    if (window.JitsiMeetExternalAPI) return resolve(window.JitsiMeetExternalAPI);
+
+    const existing = document.querySelector('script[data-grayxon-jaas-api]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.JitsiMeetExternalAPI));
+      existing.addEventListener('error', () => reject(new Error('No se pudo cargar el sistema de videollamada.')));
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = `https://${JAAS_DOMAIN}/${JAAS_APP_ID}/external_api.js`;
+    script.async = true;
+    script.dataset.grayxonJaasApi = 'true';
+    script.onload = () => window.JitsiMeetExternalAPI
+      ? resolve(window.JitsiMeetExternalAPI)
+      : reject(new Error('La API de videollamada no quedó disponible.'));
+    script.onerror = () => reject(new Error('No se pudo cargar la API de videollamada.'));
+    document.head.appendChild(script);
+  });
+}
+
+async function getJaasJwt(room = GRAYXON_LIVE_TRAINING_ROOM) {
+  const { data: sessionData } = await sb.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+  if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible. Vuelve a iniciar sesión.');
+
+  const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/${JAAS_JWT_FUNCTION}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ room })
+  });
+
+  let data = null;
+  try { data = await res.json(); } catch (_) {}
+
+  if (!res.ok || data?.error) {
+    throw new Error(data?.error || data?.message || `No se pudo preparar el entrenamiento (${res.status}).`);
+  }
+
+  if (!data?.token || !data?.roomName) {
+    throw new Error('El servidor no devolvió los datos necesarios para entrar al entrenamiento.');
+  }
+
+  return data;
+}
+
+function destroyJaasMeeting() {
+  if (jaasApi) {
+    try { jaasApi.dispose(); } catch (_) {}
+  }
+  jaasApi = null;
+  jaasApiRoom = null;
+}
+
+async function startGrayxonLiveTraining() {
+  const host = $('#grayxonJaasMeet');
+  const loading = $('#grayxonJaasLoading');
+  if (!host) return;
+
+  destroyJaasMeeting();
+  host.innerHTML = `<div id="grayxonJaasLoading" class="live-training-loading"><div><strong>Preparando tu entrada…</strong><span>Estamos conectando tu cuenta Grayxon con el entrenamiento.</span></div></div>`;
+
+  try {
+    const [{ token, roomName }, JitsiMeetExternalAPI] = await Promise.all([
+      getJaasJwt(GRAYXON_LIVE_TRAINING_ROOM),
+      loadJaasIframeApi()
+    ]);
+
+    if (!$('#grayxonJaasMeet')) return;
+
+    const api = new JitsiMeetExternalAPI(JAAS_DOMAIN, {
+      roomName,
+      jwt: token,
+      parentNode: $('#grayxonJaasMeet'),
+      width: '100%',
+      height: '650px',
+      lang: 'es',
+      userInfo: {
+        displayName: profile?.full_name || profile?.username || session?.user?.email?.split('@')[0] || 'Participante Grayxon',
+        email: session?.user?.email || ''
+      },
+      configOverwrite: {
+        prejoinConfig: { enabled: false },
+        disableInitialGUM: false,
+        startWithAudioMuted: false,
+        startWithVideoMuted: false
+      }
+    });
+
+    jaasApi = api;
+    jaasApiRoom = roomName;
+
+    api.addEventListener?.('videoConferenceJoined', () => {
+      toast(profile?.role === 'admin' || profile?.role === 'manager'
+        ? 'Entraste al entrenamiento como anfitrión ✓'
+        : 'Entraste al entrenamiento ✓');
+    });
+
+    api.addEventListener?.('readyToClose', () => {
+      destroyJaasMeeting();
+      if ($('#grayxonJaasMeet')) {
+        $('#grayxonJaasMeet').innerHTML = `<div class="live-training-loading"><div><strong>Saliste del entrenamiento</strong><span>Puedes volver a entrar cuando quieras.</span><div style="margin-top:18px"><button class="primary" id="rejoinGrayxonTraining">Volver a entrar</button></div></div></div>`;
+        $('#rejoinGrayxonTraining')?.addEventListener('click', startGrayxonLiveTraining);
+      }
+    });
+  } catch (error) {
+    console.error('GRAYXON JAAAS ERROR:', error);
+    host.innerHTML = `<div class="live-training-error"><h3>No pudimos abrir el entrenamiento</h3><p>${esc(error?.message || 'Ocurrió un error al preparar la videollamada.')}</p><button class="primary" id="retryGrayxonTraining">Intentar nuevamente</button></div>`;
+    $('#retryGrayxonTraining')?.addEventListener('click', startGrayxonLiveTraining);
+  }
+}
+
+async function liveTrainingTpl() {
+  const el = ensureLiveTrainingPage();
+
+  if (!session) {
+    el.innerHTML = authTpl();
+    return;
+  }
+
+  profile = await getProfile();
+  if (!profile || !profile.active) {
+    await sb.auth.signOut();
+    session = null;
+    profile = null;
+    el.innerHTML = '<div class="login"><h2>Tu acceso está desactivado</h2><p class="muted">Tu acceso al portal de Grayxon ha sido desactivado. Si crees que esto es un error o necesitas volver a ingresar, contacta con tu manager.</p></div>';
+    destroyJaasMeeting();
+    return;
+  }
+
+  el.innerHTML = `<div class="live-training-page">
+    <div class="live-training-hero">
+      <div>
+        <div class="eyebrow">GRAYXON · ENTRENAMIENTOS</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <h1>Entrenamientos en vivo 🎥</h1>
+          <span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span>
+        </div>
+        <p class="muted">Participa directamente desde tu cuenta Grayxon. No necesitas otro usuario ni otra contraseña.</p>
+      </div>
+      <button class="secondary" data-space-action="space">← Tu espacio</button>
+    </div>
+
+    <div class="live-training-shell">
+      <div class="live-training-toolbar">
+        <div class="live-training-toolbar-copy">
+          <strong>Entrenamiento Grayxon LIVE</strong>
+          <span>${profile?.role === 'admin' || profile?.role === 'manager' ? 'Tienes permisos de anfitrión para dirigir el entrenamiento.' : 'Conectado con tu cuenta Grayxon.'}</span>
+        </div>
+        <span class="pill ok">Acceso protegido</span>
+      </div>
+      <div id="grayxonJaasMeet" class="live-training-meet">
+        <div class="live-training-loading"><div><strong>Preparando el entrenamiento…</strong><span>La videollamada se abrirá aquí.</span></div></div>
+      </div>
+    </div>
+  </div>`;
+
+  bind();
+  await startGrayxonLiveTraining();
 }
 
 async function trainingTpl() {
@@ -1853,7 +2081,7 @@ async function init() {
   updateHeaderAccessUI();
 
   const hashPage = window.location.hash.replace(/^#/, '');
-  const initialPage = ['home','benefits','auth','space','manager','training','missions','profile','admin'].includes(hashPage) ? hashPage : 'home';
+  const initialPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(hashPage) ? hashPage : 'home';
   nav(initialPage, false);
 }
 
@@ -1872,14 +2100,16 @@ setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 500
 window.addEventListener('popstate', () => {
   const hashPage = window.location.hash.replace(/^#/, '');
   const page = history.state?.page || hashPage || 'home';
-  current = ['home','benefits','auth','space','manager','training','missions','profile','admin'].includes(page) ? page : 'home';
+  if (page === 'live-training') ensureLiveTrainingPage();
+  current = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(page) ? page : 'home';
   render();
   window.scrollTo(0, 0);
 });
 
 window.addEventListener('hashchange', () => {
   const page = window.location.hash.replace(/^#/, '') || 'home';
-  if (!['home','benefits','auth','space','manager','training','missions','profile','admin'].includes(page)) return;
+  if (page === 'live-training') ensureLiveTrainingPage();
+  if (!['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(page)) return;
   if (current === page) return;
   current = page;
   render();
