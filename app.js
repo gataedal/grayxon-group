@@ -1022,13 +1022,12 @@ async function fetchActiveLiveTraining(){
       const {data:aud,error:ae}=await sb.from('live_training_audience')
         .select('training_id,target_type,target_id')
         .in('training_id',trainings.map(t=>t.id));
-      if(ae) return trainings[0]||fallback;
+      if(ae) return fallback;
       const p=profile||{};
       const allowed=new Set((aud||[]).filter(a =>
         a.target_type==='all_creators' ||
         (a.target_type==='creator' && a.target_id===uid) ||
-        (a.target_type==='team' && a.target_id===p.team_id) ||
-        (a.target_type==='manager' && a.target_id===p.manager_id)
+        (a.target_type==='team' && a.target_id===p.team_id)
       ).map(a=>a.training_id));
       return trainings.find(t=>allowed.has(t.id))||fallback;
     }
@@ -1041,7 +1040,7 @@ async function fetchActiveLiveTraining(){
 async function refreshLiveTrainingCard(){
   const card=document.querySelector('.live-training-space-card'); if(!card)return;
   const status=card.querySelector('.live-training-card-status'), title=card.querySelector('.live-training-card-title'), detail=card.querySelector('.live-training-card-detail'), bar=card.querySelector('.space-progress span');
-  try{const t=await fetchActiveLiveTraining();currentLiveTraining=t;if(t){if(status){status.textContent='EN VIVO';status.style.color='#6ee7b7';}if(title)title.textContent=t.title;if(detail)detail.textContent=`Instructor: ${t.instructor_name||'Grayxon'} · Entra directamente desde tu cuenta.`;if(bar)bar.style.width='100%';}else{if(status){status.textContent='Sin entrenamiento';status.style.color='';}if(title)title.textContent='Consulta los entrenamientos en vivo de Grayxon.';if(detail)detail.textContent='Cuando haya uno activo aparecerá aquí.';if(bar)bar.style.width='0%';}}catch(e){console.warn('Estado de entrenamiento:',e);}
+  try{const live=await fetchActiveLiveTraining(); if(live){currentLiveTraining=live;if(status){status.textContent='EN VIVO';status.style.color='#6ee7b7';}if(title)title.textContent=live.title;if(detail)detail.textContent=`Instructor: ${live.instructor_name||'Grayxon'} · Entra directamente al entrenamiento.`;if(bar)bar.style.width='100%';return;} const {data:scheduled}=await sb.from('live_trainings').select('id,title,scheduled_at,instructor_name,status').eq('status','scheduled').order('scheduled_at',{ascending:true}).limit(10); const next=(scheduled||[]).find(t=>t.scheduled_at&&new Date(t.scheduled_at)>=new Date()); if(next){if(status){status.textContent='PROGRAMADO';status.style.color='';}if(title)title.textContent=next.title;if(detail)detail.textContent=`${formatDateTime(next.scheduled_at)} · ${next.instructor_name||'Grayxon'}`;if(bar)bar.style.width='55%';}else{if(status){status.textContent='Sin entrenamiento';status.style.color='';}if(title)title.textContent='Consulta los entrenamientos en vivo de Grayxon.';if(detail)detail.textContent='Cuando haya uno activo o programado aparecerá aquí.';if(bar)bar.style.width='0%';}}catch(e){console.warn('Estado de entrenamiento:',e);}
 }
 
 function loadJaasIframeApi() {
@@ -1370,13 +1369,16 @@ async function trainingTpl() {
     await sb.auth.signOut();
     session = null;
     profile = null;
-    $('#training').innerHTML = '<div class="login"><h2>Tu acceso está desactivado</h2><p class="muted">Tu acceso al portal de Grayxon ha sido desactivado. Si crees que esto es un error o necesitas volver a ingresar, contacta con tu manager.</p></div>';
+    $('#training').innerHTML = '<div class="login"><h2>Acceso desactivado</h2><p class="muted">Tu acceso al portal de Grayxon ha sido desactivado.</p></div>';
     return;
   }
 
-  const { data: modules } = await sb.from('modules').select('id,title,description,sort_order').eq('published', true).order('sort_order');
-  const { data: lessons } = await sb.from('lessons').select('id,module_id,title,description,type,content,video_path,resource_path,sort_order').eq('published', true).order('sort_order');
-  const { data: progress } = await sb.from('lesson_progress').select('lesson_id').eq('user_id', session.user.id);
+  const [{ data: modules }, { data: lessons }, { data: progress }] = await Promise.all([
+    sb.from('modules').select('id,title,description,sort_order').eq('published', true).order('sort_order'),
+    sb.from('lessons').select('id,module_id,title,description,type,content,video_path,resource_path,sort_order').eq('published', true).order('sort_order'),
+    sb.from('lesson_progress').select('lesson_id').eq('user_id', session.user.id)
+  ]);
+
   const done = new Set((progress || []).map(x => x.lesson_id));
   const moduleOrder = new Map((modules || []).map((m, i) => [m.id, i]));
   const orderedLessons = [...(lessons || [])].sort((a, b) => {
@@ -1389,11 +1391,142 @@ async function trainingTpl() {
   const totalPct = totalLessons ? Math.round(totalDone / totalLessons * 100) : 0;
   const nextPending = orderedLessons.find(l => !done.has(l.id));
 
-  $('#training').innerHTML = `<div class="row"><div><div class="eyebrow">FORMACIÓN</div><h1 style="margin:7px 0">Aprende con Grayxon 🎓</h1><p class="muted">Avanza por los módulos a tu ritmo. Los videos se completan automáticamente cuando terminan.</p></div>${(profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session'))?'':`<button class="secondary" data-space-action="space">← Tu espacio</button>`}</div>
-  <div class="card progress-card" style="margin-top:20px"><div class="row"><div><b>Tu progreso</b><div class="muted small">${totalDone} de ${totalLessons} lecciones completadas</div></div><b class="progress-percent">${totalPct}%</b></div><div class="progress-track"><div class="progress-fill" style="width:${totalPct}%"></div></div></div>
-  <div class="training-grid" style="margin-top:22px"><div class="modules-list">${(modules || []).map((m, mi) => { const ml = orderedLessons.filter(l => l.module_id === m.id); const md = ml.filter(l => done.has(l.id)).length; const pct = ml.length ? Math.round(md / ml.length * 100) : 0; return `<div class="module ${pct === 100 && ml.length ? 'module-complete' : ''}"><div class="module-head"><div class="module-number">${String(mi + 1).padStart(2,'0')}</div><div class="module-copy"><div class="module-title">${esc(m.title)}</div><p class="muted small">${esc(m.description || '')}</p></div><div class="module-status">${pct === 100 && ml.length ? '✓' : `${md}/${ml.length}`}</div></div><div class="module-progress"><span style="width:${pct}%"></span></div><div class="module-label">${pct === 100 && ml.length ? 'Módulo completado' : `${md} de ${ml.length} completadas`}</div>${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}"><button data-lesson="${l.id}"><span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}</small></span></button>${nextPending?.id === l.id ? '<span class="next-badge">SIGUIENTE</span>' : ''}</div>`).join('')}</div>`; }).join('') || '<div class="card"><p class="muted">Todavía no hay formación publicada.</p></div>'}</div><div class="lesson-view" id="lessonView"><div class="empty-lesson compact-empty-lesson"><div class="empty-icon">🎓</div><h2>Selecciona una lección</h2><p class="muted">Elige un contenido de la lista para comenzar.</p></div></div></div>`;
+  const moduleData = (modules || []).map((m, mi) => {
+    const ml = orderedLessons.filter(l => l.module_id === m.id);
+    const md = ml.filter(l => done.has(l.id)).length;
+    const complete = ml.length > 0 && md === ml.length;
+    return { m, mi, ml, md, complete, pct: ml.length ? Math.round(md / ml.length * 100) : 0 };
+  });
+  const pendingModules = moduleData.filter(x => !x.complete);
+  const completedModules = moduleData.filter(x => x.complete);
+
+  const moduleCard = (x, section) => {
+    const {m, mi, ml, md, complete, pct} = x;
+    const panelId = `formation-module-${section}-${m.id}`;
+    return `<div class="formation-module-accordion ${complete ? 'formation-module-complete' : ''}">
+      <button type="button" class="formation-module-toggle" data-formation-module-toggle="${esc(panelId)}" aria-expanded="false">
+        <span class="formation-module-number">${String(mi + 1).padStart(2,'0')}</span>
+        <span class="formation-module-copy"><strong>${esc(m.title)}</strong><small>${esc(m.description || '')}</small></span>
+        <span class="formation-module-meta"><b>${complete ? '✓' : `${md}/${ml.length}`}</b><span class="formation-module-chevron">›</span></span>
+      </button>
+      <div id="${esc(panelId)}" class="formation-module-panel hidden">
+        <div class="formation-module-progress"><span style="width:${pct}%"></span></div>
+        <div class="formation-module-progress-label">${complete ? 'Módulo completado' : `${md} de ${ml.length} lecciones completadas`}</div>
+        <div class="formation-lessons-list">
+          ${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}">
+            <button type="button" data-lesson="${l.id}">
+              <span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span>
+              <span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}${done.has(l.id) ? ' · Completado' : ''}</small></span>
+            </button>
+            ${nextPending?.id === l.id ? '<span class="next-badge">SIGUIENTE</span>' : ''}
+          </div>`).join('') || '<div class="muted small">Este módulo todavía no tiene lecciones.</div>'}
+        </div>
+      </div>
+    </div>`;
+  };
+
+  const sectionHtml = (title, kicker, items, section, emptyText) => `<section class="formation-group">
+    <div class="formation-group-head"><div><div class="eyebrow">${kicker}</div><h2>${title}</h2></div><span class="formation-group-count">${items.length}</span></div>
+    <div class="formation-group-list">${items.length ? items.map(x => moduleCard(x, section)).join('') : `<div class="formation-empty-group">${emptyText}</div>`}</div>
+  </section>`;
+
+  $('#training').innerHTML = `<div class="formation-page">
+    <div class="row"><div><div class="eyebrow">FORMACIÓN</div><h1 style="margin:7px 0">Aprende con Grayxon 🎓</h1><p class="muted">Aquí encontrarás tus módulos y lecciones. Abre un módulo para ver su contenido.</p></div>${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Tu espacio</button>'}</div>
+    <div class="card formation-progress-card" style="margin-top:18px"><div class="row"><div><b>Tu progreso</b><div class="muted small">${totalDone} de ${totalLessons} lecciones completadas</div></div><b class="progress-percent">${totalPct}%</b></div><div class="progress-track"><div class="progress-fill" style="width:${totalPct}%"></div></div></div>
+    <div class="formation-groups" style="margin-top:22px">
+      ${sectionHtml('Por ver','POR VER',pendingModules,'pending','No tienes módulos pendientes. 🎉')}
+      ${sectionHtml('Completados','COMPLETADOS',completedModules,'completed','Todavía no has completado ningún módulo.')}
+    </div>
+    <div class="lesson-view hidden" id="lessonView"></div>
+  </div>`;
+
   window._lessons = orderedLessons;
+  window._modules = modules || [];
   window._done = done;
+}
+
+function getLessonById(id){
+  return (window._lessons || []).find(x => x.id === id) || null;
+}
+
+function getModuleLessons(moduleId){
+  return (window._lessons || []).filter(x => x.module_id === moduleId);
+}
+
+function getNextLessonAfter(id){
+  const lessons = window._lessons || [];
+  const index = lessons.findIndex(x => x.id === id);
+  return index >= 0 ? (lessons[index + 1] || null) : null;
+}
+
+function getNextPendingModuleLesson(currentModuleId){
+  const modules = window._modules || [];
+  const lessons = window._lessons || [];
+  const done = window._done || new Set();
+  const currentIndex = modules.findIndex(m => m.id === currentModuleId);
+  for(let i = Math.max(0, currentIndex + 1); i < modules.length; i++){
+    const moduleLessons = lessons.filter(l => l.module_id === modules[i].id);
+    const firstPending = moduleLessons.find(l => !done.has(l.id));
+    if(firstPending) return firstPending;
+  }
+  // If there is no later module, look for any other pending module. This also
+  // handles published modules whose order changed after a user started.
+  for(const m of modules){
+    if(m.id === currentModuleId) continue;
+    const firstPending = lessons.filter(l => l.module_id === m.id).find(l => !done.has(l.id));
+    if(firstPending) return firstPending;
+  }
+  return null;
+}
+
+function showModuleCompletionPopup(module, nextLesson){
+  return new Promise(resolve => {
+    const nextLabel = nextLesson ? `Siguiente: ${nextLesson.title}` : 'Ya completaste toda la formación disponible.';
+    const destinationLabel = nextLesson ? 'Ir al siguiente módulo' : 'Ir a Tu espacio';
+    const el = modal(`
+      <div class="module-completion-popup">
+        <div class="module-completion-icon">✓</div>
+        <div class="eyebrow">MÓDULO COMPLETADO</div>
+        <h2>¡Felicitaciones!</h2>
+        <p class="module-completion-message">Has completado <strong>${esc(module?.title || 'este módulo')}</strong>.</p>
+        <div class="module-completion-next">${esc(nextLabel)}</div>
+        <div class="inline module-completion-actions">
+          <button class="primary" id="acceptModuleCompletion">${destinationLabel}</button>
+        </div>
+      </div>`);
+    const accept = $('#acceptModuleCompletion');
+    const finish = async () => {
+      el.remove();
+      resolve(true);
+      if(nextLesson){
+        await openLesson(nextLesson.id, {skipReload:true});
+      } else {
+        nav('space');
+      }
+    };
+    accept?.addEventListener('click', finish);
+  });
+}
+
+async function advanceAfterLesson(id){
+  const lesson = getLessonById(id);
+  if(!lesson) return;
+  const next = getNextLessonAfter(id);
+  const moduleLessons = getModuleLessons(lesson.module_id);
+  const done = window._done || new Set();
+  const moduleComplete = moduleLessons.length > 0 && moduleLessons.every(l => done.has(l.id));
+
+  if(moduleComplete){
+    const module = (window._modules || []).find(m => m.id === lesson.module_id);
+    const nextModuleLesson = getNextPendingModuleLesson(lesson.module_id);
+    await showModuleCompletionPopup(module, nextModuleLesson);
+    return;
+  }
+
+  if(next && next.module_id === lesson.module_id){
+    await openLesson(next.id, {skipReload:true});
+    toast(`Siguiente contenido: ${next.title}`);
+  }
 }
 
 async function renderSelectedLesson(l) {
@@ -1401,36 +1534,40 @@ async function renderSelectedLesson(l) {
   let media = '';
   if (l.type === 'video' && l.video_path) {
     const { data, error } = await sb.storage.from('training-videos').createSignedUrl(l.video_path, 3600);
-    if (!error && data?.signedUrl) media = `<div class="video-wrap"><video id="lessonVideo" class="video" controls playsinline preload="metadata" src="${data.signedUrl}"></video><div id="videoCompletion" class="video-hint">▶ Reproduce el video completo. Al terminar, tu avance se guardará automáticamente.</div></div>`;
+    if (!error && data?.signedUrl) media = `<div class="video-wrap"><video id="lessonVideo" class="video" controls playsinline preload="metadata" src="${data.signedUrl}"></video><div id="videoCompletion" class="video-hint">▶ Reproduce el video completo. Al terminar, pasarás automáticamente al siguiente contenido.</div></div>`;
   } else if (l.type === 'resource' && l.resource_path) {
     const { data, error } = await sb.storage.from('training-resources').createSignedUrl(l.resource_path, 3600);
     if (!error && data?.signedUrl) media = `<a class="secondary" href="${data.signedUrl}" target="_blank" rel="noopener noreferrer">Abrir recurso</a>`;
   }
   const isVideo = l.type === 'video' && !!l.video_path;
   const alreadyDone = window._done.has(l.id);
-  $('#lessonView').innerHTML = `<button class="mobile-back-lessons" id="backToLessons">← Volver a módulos</button><div class="eyebrow">LECCIÓN</div><div class="lesson-header"><div><h2>${esc(l.title)}</h2><p class="muted">${esc(l.description || '')}</p></div><span class="lesson-state ${alreadyDone ? 'completed' : ''}">${alreadyDone ? '✓ COMPLETADA' : isVideo ? 'EN CURSO' : 'PENDIENTE'}</span></div>${media}${l.content ? `<div class="section">${esc(l.content).replace(/\n/g, '<br>')}</div>` : ''}${!isVideo ? `<button class="primary" id="completeLesson">${alreadyDone ? '✓ Lección completada' : 'Completar lección'}</button>` : ''}`;
+  const actionLabel = 'Continuar';
+  $('#lessonView').classList.remove('hidden');
+  $('#lessonView').innerHTML = `<button class="mobile-back-lessons" id="backToLessons">← Volver a módulos</button><div class="eyebrow">LECCIÓN</div><div class="lesson-header"><div><h2>${esc(l.title)}</h2><p class="muted">${esc(l.description || '')}</p></div><span class="lesson-state ${alreadyDone ? 'completed' : ''}">${alreadyDone ? '✓ COMPLETADA' : isVideo ? 'EN CURSO' : 'PENDIENTE'}</span></div>${media}${l.content ? `<div class="section">${esc(l.content).replace(/\n/g, '<br>')}</div>` : ''}${!isVideo ? `<button class="primary" id="completeLesson">${actionLabel}</button>` : ''}`;
 
   if (isVideo) {
     const video = $('#lessonVideo');
-    if (video) {
+    if (video && !alreadyDone) {
       video.addEventListener('ended', async () => {
-        if (window._done.has(l.id)) return;
         const hint = $('#videoCompletion');
         if (hint) hint.textContent = '✓ Video terminado. Guardando tu avance…';
         await completeLesson(l.id, { autoAdvance: true });
-      });
+      }, {once:true});
     }
   } else {
-    $('#completeLesson')?.addEventListener('click', () => completeLesson(l.id));
+    $('#completeLesson')?.addEventListener('click', async () => {
+      await completeLesson(l.id, {autoAdvance:true});
+    });
   }
 
   if (window.matchMedia('(max-width: 800px)').matches) {
-    const modulesList = $('.modules-list');
+    const modulesList = $('.formation-groups');
     if (modulesList) modulesList.classList.add('mobile-lesson-open');
     $('#lessonView')?.classList.add('mobile-lesson-active');
     $('#backToLessons')?.addEventListener('click', () => {
       modulesList?.classList.remove('mobile-lesson-open');
       $('#lessonView')?.classList.remove('mobile-lesson-active');
+      $('#lessonView')?.classList.add('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
@@ -1438,30 +1575,28 @@ async function renderSelectedLesson(l) {
 }
 
 async function openLesson(id, options = {}) {
-  const l = (window._lessons || []).find(x => x.id === id);
+  const l = getLessonById(id);
   if (!l) return;
   selectedLesson = l;
-  window._done.add(id);
-  toast('Lección completada ✓');
 
-  const currentIndex = (window._lessons || []).findIndex(x => x.id === id);
-  const next = currentIndex >= 0 ? window._lessons[currentIndex + 1] : null;
-
-  await trainingTpl();
-  bind();
-
-  if (options.autoAdvance && next) {
-    await openLesson(next.id);
-    toast(`Siguiente tema: ${next.title}`);
-  } else if (options.autoAdvance && !next) {
-    $('#lessonView').innerHTML = `<div class="empty-lesson completion-final"><div class="empty-icon">✓</div><h2>¡Formación completada!</h2><p class="muted">Terminaste todas las lecciones disponibles en Grayxon Group.</p></div>`;
-    toast('¡Terminaste toda la formación! 🎉');
-  } else {
-    await renderSelectedLesson(l);
+  if(!options.skipReload){
+    await trainingTpl();
+    bind();
   }
+
+  await renderSelectedLesson(l);
 }
 
 async function completeLesson(id, options = {}) {
+  const lesson = getLessonById(id);
+  if(!lesson) return;
+
+  // If the lesson was already completed, the Continue button simply advances.
+  if(window._done.has(id)){
+    await advanceAfterLesson(id);
+    return;
+  }
+
   const btn = $('#completeLesson');
   if (btn) {
     btn.disabled = true;
@@ -1477,7 +1612,7 @@ async function completeLesson(id, options = {}) {
     console.error('COMPLETE LESSON ERROR:', error);
     if (btn) {
       btn.disabled = false;
-      btn.textContent = 'Completar lección';
+      btn.textContent = 'Continuar';
     }
     const hint = $('#videoCompletion');
     if (hint) hint.textContent = 'No pudimos guardar tu avance. Inténtalo nuevamente.';
@@ -1488,22 +1623,11 @@ async function completeLesson(id, options = {}) {
   window._done.add(id);
   toast('Lección completada ✓');
 
-  const currentIndex = (window._lessons || []).findIndex(x => x.id === id);
-  const next = currentIndex >= 0 ? window._lessons[currentIndex + 1] : null;
-
+  // Refresh the formation groups/progress before deciding whether the module
+  // is complete. This keeps Por ver / Completados synchronized immediately.
   await trainingTpl();
   bind();
-
-  if (options.autoAdvance && next) {
-    await openLesson(next.id);
-    toast(`Siguiente tema: ${next.title}`);
-  } else if (options.autoAdvance && !next) {
-    $('#lessonView').innerHTML = `<div class="empty-lesson completion-final"><div class="empty-icon">✓</div><h2>¡Formación completada!</h2><p class="muted">Terminaste todas las lecciones disponibles en Grayxon Group.</p></div>`;
-    toast('¡Terminaste toda la formación! 🎉');
-  } else {
-    const selected = (window._lessons || []).find(x => x.id === id);
-    if (selected) await renderSelectedLesson(selected);
-  }
+  await advanceAfterLesson(id);
 }
 
 
@@ -1542,8 +1666,11 @@ async function managerTpl(){
   const tasksRes=await sb.from('manager_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('manager_id',me?.id||'').order('completed',{ascending:true}).order('assigned_at',{ascending:false});
   const tasks=tasksRes.data||[];
   const taskHtml=tasks.length?tasks.map(t=>`<div class="item manager-task-row ${t.completed?'task-done':''}"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><div>${t.completed?'<span class="pill ok">✓ Lista</span>':'<button class="primary small" data-complete-manager-task="'+t.id+'">Marcar como lista</button>'}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">No tienes tareas asignadas.</p></div>';
+  const managerUpcomingRes=await sb.from('live_trainings').select('id,title,scheduled_at,status,instructor_name,created_by').eq('status','scheduled').order('scheduled_at',{ascending:true}).limit(10);
+  const managerUpcoming=(managerUpcomingRes.data||[]).filter(t=>t.scheduled_at && new Date(t.scheduled_at)>=new Date()).slice(0,3);
+  const managerUpcomingCard=managerUpcoming.length?`<div class="card manager-upcoming-training"><div class="eyebrow">PRÓXIMOS ENTRENAMIENTOS</div><h3 style="margin:6px 0 10px">🎥 Tienes entrenamientos programados</h3><div class="list">${managerUpcoming.map(t=>`<div class="item"><div class="row"><div><b>${esc(t.title)}</b><div class="muted small">${formatDateTime(t.scheduled_at)} · ${esc(t.instructor_name||'Grayxon')}</div></div><span class="pill">Programado</span></div></div>`).join('')}</div></div>`:'';
   const trainingManagement=await liveTrainingManagementTpl('manager',true);
-  $('#manager').innerHTML=`<div class="manager-page"><div class="manager-hero card"><div><div class="eyebrow">PANEL DE MANAGER</div><h1>Hola, ${esc(me?.name||profile.username)} 👋</h1><p class="muted">Aquí puedes ver tus creadores, asignar misiones y gestionar tus entrenamientos en vivo.</p></div><div class="manager-hero-stat"><strong>${(creators||[]).length}</strong><span>CREADORES</span></div></div>${trainingManagement}<div class="card manager-creators-section"><button type="button" class="manager-creators-toggle" id="toggleMyCreators" aria-expanded="false"><span><strong>Mis creadores</strong><small>Solo aparecen los creadores que actualmente están asignados a ti.</small></span><span class="manager-creators-toggle-meta"><b>${(creators||[]).length}</b><span class="manager-creator-chevron">›</span></span></button><div id="managerCreatorsPanel" class="manager-creators-panel hidden"><div class="manager-creator-search"><span aria-hidden="true">⌕</span><input id="managerCreatorSearch" type="search" placeholder="Buscar por nombre o usuario…" autocomplete="off"></div><div id="managerCreatorNoResults" class="item hidden"><p class="muted small" style="margin:0">No encontramos un creador con esa búsqueda.</p></div><div class="manager-creators-list" id="managerCreatorsList">${creatorRows}</div></div></div><div class="card manager-task-accordion"><button type="button" class="grayxon-manager-accordion-toggle" id="toggleManagerTasks" aria-expanded="false"><span class="grayxon-manager-accordion-toggle-main"><span class="grayxon-manager-accordion-icon">📋</span><span class="grayxon-manager-accordion-copy"><strong>Tareas asignadas</strong><small>Consulta y completa las tareas que te ha asignado la administración.</small></span></span><span class="grayxon-manager-accordion-meta"><b>${tasks.length}</b><span class="grayxon-manager-accordion-chevron">›</span></span></button><div id="managerTasksPanel" class="grayxon-manager-accordion-panel hidden"><div class="manager-tasks-list">${taskHtml}</div></div></div></div>`;
+  $('#manager').innerHTML=`<div class="manager-page"><div class="manager-hero card"><div><div class="eyebrow">PANEL DE MANAGER</div><h1>Hola, ${esc(me?.name||profile.username)} 👋</h1><p class="muted">Aquí puedes ver tus creadores, asignar misiones y gestionar tus entrenamientos en vivo.</p></div><div class="manager-hero-stat"><strong>${(creators||[]).length}</strong><span>CREADORES</span></div></div>${managerUpcomingCard}${trainingManagement}<div class="card manager-creators-section"><button type="button" class="manager-creators-toggle" id="toggleMyCreators" aria-expanded="false"><span><strong>Mis creadores</strong><small>Solo aparecen los creadores que actualmente están asignados a ti.</small></span><span class="manager-creators-toggle-meta"><b>${(creators||[]).length}</b><span class="manager-creator-chevron">›</span></span></button><div id="managerCreatorsPanel" class="manager-creators-panel hidden"><div class="manager-creator-search"><span aria-hidden="true">⌕</span><input id="managerCreatorSearch" type="search" placeholder="Buscar por nombre o usuario…" autocomplete="off"></div><div id="managerCreatorNoResults" class="item hidden"><p class="muted small" style="margin:0">No encontramos un creador con esa búsqueda.</p></div><div class="manager-creators-list" id="managerCreatorsList">${creatorRows}</div></div></div><div class="card manager-task-accordion"><button type="button" class="grayxon-manager-accordion-toggle" id="toggleManagerTasks" aria-expanded="false"><span class="grayxon-manager-accordion-toggle-main"><span class="grayxon-manager-accordion-icon">📋</span><span class="grayxon-manager-accordion-copy"><strong>Tareas asignadas</strong><small>Consulta y completa las tareas que te ha asignado la administración.</small></span></span><span class="grayxon-manager-accordion-meta"><b>${tasks.length}</b><span class="grayxon-manager-accordion-chevron">›</span></span></button><div id="managerTasksPanel" class="grayxon-manager-accordion-panel hidden"><div class="manager-tasks-list">${taskHtml}</div></div></div></div>`;
   $('#toggleMyCreators')?.addEventListener('click',()=>{
     const panel=$('#managerCreatorsPanel');
     const btn=$('#toggleMyCreators');
@@ -1805,6 +1932,8 @@ function managerTaskModal(){
 
 function ensureLiveTrainingManagementStyles(){
   if($('#grayxon-live-training-management-styles'))return;const style=document.createElement('style');style.id='grayxon-live-training-management-styles';style.textContent=`.live-training-management{display:grid;gap:16px}.live-training-management-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}.live-training-management-actions{display:flex;gap:9px;flex-wrap:wrap}.live-training-management-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}.live-training-stat{padding:16px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.025)}.live-training-stat strong{display:block;font-size:25px;color:#fff}.live-training-stat span{display:block;margin-top:4px;color:#8f96a2;font-size:11px;letter-spacing:.08em;font-weight:800}.live-training-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.02)}.live-training-row-main{min-width:0}.live-training-row-main b{display:block;color:#fff}.live-training-row-main .muted{margin-top:5px}.live-training-row-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.live-training-participant{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}.live-training-participant:last-child{border-bottom:0}.live-training-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;padding:2px}.live-training-check{display:flex;align-items:center;gap:9px;padding:10px 11px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.02);cursor:pointer}.live-training-check input{accent-color:#25f4ee}.live-training-check span{font-size:12px;color:#e7e9ed}.live-training-check small{display:block;color:#7f8691;margin-top:2px}.live-training-audience-help{margin-top:8px;line-height:1.5}.live-training-manager-audience{margin-top:12px}.live-training-idle-icon{display:inline-flex;width:44px;height:44px;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.12);border-radius:50%;color:#8d929c;font-size:24px}.live-training-empty-state{padding:46px 28px;text-align:center}.live-training-empty-state h2{margin:16px 0 8px;color:#fff}.live-training-empty-state p{max-width:680px;margin:0 auto;color:#9298a3;line-height:1.6}.grayxon-manager-accordion{margin-top:16px;overflow:hidden}.grayxon-manager-accordion-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;border:0;background:transparent;color:#fff;padding:18px 20px;cursor:pointer}.grayxon-manager-accordion-toggle:hover{background:rgba(255,255,255,.025)}.grayxon-manager-accordion-toggle-main{display:flex;align-items:center;gap:12px;min-width:0}.grayxon-manager-accordion-icon{width:40px;height:40px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.035);font-size:19px;flex:0 0 40px}.grayxon-manager-accordion-copy strong{display:block;font-size:15px}.grayxon-manager-accordion-copy small{display:block;margin-top:4px;color:#858c98;font-size:11px;line-height:1.4}.grayxon-manager-accordion-meta{display:flex;align-items:center;gap:10px;color:#9da4af}.grayxon-manager-accordion-chevron{font-size:23px;line-height:1;transition:transform .18s ease}.grayxon-manager-accordion-toggle.is-open .grayxon-manager-accordion-chevron{transform:rotate(90deg)}.grayxon-manager-accordion-panel{border-top:1px solid rgba(255,255,255,.07);padding:0 20px 20px}.grayxon-manager-accordion-panel.hidden{display:none!important}.manager-task-accordion{margin-top:16px}.manager-task-accordion .manager-tasks-list{padding-top:2px}@media(max-width:800px){.live-training-management-grid{grid-template-columns:1fr}.live-training-row{display:block}.live-training-row-actions{justify-content:flex-start;margin-top:12px}.live-training-management-actions{width:100%}.live-training-management-actions button{flex:1;min-width:150px}}`;document.head.appendChild(style);
+  if(!$('#grayxon-formation-group-styles')){const fs=document.createElement('style');fs.id='grayxon-formation-group-styles';fs.textContent=`
+    .formation-page{display:grid;gap:0}.formation-groups{display:grid;gap:22px}.formation-group{display:grid;gap:10px}.formation-group-head{display:flex;align-items:end;justify-content:space-between;gap:12px}.formation-group-head h2{margin:4px 0 0;font-size:22px}.formation-group-count{min-width:32px;height:32px;padding:0 9px;border-radius:999px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);font-size:12px;font-weight:900}.formation-group-list{display:grid;gap:9px}.formation-module-accordion{overflow:hidden;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:rgba(255,255,255,.02)}.formation-module-toggle{width:100%;display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:12px;text-align:left;border:0;background:transparent;color:#fff;padding:15px 16px;cursor:pointer}.formation-module-toggle:hover{background:rgba(255,255,255,.025)}.formation-module-number{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;border:1px solid rgba(37,244,238,.18);background:rgba(37,244,238,.04);font-size:11px;font-weight:900;color:#b9c0ca}.formation-module-copy{min-width:0}.formation-module-copy strong{display:block;font-size:15px}.formation-module-copy small{display:block;margin-top:4px;color:#858c98;line-height:1.4}.formation-module-meta{display:flex;align-items:center;gap:10px;color:#aeb5bf}.formation-module-chevron{font-size:22px;transition:transform .18s ease}.formation-module-toggle.is-open .formation-module-chevron{transform:rotate(90deg)}.formation-module-panel{border-top:1px solid rgba(255,255,255,.07);padding:14px 16px 16px}.formation-module-panel.hidden{display:none!important}.formation-module-progress{height:5px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}.formation-module-progress span{display:block;height:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}.formation-module-progress-label{margin-top:7px;color:#858c98;font-size:11px}.formation-lessons-list{display:grid;gap:7px;margin-top:12px}.formation-lessons-list .lesson{display:flex;align-items:center;gap:8px}.formation-lessons-list .lesson button{flex:1;min-width:0}.formation-empty-group{padding:16px;border:1px dashed rgba(255,255,255,.10);border-radius:14px;color:#858c98;font-size:13px}.lesson-view.hidden{display:none!important}.lesson-view{margin-top:22px}.formation-module-complete .formation-module-number{border-color:rgba(110,231,183,.25);color:#6ee7b7}@media(max-width:800px){.formation-module-toggle{grid-template-columns:36px minmax(0,1fr) auto;padding:13px}.formation-module-number{width:34px;height:34px}.formation-module-copy strong{font-size:14px}.formation-module-copy small{font-size:11px}}`;document.head.appendChild(fs);}
 }
 function liveTrainingDuration(start,end){if(!start)return '—';const seconds=Math.max(0,Math.floor(((end?new Date(end):new Date()).getTime()-new Date(start).getTime())/1000));const h=Math.floor(seconds/3600),m=Math.floor((seconds%3600)/60),s=seconds%60;if(h)return `${h}h ${String(m).padStart(2,'0')}m`;if(m)return `${m}m ${String(s).padStart(2,'0')}s`;return `${s}s`;}
 async function liveTrainingManagementData(){
@@ -1900,11 +2029,22 @@ async function deleteLiveTraining(id){
 async function openLiveTrainingHistory(id){
   const {data:t,error}=await sb.from('live_trainings').select('id,title,description,instructor_name,created_by,created_at,scheduled_at,started_at,ended_at,status').eq('id',id).maybeSingle();if(error||!t)return toast(error?.message||'No se encontró el entrenamiento.');const [{data:rows,error:pe},{data:audience,error:ae}]=await Promise.all([sb.from('live_training_participants').select('id,user_id,joined_at,left_at,duration_seconds').eq('training_id',id).order('joined_at',{ascending:true}),sb.from('live_training_audience').select('target_type,target_id').eq('training_id',id)]);if(pe)return toast(pe.message);if(ae)return toast(ae.message);const ids=[...new Set((rows||[]).map(x=>x.user_id))];const {data:ps}=ids.length?await sb.from('profiles').select('id,username,full_name').in('id',ids):{data:[]};const pm=new Map((ps||[]).map(p=>[p.id,p]));const attendees=[...new Map((rows||[]).filter(x=>x.user_id!==t.created_by).map(x=>[x.user_id,x])).values()];const el=document.createElement('div');el.className='modal-backdrop';el.innerHTML=`<div class="card modal" style="max-width:780px"><div class="row"><div><div class="eyebrow">HISTORIAL</div><h2>${esc(t.title)}</h2></div><button class="secondary" id="closeLiveHistory">Cerrar</button></div><div class="hr"></div><div class="grid"><div class="item"><b>Fecha</b><div class="muted small">${formatDateTime(t.started_at||t.scheduled_at||t.created_at)}</div></div><div class="item"><b>Instructor</b><div class="muted small">${esc(t.instructor_name)}</div></div><div class="item"><b>Duración</b><div class="muted small">${liveTrainingDuration(t.started_at,t.ended_at)}</div></div><div class="item"><b>Participantes</b><div class="muted small">${attendees.length}</div></div><div class="item"><b>Público</b><div class="muted small">${audience.some(x=>x.target_type==='all_creators')?'Todos los creadores':audience.some(x=>x.target_type==='all_managers')?'Todos los managers':`${audience.length} segmentación${audience.length===1?'':'es'}`}</div></div></div><h3 style="margin-top:20px">Participantes</h3><div class="list">${attendees.length?attendees.map(x=>{const p=pm.get(x.user_id)||{};return `<div class="live-training-participant"><span><b>${esc(p.full_name||p.username||'Usuario')}</b><span class="muted"> · @${esc(p.username||'—')}</span></span><span class="muted">${liveTrainingDuration(x.joined_at,x.left_at)}</span></div>`}).join(''):'<div class="item"><p class="muted small" style="margin:0">No hay participantes registrados.</p></div>'}</div></div>`;document.body.appendChild(el);$('#closeLiveHistory').onclick=()=>el.remove();
 }
+async function managerCanManageAssignedTraining(id){
+  if(profile?.role!=='manager'||!session?.user?.id)return false;
+  const [{data:me},{data:aud}]=await Promise.all([
+    sb.from('managers').select('id').eq('user_id',session.user.id).eq('active',true).maybeSingle(),
+    sb.from('live_training_audience').select('target_type,target_id').eq('training_id',id)
+  ]);
+  if(!me)return false;
+  return (aud||[]).some(a=>a.target_type==='all_managers'||(a.target_type==='manager'&&a.target_id===me.id));
+}
 async function rescheduleLiveTraining(id){
   if(!id)return;
   const t=(await sb.from('live_trainings').select('id,title,scheduled_at,status,created_by').eq('id',id).maybeSingle()).data;
   if(!t||t.status!=='scheduled')return toast('Solo puedes reprogramar entrenamientos programados.');
-  const can=profile?.role==='admin'||(profile?.role==='manager'&&t.created_by===session?.user?.id);
+  const own=profile?.role==='manager'&&t.created_by===session?.user?.id;
+  const assigned=await managerCanManageAssignedTraining(id);
+  const can=profile?.role==='admin'||own||assigned;
   if(!can)return toast('No tienes permiso para reprogramar este entrenamiento.');
   const current=t.scheduled_at?new Date(t.scheduled_at):new Date();
   const localValue=new Date(current.getTime()-current.getTimezoneOffset()*60000).toISOString().slice(0,16);
@@ -1920,7 +2060,9 @@ async function cancelLiveTraining(id){
   if(!id)return;
   const {data:t}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();
   if(!t||t.status!=='scheduled')return toast('Solo puedes cancelar entrenamientos programados.');
-  const can=profile?.role==='admin'||(profile?.role==='manager'&&t.created_by===session?.user?.id);
+  const own=profile?.role==='manager'&&t.created_by===session?.user?.id;
+  const assigned=await managerCanManageAssignedTraining(id);
+  const can=profile?.role==='admin'||own||assigned;
   if(!can)return toast('No tienes permiso para cancelar este entrenamiento.');
   if(!confirm(`¿Cancelar “${t.title}”? El entrenamiento quedará en el historial como cancelado.`))return;
   const {error}=await sb.from('live_trainings').update({status:'cancelled'}).eq('id',id).eq('status','scheduled');
@@ -1954,22 +2096,38 @@ async function openLiveTrainingHistory(id){
   const attendees=[...new Map((rows||[]).filter(x=>x.user_id!==t.created_by).map(x=>[x.user_id,x])).values()];
   const el=document.createElement('div');el.className='modal-backdrop';
   el.innerHTML=`<div class="card modal" style="max-width:780px"><div class="row"><div><div class="eyebrow">HISTORIAL</div><h2>${esc(t.title)}</h2></div><button class="secondary" id="closeLiveHistory">Cerrar</button></div><div class="hr"></div><div class="grid"><div class="item"><b>Fecha</b><div class="muted small">${formatDateTime(t.started_at||t.scheduled_at||t.created_at)}</div></div><div class="item"><b>Instructor</b><div class="muted small">${esc(t.instructor_name)}</div></div><div class="item"><b>Duración</b><div class="muted small">${t.status==='cancelled'?'Cancelado':liveTrainingDuration(t.started_at,t.ended_at)}</div></div><div class="item"><b>Participantes</b><div class="muted small">${attendees.length}</div></div><div class="item"><b>Público</b><div class="muted small">${audience.some(x=>x.target_type==='all_creators')?'Todos los creadores':audience.some(x=>x.target_type==='all_managers')?'Todos los managers':`${audience.length} segmentación${audience.length===1?'':'es'}`}</div></div></div><h3 style="margin-top:20px">Participantes</h3><div class="list">${attendees.length?attendees.map(x=>{const p=pm.get(x.user_id)||{};return `<div class="live-training-participant"><span><b>${esc(p.full_name||p.username||'Usuario')}</b><span class="muted"> · @${esc(p.username||'—')}</span></span><span class="muted">${liveTrainingDuration(x.joined_at,x.left_at)}</span></div>`}).join(''):'<div class="item"><p class="muted small" style="margin:0">No hay participantes registrados.</p></div>'}</div></div>`;
-  document.body.appendChild(el);$('#closeLiveHistory').onclick=()=>el.remove();
+  document.body.appendChild(el);
+  const closeHistory=()=>{el.remove();};
+  $('#closeLiveHistory')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();closeHistory();});
+  el.addEventListener('click',e=>{if(e.target===el)closeHistory();});
 }
+async function openScheduledLiveTraining(id){
+  const {data:t,error}=await sb.from('live_trainings').select('id,title,description,instructor_name,scheduled_at,status').eq('id',id).maybeSingle();
+  if(error||!t)return toast(error?.message||'No se encontró el entrenamiento.');
+  const el=document.createElement('div');el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal" style="max-width:680px"><div class="row"><div><div class="eyebrow">ENTRENAMIENTO PROGRAMADO</div><h2>${esc(t.title)}</h2></div><button class="secondary" id="closeScheduledTraining">Cerrar</button></div><div class="hr"></div><div class="grid"><div class="item"><b>Fecha</b><div class="muted small">${formatDateTime(t.scheduled_at)}</div></div><div class="item"><b>Instructor</b><div class="muted small">${esc(t.instructor_name||'Grayxon')}</div></div></div><div class="item" style="margin-top:16px"><b>Descripción</b><div class="muted small" style="margin-top:6px;line-height:1.6">${esc(t.description||'Sin descripción.')}</div></div></div>`;
+  document.body.appendChild(el);
+  const close=()=>el.remove();
+  $('#closeScheduledTraining')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();close();});
+  el.addEventListener('click',e=>{if(e.target===el)close();});
+}
+
 async function liveTrainingManagementTpl(role='manager',collapsible=false){
   ensureLiveTrainingManagementStyles();
   let data;try{data=await liveTrainingManagementData();}catch(e){return `<div class="card"><h2>Entrenamientos</h2><div class="error">${esc(e?.message||'No se pudo cargar los entrenamientos.')}</div></div>`;}
   const {trainings,participants,audience}=data;
   const active=trainings.find(t=>t.status==='live');
-  const scheduled=trainings.filter(t=>t.status==='scheduled');
-  const finished=trainings.filter(t=>t.status==='finished');
+  const scheduled=trainings.filter(t=>t.status==='scheduled' && !t.started_at && !t.ended_at);
+  const finished=trainings.filter(t=>t.status==='finished' || (t.status!=='scheduled' && !!t.ended_at && t.status!=='cancelled'));
   const cancelled=trainings.filter(t=>t.status==='cancelled');
   const countParticipants=t=>new Set(participants.filter(p=>p.training_id===t.id&&p.user_id!==t.created_by).map(p=>p.user_id)).size;
   const audienceFor=t=>audience.filter(a=>a.training_id===t.id);
   const audienceLabel=t=>{const a=audienceFor(t);if(!a.length)return 'Sin público definido';if(a.some(x=>x.target_type==='all_creators'))return 'Todos los creadores';if(a.some(x=>x.target_type==='all_managers'))return 'Todos los managers';return `${a.length} segmentación${a.length===1?'':'es'} configurada${a.length===1?'':'s'}`;};
+  const managerIdForCurrentUser=role==='manager' ? (await sb.from('managers').select('id').eq('user_id',session?.user?.id).maybeSingle()).data?.id : null;
   const canOwn=t=>role==='admin'||(role==='manager'&&t.created_by===session?.user?.id);
+  const canManageScheduled=t=>role==='admin'||canOwn(t)||(role==='manager'&&t.status==='scheduled'&&audience.some(a=>a.training_id===t.id&&(a.target_type==='all_managers'||(a.target_type==='manager'&&a.target_id===managerIdForCurrentUser))));
   const canViewAssigned=t=>role==='manager' && !canOwn(t);
-  const scheduledHtml=scheduled.length?scheduled.map(t=>`<div class="live-training-row"><div class="live-training-row-main"><b>${esc(t.title)}</b><div class="muted small">${esc(t.instructor_name)} · ${t.scheduled_at?formatDateTime(t.scheduled_at):'Sin fecha programada'} · ${esc(audienceLabel(t))}${canViewAssigned(t)?' · ASIGNADO A TI':''}</div></div><div class="live-training-row-actions">${canOwn(t)?`<button class="primary small" data-start-live-training="${t.id}">▶ Iniciar entrenamiento</button><button class="secondary small" data-reschedule-live-training="${t.id}">↗ Reprogramar</button><button class="secondary small danger" data-cancel-live-training="${t.id}">Cancelar</button>${role==='admin'?`<button class="secondary small danger" data-delete-live-training="${t.id}">Eliminar</button>`:''}`:`${canViewAssigned(t)?'<span class="pill">Asignado</span>':''}`}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">No hay entrenamientos programados.</p></div>';
+  const scheduledHtml=scheduled.length?scheduled.map(t=>`<div class="live-training-row"><div class="live-training-row-main"><b>${esc(t.title)}</b><div class="muted small">${esc(t.instructor_name)} · ${t.scheduled_at?formatDateTime(t.scheduled_at):'Sin fecha programada'} · ${esc(audienceLabel(t))}${canViewAssigned(t)?' · ASIGNADO A TI':''}</div></div><div class="live-training-row-actions">${canManageScheduled(t)?`${canViewAssigned(t)?`<button class="secondary small" data-view-scheduled-training="${t.id}">Ver</button>`:''}${canOwn(t)?`<button class="primary small" data-start-live-training="${t.id}">▶ Iniciar entrenamiento</button>`:''}<button class="secondary small" data-reschedule-live-training="${t.id}">↗ Reprogramar</button><button class="secondary small danger" data-cancel-live-training="${t.id}">Cancelar</button>${role==='admin'?`<button class="secondary small danger" data-delete-live-training="${t.id}">Eliminar</button>`:''}`:`${canViewAssigned(t)?'<span class="pill">Asignado a ti</span>':''}`}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">No hay entrenamientos programados.</p></div>';
   const historyHtml=finished.length?finished.map(t=>`<div class="live-training-row"><div class="live-training-row-main"><b>${esc(t.title)}</b><div class="muted small">${formatDateTime(t.started_at||t.created_at)} · ${esc(t.instructor_name)} · ${liveTrainingDuration(t.started_at,t.ended_at)} · ${countParticipants(t)} participantes · ${esc(audienceLabel(t))}</div></div><div class="live-training-row-actions"><button class="secondary small" data-view-live-history="${t.id}">Ver historial</button>${role==='admin'?`<button class="secondary small danger" data-delete-live-training="${t.id}">Eliminar</button>`:''}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">Todavía no hay entrenamientos finalizados.</p></div>';
   const activeHtml=active?`<div class="live-training-row"><div class="live-training-row-main"><b>${esc(active.title)}</b><div class="muted small">EN VIVO · ${esc(active.instructor_name)} · Inició ${formatDateTime(active.started_at)} · ${countParticipants(active)} participantes · ${esc(audienceLabel(active))}${canViewAssigned(active)?' · ASIGNADO A TI':''}</div></div><div class="live-training-row-actions"><button class="primary small" data-open-live-training="${active.id}">🎥 Abrir entrenamiento</button>${canOwn(active)?`<button class="secondary small danger" data-finish-live-training="${active.id}">■ Finalizar</button>`:''}</div></div>`:'<div class="item"><p class="muted small" style="margin:0">No hay ningún entrenamiento EN VIVO.</p></div>';
   const cancelledHtml=cancelled.length?cancelled.slice(0,20).map(t=>`<div class="live-training-row"><div class="live-training-row-main"><b>${esc(t.title)}</b><div class="muted small">CANCELADO · ${formatDateTime(t.scheduled_at||t.created_at)} · ${esc(t.instructor_name)}</div></div><div class="live-training-row-actions">${role==='admin'?`<button class="secondary small danger" data-delete-live-training="${t.id}">Eliminar</button>`:''}</div></div>`).join(''):'';
@@ -2623,6 +2781,7 @@ function bind() {
   $('#forgotPasswordBtn')?.addEventListener('click',()=>$('#resetBox')?.classList.toggle('hidden'));
   $('#sendResetBtn')?.addEventListener('click',sendPasswordReset);
   $('#adminLogout')?.addEventListener('click', logout);
+  $$('[data-formation-module-toggle]').forEach(b => b.onclick = () => { const panel=$('#'+b.dataset.formationModuleToggle); if(!panel)return; const open=panel.classList.contains('hidden'); panel.classList.toggle('hidden',!open); b.classList.toggle('is-open',open); b.setAttribute('aria-expanded',open?'true':'false'); });
   $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
   $$('[data-complete-mission]').forEach(b => b.onclick = () => completeMission(b.dataset.completeMission));
   $$('[data-save-mission]').forEach(b => b.onclick = () => saveMissionProgress(b.dataset.saveMission));
@@ -2669,6 +2828,7 @@ function bind() {
   $$('[data-finish-live-training]').forEach(b=>b.onclick=()=>finishLiveTraining(b.dataset.finishLiveTraining));
   $$('[data-delete-live-training]').forEach(b=>b.onclick=()=>deleteLiveTraining(b.dataset.deleteLiveTraining));
   $$('[data-view-live-history]').forEach(b=>b.onclick=()=>openLiveTrainingHistory(b.dataset.viewLiveHistory));
+  $$('[data-view-scheduled-training]').forEach(b=>b.onclick=()=>openScheduledLiveTraining(b.dataset.viewScheduledTraining));
   $$('[data-open-live-training]').forEach(b=>b.onclick=()=>{pendingLiveTrainingAutoStart={id:b.dataset.openLiveTraining};nav('live-training');});
   // Account menu is wired once globally below. Do not bind it here on every render.
   const saveProfileBtn = $('#saveProfile');
@@ -3180,6 +3340,25 @@ sb.auth.onAuthStateChange((event,newSession)=>{
      .compact-empty-lesson{padding:22px 18px!important;min-height:0!important;text-align:center;border:1px dashed rgba(255,255,255,.10);border-radius:14px;background:rgba(255,255,255,.018)}.compact-empty-lesson .empty-icon{font-size:24px;margin-bottom:7px}.compact-empty-lesson h2{font-size:17px;margin:0 0 5px}.compact-empty-lesson p{font-size:12px;margin:0}.creator-training-detail-actions .primary.small,.creator-training-detail-actions .secondary.small{min-height:36px}
 @media(max-width:800px){.team-dashboard-stats{grid-template-columns:1fr 1fr}.admin-user-actions>*{flex:1 1 auto}.team-dashboard-section-head{padding:14px}.team-dashboard-modal{width:calc(100vw - 20px)!important}}
   `;document.head.appendChild(style);
+})();
+
+
+/* GRAYXON v30 · formación: avance automático y cierre de módulo */
+(function applyV30FormationFlowStyles(){
+  if(document.getElementById('grayxon-v30-formation-flow')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-v30-formation-flow';
+  style.textContent=`
+    .module-completion-popup{text-align:center;padding:8px 4px 2px}
+    .module-completion-icon{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;margin:2px auto 14px;border:1px solid rgba(110,231,183,.35);background:rgba(110,231,183,.08);color:#6ee7b7;font-size:30px;font-weight:900;box-shadow:0 0 0 7px rgba(110,231,183,.035)}
+    .module-completion-popup h2{margin:7px 0 8px;font-size:24px}
+    .module-completion-message{margin:0 auto;max-width:430px;color:#cfd5dc;line-height:1.6}
+    .module-completion-next{margin:16px auto 4px;max-width:430px;padding:11px 13px;border:1px solid rgba(37,244,238,.13);border-radius:12px;background:rgba(255,255,255,.025);color:#aeb5bf;font-size:12px}
+    .module-completion-actions{justify-content:center;margin-top:18px}
+    .module-completion-actions .primary{min-width:190px}
+    #lessonView > #completeLesson{margin-top:14px}
+  `;
+  document.head.appendChild(style);
 })();
 
 init();
