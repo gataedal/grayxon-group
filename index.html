@@ -322,7 +322,7 @@ body{min-height:100svh!important;}
 <main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="space" class="page hidden"></section><section id="manager" class="page hidden"></section><section id="training" class="page hidden"></section><section id="missions" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section><section id="announcements" class="page hidden"></section><section id="force-password" class="page hidden"></section></main>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=98"></script>
+<script src="app.js?v=99"></script>
 <style>
 /* v11 final home refinements */
 .modern-title-block{gap:10px!important}
@@ -922,13 +922,15 @@ body{min-height:100dvh!important}
 .admin-subpage-title h1{font-size:24px;margin:4px 0 0}
 @media(max-width:850px){.admin-dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-dashboard-hero{align-items:flex-start;flex-direction:column}.admin-dashboard-hero-actions{justify-content:flex-start}}
 @media(max-width:540px){.admin-dashboard-grid{grid-template-columns:1fr}.admin-dashboard-card{min-height:96px}.admin-subpage-header{align-items:stretch}.admin-subpage-title{order:-1;flex-basis:100%}.admin-subpage-header>button{flex:1}}
-/* v73: manager y comunicados comparten el lenguaje visual de tarjetas */
+/* v74: tarjetas del dashboard de manager con dimensiones uniformes */
 .manager-dashboard-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch;min-width:0}
 .manager-dashboard-grid>*{min-width:0;max-width:100%;box-sizing:border-box;margin:0!important}
-.manager-dashboard-grid .manager-upcoming-training{padding:18px;min-height:128px}
-.manager-dashboard-grid .grayxon-manager-accordion-toggle,.manager-dashboard-grid .manager-creators-toggle{min-height:128px;padding:18px;box-sizing:border-box}
+.manager-dashboard-grid>:not(.grayxon-manager-accordion-panel){min-height:128px!important;height:auto;}
+.manager-dashboard-grid .manager-upcoming-training{padding:18px;min-height:128px!important;display:flex;flex-direction:column;justify-content:center}
+.manager-dashboard-grid .manager-creators-section,.manager-dashboard-grid .manager-task-accordion{padding:0!important;min-height:128px!important;display:flex;flex-direction:column;justify-content:stretch;overflow:hidden}
+.manager-dashboard-grid .grayxon-manager-accordion-toggle,.manager-dashboard-grid .manager-creators-toggle{width:100%;min-height:128px!important;height:100%;flex:1;padding:18px;box-sizing:border-box;display:flex;align-items:center}
 .manager-dashboard-grid .grayxon-manager-accordion-panel{grid-column:1/-1}
-.dashboard-announcement-card.gx-ann-dashboard-card{width:100%;min-height:128px;display:flex;align-items:flex-start;gap:13px;text-align:left;padding:18px;border:1px solid var(--line);border-radius:16px;background:#0e0f12;color:var(--text);cursor:pointer;transition:border-color .16s,transform .16s,background .16s;margin:0;}
+.dashboard-announcement-card.gx-ann-dashboard-card{width:100%;min-height:128px!important;height:100%;box-sizing:border-box;display:flex;align-items:center;gap:13px;text-align:left;padding:18px;border:1px solid var(--line);border-radius:16px;background:#0e0f12;color:var(--text);cursor:pointer;transition:border-color .16s,transform .16s,background .16s;margin:0;}
 .dashboard-announcement-card.gx-ann-dashboard-card:hover{border-color:#25bfc1;background:#111318;transform:translateY(-2px)}
 .dashboard-announcement-card .gx-ann-dashboard-icon{flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border:1px solid #30313a;border-radius:12px;background:#18191f;font-size:21px;margin:0}
 .dashboard-announcement-card .gx-ann-dashboard-copy{display:flex;flex:1;flex-direction:column;gap:7px;min-width:0}
@@ -937,6 +939,6 @@ body{min-height:100dvh!important}
 .dashboard-announcement-card .gx-ann-dashboard-arrow{align-self:flex-end;color:#25f4ee;font-size:25px;line-height:1}
 .dashboard-announcement-card .gx-ann-unread-badge{font-size:10px;white-space:normal}
 @media(max-width:850px){.manager-dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:540px){.manager-dashboard-grid{grid-template-columns:1fr}.manager-dashboard-grid .manager-upcoming-training{min-height:96px}.manager-dashboard-grid .grayxon-manager-accordion-toggle,.manager-dashboard-grid .manager-creators-toggle{min-height:96px;padding:14px}.dashboard-announcement-card.gx-ann-dashboard-card{min-height:96px;padding:14px}}
+@media(max-width:540px){.manager-dashboard-grid{grid-template-columns:1fr}.manager-dashboard-grid>:not(.grayxon-manager-accordion-panel){min-height:96px!important}.manager-dashboard-grid .manager-upcoming-training{min-height:96px!important;padding:14px}.manager-dashboard-grid .grayxon-manager-accordion-toggle,.manager-dashboard-grid .manager-creators-toggle{min-height:96px!important;padding:14px}.dashboard-announcement-card.gx-ann-dashboard-card{min-height:96px!important;padding:14px}}
 
 </style>
