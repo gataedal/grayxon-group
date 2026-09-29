@@ -322,7 +322,7 @@ body{min-height:100svh!important;}
 <main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="space" class="page hidden"></section><section id="manager" class="page hidden"></section><section id="training" class="page hidden"></section><section id="missions" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section><section id="announcements" class="page hidden"></section><section id="force-password" class="page hidden"></section></main>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=94"></script>
+<script src="app.js?v=96"></script>
 <style>
 /* v11 final home refinements */
 .modern-title-block{gap:10px!important}
@@ -900,4 +900,29 @@ body{min-height:100dvh!important}
   .space-team-contact img{width:14px!important;height:14px!important}
   .space-team-contact-arrow{font-size:13px}
 }
+
+/* v70: administración en formato dashboard, sin menú lateral */
+.admin-main{width:100%;max-width:1180px;margin:0 auto;min-width:0}
+.admin-dashboard{display:flex;flex-direction:column;gap:18px}
+.admin-dashboard-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:24px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(120deg,#111318,#17131d);}
+.admin-dashboard-hero h1,.admin-subpage-title h1{font-size:clamp(24px,3vw,34px);line-height:1.12;margin:7px 0}
+.admin-dashboard-hero p{margin:0}
+.admin-dashboard-hero-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.admin-dashboard-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.admin-dashboard-card{min-width:0;min-height:128px;display:flex;align-items:flex-start;gap:13px;text-align:left;padding:18px;border:1px solid var(--line);border-radius:16px;background:#0e0f12;color:var(--text);cursor:pointer;transition:border-color .16s,transform .16s,background .16s;}
+.admin-dashboard-card:hover{border-color:#25bfc1;background:#111318;transform:translateY(-2px)}
+.admin-dashboard-card-icon{flex:0 0 42px;height:42px;display:grid;place-items:center;border:1px solid #30313a;border-radius:12px;background:#18191f;font-size:21px}
+.admin-dashboard-card-copy{display:flex;flex:1;flex-direction:column;gap:7px;min-width:0}
+.admin-dashboard-card-copy strong{font-size:15px;color:#f4f5f7}
+.admin-dashboard-card-copy small{font-size:12px;line-height:1.5;color:#a7b0bf}
+.admin-dashboard-card-arrow{align-self:flex-end;color:#25f4ee;font-size:25px;line-height:1}
+.admin-announcement-slot{margin-top:2px}
+.admin-announcement-slot .gx-ann-dashboard-card{width:100%;box-sizing:border-box}
+.admin-subpage{display:flex;flex-direction:column;gap:16px;min-width:0}
+.admin-subpage-header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px;border:1px solid var(--line);border-radius:16px;background:#101115}
+.admin-subpage-title{flex:1;min-width:180px}
+.admin-subpage-title h1{font-size:24px;margin:4px 0 0}
+@media(max-width:850px){.admin-dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-dashboard-hero{align-items:flex-start;flex-direction:column}.admin-dashboard-hero-actions{justify-content:flex-start}}
+@media(max-width:540px){.admin-dashboard-grid{grid-template-columns:1fr}.admin-dashboard-card{min-height:96px}.admin-subpage-header{align-items:stretch}.admin-subpage-title{order:-1;flex-basis:100%}.admin-subpage-header>button{flex:1}}
+
 </style>
