@@ -467,7 +467,7 @@ async function openNotification(id) {
       dashboard:'space', space:'space', 'mi-espacio':'space',
       training:'training', formation:'training', 'live-training':'live-training',
       missions:'missions', mission:'missions', profile:'profile', 'mi-perfil':'profile',
-      manager:'manager', admin:'admin', home:'home', benefits:'benefits', auth:'auth'
+      manager:'manager', admin:'admin', announcements:'announcements', comunicados:'announcements', home:'home', benefits:'benefits', auth:'auth'
     };
     const destination = targetMap[page];
     if (destination) {
@@ -481,7 +481,8 @@ async function openNotification(id) {
   if (n.link_page === 'missions') {
     pendingNotificationTarget = { type:'missions', weekStart:n.related_week_start || null, weekEnd:n.related_week_end || null };
     nav('missions');
-  } else if (n.link_page === 'training') nav('training');
+  } else if (n.link_page === 'announcements') nav('announcements');
+  else if (n.link_page === 'training') nav('training');
   else if (n.link_page === 'live-training') {
     if(profile?.role==='creator'){
       const live=await fetchCreatorLiveTrainingFast();
@@ -767,7 +768,7 @@ function isCreatorSession(){
 
 function nav(p, push = true) {
   const thisNav = ++navGeneration;
-  const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','force-password'];
+  const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','force-password'];
   if (!pages.includes(p)) p = 'home';
   if (p === 'force-password' && !session) p = 'auth';
   if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
@@ -873,6 +874,7 @@ async function render(){
     if(current==='benefits')$('#benefits').innerHTML=benefitsTpl(c.benefits);
     if(current==='admin')await adminTpl(c);
   }
+  if(current==='announcements') await announcementsTpl();
   if(current==='auth')$('#auth').innerHTML=authTpl();
   if(current==='force-password')$('#force-password').innerHTML=forcePasswordTpl();
   if(current==='space') { if(profile?.role==='manager') await managerTpl(); else await spaceTpl(); }
@@ -4819,3 +4821,103 @@ window.addEventListener('hashchange', async () => {
   `;
   document.head.appendChild(style);
 })();
+
+
+/* GRAYXON · CENTRO DE COMUNICADOS (aditivo, sin modificar el sistema LIVE/push existente) */
+let gxAnnouncementsTeams = [];
+let gxAnnouncementFiles = [];
+const GX_ANNOUNCEMENT_BUCKET = 'announcement-media';
+function gxAnnouncementCanPublish(){ return !!session && ['admin','manager'].includes(profile?.role); }
+function gxAnnouncementEsc(v){ return esc(String(v ?? '')); }
+async function gxLoadAnnouncementTeams(){
+  const {data,error}=await sb.from('teams').select('id,name,manager_id').order('name');
+  if(error){ console.warn('Comunicados: equipos',error.message); return []; }
+  let teams=data||[];
+  if(profile?.role==='manager'){
+    const {data:ownTeamIds,error:teamError}=await sb.rpc('grayxon_my_team_ids');
+    const ids=new Set((ownTeamIds||[]).map(x=>typeof x==='string'?x:(x?.grayxon_my_team_ids||'')));
+    teams=teamError?teams.filter(t=>t.id===profile.team_id):teams.filter(t=>ids.has(t.id));
+  }
+  gxAnnouncementsTeams=teams; return teams;
+}
+async function announcementsTpl(){
+  const el=$('#announcements'); if(!el)return;
+  if(!session){el.innerHTML=`<div class="gx-ann-wrap"><div class="gx-ann-hero"><span class="eyebrow">GRAYXON · COMUNIDAD</span><h1>Centro de comunicados</h1><p>Inicia sesión para consultar los avisos de tu agencia.</p><button class="btn primary" data-page="auth">Iniciar sesión</button></div></div>`;return;}
+  el.innerHTML=`<div class="gx-ann-wrap"><div class="gx-ann-hero"><div><span class="eyebrow">GRAYXON · COMUNIDAD</span><h1>Centro de comunicados</h1><p>Información importante, novedades y recursos de tu equipo, en un solo lugar.</p></div><span class="gx-ann-mark">📣</span></div><div id="gxAnnComposerMount"></div><div class="gx-ann-feed-head"><div><h2>Comunicados recientes</h2><p>Los avisos que corresponden a tu perfil y equipo.</p></div><button class="gx-ann-refresh" id="gxAnnRefresh">↻ Actualizar</button></div><div id="gxAnnFeed" class="gx-ann-feed"><div class="gx-ann-empty">Cargando comunicados…</div></div></div>`;
+  const teams=await gxLoadAnnouncementTeams();
+  if(gxAnnouncementCanPublish()){
+    const admin=profile.role==='admin';
+    $('#gxAnnComposerMount').innerHTML=`<form id="gxAnnComposer" class="gx-ann-composer"><div class="gx-ann-composer-title"><span>✦</span><div><strong>Crear comunicado</strong><small>Comparte información con las personas correspondientes.</small></div></div><label>Título<input id="gxAnnTitle" maxlength="140" required placeholder="Ej. Información importante de esta semana"></label><label>Mensaje<textarea id="gxAnnBody" rows="4" maxlength="12000" placeholder="Escribe aquí el comunicado…"></textarea></label><div class="gx-ann-targets"><label>Dirigido a<select id="gxAnnTarget" ${admin?'':'disabled'}>${admin?'<option value="agency">Toda la agencia (managers y creadores)</option><option value="managers">Solo managers</option><option value="teams">Equipos específicos</option>':'<option value="teams">Mi equipo</option>'}</select></label><div id="gxAnnTeamChoices" class="gx-ann-team-choices ${admin?'hidden':''}">${teams.map(t=>`<label><input type="checkbox" name="gxAnnTeam" value="${gxAnnouncementEsc(t.id)}" ${!admin?'checked disabled':''}><span>${gxAnnouncementEsc(t.name)}</span></label>`).join('')||'<small>No tienes un equipo asignado. Contacta al administrador.</small>'}</div></div><label class="gx-ann-upload">Adjuntar imágenes, videos, audio o archivos<input id="gxAnnFiles" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"><small id="gxAnnFileNames">Puedes adjuntar varios archivos. Tamaño máximo recomendado: 50 MB por archivo.</small></label><button class="gx-ann-publish" type="submit">Publicar comunicado <span>↗</span></button><div id="gxAnnComposerStatus" class="gx-ann-status" aria-live="polite"></div></form>`;
+    $('#gxAnnTarget')?.addEventListener('change',e=>$('#gxAnnTeamChoices')?.classList.toggle('hidden',e.target.value!=='teams'));
+    $('#gxAnnFiles')?.addEventListener('change',e=>{gxAnnouncementFiles=Array.from(e.target.files||[]);$('#gxAnnFileNames').textContent=gxAnnouncementFiles.length?gxAnnouncementFiles.map(f=>`${f.name} (${(f.size/1048576).toFixed(1)} MB)`).join(' · '):'Puedes adjuntar varios archivos. Tamaño máximo recomendado: 50 MB por archivo.';});
+    $('#gxAnnComposer')?.addEventListener('submit',gxPublishAnnouncement);
+  }
+  $('#gxAnnRefresh')?.addEventListener('click',gxLoadAnnouncements);
+  await gxLoadAnnouncements();
+}
+async function gxLoadAnnouncements(){
+  const feed=$('#gxAnnFeed'); if(!feed||!session)return;
+  feed.innerHTML='<div class="gx-ann-empty">Actualizando comunicados…</div>';
+  const {data,error}=await sb.from('announcements').select('id,author_id,title,body,target_type,created_at,author:profiles!announcements_author_id_fkey(full_name,username,role),announcement_teams(team_id,team:teams(name)),announcement_attachments(id,file_name,mime_type,file_size,storage_path)').order('created_at',{ascending:false}).limit(60);
+  if(error){feed.innerHTML=`<div class="gx-ann-empty"><strong>No se pudieron cargar los comunicados.</strong><span>${gxAnnouncementEsc(error.message)}<br>Si es la primera instalación, ejecuta primero el SQL incluido en el paquete.</span></div>`;return;}
+  const items=data||[]; if(!items.length){feed.innerHTML='<div class="gx-ann-empty"><strong>Aún no hay comunicados.</strong><span>Cuando se publique uno para tu audiencia, aparecerá aquí.</span></div>';return;}
+  const ids=items.map(x=>x.id);
+  const [{data:reads},{data:reactions},{data:mineReads},{data:mineReactions}]=await Promise.all([
+    profile?.role==='admin'?sb.rpc('grayxon_announcement_read_status',{p_announcement_ids:ids}):Promise.resolve({data:[]}),
+    sb.from('announcement_reactions').select('announcement_id,emoji,user_id').in('announcement_id',ids),
+    sb.from('announcement_reads').select('announcement_id').eq('user_id',session.user.id).in('announcement_id',ids),
+    sb.from('announcement_reactions').select('announcement_id,emoji').eq('user_id',session.user.id).in('announcement_id',ids)
+  ]);
+  const readSet=new Set((mineReads||[]).map(x=>x.announcement_id)); const myReactions=new Set((mineReactions||[]).map(x=>`${x.announcement_id}:${x.emoji}`));
+  feed.innerHTML=items.map(a=>{
+    const author=a.author?.full_name||a.author?.username||'Grayxon';
+    const aud=a.target_type==='agency'?'Toda la agencia':a.target_type==='managers'?'Managers':(a.announcement_teams||[]).map(x=>x.team?.name).filter(Boolean).join(', ')||'Equipo';
+    const files=(a.announcement_attachments||[]).map(f=>`<button class="gx-ann-file" data-ann-file="${gxAnnouncementEsc(f.id)}" data-ann-path="${gxAnnouncementEsc(f.storage_path)}" data-ann-name="${gxAnnouncementEsc(f.file_name)}" data-ann-mime="${gxAnnouncementEsc(f.mime_type)}"><span>${f.mime_type?.startsWith('image/')?'🖼️':f.mime_type?.startsWith('video/')?'🎬':f.mime_type?.startsWith('audio/')?'🎧':'📎'}</span><span><strong>${gxAnnouncementEsc(f.file_name)}</strong><small>${(Number(f.file_size||0)/1048576).toFixed(2)} MB · Abrir o descargar</small></span><b>↓</b></button>`).join('');
+    const media=(a.announcement_attachments||[]).map(f=>{if(f.mime_type?.startsWith('image/')||f.mime_type?.startsWith('video/')||f.mime_type?.startsWith('audio/'))return `<div class="gx-ann-inline-media" data-ann-inline-path="${gxAnnouncementEsc(f.storage_path)}" data-ann-inline-name="${gxAnnouncementEsc(f.file_name)}" data-ann-inline-mime="${gxAnnouncementEsc(f.mime_type)}"><span>${f.mime_type.startsWith('image/')?'🖼️':f.mime_type.startsWith('video/')?'🎬':'🎧'} ${gxAnnouncementEsc(f.file_name)}</span></div>`;return '';}).join('');
+    const rx=(reactions||[]).filter(r=>r.announcement_id===a.id);const emojiCounts=['👍','❤️','👏','🔥','😂'].map(e=>{const count=rx.filter(r=>r.emoji===e).length;return `<button class="gx-ann-reaction ${myReactions.has(`${a.id}:${e}`)?'is-active':''}" data-ann-react="${a.id}" data-ann-emoji="${e}" aria-label="Reaccionar ${e}">${e}<small>${count||''}</small></button>`}).join('');
+    const own=a.author_id===session.user.id; const canDelete=profile?.role==='admin'||(profile?.role==='manager'&&own);
+    const readRows=(reads||[]).filter(r=>r.announcement_id===a.id);const readCount=readRows.filter(r=>r.has_read).length;const adminReads=profile?.role==='admin'?`<details class="gx-ann-reads"><summary>Lecturas · ${readCount}/${readRows.length} leyeron</summary><div class="gx-ann-read-list">${readRows.length?readRows.map(r=>`<span>${r.has_read?'✓':'○'} ${gxAnnouncementEsc(r.full_name||r.username||'Usuario')} <small>${r.has_read?`Leído ${new Date(r.read_at).toLocaleString('es-CO')}`:'Pendiente de lectura'}</small></span>`).join(''):'No hay destinatarios activos para este comunicado.'}</div></details>`:'';
+    return `<article class="gx-ann-card" data-ann-card="${a.id}"><div class="gx-ann-card-top"><div class="gx-ann-avatar">${gxAnnouncementEsc(author.trim().charAt(0).toUpperCase()||'G')}</div><div class="gx-ann-byline"><strong>${gxAnnouncementEsc(author)}</strong><small>${new Date(a.created_at).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})} · ${gxAnnouncementEsc(aud)}</small></div>${canDelete?`<button class="gx-ann-delete" data-ann-delete="${a.id}" title="Eliminar comunicado">Eliminar</button>`:''}</div><h3>${gxAnnouncementEsc(a.title)}</h3><div class="gx-ann-body">${gxAnnouncementEsc(a.body||'').replace(/\n/g,'<br>')}</div>${media?`<div class="gx-ann-media-grid">${media}</div>`:''}${files?`<div class="gx-ann-files">${files}</div>`:''}<div class="gx-ann-reactions">${emojiCounts}</div>${adminReads}</article>`;
+  }).join('');
+  // Record the read after rendering. The unique key makes repeat visits safe.
+  const unread=ids.filter(id=>!readSet.has(id)); if(unread.length) await sb.from('announcement_reads').upsert(unread.map(announcement_id=>({announcement_id,user_id:session.user.id})),{onConflict:'announcement_id,user_id',ignoreDuplicates:true});
+  for(const node of feed.querySelectorAll('[data-ann-inline-path]')){const path=node.dataset.annInlinePath;const mime=node.dataset.annInlineMime;const name=node.dataset.annInlineName;const {data:d}=await sb.storage.from(GX_ANNOUNCEMENT_BUCKET).createSignedUrl(path,300);if(!d?.signedUrl)continue;if(mime?.startsWith('image/'))node.innerHTML=`<img src="${d.signedUrl}" alt="${gxAnnouncementEsc(name)}" loading="lazy">`;else if(mime?.startsWith('video/'))node.innerHTML=`<video controls playsinline preload="metadata" src="${d.signedUrl}"></video>`;else if(mime?.startsWith('audio/'))node.innerHTML=`<audio controls preload="metadata" src="${d.signedUrl}"></audio>`;}
+  feed.querySelectorAll('[data-ann-react]').forEach(b=>b.onclick=()=>gxToggleAnnouncementReaction(b.dataset.annReact,b.dataset.annEmoji));
+  feed.querySelectorAll('[data-ann-delete]').forEach(b=>b.onclick=()=>gxDeleteAnnouncement(b.dataset.annDelete));
+  feed.querySelectorAll('[data-ann-file]').forEach(b=>b.onclick=()=>gxOpenAnnouncementFile(b.dataset.annPath,b.dataset.annName,b.dataset.annMime));
+}
+async function gxPublishAnnouncement(e){
+  e.preventDefault(); const status=$('#gxAnnComposerStatus');const btn=e.submitter;const title=$('#gxAnnTitle')?.value.trim();const body=$('#gxAnnBody')?.value.trim();const target=$('#gxAnnTarget')?.value||'teams';
+  const teamIds=target==='teams'?Array.from(document.querySelectorAll('input[name="gxAnnTeam"]:checked')).map(x=>x.value):[];
+  if(!title||(!body&&!gxAnnouncementFiles.length)){status.textContent='Escribe un título y un mensaje o adjunta al menos un archivo.';return;}
+  if(target==='teams'&&!teamIds.length){status.textContent='Selecciona al menos un equipo.';return;}
+  if(gxAnnouncementFiles.some(f=>f.size>50*1024*1024)){status.textContent='Cada archivo debe pesar máximo 50 MB.';return;}
+  btn.disabled=true;status.textContent='Publicando comunicado…';
+  try{
+    const {data:a,error}=await sb.from('announcements').insert({author_id:session.user.id,title,body:body||'',target_type:target}).select('id').single();
+    if(error)throw error;
+    if(teamIds.length){const {error:te}=await sb.from('announcement_teams').insert(teamIds.map(team_id=>({announcement_id:a.id,team_id})));if(te)throw te;}
+    for(const file of gxAnnouncementFiles){const safeName=file.name.replace(/[^\p{L}\p{N}._ -]/gu,'_').slice(-140);const path=`${a.id}/${crypto.randomUUID()}-${safeName}`;const {error:up}=await sb.storage.from(GX_ANNOUNCEMENT_BUCKET).upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});if(up)throw up;const {error:meta}=await sb.from('announcement_attachments').insert({announcement_id:a.id,uploaded_by:session.user.id,file_name:file.name,mime_type:file.type||'application/octet-stream',file_size:file.size,storage_path:path});if(meta)throw meta;}
+    const {error:notifyError}=await sb.rpc('notify_announcement_recipients',{p_announcement_id:a.id});if(notifyError)console.warn('Comunicado publicado; notificación pendiente:',notifyError.message);
+    gxAnnouncementFiles=[];await announcementsTpl();toast('Comunicado publicado ✓');
+  }catch(err){console.error('Publicar comunicado',err);status.textContent=`No se pudo completar: ${err.message||err}. Revisa que la migración SQL esté aplicada y los permisos de almacenamiento configurados.`;}
+  finally{if(btn)btn.disabled=false;}
+}
+async function gxToggleAnnouncementReaction(id,emoji){
+  const {data:existing,error:readError}=await sb.from('announcement_reactions').select('announcement_id').eq('announcement_id',id).eq('user_id',session.user.id).eq('emoji',emoji).maybeSingle();if(readError){toast('No se pudo consultar la reacción.');return;}
+  const result=existing?await sb.from('announcement_reactions').delete().eq('announcement_id',id).eq('user_id',session.user.id).eq('emoji',emoji):await sb.from('announcement_reactions').insert({announcement_id:id,user_id:session.user.id,emoji});
+  if(result.error){toast('No se pudo guardar la reacción.');return;}await gxLoadAnnouncements();
+}
+async function gxDeleteAnnouncement(id){
+  if(!confirm('¿Eliminar este comunicado y sus adjuntos? Esta acción no se puede deshacer.'))return;
+  const {data:files}=await sb.from('announcement_attachments').select('storage_path').eq('announcement_id',id);
+  if(files?.length)await sb.storage.from(GX_ANNOUNCEMENT_BUCKET).remove(files.map(f=>f.storage_path));
+  const {error}=await sb.from('announcements').delete().eq('id',id);if(error){toast(`No se pudo eliminar: ${error.message}`);return;}toast('Comunicado eliminado ✓');await gxLoadAnnouncements();
+}
+async function gxOpenAnnouncementFile(path,name,mime){
+  const {data,error}=await sb.storage.from(GX_ANNOUNCEMENT_BUCKET).createSignedUrl(path,300,{download:false});if(error||!data?.signedUrl){toast('No se pudo abrir el archivo. Verifica permisos y almacenamiento.');return;}
+  if(mime?.startsWith('image/')||mime?.startsWith('video/')||mime?.startsWith('audio/'))window.open(data.signedUrl,'_blank','noopener');else{const {data:d,error:de}=await sb.storage.from(GX_ANNOUNCEMENT_BUCKET).createSignedUrl(path,300,{download:name});if(de||!d?.signedUrl){toast('No se pudo generar la descarga.');return;}window.open(d.signedUrl,'_blank','noopener');}
+}
+(function gxAnnouncementStyles(){if(document.getElementById('gx-announcement-styles'))return;const style=document.createElement('style');style.id='gx-announcement-styles';style.textContent=`
+#announcements .gx-ann-wrap{max-width:980px;margin:0 auto;padding:8px 0 36px;color:#f5f6f8}.gx-ann-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:26px 28px;border:1px solid #30343b;border-radius:22px;background:radial-gradient(ellipse at 90% 0%,#25202a 0%,transparent 45%),linear-gradient(135deg,#15181d,#090b0e);margin-bottom:18px}.gx-ann-hero h1{font-size:clamp(25px,4vw,36px);letter-spacing:-.04em;margin:7px 0}.gx-ann-hero p,.gx-ann-feed-head p{color:#a1a8b2;margin:0;line-height:1.55;font-size:13px}.gx-ann-mark{font-size:42px;filter:drop-shadow(0 0 18px #fe2c5544)}.gx-ann-composer,.gx-ann-card{border:1px solid #2d323a;border-radius:18px;background:linear-gradient(145deg,#121519,#0b0d10);padding:20px;margin-bottom:18px;box-shadow:0 12px 32px #0002}.gx-ann-composer-title{display:flex;gap:12px;align-items:center;margin-bottom:17px}.gx-ann-composer-title>span{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#242027;color:#f4a2c2;font-size:20px}.gx-ann-composer-title div{display:grid;gap:3px}.gx-ann-composer-title strong{font-size:15px}.gx-ann-composer-title small{color:#9199a4;font-size:11px}.gx-ann-composer label{display:grid;gap:7px;margin:12px 0;color:#d7dbe1;font-size:12px;font-weight:700}.gx-ann-composer input:not([type=checkbox]),.gx-ann-composer textarea,.gx-ann-composer select{box-sizing:border-box;width:100%;border:1px solid #353b44;border-radius:11px;background:#090b0e;color:#fff;padding:12px;font:inherit;font-weight:400;outline:none}.gx-ann-composer textarea{resize:vertical;line-height:1.55}.gx-ann-composer input:focus,.gx-ann-composer textarea:focus,.gx-ann-composer select:focus{border-color:#c25d84}.gx-ann-targets{display:grid;grid-template-columns:1fr 1fr;gap:12px}.gx-ann-team-choices{display:flex;flex-wrap:wrap;gap:7px;align-content:start;padding-top:4px}.gx-ann-team-choices label{display:flex;align-items:center;gap:7px;border:1px solid #353b44;background:#0a0c0f;padding:8px 10px;border-radius:9px;margin:0}.gx-ann-team-choices input{accent-color:#fe2c55}.gx-ann-upload{border:1px dashed #4a4e58;padding:13px;border-radius:12px;background:#0b0d10}.gx-ann-upload input{padding:6px!important;border:0!important;background:transparent!important}.gx-ann-upload small{color:#9199a4;font-weight:400;line-height:1.5}.gx-ann-publish{width:100%;border:0;border-radius:12px;background:linear-gradient(120deg,#f4f5f6,#bfc5cc);color:#101216;padding:13px 16px;font-weight:900;cursor:pointer;margin-top:8px}.gx-ann-publish:disabled{opacity:.55}.gx-ann-publish span{margin-left:6px}.gx-ann-status{font-size:12px;color:#f2b5ce;margin-top:10px;line-height:1.5}.gx-ann-feed-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:25px 0 14px}.gx-ann-feed-head h2{font-size:20px;margin:0 0 4px}.gx-ann-refresh{border:1px solid #343942;background:#111419;color:#d8dce2;border-radius:10px;padding:9px 12px;cursor:pointer}.gx-ann-empty{padding:34px 20px;border:1px dashed #333841;border-radius:16px;text-align:center;color:#dce0e6;display:grid;gap:8px}.gx-ann-empty span{color:#9299a4;font-size:12px;line-height:1.5}.gx-ann-card-top{display:flex;align-items:center;gap:10px;margin-bottom:17px}.gx-ann-avatar{width:39px;height:39px;flex:none;display:grid;place-items:center;border-radius:13px;background:linear-gradient(145deg,#31343c,#15171c);border:1px solid #464b54;font-weight:900}.gx-ann-byline{display:grid;gap:4px;min-width:0;flex:1}.gx-ann-byline strong{font-size:13px}.gx-ann-byline small{font-size:10px;color:#9299a4;line-height:1.4}.gx-ann-delete{border:1px solid #4b3039;color:#f2a5bb;background:#1a1014;border-radius:8px;padding:7px 9px;font-size:10px;cursor:pointer}.gx-ann-card h3{font-size:19px;line-height:1.35;margin:0 0 10px}.gx-ann-body{font-size:13px;color:#d2d6dc;line-height:1.75;overflow-wrap:anywhere}.gx-ann-media-grid,.gx-ann-files{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}.gx-ann-media-btn,.gx-ann-file,.gx-ann-media-note{min-width:0;display:flex;align-items:center;gap:10px;text-align:left;border:1px solid #303640;background:#0a0c0f;border-radius:11px;padding:11px;color:#f2f4f7}.gx-ann-media-btn,.gx-ann-media-note button{cursor:pointer}.gx-ann-file>span:nth-child(2){min-width:0;flex:1;display:grid;gap:4px}.gx-ann-file strong{font-size:11px;overflow-wrap:anywhere}.gx-ann-file small{font-size:10px;color:#9098a3}.gx-ann-file>b{color:#e4c2d0}.gx-ann-media-note{grid-column:1/-1;font-size:11px;flex-wrap:wrap}.gx-ann-media-note button{margin-left:auto;border:1px solid #414751;border-radius:8px;background:#171a20;color:#fff;padding:7px 10px}.gx-ann-reactions{display:flex;gap:7px;flex-wrap:wrap;margin-top:15px}.gx-ann-reaction{border:1px solid #353a43;border-radius:999px;background:#101318;color:#fff;padding:6px 10px;cursor:pointer;display:flex;align-items:center;gap:5px}.gx-ann-reaction small{color:#a6adb8;font-size:10px}.gx-ann-reaction.is-active{border-color:#c75b84;background:#2a1620}.gx-ann-reads{border-top:1px solid #2b3037;margin-top:15px;padding-top:12px;color:#d6dbe1;font-size:11px}.gx-ann-reads summary{cursor:pointer}.gx-ann-read-list{display:grid;gap:7px;margin-top:10px}.gx-ann-read-list span{display:flex;justify-content:space-between;gap:10px}.gx-ann-read-list small{color:#89919c;font-size:10px}.gx-ann-composer .hidden{display:none!important}@media(max-width:650px){#announcements .gx-ann-wrap{padding:0 0 28px}.gx-ann-hero{padding:20px 17px;border-radius:17px}.gx-ann-mark{font-size:32px}.gx-ann-composer,.gx-ann-card{padding:15px;border-radius:15px}.gx-ann-targets{grid-template-columns:1fr;gap:0}.gx-ann-media-grid,.gx-ann-files{grid-template-columns:1fr}.gx-ann-feed-head{align-items:flex-start}.gx-ann-card h3{font-size:17px}}
+`;document.head.appendChild(style);})();
