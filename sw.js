@@ -32,6 +32,7 @@ self.addEventListener('push', event => {
     data: { url: target },
     tag: data.tag || 'grayxon-notification',
     renotify: true,
+    silent: false,
     requireInteraction: false
   }));
 });
