@@ -767,8 +767,10 @@ function isCreatorSession(){
 
 function nav(p, push = true) {
   const thisNav = ++navGeneration;
-  const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'];
+  const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','force-password'];
   if (!pages.includes(p)) p = 'home';
+  if (p === 'force-password' && !session) p = 'auth';
+  if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
   // Una cuenta autenticada nunca vuelve a la portada pública por accidente.
   // Su entrada natural siempre es su espacio/panel correspondiente.
   if (session && p === 'home') {
@@ -872,6 +874,7 @@ async function render(){
     if(current==='admin')await adminTpl(c);
   }
   if(current==='auth')$('#auth').innerHTML=authTpl();
+  if(current==='force-password')$('#force-password').innerHTML=forcePasswordTpl();
   if(current==='space') { if(profile?.role==='manager') await managerTpl(); else await spaceTpl(); }
   if(current==='manager')await managerTpl();
   if(current==='training')await trainingTpl();
@@ -1029,6 +1032,22 @@ function profileTpl(){
     <div class="profile-save-wrap"><button class="primary profile-save-btn" id="saveProfile">Guardar</button></div><div id="profileErr" class="error"></div>
   </div>`;
 }
+function forcePasswordTpl(){
+  const who=esc(profile?.username||'creador');
+  return `<div class="login card" style="max-width:560px;margin:34px auto"><div class="eyebrow">GRAYXON · SEGURIDAD</div><h2 style="margin-top:8px">Crea tu contraseña personal</h2><p class="muted">Hola, @${who}. Este es tu primer ingreso. Por seguridad, debes cambiar la contraseña temporal antes de continuar.</p><div class="field"><label>Nueva contraseña</label><input id="firstPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres"></div><div class="field"><label>Repite la contraseña</label><input id="firstPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Confirma tu contraseña"></div><div id="firstPasswordError" class="error"></div><button class="primary" id="saveFirstPassword">Guardar y continuar</button><p class="muted small" style="margin-top:12px">No compartas tu contraseña con nadie. Grayxon no puede mostrarte una contraseña después de guardarla.</p></div>`;
+}
+async function saveFirstPassword(){
+  const a=$('#firstPassword')?.value||'', b=$('#firstPasswordConfirm')?.value||'', err=$('#firstPasswordError'), btn=$('#saveFirstPassword');
+  if(a.length<8){if(err)err.textContent='La contraseña debe tener al menos 8 caracteres.';return;}
+  if(a!==b){if(err)err.textContent='Las contraseñas no coinciden.';return;}
+  if(!session?.user?.id||!profile?.must_change_password){nav('auth');return;}
+  if(btn)btn.disabled=true;if(err)err.textContent='Actualizando contraseña…';
+  const {data:completeData,error:profileError}=await sb.functions.invoke('complete-first-login',{body:{password:a,confirm_password:b}});
+  if(profileError||completeData?.error){if(err)err.textContent=completeData?.error||profileError?.message||'No se pudo completar el cambio de contraseña.';if(btn)btn.disabled=false;return;}
+  profile.must_change_password=false;toast('Contraseña actualizada ✓');
+  nav(profile.role==='admin'?'admin':profile.role==='manager'?'manager':'space');
+}
+
 function authTpl() {
   return `<div class="login"><div class="eyebrow">GRAYXON · ACCESO</div><h2 style="margin-top:8px">Inicia sesión</h2><p class="muted">Usa el usuario o correo y la contraseña de tu cuenta. Grayxon detectará automáticamente si eres administrador, manager o creador y abrirá el panel correspondiente.</p><div class="field"><label>Usuario o correo</label><input id="loginUser" autocomplete="username" placeholder="Ej. andrea.onyx o correo@ejemplo.com"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button><button class="secondary small" id="forgotPasswordBtn" style="margin-top:10px">¿Olvidaste tu contraseña?</button><div id="resetBox" class="hidden" style="margin-top:14px"><div class="muted small" style="margin-bottom:8px">Escribe tu correo para recibir un enlace de recuperación.</div><input id="resetEmail" type="email" placeholder="correo@ejemplo.com"><button class="secondary small" id="sendResetBtn" style="margin-top:8px">Enviar enlace</button><div id="resetErr" class="error" style="margin-top:8px"></div></div></div>`;
 }
@@ -1036,11 +1055,11 @@ function authTpl() {
 async function getProfile() {
   if (!session) return null;
   try {
-    const query = sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').eq('id', session.user.id).maybeSingle();
+    const query = sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,must_change_password').eq('id', session.user.id).maybeSingle();
     const result = await Promise.race([query, new Promise(resolve => setTimeout(() => resolve({data:null,error:new Error('timeout')}), 5000))]);
     if (result?.data) return result.data;
   } catch(e) {}
-  return { id: session.user.id, username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador', full_name: session.user.user_metadata?.full_name || '', role:'creator', active:true, team_id:null, manager_id:null };
+  return { id: session.user.id, username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador', full_name: session.user.user_metadata?.full_name || '', role:'creator', active:true, team_id:null, manager_id:null, must_change_password:false };
 }
 
 async function loadCreatorAssignment(){
@@ -3154,12 +3173,105 @@ async function deleteAdminUser(id){
   if(error)return toast(error.message); toast('Usuario eliminado ✓'); await render();
 }
 
+function normalizeImportText(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();}
+function parseCsvRows(text){
+  const headerLine=text.split(/\r?\n/).find(line=>normalizeImportText(line).includes('id de creador')&&normalizeImportText(line).includes('nombre de usuario'))||text.split(/\r?\n/).find(Boolean)||'';
+  const commas=(headerLine.match(/,/g)||[]).length, semicolons=(headerLine.match(/;/g)||[]).length, delimiter=semicolons>commas?';':',';
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'&&quoted&&text[i+1]==='"'){cell+='"';i++;continue;}
+    if(ch==='"'){quoted=!quoted;continue;}
+    if(ch===delimiter&&!quoted){row.push(cell);cell='';continue;}
+    if((ch==='\n'||ch==='\r')&&!quoted){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>String(x).trim()!==''))rows.push(row);row=[];cell='';continue;}
+    cell+=ch;
+  }
+  if(cell!==''||row.length){row.push(cell);if(row.some(x=>String(x).trim()!==''))rows.push(row);}
+  return rows;
+}
+async function loadXlsxParser(){
+  if(window.XLSX)return window.XLSX;
+  if(window.__grayxonXlsxPromise)return window.__grayxonXlsxPromise;
+  window.__grayxonXlsxPromise=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';script.onload=()=>window.XLSX?resolve(window.XLSX):reject(new Error('No se pudo cargar el lector de Excel.'));script.onerror=()=>reject(new Error('No se pudo cargar el lector de Excel. Revisa la conexión o guarda el archivo como CSV UTF-8.'));document.head.appendChild(script);});
+  return window.__grayxonXlsxPromise;
+}
+async function readCreatorImportFile(file){
+  const ext=(file.name.split('.').pop()||'').toLowerCase();let rows;
+  if(ext==='csv'){rows=parseCsvRows(await file.text());}
+  else if(ext==='xlsx'||ext==='xls'){const XLSX=await loadXlsxParser();const wb=XLSX.read(await file.arrayBuffer(),{type:'array',raw:false});const ws=wb.Sheets[wb.SheetNames[0]];rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});}
+  else throw new Error('Selecciona un archivo .xlsx, .xls o .csv.');
+  const headerIndex=rows.findIndex(r=>r.some(c=>normalizeImportText(c).includes('id de creador'))&&r.some(c=>normalizeImportText(c).includes('nombre de usuario')));
+  if(headerIndex<0)throw new Error('No encontramos los encabezados “ID de creador” y “Nombre de usuario del creador”.');
+  const headers=rows[headerIndex].map(normalizeImportText);
+  const idx={id:headers.findIndex(x=>x.includes('id de creador')),username:headers.findIndex(x=>x.includes('nombre de usuario')),group:headers.findIndex(x=>x==='grupo'||x.includes('grupo')),agent:headers.findIndex(x=>x==='agente'||x.includes('agente'))};
+  if(idx.id<0||idx.username<0)throw new Error('Faltan las columnas de ID de creador o nombre de usuario.');
+  return rows.slice(headerIndex+1).filter(r=>r.some(c=>String(c??'').trim()!=='')).map((r,i)=>({source_row:headerIndex+i+2,tiktok_creator_id:String(r[idx.id]??'').trim(),tiktok_username:String(r[idx.username]??'').trim().replace(/^@/,''),group:idx.group>=0?String(r[idx.group]??'').trim():'',agent:idx.agent>=0?String(r[idx.agent]??'').trim().toLowerCase():''}));
+}
+function creatorImportModal(){
+  const el=document.createElement('div');el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal" style="max-width:920px"><div class="row"><div><div class="eyebrow">GRAYXON · IMPORTACIÓN</div><h2>Importar creadores en bloque</h2></div><button class="secondary" id="closeCreatorImport">Cerrar</button></div><p class="muted small">Carga el Excel/CSV de Backstage. Primero revisaremos los IDs, usuarios, equipos y managers; nada se creará hasta que confirmes la importación.</p><div class="field"><label>Archivo de Backstage</label><input id="creatorImportFile" type="file" accept=".xlsx,.xls,.csv"><span class="muted small">Se requiere ID de creador, nombre de usuario, grupo y agente.</span></div><div class="inline" style="margin-top:12px"><button class="primary" id="previewCreatorImport">Revisar archivo</button></div><div id="creatorImportStatus" class="muted small" style="margin-top:12px"></div><div id="creatorImportPreview"></div></div>`;
+  document.body.appendChild(el);let mappedRows=[];let validRows=[];
+  const close=()=>el.remove();el.querySelector('#closeCreatorImport').onclick=close;
+  el.querySelector('#previewCreatorImport').onclick=async()=>{
+    const btn=el.querySelector('#previewCreatorImport'),status=el.querySelector('#creatorImportStatus'),preview=el.querySelector('#creatorImportPreview'),file=el.querySelector('#creatorImportFile').files?.[0];
+    if(!file){status.textContent='Selecciona primero el archivo.';return;}btn.disabled=true;status.textContent='Leyendo archivo y verificando asignaciones…';preview.innerHTML='';
+    try{
+      const raw=await readCreatorImportFile(file);
+      const [{data:teams,error:te},{data:managers,error:me}]=await Promise.all([sb.from('teams').select('id,name,manager_id'),sb.from('managers').select('id,name,email,user_id,active')]);
+      if(te||me)throw new Error((te||me).message||'No se pudieron leer los equipos y managers.');
+      const teamMap=new Map((teams||[]).map(t=>[normalizeImportText(t.name),t]));const managerMap=new Map((managers||[]).map(m=>[m.id,m]));
+      const seenIds=new Set(),seenUsers=new Set();mappedRows=raw.map(r=>{
+        const id=r.tiktok_creator_id.replace(/\s/g,'');const handle=r.tiktok_username.trim();const username=handle.toLowerCase().replace(/[^a-z0-9._-]/g,'');const g=normalizeImportText(r.group);let team=null;
+        if(g&&!g.includes('no esta en ningun grupo')&&!g.includes('sin grupo')){
+          team=teamMap.get(g)||[...(teams||[])].find(t=>normalizeImportText(t.name).includes(g)||g.includes(normalizeImportText(t.name)))||null;
+        }
+        const issues=[];
+        if(!/^\d{10,30}$/.test(id))issues.push('ID de TikTok inválido');
+        if(!/^[a-z0-9._-]{3,30}$/.test(username))issues.push('Usuario no válido para el acceso');
+        if(!team&&g&&!g.includes('no esta en ningun grupo')&&!g.includes('sin grupo'))issues.push(`Equipo no encontrado: ${r.group}`);
+        if(seenIds.has(id))issues.push('ID repetido en el archivo');else if(id)seenIds.add(id);
+        if(seenUsers.has(username))issues.push('Usuario repetido en el archivo');else if(username)seenUsers.add(username);
+        if(team&&r.agent){const manager=managerMap.get(team.manager_id);if(manager?.email&&manager.email.toLowerCase()!==r.agent)issues.push(`Agente no coincide con manager del equipo (${manager.email})`);}
+        return {...r,tiktok_creator_id:id,tiktok_username:handle,username,team_id:team?.id||null,team_name:team?.name||'Sin equipo',manager_id:team?.manager_id||null,manager_name:team?.manager_id?(managerMap.get(team.manager_id)?.name||'Manager sin nombre'):'Sin manager',issues};
+      });
+      validRows=mappedRows.filter(r=>!r.issues.length);
+      const invalid=mappedRows.length-validRows.length;
+      status.textContent=`Archivo leído: ${mappedRows.length} registros · ${validRows.length} válidos · ${invalid} por revisar. Los registros sin grupo quedarán sin equipo ni manager.`;
+      preview.innerHTML=`<div class="grid" style="margin-top:12px"><div class="item"><b>${mappedRows.length}</b><div class="muted small">Filas encontradas</div></div><div class="item"><b>${validRows.length}</b><div class="muted small">Listas para importar</div></div><div class="item"><b>${invalid}</b><div class="muted small">Con observaciones</div></div></div><div style="overflow:auto;margin-top:12px"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="text-align:left;padding:8px">ID TikTok</th><th style="text-align:left;padding:8px">Usuario</th><th style="text-align:left;padding:8px">Equipo</th><th style="text-align:left;padding:8px">Manager</th><th style="text-align:left;padding:8px">Estado</th></tr></thead><tbody>${mappedRows.slice(0,12).map(r=>`<tr style="border-top:1px solid #333"><td style="padding:8px">${esc(r.tiktok_creator_id)}</td><td style="padding:8px">@${esc(r.tiktok_username)}</td><td style="padding:8px">${esc(r.team_name)}</td><td style="padding:8px">${esc(r.manager_name)}</td><td style="padding:8px;color:${r.issues.length?'#ff8b8b':'#7fe0ad'}">${r.issues.length?esc(r.issues.join('; ')):'Listo'}</td></tr>`).join('')}</tbody></table></div>${mappedRows.length>12?`<p class="muted small">Mostrando 12 de ${mappedRows.length} registros en la vista previa.</p>`:''}<div class="inline" style="margin-top:16px"><button class="primary" id="confirmCreatorImport" ${validRows.length?'':'disabled'}>Importar ${validRows.length} registros válidos</button><button class="secondary" id="cancelCreatorImport">Cancelar</button></div><p class="muted small" style="margin-top:8px">Los conflictos con cuentas ya existentes también se comprobarán de forma segura en el servidor antes de crear cada cuenta.</p>`;
+      preview.querySelector('#cancelCreatorImport')?.addEventListener('click',close);
+      preview.querySelector('#confirmCreatorImport')?.addEventListener('click',async()=>{
+        if(!validRows.length)return;
+        if(!confirm(`Vas a crear hasta ${validRows.length} cuentas. Se generarán contraseñas temporales y será obligatorio cambiarlas al primer ingreso. ¿Continuar?`))return;
+        const confirmBtn=preview.querySelector('#confirmCreatorImport');confirmBtn.disabled=true;status.textContent='Creando cuentas de forma segura… No cierres esta ventana.';
+        try{
+          const {data,error}=await sb.functions.invoke('bulk-import-creators',{body:{rows:validRows.map(r=>({source_row:r.source_row,tiktok_creator_id:r.tiktok_creator_id,tiktok_username:r.tiktok_username,username:r.username,team_id:r.team_id}))}});
+          if(error||data?.error)throw new Error(data?.error||error?.message||'Falló la importación.');
+          const results=data.results||[];const created=results.filter(r=>r.status==='created');const skipped=results.filter(r=>r.status==='already_exists');const failed=results.filter(r=>r.status==='failed');
+          window.__grayxonCreatorImportReport={created,skipped,failed,all:results};
+          preview.innerHTML=`<div class="item" style="margin-top:16px"><h3>Importación finalizada</h3><div class="grid"><div><b>${created.length}</b><div class="muted small">Cuentas creadas</div></div><div><b>${skipped.length}</b><div class="muted small">IDs ya registrados</div></div><div><b>${failed.length}</b><div class="muted small">No creadas</div></div></div><p class="muted small" style="margin-top:12px">Descarga el informe ahora. Incluye las contraseñas temporales de las cuentas creadas; se muestran una sola vez y no se guardan en texto plano en la base de datos.</p><div class="inline"><button class="primary" id="downloadCreatorImportReport">Descargar informe CSV y credenciales</button><button class="secondary" id="closeCreatorImportDone">Cerrar</button></div></div>`;
+          status.textContent='Proceso terminado. Revisa el informe y guarda las credenciales antes de cerrar.';
+          preview.querySelector('#downloadCreatorImportReport').onclick=downloadCreatorImportReport;
+          preview.querySelector('#closeCreatorImportDone').onclick=()=>{close();render();};
+        }catch(e){status.textContent=e.message||'No se pudo completar la importación.';confirmBtn.disabled=false;}
+      });
+    }catch(e){status.textContent=e.message||'No se pudo leer el archivo.';}
+    finally{btn.disabled=false;}
+  };
+}
+function downloadCreatorImportReport(){
+  const report=window.__grayxonCreatorImportReport;if(!report)return;
+  const rows=[['Estado','Fila Excel','ID TikTok','Usuario TikTok','Usuario Grayxon','Equipo','Contraseña temporal','Detalle']];
+  for(const r of report.all||[]){rows.push([r.status||'',r.source_row||'',r.tiktok_creator_id||'',r.tiktok_username||'',r.username||'',r.team_name||'',r.temporary_password||'',r.message||'']);}
+  const csv='\ufeff'+rows.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`Grayxon_Importacion_Creadores_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
 async function adminCreators() {
   const { data, error } = await sb.from('profiles').select('id,username,full_name,active,role,team_id,manager_id').eq('role','creator').order('full_name');
   if (error) return `<div class="card"><h2>Creadores</h2><div class="error">${esc(error.message)}</div></div>`;
   const [{data:teams},{data:managers}] = await Promise.all([sb.from('teams').select('id,name'),sb.from('managers').select('id,name')]);
   const tm=new Map((teams||[]).map(x=>[x.id,x.name])), mm=new Map((managers||[]).map(x=>[x.id,x.name]));
-  return `<div class="card"><div class="row"><div><h2>Creadores</h2><p class="muted small">Cada creador entra con usuario + contraseña. El correo técnico nunca se muestra.</p></div><button class="primary" id="newCreator">+ Crear creador</button></div><div class="list" style="margin-top:18px">${(data || []).map(x => `<div class="item creator-admin-row"><div class="row"><div><b>${esc(x.full_name || x.username)}</b><div class="muted small">@${esc(x.username)}</div><div class="muted small">${esc(tm.get(x.team_id)||'Sin equipo')} · ${esc(mm.get(x.manager_id)||'Sin manager')}</div></div><div class="inline creator-access-actions"><span class="pill ${x.active ? 'ok' : ''}">${x.active ? 'Activo · acceso permitido' : 'Inactivo · acceso bloqueado'}</span><button class="secondary small creator-toggle ${x.active ? 'danger' : 'ok'}" data-toggle-creator="${x.id}">${x.active ? '🔒 Desactivar acceso' : '🔓 Activar acceso'}</button><button class="secondary small" data-view-profile="${x.id}">👤 Perfil y misiones</button></div></div></div>`).join('') || '<p class="muted">Aún no hay creadores.</p>'}</div></div>`;
+  return `<div class="card"><div class="row"><div><h2>Creadores</h2><p class="muted small">Cada creador entra con usuario + contraseña. El correo técnico nunca se muestra.</p></div><div class="inline"><button class="secondary" id="importCreators">⇧ Importar Excel/CSV</button><button class="primary" id="newCreator">+ Crear creador</button></div></div><div class="list" style="margin-top:18px">${(data || []).map(x => `<div class="item creator-admin-row"><div class="row"><div><b>${esc(x.full_name || x.username)}</b><div class="muted small">@${esc(x.username)}</div><div class="muted small">${esc(tm.get(x.team_id)||'Sin equipo')} · ${esc(mm.get(x.manager_id)||'Sin manager')}</div></div><div class="inline creator-access-actions"><span class="pill ${x.active ? 'ok' : ''}">${x.active ? 'Activo · acceso permitido' : 'Inactivo · acceso bloqueado'}</span><button class="secondary small creator-toggle ${x.active ? 'danger' : 'ok'}" data-toggle-creator="${x.id}">${x.active ? '🔒 Desactivar acceso' : '🔓 Activar acceso'}</button><button class="secondary small" data-view-profile="${x.id}">👤 Perfil y misiones</button></div></div></div>`).join('') || '<p class="muted">Aún no hay creadores.</p>'}</div></div>`;
 }
 
 
@@ -3865,6 +3977,8 @@ function bind() {
   $('#saveBenefits')?.addEventListener('click', saveBenefits);
   $('#bImage')?.addEventListener('change', previewBenefitsImage);
   $('#newCreator')?.addEventListener('click', creatorModal);
+  $('#importCreators')?.addEventListener('click', creatorImportModal);
+  $('#saveFirstPassword')?.addEventListener('click', saveFirstPassword);
   $('#newModule')?.addEventListener('click', newModule);
   $$('[data-edit-module]').forEach(b => b.onclick = () => editModule(b.dataset.editModule));
   $$('[data-toggle-module]').forEach(b => b.onclick = () => toggleModule(b.dataset.toggleModule));
@@ -4051,6 +4165,7 @@ async function login() {
   }
 
   updateHeaderAccessUI();
+  if(profile?.must_change_password){ nav('force-password'); return; }
   nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
   if(profile.role==='creator') setTimeout(showGrayxonPushPrompt,900);
 }
@@ -4173,8 +4288,8 @@ async function init() {
       return;
     }
   }
-  const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'].includes(hashPage) ? hashPage : null;
-  const initialPage = session ? (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome) : (requestedPage || 'home');
+  const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','force-password'].includes(hashPage) ? hashPage : null;
+  const initialPage = session ? (profile?.must_change_password ? 'force-password' : (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome)) : (requestedPage || 'home');
   nav(initialPage, false);
   if(session && profile?.role==='creator') setTimeout(showGrayxonPushPrompt,1200);
 }
