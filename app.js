@@ -319,6 +319,7 @@ let navGeneration = 0;
 let session = null;
 let profile = null;
 let adminView = 'dashboard';
+let managerView = 'dashboard';
 let selectedLesson = null;
 let authMode = 'creator';
 let profileDetails = null;
@@ -778,6 +779,7 @@ function nav(p, push = true) {
     p = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
   }
   if (session && p === 'space' && profile?.role === 'manager') p = 'manager';
+  if (p === 'manager') managerView = 'dashboard';
   if (p === 'live-training') ensureLiveTrainingPage();
   // Para creadores, Mi espacio debe volver a pintar inmediatamente el dashboard real.
   // Evita pasar primero por el shell antiguo con estados de carga al volver desde
@@ -884,6 +886,7 @@ async function render(){
   if(current==='missions')await missionsTpl();
   if(current==='profile')$('#profile').innerHTML=await profileTpl();
   bind(); updateHeaderAccessUI(); updateProfileBadge(); updateNotificationsUI(); updateCreatorSpaceFloat(); updateCreatorTopNav();
+  if(session && ['space','manager','admin'].includes(current)) gxRefreshAnnouncementUnreadCount();
   $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===current || (b.dataset.page==='space' && current==='manager')));
 }
 
@@ -2443,37 +2446,20 @@ async function managerTpl(){
   const taskHtml=tasks.length?tasks.map(t=>`<div class="item manager-task-row ${t.completed?'task-done':''}"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><div>${t.completed?'<span class="pill ok">✓ Lista</span>':'<button class="primary small" data-complete-manager-task="'+t.id+'">Marcar como lista</button>'}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">No tienes tareas asignadas.</p></div>';
   const managerUpcomingRes=await sb.from('live_trainings').select('id,title,scheduled_at,status,instructor_name,created_by').eq('status','scheduled').order('scheduled_at',{ascending:true}).limit(10);
   const managerUpcoming=(managerUpcomingRes.data||[]).filter(t=>t.scheduled_at && new Date(t.scheduled_at)>=new Date()).slice(0,3);
-  const managerUpcomingCard=managerUpcoming.length?`<div class="card manager-upcoming-training"><div class="eyebrow">PRÓXIMOS ENTRENAMIENTOS</div><h3 style="margin:6px 0 10px">🎥 Tienes entrenamientos programados</h3><div class="list">${managerUpcoming.map(t=>`<div class="item"><div class="row"><div><b>${esc(t.title)}</b><div class="muted small">${formatDateTime(t.scheduled_at)} · ${esc(t.instructor_name||'Grayxon')}</div></div><span class="pill">Programado</span></div></div>`).join('')}</div></div>`:'';
-  const trainingManagement=await liveTrainingManagementTpl('manager',true);
-  $('#manager').innerHTML=`<div class="manager-page"><div class="manager-hero card"><div><div class="eyebrow">PANEL DE MANAGER</div><h1>Hola, ${esc(me?.name||profile.username)} 👋</h1><p class="muted">Aquí puedes ver tus creadores, asignar misiones y gestionar tus entrenamientos en vivo.</p></div><div class="manager-hero-stat"><strong>${(creators||[]).length}</strong><span>CREADORES</span></div></div><div class="manager-dashboard-grid">${gxAnnouncementDashboardCard()}${managerUpcomingCard}${trainingManagement}<div class="card manager-creators-section"><button type="button" class="manager-creators-toggle" id="toggleMyCreators" aria-expanded="false"><span><strong>Mis creadores</strong><small>Solo aparecen los creadores que actualmente están asignados a ti.</small></span><span class="manager-creators-toggle-meta"><b>${(creators||[]).length}</b><span class="manager-creator-chevron">›</span></span></button><div id="managerCreatorsPanel" class="manager-creators-panel hidden"><div class="manager-creator-search"><span aria-hidden="true">⌕</span><input id="managerCreatorSearch" type="search" placeholder="Buscar por nombre o usuario…" autocomplete="off"></div><div id="managerCreatorNoResults" class="item hidden"><p class="muted small" style="margin:0">No encontramos un creador con esa búsqueda.</p></div><div class="manager-creators-list" id="managerCreatorsList">${creatorRows}</div></div></div><div class="card manager-task-accordion"><button type="button" class="grayxon-manager-accordion-toggle" id="toggleManagerTasks" aria-expanded="false"><span class="grayxon-manager-accordion-toggle-main"><span class="grayxon-manager-accordion-icon">📋</span><span class="grayxon-manager-accordion-copy"><strong>Tareas asignadas</strong><small>Consulta y completa las tareas que te ha asignado la administración.</small></span></span><span class="grayxon-manager-accordion-meta"><b>${tasks.length}</b><span class="grayxon-manager-accordion-chevron">›</span></span></button><div id="managerTasksPanel" class="grayxon-manager-accordion-panel hidden"><div class="manager-tasks-list">${taskHtml}</div></div></div></div></div>`;
-  $('#toggleMyCreators')?.addEventListener('click',()=>{
-    const panel=$('#managerCreatorsPanel');
-    const btn=$('#toggleMyCreators');
-    if(!panel||!btn)return;
-    const open=panel.classList.contains('hidden');
-    panel.classList.toggle('hidden',!open);
-    btn.setAttribute('aria-expanded',open?'true':'false');
-    btn.classList.toggle('is-open',open);
-    if(open) setTimeout(()=>$('#managerCreatorSearch')?.focus(),40);
-  });
-  $('#toggleManagerTraining')?.addEventListener('click',()=>{
-    const panel=$('#managerTrainingPanel');
-    const btn=$('#toggleManagerTraining');
-    if(!panel||!btn)return;
-    const open=panel.classList.contains('hidden');
-    panel.classList.toggle('hidden',!open);
-    btn.setAttribute('aria-expanded',open?'true':'false');
-    btn.classList.toggle('is-open',open);
-  });
-  $('#toggleManagerTasks')?.addEventListener('click',()=>{
-    const panel=$('#managerTasksPanel');
-    const btn=$('#toggleManagerTasks');
-    if(!panel||!btn)return;
-    const open=panel.classList.contains('hidden');
-    panel.classList.toggle('hidden',!open);
-    btn.setAttribute('aria-expanded',open?'true':'false');
-    btn.classList.toggle('is-open',open);
-  });
+  const trainingManagement=await liveTrainingManagementTpl('manager',false);
+  const managerCard=(view,icon,title,desc,meta='›')=>`<button type="button" class="manager-dashboard-card" data-manager-view="${view}"><span class="manager-dashboard-card-icon">${icon}</span><span class="manager-dashboard-card-copy"><strong>${title}</strong><small>${desc}</small></span><span class="manager-dashboard-card-arrow">${meta}</span></button>`;
+  const managerCommsCard=`<button type="button" class="manager-dashboard-card" data-manager-view="announcements"><span class="manager-dashboard-card-icon gx-manager-comms-icon">📣</span><span class="manager-dashboard-card-copy"><strong>Centro de comunicados</strong><small>Novedades, avisos importantes y recursos de tu equipo.</small><span class="gx-ann-unread-badge hidden" data-gx-ann-unread-badge aria-live="polite"><b>0</b> pendientes por leer</span></span><span class="manager-dashboard-card-arrow">›</span></button>`;
+  const dashboardMarkup=`<div class="manager-dashboard-grid">${managerCommsCard}${managerCard('training','🎥','Entrenamientos en vivo',`${managerUpcoming.length} próximos programados · Consulta y gestiona las sesiones.`)}${managerCard('creators','👥','Mis creadores','Consulta y administra los creadores asignados a tu equipo.',(creators||[]).length)}${managerCard('tasks','📋','Tareas asignadas','Consulta y completa las tareas que te asignó la administración.',tasks.length)}</div>`;
+  const pageHeader=(title,desc)=>`<div class="manager-subpage-header"><button type="button" class="secondary" data-manager-back>← Volver a Tu espacio</button><div><div class="eyebrow">PANEL DE MANAGER</div><h2>${title}</h2><p class="muted small">${desc}</p></div></div>`;
+  let managerContent='';
+  if(managerView==='dashboard') managerContent=dashboardMarkup;
+  else if(managerView==='creators') managerContent=`${pageHeader('Mis creadores','Solo aparecen los creadores que actualmente están asignados a ti.')}<section class="card manager-creators-fullpage"><div class="manager-creator-search"><span aria-hidden="true">⌕</span><input id="managerCreatorSearch" type="search" placeholder="Buscar por nombre o usuario…" autocomplete="off"></div><div id="managerCreatorNoResults" class="item hidden"><p class="muted small" style="margin:0">No encontramos un creador con esa búsqueda.</p></div><div class="manager-creators-list" id="managerCreatorsList">${creatorRows}</div></section>`;
+  else if(managerView==='tasks') managerContent=`${pageHeader('Tareas asignadas','Consulta y completa las tareas que te ha asignado la administración.')}<section class="card manager-tasks-fullpage"><div class="manager-tasks-list">${taskHtml}</div></section>`;
+  else if(managerView==='training') managerContent=`${pageHeader('Entrenamientos en vivo','Consulta y gestiona las sesiones LIVE de la agencia.')}<section class="manager-training-fullpage">${trainingManagement}</section>`;
+  else managerContent=dashboardMarkup;
+  $('#manager').innerHTML=`<div class="manager-page"><div class="manager-hero card"><div><div class="eyebrow">PANEL DE MANAGER</div><h1>Hola, ${esc(me?.name||profile.username)} 👋</h1><p class="muted">${managerView==='dashboard'?'Aquí puedes ver tus creadores, asignar misiones y gestionar tus entrenamientos en vivo.':'Gestiona esta sección de tu equipo desde una vista completa.'}</p></div><div class="manager-hero-stat"><strong>${(creators||[]).length}</strong><span>CREADORES</span></div></div>${managerContent}</div>`;
+  $$('[data-manager-view]').forEach(b=>b.onclick=async()=>{if(b.dataset.busy==='1')return;b.dataset.busy='1';const next=b.dataset.managerView;if(next==='announcements'){nav('announcements');return;}managerView=next;await render();window.scrollTo(0,0);});
+  $$('[data-manager-back]').forEach(b=>b.onclick=async()=>{if(b.dataset.busy==='1')return;b.dataset.busy='1';managerView='dashboard';await render();window.scrollTo(0,0);});
   $('#managerCreatorSearch')?.addEventListener('input',e=>{
     const q=(e.target.value||'').trim().toLowerCase();
     let visible=0;
