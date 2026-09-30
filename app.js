@@ -405,7 +405,7 @@ function ensureHeaderNotificationsLayout(){
   style.id='grayxon-header-notifications-layout';
   style.textContent=`
     /* Header: campana a la izquierda del avatar para todos los roles. */
-    body.grayxon-manager-session #adminOpen{display:none!important}
+    .header-actions #adminOpen.grayxon-manager-header-hidden{display:none!important}
     .header-actions .profile-menu-wrap{
       position:relative!important;
       display:flex!important;
@@ -3922,6 +3922,9 @@ function updateHeaderAccessUI(){
   ensureCreatorNotificationMenuAction();
   const btn=$('#adminOpen');
   if(!btn) return;
+  // Ocultar solo el acceso duplicado de Manager en el encabezado.
+  // El acceso al panel se conserva en el menú del perfil (Mi espacio).
+  btn.classList.toggle('grayxon-manager-header-hidden', !!session && profile?.role === 'manager');
   if(!session){
     btn.textContent='Iniciar sesión';
     btn.onclick=()=>nav('auth');
