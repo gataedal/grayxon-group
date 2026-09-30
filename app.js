@@ -773,6 +773,12 @@ function nav(p, push = true) {
   if (!pages.includes(p)) p = 'home';
   if (p === 'force-password' && !session) p = 'auth';
   if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
+  // La portada pública oficial vive en index.html. No mostrar el inicio antiguo del portal
+  // cuando no hay sesión; conservar las rutas de autenticación y los enlaces profundos.
+  if (!session && p === 'home') {
+  window.location.replace('./index.html');
+  return;
+}
   // Una cuenta autenticada nunca vuelve a la portada pública por accidente.
   // Su entrada natural siempre es su espacio/panel correspondiente.
   if (session && p === 'home') {
@@ -4195,7 +4201,19 @@ async function login() {
 }
 
 async function logout() {
-  await sb.auth.signOut(); session = null; profile = null; document.body.classList.remove('grayxon-creator-session'); profileDetails = null; paymentMethod = null; notifications = []; $('#notificationsPanel')?.classList.add('hidden'); updateHeaderAccessUI(); updateProfileBadge(); updateNotificationsUI(); nav('home');
+  await sb.auth.signOut();
+  session = null;
+  profile = null;
+  document.body.classList.remove('grayxon-creator-session');
+  profileDetails = null;
+  paymentMethod = null;
+  notifications = [];
+  $('#notificationsPanel')?.classList.add('hidden');
+  updateHeaderAccessUI();
+  updateProfileBadge();
+  updateNotificationsUI();
+  // Al cerrar sesión, volver a la nueva portada pública oficial.
+  window.location.replace('./index.html');
 }
 
 async function saveHome() {
