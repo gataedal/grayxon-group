@@ -29,4 +29,20 @@ ESTADO
 Los cambios deben verificarse en el entorno publicado antes de considerar completada la corrección. La creación del pull request no significa que los cambios ya estén publicados ni que las pruebas hayan sido superadas.
 
 NOTA
-Las secciones FAQ y testimonios de la portada son estructuras de la maqueta. No deben considerarse funciones conectadas al panel administrativo sin una integración adicional con el backend.
+Las secciones FAQ y testimonios de la portada son estructuras de la maqueta. La configuración guardada en localStorage de la vista previa NO es un panel administrativo conectado al backend; para habilitarlas desde el admin real se requiere integración posterior.
+
+AJUSTE PORTADA ÚNICA — 30-09-2026
+- Al cerrar sesión, se redirige a ./index.html (nueva portada pública).
+- Si portal.html se abre sin sesión y sin una ruta específica, redirige a ./index.html.
+- Las rutas explícitas de autenticación y los enlaces profundos del portal se conservan.
+- Se incrementó el parámetro de caché de app.js a v=101 para que el navegador cargue el ajuste.
+- No se modificaron app.js en lógica de Supabase, notificaciones, LIVE, formación ni permisos, salvo las rutas de inicio/cierre indicadas.
+
+
+PORTADA PÚBLICA ÚNICA — AJUSTE DE COMPATIBILIDAD
+- index.html es la única portada pública oficial.
+- inicio-publico-v12.html ya no muestra una portada duplicada: redirige inmediatamente a index.html para conservar enlaces antiguos sin mostrar la interfaz anterior.
+- En portal.html, una sesión cerrada y sin ruta específica debe volver a index.html.
+- Tras iniciar sesión, el usuario conserva el destino de su rol: creador a Mi espacio, manager a su panel y admin al panel de administración.
+- Cerrar sesión redirige a index.html.
+- No se borran módulos internos del portal ni se cambian funciones de Supabase, notificaciones, LIVE o permisos.

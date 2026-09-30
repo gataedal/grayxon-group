@@ -399,14 +399,77 @@ async function loadNotifications() {
 
 function notificationIcon(type) { return type === 'mission' ? '🎯' : type === 'training' ? '🎥' : type === 'formation' ? '🎓' : type === 'manager_task' ? '📋' : type === 'manager_assignment' ? '👥' : '🔔'; }
 
+function ensureHeaderNotificationsLayout(){
+  if(document.getElementById('grayxon-header-notifications-layout')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-header-notifications-layout';
+  style.textContent=`
+    /* Header: campana independiente, al lado del avatar y nunca superpuesta. */
+    .header-actions #adminOpen.grayxon-manager-header-hidden,
+    body.grayxon-manager-session .header-actions #adminOpen{display:none!important}
+    .header-actions .profile-menu-wrap{
+      position:relative!important;
+      display:flex!important;
+      flex-direction:row!important;
+      align-items:center!important;
+      justify-content:flex-end!important;
+      gap:8px!important;
+      width:auto!important;
+      min-width:0!important;
+      height:40px!important;
+      flex:0 0 auto!important;
+    }
+    .header-actions #mobileProfile{
+      position:relative!important;
+      order:0!important;
+      flex:0 0 40px!important;
+    }
+    .header-actions #notificationsBtn{
+      position:relative!important;
+      order:-1!important;
+      inset:auto!important;
+      left:auto!important;
+      right:auto!important;
+      top:auto!important;
+      bottom:auto!important;
+      width:40px!important;
+      height:40px!important;
+      min-width:40px!important;
+      min-height:40px!important;
+      flex:0 0 40px!important;
+      border:1px solid #333941!important;
+      border-radius:12px!important;
+      background:#111418!important;
+      color:#fff!important;
+      display:grid!important;
+      place-items:center!important;
+      padding:0!important;
+      margin:0!important;
+      box-shadow:none!important;
+      font-size:18px!important;
+      line-height:1!important;
+      transform:none!important;
+    }
+    .header-actions #notificationsBtn.hidden{display:none!important}
+    .header-actions #notificationsPanel{
+      position:absolute!important;
+      right:0!important;
+      left:auto!important;
+      top:calc(100% + 10px)!important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function updateNotificationsUI() {
+  ensureHeaderNotificationsLayout();
   const btn = $('#notificationsBtn');
   const badge = $('#notificationsBadge');
   if (!btn || !badge) return;
   const unread = notifications.filter(n => !n.read_at).length;
   badge.textContent = unread > 9 ? '9+' : String(unread);
   badge.classList.toggle('hidden', unread === 0 || !session);
-  btn.classList.toggle('hidden', !session || unread === 0);
+  btn.classList.toggle('hidden', !session);
   btn.setAttribute('aria-label', session ? `Notificaciones${unread ? `: ${unread} nuevas` : ''}` : 'Iniciar sesión');
   const panel = $('#notificationsPanel');
   if (panel && !panel.classList.contains('hidden')) renderNotificationsPanel();
@@ -773,6 +836,12 @@ function nav(p, push = true) {
   if (!pages.includes(p)) p = 'home';
   if (p === 'force-password' && !session) p = 'auth';
   if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
+  // La portada pública oficial vive en index.html. No mostrar el inicio antiguo del portal
+  // cuando no hay sesión; conservar las rutas de autenticación y los enlaces profundos.
+  if (!session && p === 'home') {
+  window.location.replace('./index.html');
+  return;
+}
   // Una cuenta autenticada nunca vuelve a la portada pública por accidente.
   // Su entrada natural siempre es su espacio/panel correspondiente.
   if (session && p === 'home') {
@@ -3866,8 +3935,13 @@ function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classLi
 function updateHeaderAccessUI(){
   updateCreatorTopNav();
   ensureCreatorNotificationMenuAction();
+  const isManagerSession = !!(session && profile?.role === 'manager');
+  document.body.classList.toggle('grayxon-manager-session', isManagerSession);
   const btn=$('#adminOpen');
   if(!btn) return;
+  // Ocultar el acceso duplicado de Manager en el encabezado.
+  // El rol y los permisos no se modifican; el acceso sigue en el menú del perfil.
+  btn.classList.toggle('grayxon-manager-header-hidden', isManagerSession);
   if(!session){
     btn.textContent='Iniciar sesión';
     btn.onclick=()=>nav('auth');
@@ -4116,7 +4190,6 @@ async function saveProfile(){
 }
 function updateProfileBadge(){
   ensureCreatorNotificationMenuAction();
-  const openMySpace=$('#openMySpace'); if(openMySpace) openMySpace.style.display='none';
   const b=$('#mobileProfile'); if(!b)return;
   if(profileDetails?.avatar_url)b.innerHTML=`<img src="${esc(profileDetails.avatar_url)}" alt="Perfil">`; else b.textContent=profileInitial();
   const name=$('#profileMenuName'); const role=$('#profileMenuRole');
@@ -4177,6 +4250,7 @@ async function login() {
   session = data.session;
   profile = await getProfile();
   document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator');
+  document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager');
   await loadProfileDetails();
   await loadNotifications();
   if (!profile?.active) {
@@ -4195,7 +4269,19 @@ async function login() {
 }
 
 async function logout() {
-  await sb.auth.signOut(); session = null; profile = null; document.body.classList.remove('grayxon-creator-session'); profileDetails = null; paymentMethod = null; notifications = []; $('#notificationsPanel')?.classList.add('hidden'); updateHeaderAccessUI(); updateProfileBadge(); updateNotificationsUI(); nav('home');
+  await sb.auth.signOut();
+  session = null;
+  profile = null;
+  document.body.classList.remove('grayxon-creator-session', 'grayxon-manager-session');
+  profileDetails = null;
+  paymentMethod = null;
+  notifications = [];
+  $('#notificationsPanel')?.classList.add('hidden');
+  updateHeaderAccessUI();
+  updateProfileBadge();
+  updateNotificationsUI();
+  // Al cerrar sesión, volver a la nueva portada pública oficial.
+  window.location.replace('./index.html');
 }
 
 async function saveHome() {
@@ -4258,8 +4344,6 @@ async function init() {
   const openMyProfile = $('#openMyProfile');
   const openMySpace = $('#openMySpace');
   const menuLogout = $('#menuLogout');
-  // El menú de avatar queda reducido a Mi perfil + Cerrar sesión.
-  if(openMySpace) openMySpace.style.display='none';
 
   if (notificationsBtn) notificationsBtn.addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -4290,7 +4374,7 @@ async function init() {
 
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); await loadProfileDetails(); await loadNotifications(); }
+  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager'); await loadProfileDetails(); await loadNotifications(); }
   else updateNotificationsUI();
   updateHeaderAccessUI();
 
