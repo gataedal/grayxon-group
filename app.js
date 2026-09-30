@@ -1734,6 +1734,26 @@ async function refreshLiveTrainingCard(){
   }
 }
 
+async function refreshManagerLiveDashboardCard(){
+  if(profile?.role!=='manager' || managerView!=='dashboard') return;
+  const status=document.querySelector('#manager [data-manager-live-status]');
+  if(!status) return;
+  try{
+    const live=await fetchActiveLiveTraining();
+    if(live){
+      status.textContent=`🔴 EN VIVO: ${live.title||'Entrenamiento activo'} · Entra para unirte.`;
+      status.dataset.liveTrainingId=live.id;
+      status.closest('[data-manager-view="training"]')?.classList.add('manager-live-training-active');
+    }else{
+      status.textContent=status.dataset.defaultText||'Consulta y gestiona las sesiones LIVE de la agencia.';
+      delete status.dataset.liveTrainingId;
+      status.closest('[data-manager-view="training"]')?.classList.remove('manager-live-training-active');
+    }
+  }catch(e){
+    console.warn('No se pudo actualizar el LIVE del dashboard manager:',e?.message||e);
+  }
+}
+
 function stopCreatorLiveDashboardWatcher(){
   creatorLiveDashboardWatcherToken++;
   if(creatorLiveDashboardWatcher){clearInterval(creatorLiveDashboardWatcher);creatorLiveDashboardWatcher=null;}
@@ -2516,7 +2536,7 @@ async function managerTpl(){
   const managerUpcomingRes=await sb.from('live_trainings').select('id,title,scheduled_at,status,instructor_name,created_by').eq('status','scheduled').order('scheduled_at',{ascending:true}).limit(10);
   const managerUpcoming=(managerUpcomingRes.data||[]).filter(t=>t.scheduled_at && new Date(t.scheduled_at)>=new Date()).slice(0,3);
   const trainingManagement=await liveTrainingManagementTpl('manager',false);
-  const managerCard=(view,icon,title,desc,meta='›')=>`<button type="button" class="manager-dashboard-card" data-manager-view="${view}"><span class="manager-dashboard-card-icon">${icon}</span><span class="manager-dashboard-card-copy"><strong>${title}</strong><small>${desc}</small></span><span class="manager-dashboard-card-arrow">${meta}</span></button>`;
+  const managerCard=(view,icon,title,desc,meta='›')=>`<button type="button" class="manager-dashboard-card" data-manager-view="${view}"><span class="manager-dashboard-card-icon">${icon}</span><span class="manager-dashboard-card-copy"><strong>${title}</strong><small ${view==='training'?`data-manager-live-status data-default-text="${esc(desc)}"`:''}>${desc}</small></span><span class="manager-dashboard-card-arrow">${meta}</span></button>`;
   const managerCommsCard=`<button type="button" class="manager-dashboard-card" data-manager-view="announcements"><span class="manager-dashboard-card-icon gx-manager-comms-icon">📣</span><span class="manager-dashboard-card-copy"><strong>Centro de comunicados</strong><small>Novedades, avisos importantes y recursos de tu equipo.</small><span class="gx-ann-unread-badge hidden" data-gx-ann-unread-badge aria-live="polite"><b>0</b> pendientes por leer</span></span><span class="manager-dashboard-card-arrow">›</span></button>`;
   const dashboardMarkup=`<div class="manager-dashboard-grid">${managerCommsCard}${managerCard('training','🎥','Entrenamientos en vivo',`${managerUpcoming.length} próximos programados · Consulta y gestiona las sesiones.`)}${managerCard('creators','👥','Mis creadores','Consulta y administra los creadores asignados a tu equipo.',(creators||[]).length)}${managerCard('tasks','📋','Tareas asignadas','Consulta y completa las tareas que te asignó la administración.',tasks.length)}</div>`;
   const pageHeader=(title,desc)=>`<div class="manager-subpage-header"><button type="button" class="secondary" data-manager-back>← Volver a Tu espacio</button><div><div class="eyebrow">PANEL DE MANAGER</div><h2>${title}</h2><p class="muted small">${desc}</p></div></div>`;
@@ -2540,6 +2560,7 @@ async function managerTpl(){
     $('#managerCreatorNoResults')?.classList.toggle('hidden',visible!==0);
   });
   bind();
+  if(managerView==='dashboard') refreshManagerLiveDashboardCard();
 }
 
 async function managerCreatorModal(id){
@@ -2912,7 +2933,11 @@ async function notifyLiveTrainingAudience(training){
     diag.push(`2. Filas de audiencia: ${rows.length}`);
     diag.push(rows.length ? `   Tipos: ${rows.map(a=>a.target_type).join(', ')}` : '   ⚠️ Sin filas de audiencia');
 
+    // Los destinatarios se resuelven según el tipo de audiencia seleccionado.
+    // Una audiencia "manager" notifica a la cuenta de ese manager, no a sus creadores.
     const creatorIds=new Set();
+    const managerUserIds=new Set();
+
     if(rows.some(a=>a.target_type==='all_creators')){
       const {data:creators,error}=await sb.from('profiles').select('id,username').eq('role','creator').eq('active',true);
       if(error){
@@ -2924,6 +2949,7 @@ async function notifyLiveTrainingAudience(training){
       diag.push(`3. Creadores activos encontrados: ${creators?.length||0}`);
       if(creators?.length) diag.push(`   Usuarios: ${creators.slice(0,8).map(c=>c.username||c.id).join(', ')}`);
     }
+
     const teamIds=rows.filter(a=>a.target_type==='team'&&a.target_id).map(a=>a.target_id);
     if(teamIds.length){
       const {data:creators,error}=await sb.from('profiles').select('id,username').eq('role','creator').eq('active',true).in('team_id',teamIds);
@@ -2934,30 +2960,39 @@ async function notifyLiveTrainingAudience(training){
         diag.push(`3. Creadores por equipo: ${creators?.length||0}`);
       }
     }
+
     const directIds=rows.filter(a=>a.target_type==='creator'&&a.target_id).map(a=>a.target_id);
     directIds.forEach(id=>creatorIds.add(id));
     if(directIds.length) diag.push(`3. Creadores directos: ${directIds.length}`);
 
-    const managerIds=rows.filter(a=>a.target_type==='manager'&&a.target_id).map(a=>a.target_id);
-    if(managerIds.length){
-      const {data:creators,error}=await sb.from('profiles').select('id,username').eq('role','creator').eq('active',true).in('manager_id',managerIds);
+    const selectedManagerIds=rows.filter(a=>a.target_type==='manager'&&a.target_id).map(a=>a.target_id);
+    const allManagers=rows.some(a=>a.target_type==='all_managers');
+    if(selectedManagerIds.length || allManagers){
+      let managerQuery=sb.from('managers').select('id,user_id,name,active').eq('active',true);
+      if(selectedManagerIds.length && !allManagers) managerQuery=managerQuery.in('id',selectedManagerIds);
+      const {data:managers,error}=await managerQuery;
       if(error){
-        diag.push(`3. Buscar creadores por manager: ERROR · ${error.message}`);
-      } else {
-        (creators||[]).forEach(c=>creatorIds.add(c.id));
-        diag.push(`3. Creadores por manager: ${creators?.length||0}`);
+        diag.push(`3. Buscar cuentas manager: ERROR · ${error.message}`);
+        showLiveNotificationDiagnostic('Falló la búsqueda de managers', diag);
+        return {ok:false,stage:'managers',error:error.message};
+      }
+      (managers||[]).filter(m=>m.user_id).forEach(m=>managerUserIds.add(m.user_id));
+      diag.push(`3. Managers destinatarios encontrados: ${managerUserIds.size}`);
+      if(managers?.length && !allManagers){
+        diag.push(`   Selección: ${(managers||[]).map(m=>m.name||m.id).join(', ')}`);
       }
     }
 
-    if(!creatorIds.size){
-      diag.push('4. Notificaciones: NO SE EJECUTARON · 0 creadores destinatarios');
+    const recipientIds=new Set([...creatorIds,...managerUserIds]);
+    if(!recipientIds.size){
+      diag.push('4. Notificaciones: NO SE EJECUTARON · 0 destinatarios para la audiencia seleccionada');
       showLiveNotificationDiagnostic('LIVE iniciado, pero no hay destinatarios', diag);
-      return {ok:false,stage:'recipients',error:'0 creadores destinatarios'};
+      return {ok:false,stage:'recipients',error:'0 destinatarios'};
     }
 
     const message=`El entrenamiento “${training.title||'Grayxon'}” ya está EN VIVO. Entra ahora desde Grayxon.`;
-    diag.push(`4. Intentando crear ${creatorIds.size} notificación(es)...`);
-    const results=await Promise.all([...creatorIds].map(uid=>notifyLiveTrainingCreator(uid,'🔴 Entrenamiento EN VIVO',message,training.id)));
+    diag.push(`4. Intentando crear ${recipientIds.size} notificación(es)...`);
+    const results=await Promise.all([...recipientIds].map(uid=>notifyLiveTrainingCreator(uid,'🔴 Entrenamiento EN VIVO',message,training.id)));
     const failed=results.filter(r=>!r?.ok);
     const okCount=results.filter(r=>r?.ok).length;
     diag.push(`5. Resultado: ${okCount}/${results.length} creada(s)`);
@@ -2977,7 +3012,6 @@ async function notifyLiveTrainingAudience(training){
     return {ok:false,stage:'exception',error:e?.message||String(e)};
   }
 }
-
 async function deleteLiveTraining(id){
   if(profile?.role!=='admin'){toast('Solo un administrador puede eliminar el historial de entrenamientos.');return;}
   if(!confirm('¿Eliminar este entrenamiento del historial? Esta acción no se puede deshacer.'))return;
@@ -4701,7 +4735,7 @@ try{ sessionStorage.removeItem('grayxon_live_diag'); }catch(_){}
 init();
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(profile?.role==='creator') { registerGrayxonPush({requestPermission:false}).catch(()=>{}); setTimeout(()=>showGrayxonPushPrompt(),500); } } });
-setInterval(() => { if (!document.hidden && session) loadNotifications(); }, 5000);
+setInterval(() => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='manager' && managerView==='dashboard') refreshManagerLiveDashboardCard(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); } }, 5000);
 
 window.addEventListener('popstate', () => {
   const hashPage = window.location.hash.replace(/^#/, '');
