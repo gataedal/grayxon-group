@@ -399,14 +399,62 @@ async function loadNotifications() {
 
 function notificationIcon(type) { return type === 'mission' ? '🎯' : type === 'training' ? '🎥' : type === 'formation' ? '🎓' : type === 'manager_task' ? '📋' : type === 'manager_assignment' ? '👥' : '🔔'; }
 
+function ensureHeaderNotificationsLayout(){
+  if(document.getElementById('grayxon-header-notifications-layout')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-header-notifications-layout';
+  style.textContent=`
+    /* Header: campana a la izquierda del avatar para todos los roles. */
+    #adminOpen{display:none!important}
+    .header-actions .profile-menu-wrap{
+      position:relative!important;
+      display:flex!important;
+      align-items:center!important;
+      gap:8px!important;
+      width:auto!important;
+      height:40px!important;
+      flex:0 0 auto!important;
+    }
+    .header-actions #notificationsBtn{
+      position:relative!important;
+      order:-1!important;
+      left:auto!important;
+      right:auto!important;
+      top:auto!important;
+      bottom:auto!important;
+      width:40px!important;
+      height:40px!important;
+      min-width:40px!important;
+      min-height:40px!important;
+      border:1px solid #333941!important;
+      border-radius:12px!important;
+      background:#111418!important;
+      color:#fff!important;
+      display:grid!important;
+      place-items:center!important;
+      padding:0!important;
+      box-shadow:none!important;
+      font-size:18px!important;
+      line-height:1!important;
+    }
+    .header-actions #notificationsBtn.hidden{display:none!important}
+    .header-actions #notificationsPanel{
+      right:0!important;
+      top:calc(100% + 10px)!important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function updateNotificationsUI() {
+  ensureHeaderNotificationsLayout();
   const btn = $('#notificationsBtn');
   const badge = $('#notificationsBadge');
   if (!btn || !badge) return;
   const unread = notifications.filter(n => !n.read_at).length;
   badge.textContent = unread > 9 ? '9+' : String(unread);
   badge.classList.toggle('hidden', unread === 0 || !session);
-  btn.classList.toggle('hidden', !session || unread === 0);
+  btn.classList.toggle('hidden', !session);
   btn.setAttribute('aria-label', session ? `Notificaciones${unread ? `: ${unread} nuevas` : ''}` : 'Iniciar sesión');
   const panel = $('#notificationsPanel');
   if (panel && !panel.classList.contains('hidden')) renderNotificationsPanel();
