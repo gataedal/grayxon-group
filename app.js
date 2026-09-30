@@ -4170,7 +4170,6 @@ async function saveProfile(){
 }
 function updateProfileBadge(){
   ensureCreatorNotificationMenuAction();
-  const openMySpace=$('#openMySpace'); if(openMySpace) openMySpace.style.display='none';
   const b=$('#mobileProfile'); if(!b)return;
   if(profileDetails?.avatar_url)b.innerHTML=`<img src="${esc(profileDetails.avatar_url)}" alt="Perfil">`; else b.textContent=profileInitial();
   const name=$('#profileMenuName'); const role=$('#profileMenuRole');
@@ -4231,6 +4230,7 @@ async function login() {
   session = data.session;
   profile = await getProfile();
   document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator');
+  document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager');
   await loadProfileDetails();
   await loadNotifications();
   if (!profile?.active) {
@@ -4252,7 +4252,7 @@ async function logout() {
   await sb.auth.signOut();
   session = null;
   profile = null;
-  document.body.classList.remove('grayxon-creator-session');
+  document.body.classList.remove('grayxon-creator-session', 'grayxon-manager-session');
   profileDetails = null;
   paymentMethod = null;
   notifications = [];
@@ -4324,8 +4324,6 @@ async function init() {
   const openMyProfile = $('#openMyProfile');
   const openMySpace = $('#openMySpace');
   const menuLogout = $('#menuLogout');
-  // El menú de avatar queda reducido a Mi perfil + Cerrar sesión.
-  if(openMySpace) openMySpace.style.display='none';
 
   if (notificationsBtn) notificationsBtn.addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -4356,7 +4354,7 @@ async function init() {
 
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); await loadProfileDetails(); await loadNotifications(); }
+  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager'); await loadProfileDetails(); await loadNotifications(); }
   else updateNotificationsUI();
   updateHeaderAccessUI();
 
