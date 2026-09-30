@@ -776,9 +776,9 @@ function nav(p, push = true) {
   // La portada pública oficial vive en index.html. No mostrar el inicio antiguo del portal
   // cuando no hay sesión; conservar las rutas de autenticación y los enlaces profundos.
   if (!session && p === 'home') {
-    window.location.replace('./index.html');
-    return;
-  }
+  window.location.replace('./index.html');
+  return;
+}
   // Una cuenta autenticada nunca vuelve a la portada pública por accidente.
   // Su entrada natural siempre es su espacio/panel correspondiente.
   if (session && p === 'home') {
