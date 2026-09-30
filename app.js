@@ -3924,7 +3924,7 @@ function updateHeaderAccessUI(){
   if(!btn) return;
   // Ocultar solo el acceso duplicado de Manager en el encabezado.
   // El acceso al panel se conserva en el menú del perfil (Mi espacio).
-  btn.classList.toggle('grayxon-manager-header-hidden', !!session && profile?.role === 'manager');
+  btn.classList.toggle('grayxon-manager-header-hidden', session && profile?.role === 'manager');
   if(!session){
     btn.textContent='Iniciar sesión';
     btn.onclick=()=>nav('auth');
