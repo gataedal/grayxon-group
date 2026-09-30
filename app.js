@@ -1,4 +1,4 @@
-// GRAYXON BUILD V33.7
+// GRAYXON BUILD V33.8 LIVE NOTIFICATION ATOMIC FIX
 const CFG = window.GRAYXON_CONFIG || {};
 // Auth uses a syntactically valid internal domain. Users still log in only with
 // their Grayxon username; this address is never shown in the portal UI.
@@ -371,8 +371,19 @@ function toast(t) {
   setTimeout(() => $('#toast').classList.add('hidden'), 2400);
 }
 
-// LIVE notification diagnostics are intentionally silent in production.
-function showLiveNotificationDiagnostic() {}
+// LIVE diagnostics: concise toast for the user and full details in DevTools.
+function showLiveNotificationDiagnostic(title, lines = [], persist = true) {
+  try {
+    if (Array.isArray(lines) && lines.length) {
+      console.groupCollapsed(`[GRAYXON LIVE] ${title || 'Diagnóstico'}`);
+      lines.forEach(line => console.log(line));
+      console.groupEnd();
+    }
+    if (persist !== false && title) toast(title);
+  } catch (e) {
+    console.warn('[GRAYXON LIVE] No se pudo mostrar el diagnóstico:', e);
+  }
+}
 
 function errorText(error, fallbackText = 'Ocurrió un error.') {
   return error?.message || fallbackText;
@@ -522,10 +533,12 @@ async function openNotification(id) {
     if (target.startsWith('#')) { window.location.hash = target.slice(1); return; }
     if (/^(https?:|mailto:|tel:)/i.test(target)) { window.location.href = target; return; }
     const page = target.replace(/^\//, '').split(/[?#]/)[0].toLowerCase();
-    // LIVE: si la notificación guarda el UUID del entrenamiento, abrimos exactamente ese LIVE.
-    if(profile?.role==='creator' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(page)){
+    // LIVE: todos los roles autorizados pueden abrir el UUID exacto de la notificación.
+    if(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(page)){
       const {data:targetLive}=await sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').eq('id',page).eq('status','live').maybeSingle();
       if(targetLive){ currentLiveTraining=targetLive; pendingLiveTrainingAutoStart={id:targetLive.id}; window.location.hash=`live-training/${targetLive.id}`; nav('live-training', false); return; }
+      toast('Este LIVE ya no está disponible o no tienes acceso.');
+      return;
     }
     const targetMap = {
       dashboard:'space', space:'space', 'mi-espacio':'space',
@@ -585,67 +598,23 @@ async function notifyCreator(userId, title, message, linkPage='space', weekStart
 }
 
 async function notifyLiveTrainingCreator(userId, title, message, trainingId=null) {
-  if (!userId) return {ok:false,error:'Falta el ID del creador.'};
-  const linkPage='live-training';
-  const payload = {
-    user_id:userId,
-    type:'training',
-    title,
-    message,
-    link_page:linkPage,
-    link_target:trainingId ? String(trainingId) : linkPage,
-    related_week_start:null,
-    related_week_end:null
-  };
+  if (!userId) return {ok:false,error:'Falta el ID del destinatario.'};
+  if (!trainingId) return {ok:false,error:'Falta el ID del LIVE para crear una notificación con destino seguro.'};
 
-  // LIVE tiene su propio tipo de notificación; no reutilizamos el tipo mission.
-  const rpc = await sb.rpc('create_notification', {
+  // La función SQL valida rol, propiedad, estado LIVE y pertenencia del destinatario
+  // a la audiencia; inserta link_target en la misma operación que dispara el push.
+  const {data,error}=await sb.rpc('create_live_training_notification',{
     p_user_id:userId,
-    p_type:'training',
     p_title:title,
     p_message:message,
-    p_link_page:linkPage,
-    p_week_start:null,
-    p_week_end:null
+    p_training_id:trainingId
   });
-  if (!rpc.error) {
-    // create_notification no recibe link_target; lo fijamos después con el UUID devuelto.
-    if(trainingId && rpc.data){
-      const {error:updateTargetError}=await sb.from('notifications').update({link_target:String(trainingId)}).eq('id',rpc.data).eq('user_id',userId);
-      if(updateTargetError) console.warn('No se pudo guardar el LIVE objetivo de la notificación:', updateTargetError.message);
-    }
-    return {ok:true};
+  if(error){
+    const detail=error.message||error.code||'No se pudo crear la notificación del LIVE.';
+    console.warn('No se pudo crear la notificación del LIVE:',{userId,trainingId,error});
+    return {ok:false,error:detail};
   }
-
-  // Compatibilidad: algunas instalaciones antiguas solo contemplan los tipos
-  // existentes en la migración original. En ese caso usamos formation, pero
-  // mantenemos link_target=live-training para que abra el LIVE.
-  const fallbackPayload={...payload,type:'formation'};
-  const rpcFallback=await sb.rpc('create_notification', {
-    p_user_id:userId,
-    p_type:'formation',
-    p_title:title,
-    p_message:message,
-    p_link_page:linkPage,
-    p_week_start:null,
-    p_week_end:null
-  });
-  if(!rpcFallback.error)return {ok:true};
-
-  // Último respaldo para un admin/usuario con permiso de INSERT.
-  const direct=await sb.from('notifications').insert(payload);
-  if(!direct.error)return {ok:true};
-  const directFallback=await sb.from('notifications').insert(fallbackPayload);
-  if(!directFallback.error)return {ok:true};
-
-  const detail=[
-    `RPC training: ${rpc.error?.message||rpc.error?.code||'error'}`,
-    `RPC formation: ${rpcFallback.error?.message||rpcFallback.error?.code||'error'}`,
-    `INSERT training: ${direct.error?.message||direct.error?.code||'error'}`,
-    `INSERT formation: ${directFallback.error?.message||directFallback.error?.code||'error'}`
-  ].join(' · ');
-  console.warn('No se pudo crear la notificación del LIVE:', {userId,detail});
-  return {ok:false,error:detail};
+  return {ok:true,id:data};
 }
 
 async function notifyMissionWeek(creatorId, start, end, count) {
@@ -2861,20 +2830,35 @@ async function createLiveTrainingModal(){
         if(!rows.length)throw new Error('Selecciona al menos un equipo, manager o creador para este entrenamiento.');
         const {error:ae}=await sb.from('live_training_audience').insert(rows);if(ae){await sb.from('live_trainings').delete().eq('id',created.id);throw ae;}
       } else if(profile?.role==='manager'){
-        // Los entrenamientos creados por un manager deben quedar dirigidos
-        // explícitamente a los creadores de su(s) equipo(s). Antes faltaba
-        // esta fila de audiencia y por eso Mi espacio podía no detectar el LIVE.
-        const {data:me}=await sb.from('managers').select('id').eq('user_id',session.user.id).eq('active',true).maybeSingle();
-        const {data:teams}=me ? await sb.from('teams').select('id').eq('manager_id',me.id) : {data:[]};
-        const rows=(teams||[]).map(t=>({training_id:created.id,target_type:'team',target_id:t.id}));
-        if(!rows.length)throw new Error('Tu manager no tiene un equipo asignado para este entrenamiento.');
-        const {error:ae}=await sb.from('live_training_audience').insert(rows);if(ae){await sb.from('live_trainings').delete().eq('id',created.id);throw ae;}
+        // El trigger SQL asigna la audiencia del manager. No insertamos
+        // directamente en live_training_audience porque RLS lo reserva al admin.
+        const {data:managerAudience,error:audienceError}=await ensureManagerTrainingAudience(created.id);
+        if(audienceError){
+          await sb.from('live_trainings').delete().eq('id',created.id);
+          throw audienceError;
+        }
+        if(!managerAudience?.length){
+          await sb.from('live_trainings').delete().eq('id',created.id);
+          throw new Error('No se pudo asignar automáticamente la audiencia de tu equipo.');
+        }
       }
       close();toast('Entrenamiento creado ✓');render();
     }catch(e){
       $('#ltErr').textContent=e?.message||'No se pudo crear el entrenamiento.';btn.disabled=false;
     }
   };
+}
+
+async function ensureManagerTrainingAudience(trainingId){
+  if(!trainingId) return {data:[],error:new Error('Falta el ID del entrenamiento.')};
+  // SECURITY DEFINER valida en servidor que sea un admin o el manager propietario.
+  const {error:ensureError}=await sb.rpc('ensure_manager_live_training_audience',{p_training_id:trainingId});
+  if(ensureError) return {data:[],error:ensureError};
+  const {data,error}=await sb.from('live_training_audience')
+    .select('id,target_type,target_id').eq('training_id',trainingId);
+  if(error) return {data:[],error};
+  if(!(data||[]).length) return {data:[],error:new Error('El entrenamiento no tiene audiencia asignada.')};
+  return {data,error:null};
 }
 
 async function ensureLiveTrainingAudience(training){
@@ -2895,14 +2879,8 @@ async function ensureLiveTrainingAudience(training){
     // Historical admin default: all creators.
     rows=[{training_id:training.id,target_type:'all_creators',target_id:null}];
   }else if(owner?.role==='manager'){
-    const {data:manager,error:managerError}=await sb.from('managers')
-      .select('id').eq('user_id',training.created_by).eq('active',true).maybeSingle();
-    if(managerError) return {data:[], error:managerError};
-    const {data:teams,error:teamsError}=manager
-      ? await sb.from('teams').select('id').eq('manager_id',manager.id)
-      : {data:[],error:null};
-    if(teamsError) return {data:[], error:teamsError};
-    rows=(teams||[]).map(t=>({training_id:training.id,target_type:'team',target_id:t.id}));
+    // La reparación del manager debe pasar por la función SQL autorizada.
+    return await ensureManagerTrainingAudience(training.id);
   }
 
   if(!rows.length) return {data:[], error:new Error('Este entrenamiento no tiene una audiencia válida configurada.')};
@@ -4415,7 +4393,7 @@ async function init() {
   const hashPage = window.location.hash.replace(/^#/, '');
   const roleHome = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
   const deepLiveMatch = hashPage.match(/^live-training\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
-  if (session && profile?.role === 'creator' && deepLiveMatch) {
+  if (session && deepLiveMatch) {
     const liveId = deepLiveMatch[1];
     const { data: targetLive } = await sb.from('live_trainings')
       .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
@@ -4753,7 +4731,7 @@ async function handleGrayxonDeepLinkUrl(urlValue) {
     const parsed = new URL(String(urlValue || ''), window.location.href);
     const page = parsed.hash.replace(/^#/, '') || 'home';
     const deepLiveMatch = page.match(/^live-training\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
-    if (!(session && profile?.role === 'creator' && deepLiveMatch)) return false;
+    if (!(session && deepLiveMatch)) return false;
 
     const liveId = deepLiveMatch[1];
     const { data: targetLive } = await sb.from('live_trainings')
@@ -4762,7 +4740,10 @@ async function handleGrayxonDeepLinkUrl(urlValue) {
       .eq('status', 'live')
       .maybeSingle();
 
-    if (!targetLive) return false;
+    if (!targetLive) {
+      toast('Este LIVE ya no está disponible o no tienes acceso.');
+      return false;
+    }
     currentLiveTraining = targetLive;
     pendingLiveTrainingAutoStart = { id: targetLive.id };
     if (window.location.hash !== `#live-training/${targetLive.id}`) {
