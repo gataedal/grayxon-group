@@ -1,19 +1,31 @@
 {
-  "name": "Grayxon Academy",
+  "name": "Grayxon Group",
   "short_name": "Grayxon",
   "description": "Portal oficial de Grayxon Group.",
-  "start_url": "./",
+  "start_url": "./portal.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0b0d10",
-  "theme_color": "#0b0d10",
-  "orientation": "portrait-primary",
+  "background_color": "#050609",
+  "theme_color": "#050609",
+  "orientation": "any",
   "icons": [
     {
-      "src": "./assets/grayxon-logo.png",
+      "src": "./assets/grayxon-app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/grayxon-app-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/grayxon-app-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
