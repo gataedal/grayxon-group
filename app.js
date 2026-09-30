@@ -405,7 +405,7 @@ function ensureHeaderNotificationsLayout(){
   style.id='grayxon-header-notifications-layout';
   style.textContent=`
     /* Header: campana a la izquierda del avatar para todos los roles. */
-    #adminOpen{display:none!important}
+    body.grayxon-manager-session #adminOpen{display:none!important}
     .header-actions .profile-menu-wrap{
       position:relative!important;
       display:flex!important;
