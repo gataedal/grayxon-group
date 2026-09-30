@@ -404,20 +404,30 @@ function ensureHeaderNotificationsLayout(){
   const style=document.createElement('style');
   style.id='grayxon-header-notifications-layout';
   style.textContent=`
-    /* Header: campana a la izquierda del avatar para todos los roles. */
-    .header-actions #adminOpen.grayxon-manager-header-hidden{display:none!important}
+    /* Header: campana independiente, al lado del avatar y nunca superpuesta. */
+    .header-actions #adminOpen.grayxon-manager-header-hidden,
+    body.grayxon-manager-session .header-actions #adminOpen{display:none!important}
     .header-actions .profile-menu-wrap{
       position:relative!important;
       display:flex!important;
+      flex-direction:row!important;
       align-items:center!important;
+      justify-content:flex-end!important;
       gap:8px!important;
       width:auto!important;
+      min-width:0!important;
       height:40px!important;
       flex:0 0 auto!important;
+    }
+    .header-actions #mobileProfile{
+      position:relative!important;
+      order:0!important;
+      flex:0 0 40px!important;
     }
     .header-actions #notificationsBtn{
       position:relative!important;
       order:-1!important;
+      inset:auto!important;
       left:auto!important;
       right:auto!important;
       top:auto!important;
@@ -426,6 +436,7 @@ function ensureHeaderNotificationsLayout(){
       height:40px!important;
       min-width:40px!important;
       min-height:40px!important;
+      flex:0 0 40px!important;
       border:1px solid #333941!important;
       border-radius:12px!important;
       background:#111418!important;
@@ -433,13 +444,17 @@ function ensureHeaderNotificationsLayout(){
       display:grid!important;
       place-items:center!important;
       padding:0!important;
+      margin:0!important;
       box-shadow:none!important;
       font-size:18px!important;
       line-height:1!important;
+      transform:none!important;
     }
     .header-actions #notificationsBtn.hidden{display:none!important}
     .header-actions #notificationsPanel{
+      position:absolute!important;
       right:0!important;
+      left:auto!important;
       top:calc(100% + 10px)!important;
     }
   `;
@@ -3920,11 +3935,13 @@ function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classLi
 function updateHeaderAccessUI(){
   updateCreatorTopNav();
   ensureCreatorNotificationMenuAction();
+  const isManagerSession = !!(session && profile?.role === 'manager');
+  document.body.classList.toggle('grayxon-manager-session', isManagerSession);
   const btn=$('#adminOpen');
   if(!btn) return;
-  // Ocultar solo el acceso duplicado de Manager en el encabezado.
-  // El acceso al panel se conserva en el menú del perfil (Mi espacio).
-  btn.classList.toggle('grayxon-manager-header-hidden', session && profile?.role === 'manager');
+  // Ocultar el acceso duplicado de Manager en el encabezado.
+  // El rol y los permisos no se modifican; el acceso sigue en el menú del perfil.
+  btn.classList.toggle('grayxon-manager-header-hidden', isManagerSession);
   if(!session){
     btn.textContent='Iniciar sesión';
     btn.onclick=()=>nav('auth');
