@@ -83,7 +83,11 @@ function refreshGrayxonPwaPreferenceUI(){
 }
 
 async function showGrayxonPushPrompt(){
-  if(!session?.user?.id || profile?.role!=='creator' || !isGrayxonStandalone()) return;
+  if(!session?.user?.id || !['admin','manager','creator'].includes(profile?.role)) return;
+  if(!window.isSecureContext || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+  if(Notification.permission === 'denied') return;
+  const dismissedKey = `grayxon_push_prompt_dismissed_${session.user.id}`;
+  try { if (sessionStorage.getItem(dismissedKey) === '1') return; } catch (_) {}
   if(document.getElementById('grayxonPushPrompt')) return;
 
   // If this installation already has a valid subscription, silently repair the
@@ -94,8 +98,8 @@ async function showGrayxonPushPrompt(){
       const existing=await registration?.pushManager?.getSubscription();
       if(existing){
         if('Notification' in window && Notification.permission==='granted'){
-          await registerGrayxonPush({requestPermission:false});
-          return;
+          const repaired = await registerGrayxonPush({requestPermission:false});
+          if(repaired) return;
         }
       }
     }
@@ -116,7 +120,10 @@ async function showGrayxonPushPrompt(){
     </div>
   </div>`;
   document.body.appendChild(wrap);
-  $('#closeGrayxonPushPrompt')?.addEventListener('click',()=>wrap.remove());
+  $('#closeGrayxonPushPrompt')?.addEventListener('click',()=>{
+    try { sessionStorage.setItem(dismissedKey,'1'); } catch (_) {}
+    wrap.remove();
+  });
   $('#activateGrayxonPushPrompt')?.addEventListener('click',async()=>{
     const btn=$('#activateGrayxonPushPrompt'); if(btn) btn.disabled=true;
     const subscription=await registerGrayxonPush({requestPermission:true});
@@ -528,13 +535,15 @@ async function openNotification(id) {
   if (!n) return;
   await markNotificationRead(id);
   $('#notificationsPanel')?.classList.add('hidden');
+  // An announcement ID is not a LIVE ID: honor its explicit destination first.
+  if (n.link_page === 'announcements') { nav('announcements'); return; }
   if (n.link_target) {
     const target = String(n.link_target);
     if (target.startsWith('#')) { window.location.hash = target.slice(1); return; }
     if (/^(https?:|mailto:|tel:)/i.test(target)) { window.location.href = target; return; }
     const page = target.replace(/^\//, '').split(/[?#]/)[0].toLowerCase();
     // LIVE: todos los roles autorizados pueden abrir el UUID exacto de la notificación.
-    if(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(page)){
+    if(n.link_page === 'live-training' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(page)){
       const {data:targetLive}=await sb.from('live_trainings').select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at').eq('id',page).eq('status','live').maybeSingle();
       if(targetLive){ currentLiveTraining=targetLive; pendingLiveTrainingAutoStart={id:targetLive.id}; window.location.hash=`live-training/${targetLive.id}`; nav('live-training', false); return; }
       toast('Este LIVE ya no está disponible o no tienes acceso.');
@@ -558,8 +567,7 @@ async function openNotification(id) {
   if (n.link_page === 'missions') {
     pendingNotificationTarget = { type:'missions', weekStart:n.related_week_start || null, weekEnd:n.related_week_end || null };
     nav('missions');
-  } else if (n.link_page === 'announcements') nav('announcements');
-  else if (n.link_page === 'training') nav('training');
+  } else if (n.link_page === 'training') nav('training');
   else if (n.link_page === 'live-training') {
     if(profile?.role==='creator'){
       const live=await fetchCreatorLiveTrainingFast();
@@ -4277,7 +4285,7 @@ async function login() {
   updateHeaderAccessUI();
   if(profile?.must_change_password){ nav('force-password'); return; }
   nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
-  if(profile.role==='creator') setTimeout(showGrayxonPushPrompt,900);
+  if(['admin','manager','creator'].includes(profile?.role)) setTimeout(showGrayxonPushPrompt,900);
 }
 
 async function logout() {
@@ -4390,6 +4398,20 @@ async function init() {
   else updateNotificationsUI();
   updateHeaderAccessUI();
 
+  // The push service sends page/target in the query string. Restore the intended
+  // route before normal hash routing, without changing ordinary non-push URLs.
+  const pushParams = new URLSearchParams(window.location.search);
+  if (pushParams.get('grayxonPush') === '1') {
+    const pushPage = pushParams.get('page');
+    const pushTarget = pushParams.get('target');
+    const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements'];
+    const uuidTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pushTarget || '');
+    if (pushPage === 'live-training' && uuidTarget) {
+      window.history.replaceState({ page: 'live-training' }, '', `${window.location.pathname}${window.location.search}#live-training/${pushTarget}`);
+    } else if (pushPages.includes(pushPage) && !window.location.hash) {
+      window.history.replaceState({ page: pushPage }, '', `${window.location.pathname}${window.location.search}#${pushPage}`);
+    }
+  }
   const hashPage = window.location.hash.replace(/^#/, '');
   const roleHome = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
   const deepLiveMatch = hashPage.match(/^live-training\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
@@ -4404,14 +4426,14 @@ async function init() {
       currentLiveTraining = targetLive;
       pendingLiveTrainingAutoStart = { id: targetLive.id };
       nav('live-training', false);
-      if(session && profile?.role==='creator') setTimeout(showGrayxonPushPrompt,1200);
+      if(session && ['admin','manager','creator'].includes(profile?.role)) setTimeout(showGrayxonPushPrompt,1200);
       return;
     }
   }
-  const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','force-password'].includes(hashPage) ? hashPage : null;
+  const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','force-password'].includes(hashPage) ? hashPage : null;
   const initialPage = session ? (profile?.must_change_password ? 'force-password' : (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome)) : (requestedPage || 'home');
   nav(initialPage, false);
-  if(session && profile?.role==='creator') setTimeout(showGrayxonPushPrompt,1200);
+  if(session && ['admin','manager','creator'].includes(profile?.role)) setTimeout(showGrayxonPushPrompt,1200);
 }
 
 sb.auth.onAuthStateChange((event,newSession)=>{
@@ -4712,7 +4734,7 @@ sb.auth.onAuthStateChange((event,newSession)=>{
 try{ sessionStorage.removeItem('grayxon_live_diag'); }catch(_){}
 init();
 
-document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(profile?.role==='creator') { registerGrayxonPush({requestPermission:false}).catch(()=>{}); setTimeout(()=>showGrayxonPushPrompt(),500); } } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(['admin','manager','creator'].includes(profile?.role)) { registerGrayxonPush({requestPermission:false}).catch(()=>{}); setTimeout(()=>showGrayxonPushPrompt(),500); } } });
 setInterval(() => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='manager' && managerView==='dashboard') refreshManagerLiveDashboardCard(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); } }, 5000);
 
 window.addEventListener('popstate', () => {
