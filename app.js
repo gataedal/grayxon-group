@@ -1239,7 +1239,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),paymentMethod),
     safe(sb.from('lessons').select('id').eq('published',true),[]),
     safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[]),
-    safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).or(`assigned_to.is.null,assigned_to.eq.${uid}`).order('week_start',{ascending:false}),[]),
+    safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).eq('assigned_to',uid).order('week_start',{ascending:false}),[]),
     safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[])
   ]);
 
@@ -1260,7 +1260,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const completionPct=Math.round(completionCount/8*100);
   const today=new Date().toISOString().slice(0,10);
   const mp=new Map((missionProgress||[]).map(x=>[x.mission_id,x]));
-  const visibleMissions=(missions||[]).filter(m=>(!m.week_start||m.week_start<=today)&&(!m.week_end||m.week_end>=today)&&(!m.assigned_to||m.assigned_to===uid));
+  const visibleMissions=(missions||[]).filter(m=>(!m.week_start||m.week_start<=today)&&(!m.week_end||m.week_end>=today)&&m.assigned_to===uid);
   const missionPct=m=>{const x=mp.get(m.id);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;const target=Number(m.target||0);return target>0?Math.min(100,Math.round(Number(x.value||0)/target*100)):0;};
   const hasActiveMissions=visibleMissions.length>0;
   const missionCompletion=hasActiveMissions?Math.round(visibleMissions.reduce((sum,m)=>sum+missionPct(m),0)/visibleMissions.length):null;
@@ -1320,7 +1320,7 @@ async function missionsTpl() {
   const { data: ms, error } = await sb.from('missions')
     .select('id,title,description,type,target,week_start,week_end,assigned_to,published,link_url,created_at')
     .eq('published', true)
-    .or(`assigned_to.is.null,assigned_to.eq.${session.user.id}`)
+    .eq('assigned_to', session.user.id)
     .order('week_start',{ascending:false}).order('created_at',{ascending:false});
   if (error) { $('#missions').innerHTML = `<div class="card"><h2>Tus misiones</h2><div class="error">${esc(error.message)}</div></div>`; return; }
   const today = new Date().toISOString().slice(0,10);
@@ -1333,7 +1333,7 @@ async function missionsTpl() {
   const weekLabel = (start,end) => start || end ? `${dateLabel(start)}${end ? ' · '+dateLabel(end) : ''}` : 'Sin semana definida';
   const isCurrentWeek = (start,end) => (!start || start<=today) && (!end || end>=today);
   const isFinished = m => { const p = progress.get(m.id); return !!p?.completed || (!!m.week_end && m.week_end < today); };
-  const visible = (ms || []).filter(m => !m.assigned_to || m.assigned_to === session.user.id);
+  const visible = (ms || []).filter(m => m.assigned_to === session.user.id);
   const assignedMissions = visible.filter(m => !isFinished(m));
   const completedMissions = visible.filter(m => isFinished(m));
 
