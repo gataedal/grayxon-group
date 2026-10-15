@@ -14,6 +14,49 @@ const GRAYXON_VAPID_PUBLIC_KEY = 'BIdCS8TZ7hC_cC3krXcLbkW7YNZKMuYJM-5egWej63jdGr
 let pushRegistrationPromise = null;
 let grayxonInstallPrompt = null;
 
+// Conserva el destino de una notificación si el navegador necesita pasar por
+// el login antes de recuperar la sesión. Solo guarda ruta e ID, nunca tokens.
+const GRAYXON_PENDING_PUSH_INTENT_KEY = 'grayxon_pending_push_intent_v1';
+function saveGrayxonPushIntent(page, target='') {
+  const allowed = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments'];
+  if (!allowed.includes(String(page || ''))) return;
+  try {
+    localStorage.setItem(GRAYXON_PENDING_PUSH_INTENT_KEY, JSON.stringify({
+      page: String(page), target: String(target || '').slice(0,100), at: Date.now()
+    }));
+  } catch (_) {}
+}
+function readGrayxonPushIntent(clear=false) {
+  try {
+    const raw = localStorage.getItem(GRAYXON_PENDING_PUSH_INTENT_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    if (!value?.page || !Number.isFinite(Number(value.at)) || Date.now()-Number(value.at) > 30*60*1000) {
+      localStorage.removeItem(GRAYXON_PENDING_PUSH_INTENT_KEY);
+      return null;
+    }
+    if (clear) localStorage.removeItem(GRAYXON_PENDING_PUSH_INTENT_KEY);
+    return value;
+  } catch (_) { return null; }
+}
+function applyGrayxonPushIntent(intent) {
+  if (!intent?.page) return false;
+  const id = String(intent.target || '');
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+  if (intent.page === 'payments') {
+    gxPendingPaymentTarget = uuid ? id : null;
+    nav('payments');
+    return true;
+  }
+  if (intent.page === 'live-training' && uuid) {
+    window.history.replaceState({page:'live-training'}, '', `${window.location.pathname}${window.location.search}#live-training/${id}`);
+    nav('live-training', false);
+    return true;
+  }
+  nav(intent.page);
+  return true;
+}
+
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault();
   grayxonInstallPrompt = event;
@@ -94,7 +137,7 @@ async function showGrayxonPushPrompt(){
   // database row (for example after clearing account data) and do not bother the creator.
   try{
     if('serviceWorker' in navigator && 'PushManager' in window){
-      const registration=await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.register('./sw.js?v=43',{scope:'./'});
+      const registration=await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.register('./sw.js?v=44',{scope:'./'});
       const existing=await registration?.pushManager?.getSubscription();
       if(existing){
         if('Notification' in window && Notification.permission==='granted'){
@@ -170,7 +213,7 @@ async function registerGrayxonPush({requestPermission=false}={}) {
   pushRegistrationPromise = (async () => {
     try {
       ensureGrayxonPwaLinks();
-      const registration = await navigator.serviceWorker.register('./sw.js?v=43', { scope: './' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=44', { scope: './' });
       await navigator.serviceWorker.ready;
 
       let permission = Notification.permission;
@@ -4104,7 +4147,7 @@ function showGrayxonPushDiagnostics(){
     if(rows)rows.innerHTML='<div class="item">Comprobando dispositivo…</div>';
     const supported=!!(window.isSecureContext&&('serviceWorker'in navigator)&&('PushManager'in window)&&('Notification'in window));
     let registration=null,localSub=null,dbRows=null,dbError=null;
-    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.getRegistration('./');if(!registration)registration=await navigator.serviceWorker.register('./sw.js?v=43',{scope:'./'});await navigator.serviceWorker.ready;localSub=await registration.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
+    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.getRegistration('./');if(!registration)registration=await navigator.serviceWorker.register('./sw.js?v=44',{scope:'./'});await navigator.serviceWorker.ready;localSub=await registration.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
     try{const r=await sb.from('push_subscriptions').select('endpoint,is_active,last_seen_at,user_agent').eq('user_id',session.user.id).order('last_seen_at',{ascending:false});dbRows=r.data||null;dbError=r.error||null;}catch(e){dbError=e;}
     const permission=('Notification'in window)?Notification.permission:'No disponible';
     const match=localSub&&dbRows?dbRows.find(r=>r.endpoint===localSub.endpoint):null;
@@ -4527,7 +4570,13 @@ async function login() {
 
   updateHeaderAccessUI();
   if(profile?.must_change_password){ nav('force-password'); return; }
-  nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
+  const pendingPushIntent = readGrayxonPushIntent(false);
+  if (pendingPushIntent) {
+    readGrayxonPushIntent(true);
+    if (!applyGrayxonPushIntent(pendingPushIntent)) nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
+  } else {
+    nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
+  }
   if(['admin','manager','creator'].includes(profile?.role)) setTimeout(showGrayxonPushPrompt,900);
 }
 
@@ -4646,16 +4695,19 @@ async function init() {
   const pushParams = new URLSearchParams(window.location.search);
   if (pushParams.get('grayxonPush') === '1') {
     const pushPage = pushParams.get('page');
-    const pushTarget = pushParams.get('target');
+    const pushTarget = pushParams.get('target') || '';
     const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments'];
-    const uuidTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pushTarget || '');
-    if (pushPage === 'live-training' && uuidTarget) {
-      window.history.replaceState({ page: 'live-training' }, '', `${window.location.pathname}${window.location.search}#live-training/${pushTarget}`);
-    } else if (pushPage === 'payments') {
-      gxPendingPaymentTarget = uuidTarget ? pushTarget : null;
-      if (!window.location.hash || window.location.hash !== '#payments') window.history.replaceState({ page: 'payments' }, '', `${window.location.pathname}${window.location.search}#payments`);
-    } else if (pushPages.includes(pushPage) && !window.location.hash) {
-      window.history.replaceState({ page: pushPage }, '', `${window.location.pathname}${window.location.search}#${pushPage}`);
+    const uuidTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pushTarget);
+    if (pushPages.includes(pushPage)) {
+      if (!session) saveGrayxonPushIntent(pushPage, pushTarget);
+      if (pushPage === 'live-training' && uuidTarget) {
+        window.history.replaceState({ page: 'live-training' }, '', `${window.location.pathname}${window.location.search}#live-training/${pushTarget}`);
+      } else if (pushPage === 'payments') {
+        gxPendingPaymentTarget = uuidTarget ? pushTarget : null;
+        if (!window.location.hash || window.location.hash !== '#payments') window.history.replaceState({ page: 'payments' }, '', `${window.location.pathname}${window.location.search}#payments`);
+      } else if (pushPages.includes(pushPage) && !window.location.hash) {
+        window.history.replaceState({ page: pushPage }, '', `${window.location.pathname}${window.location.search}#${pushPage}`);
+      }
     }
   }
   const hashPage = window.location.hash.replace(/^#/, '');
@@ -5040,8 +5092,42 @@ async function handleGrayxonDeepLinkUrl(urlValue) {
 
 window.addEventListener('message', async (event) => {
   const data = event?.data;
-  if (!data || data.type !== 'GRAYXON_NOTIFICATION_NAVIGATE' || !data.url) return;
-  await handleGrayxonDeepLinkUrl(data.url);
+  if (!data || !data.url) return;
+
+  // v44: the Service Worker asks whether this app window has a valid session
+  // and lets the already-authenticated window handle the route without a reload.
+  if (data.type === 'GRAYXON_NOTIFICATION_NAVIGATE_REQUEST') {
+    const port = event.ports?.[0];
+    let authenticated = !!session?.user?.id;
+    let handled = false;
+    try {
+      if (!authenticated) {
+        const { data: sessionData } = await sb.auth.getSession();
+        if (sessionData?.session) {
+          session = sessionData.session;
+          authenticated = true;
+        }
+      }
+      if (authenticated && !profile) {
+        profile = await getProfile();
+        document.body.classList.toggle('grayxon-creator-session', profile?.role === 'creator');
+        document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager');
+        updateHeaderAccessUI();
+        await loadProfileDetails();
+        await loadNotifications();
+      }
+      if (authenticated) handled = await handleGrayxonDeepLinkUrl(data.url);
+    } catch (err) {
+      console.warn('No se pudo abrir el destino de la notificación:', err);
+    }
+    try { port?.postMessage({type:'GRAYXON_NOTIFICATION_NAVIGATE_RESULT', authenticated, handled}); } catch (_) {}
+    return;
+  }
+
+  // Backwards compatibility with a v43 worker during rollout.
+  if (data.type === 'GRAYXON_NOTIFICATION_NAVIGATE') {
+    await handleGrayxonDeepLinkUrl(data.url);
+  }
 });
 
 window.addEventListener('hashchange', async () => {
