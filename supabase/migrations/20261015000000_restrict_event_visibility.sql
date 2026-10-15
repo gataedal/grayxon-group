@@ -174,3 +174,59 @@ BEGIN
   ORDER BY r.position;
 END;
 $function$;
+
+
+-- Hide rounds and phases that do not contain a match visible to this user.
+CREATE OR REPLACE FUNCTION public.gx_event_round_visible(p_round_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1 FROM public.gx_event_rounds r
+    WHERE r.id=p_round_id
+      AND (
+        public.is_admin()
+        OR EXISTS (
+          SELECT 1 FROM public.gx_event_matches m
+          WHERE m.round_id=r.id AND public.gx_event_match_visible(m.id)
+        )
+      )
+  );
+$function$;
+
+CREATE OR REPLACE FUNCTION public.gx_event_phase_visible(p_phase_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1 FROM public.gx_event_phases ph
+    WHERE ph.id=p_phase_id
+      AND (
+        public.is_admin()
+        OR EXISTS (
+          SELECT 1
+          FROM public.gx_event_rounds r
+          JOIN public.gx_event_matches m ON m.round_id=r.id
+          WHERE r.phase_id=ph.id AND public.gx_event_match_visible(m.id)
+        )
+      )
+  );
+$function$;
+
+DROP POLICY IF EXISTS gx_event_rounds_view ON public.gx_event_rounds;
+CREATE POLICY gx_event_rounds_view
+ON public.gx_event_rounds
+FOR SELECT TO authenticated
+USING (public.gx_event_round_visible(id));
+
+DROP POLICY IF EXISTS gx_event_phases_view ON public.gx_event_phases;
+CREATE POLICY gx_event_phases_view
+ON public.gx_event_phases
+FOR SELECT TO authenticated
+USING (public.gx_event_phase_visible(id));
