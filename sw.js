@@ -1,4 +1,4 @@
-/* Grayxon Academy · Web Push Service Worker v45 · dedupe + session-aware deep links */
+/* Grayxon Academy · Web Push Service Worker v46 · dedupe + portal-relative deep links */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
@@ -13,20 +13,20 @@ function resolveTarget(data) {
   if (page === 'payments' || value.toLowerCase() === 'payments' || data?.type === 'payment' || nested?.type === 'payment') {
     const target = uuidMatch ? value : String(data?.link_target || nested?.link_target || data?.target || nested?.target || '');
     const targetQuery = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(target) ? `&target=${encodeURIComponent(target)}` : '';
-    return `./?grayxonPush=1&page=payments${targetQuery}#payments`;
+    return `./portal.html?grayxonPush=1&page=payments${targetQuery}#payments`;
   }
-  if (!value) return './';
-  if (uuidMatch) return `./?grayxonPush=1&page=live-training&target=${encodeURIComponent(value)}#live-training/${value}`;
-  if (/^live-training$/i.test(value)) return './?grayxonPush=1&page=live-training#live-training';
-  if (/^missions?$/i.test(value)) return './?grayxonPush=1&page=missions#missions';
-  if (/^(training|formation)$/i.test(value)) return './?grayxonPush=1&page=training#training';
+  if (!value) return './portal.html';
+  if (uuidMatch) return `./portal.html?grayxonPush=1&page=live-training&target=${encodeURIComponent(value)}#live-training/${value}`;
+  if (/^live-training$/i.test(value)) return './portal.html?grayxonPush=1&page=live-training#live-training';
+  if (/^missions?$/i.test(value)) return './portal.html?grayxonPush=1&page=missions#missions';
+  if (/^(training|formation)$/i.test(value)) return './portal.html?grayxonPush=1&page=training#training';
   if (/^(manager|admin|profile|space|home|benefits|auth|announcements)$/i.test(value)) {
     const p = value.toLowerCase();
-    return `./?grayxonPush=1&page=${encodeURIComponent(p)}#${p}`;
+    return `./portal.html?grayxonPush=1&page=${encodeURIComponent(p)}#${p}`;
   }
-  if (value.startsWith('#')) return `.${value}`;
+  if (value.startsWith('#')) return `./portal.html${value}`;
   if (/^(https?:|mailto:|tel:)/i.test(value)) return value;
-  return './';
+  return './portal.html';
 }
 
 function getPushParts(data) {
