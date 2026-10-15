@@ -1,4 +1,4 @@
-/* Grayxon Academy · Web Push Service Worker v44 · dedupe + session-aware deep links */
+/* Grayxon Academy · Web Push Service Worker v45 · dedupe + session-aware deep links */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
@@ -57,7 +57,7 @@ function isDuplicatePush(fingerprint, ttlMs = 15000) {
   return new Promise((resolve) => {
     if (!self.indexedDB) { resolve(false); return; }
     let request;
-    try { request = indexedDB.open('grayxon-push-dedupe-v44', 1); }
+    try { request = indexedDB.open('grayxon-push-dedupe-v45', 1); }
     catch (_) { resolve(false); return; }
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -118,7 +118,7 @@ self.addEventListener('push', event => {
   })());
 });
 
-function askClientToNavigate(client, absoluteUrl, timeoutMs = 1000) {
+function askClientToNavigate(client, absoluteUrl, timeoutMs = 6500) {
   return new Promise(resolve => {
     let done = false;
     let timer;
@@ -143,32 +143,35 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   const target = event.notification?.data?.url || './';
   event.waitUntil((async () => {
-    const absolute = new URL(target, self.location.origin).href;
+    const absolute = new URL(target, self.registration.scope).href;
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const inScopeClients = clientsList.filter(client => client.url && client.url.startsWith(self.registration.scope));
 
-    // Ask all open Grayxon windows first. The one that still has a Supabase
-    // session handles the route in-place; we do not also navigate/reload it.
-    for (const client of clientsList) {
-      if (!client.url || !client.url.startsWith(self.registration.scope)) continue;
-      const result = await askClientToNavigate(client, absolute);
-      if (result?.authenticated && result?.handled) {
-        try { await client.focus(); } catch (_) {}
+    // First choice: let every open Grayxon window restore/confirm auth and route in-place.
+    // Query clients concurrently so one sleeping tab does not block the rest.
+    const attempts = await Promise.all(inScopeClients.map(async client => ({
+      client,
+      result: await askClientToNavigate(client, absolute, 5500)
+    })));
+    for (const attempt of attempts) {
+      if (attempt.result?.authenticated && attempt.result?.handled) {
+        try { await attempt.client.focus(); } catch (_) {}
         return;
       }
     }
 
-    // If there is no authenticated open window, open the app URL once. init()
-    // restores Supabase auth and retains the intended destination through login.
-    if (self.clients.openWindow) {
-      await self.clients.openWindow(absolute);
-      return;
-    }
-    for (const client of clientsList) {
-      if (!client.url || !client.url.startsWith(self.registration.scope)) continue;
+    // If an app window exists but did not answer or could not route, navigate that
+    // same window to the explicit push URL. This preserves page/target and avoids
+    // opening a second generic window that lands in Mi espacio or loses the route.
+    for (const client of inScopeClients) {
       try {
         const navigated = await client.navigate(absolute);
         if (navigated) { await navigated.focus(); return; }
       } catch (_) {}
     }
+
+    // No existing Grayxon window: open one target URL only. app.js preserves the
+    // intended page/payment ID across login if this browser context has no session.
+    if (self.clients.openWindow) await self.clients.openWindow(absolute);
   })());
 });
