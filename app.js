@@ -13,6 +13,7 @@ const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_PUBLISHABLE_KEY)
 const GRAYXON_VAPID_PUBLIC_KEY = 'BIdCS8TZ7hC_cC3krXcLbkW7YNZKMuYJM-5egWej63jdGrcTei4wiTuXW3hENBMIrrSnYoj2gptF0NGJ_4THZz8';
 let pushRegistrationPromise = null;
 let grayxonInstallPrompt = null;
+let grayxonInitPromise = null;
 
 // Conserva el destino de una notificación si el navegador necesita pasar por
 // el login antes de recuperar la sesión. Solo guarda ruta e ID, nunca tokens.
@@ -137,7 +138,7 @@ async function showGrayxonPushPrompt(){
   // database row (for example after clearing account data) and do not bother the creator.
   try{
     if('serviceWorker' in navigator && 'PushManager' in window){
-      const registration=await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.register('./sw.js?v=44',{scope:'./'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=45',{scope:'./',updateViaCache:'none'});
       const existing=await registration?.pushManager?.getSubscription();
       if(existing){
         if('Notification' in window && Notification.permission==='granted'){
@@ -213,7 +214,7 @@ async function registerGrayxonPush({requestPermission=false}={}) {
   pushRegistrationPromise = (async () => {
     try {
       ensureGrayxonPwaLinks();
-      const registration = await navigator.serviceWorker.register('./sw.js?v=44', { scope: './' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=45', { scope: './', updateViaCache: 'none' });
       await navigator.serviceWorker.ready;
 
       let permission = Notification.permission;
@@ -846,9 +847,9 @@ function gxPaymentBindAdmin(payments,users,itemsMap){const form=$('#gxPaymentFor
  const validateMethod=async()=>{const seq=++methodCheckSeq,id=userSelect.value;methodStatus.className='muted small';if(!id){methodStatus.textContent='Selecciona una persona para validar su método de pago.';methodStatus.dataset.ready='';return null;}methodStatus.textContent='Verificando método de pago…';methodStatus.dataset.ready='';try{const m=await gxPaymentGetMethod(id);if(seq!==methodCheckSeq)return null;methodStatus.textContent=m.method_type==='paypal'?`Método configurado: PayPal · ${m.paypal_email}`:`Método configurado: ${m.bank_name} · cuenta ${String(m.account_number).slice(-4).padStart(String(m.account_number).length,'•')}`;methodStatus.className='small gx-method-ready';methodStatus.dataset.ready='yes';methodStatus.dataset.method=JSON.stringify(m);return m;}catch(e){if(seq!==methodCheckSeq)return null;methodStatus.textContent=e.message;methodStatus.className='small gx-method-missing';methodStatus.dataset.ready='no';methodStatus.dataset.method='';return null;}};
  type.addEventListener('change',()=>syncType());userSelect.addEventListener('change',validateMethod);const itemsRoot=$('#gxPaymentItems');const bindItems=()=>{itemsRoot.querySelectorAll('.gx-payment-item-row').forEach(row=>{row.querySelector('[data-gx-item-currency]').onchange=gxPaymentCalcItems;row.querySelector('[data-gx-item-amount]').oninput=gxPaymentCalcItems;row.querySelector('[data-gx-item-trm]').oninput=gxPaymentCalcItems;row.querySelector('[data-gx-item-remove]').onclick=()=>{if(itemsRoot.querySelectorAll('.gx-payment-item-row').length<=1){toast('Debe quedar al menos un concepto.');return;}row.remove();gxPaymentCalcItems();};});gxPaymentCalcItems();};bindItems();$('#gxPaymentAddItem').onclick=()=>{itemsRoot.insertAdjacentHTML('beforeend',gxPaymentItemRow());bindItems();};
  const reset=()=>{gxPaymentEditId=null;gxPaymentEditingRecord=null;form.reset();$('#gxPaymentFormTitle').textContent='Registrar pago';$('#gxPaySubmit').textContent='Guardar pago';$('#gxPayDate').value=new Date().toISOString().slice(0,10);$('#gxPayExistingReceipt').textContent='';$('#gxPayReceiptFile').required=false;itemsRoot.innerHTML=gxPaymentItemRow();bindItems();syncType();};$('#gxPaymentReset').onclick=reset;
- form.addEventListener('submit',async e=>{e.preventDefault();const btn=$('#gxPaySubmit');btn.disabled=true;$('#gxPaymentFormMessage').textContent='Validando y guardando…';try{const external=type.value==='external',recipientId=external?null:userSelect.value;if(!external){const method=await validateMethod();if(!method||methodStatus.dataset.ready!=='yes')throw new Error('No se puede procesar el pago hasta que el beneficiario complete su método de pago en el perfil.');}const items=gxPaymentCollectItems(),total=Math.round(items.reduce((s,i)=>s+i.amount_cop,0)*100)/100;if(total<=0)throw new Error('El total debe ser mayor que cero.');const usd=items.filter(i=>i.currency==='USD').reduce((s,i)=>s+i.amount_original,0),weighted=items.filter(i=>i.currency==='USD'&&i.trm).reduce((s,i)=>s+i.amount_original*i.trm,0),usdTrm=usd?weighted/usd:null;const old=gxPaymentEditingRecord;const payload={recipient_user_id:recipientId,recipient_name:external?externalName.value.trim():null,concept:items.map(i=>i.concept).join(' + ').slice(0,180),amount:total,currency:'COP',amount_usd:usd||null,trm:usdTrm,amount_cop:total,hours_live:$('#gxPayHours').value===''?null:Number($('#gxPayHours').value),valid_days:$('#gxPayDays').value===''?null:Number($('#gxPayDays').value),diamonds:$('#gxPayDiamonds').value===''?null:Number($('#gxPayDiamonds').value),payment_date:$('#gxPayDate').value,status:$('#gxPayStatus').value,payment_method:external?($('#gxPayExternalMethod')?.value.trim()||null):(JSON.parse(methodStatus.dataset.method||'{}').label||null),payment_method_snapshot:external?null:(()=>{const m=JSON.parse(methodStatus.dataset.method||'{}');return {method_type:m.method_type,label:m.label,bank_name:m.bank_name||null,bank_country:m.bank_country||null,account_type:m.account_type||null,account_last4:m.account_number?String(m.account_number).slice(-4):null,paypal_email:m.paypal_email||null};})(),reference:$('#gxPayReference').value.trim()||null,notes:$('#gxPayNotes').value.trim()||null,updated_by:session.user.id};if(!payload.payment_date||(!external&&!recipientId)||(external&&!payload.recipient_name))throw new Error('Completa los campos obligatorios.');let result;if(gxPaymentEditId)result=await sb.from('gx_payments').update(payload).eq('id',gxPaymentEditId).select('id').single();else result=await sb.from('gx_payments').insert({...payload,created_by:session.user.id}).select('id').single();if(result.error)throw new Error(result.error.message);const paymentId=result.data.id;const {error:delErr}=await sb.from('gx_payment_items').delete().eq('payment_id',paymentId);if(delErr)throw new Error('El pago se guardó, pero no se pudieron reemplazar sus conceptos: '+delErr.message);const {error:itemErr}=await sb.from('gx_payment_items').insert(items.map(i=>({...i,payment_id:paymentId})));if(itemErr)throw new Error('El pago se guardó, pero falló el detalle de conceptos: '+itemErr.message);const file=$('#gxPayReceiptFile').files?.[0];if(file){const receipt=await gxPaymentUploadReceipt(paymentId,file);const {error:receiptErr}=await sb.from('gx_payments').update({receipt_path:receipt.path,receipt_file_name:receipt.name,updated_by:session.user.id}).eq('id',paymentId);if(receiptErr)throw new Error('El pago se guardó, pero no se pudo asociar el comprobante: '+receiptErr.message);}if(payload.status==='paid'&&recipientId&&(!old||old.status!=='paid')){const {error:notificationError}=await sb.from('notifications').insert({user_id:recipientId,type:'payment',title:'¡Tu pago fue realizado!',message:`Grayxon registró un pago a tu nombre con fecha ${gxPaymentDate(payload.payment_date)}. Pulsa para ver el detalle y el comprobante.`,link_page:'payments',link_target:paymentId});if(notificationError)throw new Error('El pago se guardó, pero no se pudo crear la notificación push: '+notificationError.message);}toast(gxPaymentEditId?'Pago actualizado ✓':'Pago registrado ✓');await loadNotifications();await gxPaymentsPage();}catch(err){toast(err.message||'No se pudo guardar el pago.');btn.disabled=false;$('#gxPaymentFormMessage').textContent='Revisa los datos e inténtalo de nuevo.';}});
+ form.addEventListener('submit',async e=>{e.preventDefault();const btn=$('#gxPaySubmit');btn.disabled=true;$('#gxPaymentFormMessage').textContent='Validando y guardando…';try{const external=type.value==='external',recipientId=external?null:userSelect.value;if(!external){const method=await validateMethod();if(!method||methodStatus.dataset.ready!=='yes')throw new Error('No se puede procesar el pago hasta que el beneficiario complete su método de pago en el perfil.');}const items=gxPaymentCollectItems(),total=Math.round(items.reduce((s,i)=>s+i.amount_cop,0)*100)/100;if(total<=0)throw new Error('El total debe ser mayor que cero.');const usd=items.filter(i=>i.currency==='USD').reduce((s,i)=>s+i.amount_original,0),weighted=items.filter(i=>i.currency==='USD'&&i.trm).reduce((s,i)=>s+i.amount_original*i.trm,0),usdTrm=usd?weighted/usd:null;const old=gxPaymentEditingRecord;const payload={recipient_user_id:recipientId,recipient_name:external?externalName.value.trim():null,concept:items.map(i=>i.concept).join(' + ').slice(0,180),amount:total,currency:'COP',amount_usd:usd||null,trm:usdTrm,amount_cop:total,hours_live:$('#gxPayHours').value===''?null:Number($('#gxPayHours').value),valid_days:$('#gxPayDays').value===''?null:Number($('#gxPayDays').value),diamonds:$('#gxPayDiamonds').value===''?null:Number($('#gxPayDiamonds').value),payment_date:$('#gxPayDate').value,status:$('#gxPayStatus').value,payment_method:external?($('#gxPayExternalMethod')?.value.trim()||null):(JSON.parse(methodStatus.dataset.method||'{}').label||null),payment_method_snapshot:external?null:(()=>{const m=JSON.parse(methodStatus.dataset.method||'{}');return {method_type:m.method_type,label:m.label,bank_name:m.bank_name||null,bank_country:m.bank_country||null,account_type:m.account_type||null,account_last4:m.account_number?String(m.account_number).slice(-4):null,paypal_email:m.paypal_email||null};})(),reference:$('#gxPayReference').value.trim()||null,notes:$('#gxPayNotes').value.trim()||null,updated_by:session.user.id};if(!payload.payment_date||(!external&&!recipientId)||(external&&!payload.recipient_name))throw new Error('Completa los campos obligatorios.');let result;if(gxPaymentEditId)result=await sb.from('gx_payments').update(payload).eq('id',gxPaymentEditId).select('id').single();else result=await sb.from('gx_payments').insert({...payload,created_by:session.user.id}).select('id').single();if(result.error)throw new Error(result.error.message);const paymentId=result.data.id;const {error:delErr}=await sb.from('gx_payment_items').delete().eq('payment_id',paymentId);if(delErr)throw new Error('El pago se guardó, pero no se pudieron reemplazar sus conceptos: '+delErr.message);const {error:itemErr}=await sb.from('gx_payment_items').insert(items.map(i=>({...i,payment_id:paymentId})));if(itemErr)throw new Error('El pago se guardó, pero falló el detalle de conceptos: '+itemErr.message);const file=$('#gxPayReceiptFile').files?.[0];if(file){const receipt=await gxPaymentUploadReceipt(paymentId,file);const {error:receiptErr}=await sb.from('gx_payments').update({receipt_path:receipt.path,receipt_file_name:receipt.name,updated_by:session.user.id}).eq('id',paymentId);if(receiptErr)throw new Error('El pago se guardó, pero no se pudo asociar el comprobante: '+receiptErr.message);}toast(gxPaymentEditId?'Pago actualizado ✓':'Pago registrado ✓');await loadNotifications();await gxPaymentsPage();}catch(err){toast(err.message||'No se pudo guardar el pago.');btn.disabled=false;$('#gxPaymentFormMessage').textContent='Revisa los datos e inténtalo de nuevo.';}});
  const rows=$('#gxPaymentRows');rows?.querySelectorAll('[data-gx-payment-edit]').forEach(b=>b.onclick=()=>{const p=payments.find(x=>x.id===b.dataset.gxPaymentEdit);if(!p)return;gxPaymentEditId=p.id;gxPaymentEditingRecord=p;type.value=p.recipient_user_id?'account':'external';syncType();userSelect.value=p.recipient_user_id||'';externalName.value=p.recipient_name||'';if($('#gxPayExternalMethod'))$('#gxPayExternalMethod').value=p.payment_method||'';$('#gxPayDate').value=p.payment_date||'';$('#gxPayStatus').value=p.status;$('#gxPayHours').value=p.hours_live??'';$('#gxPayDays').value=p.valid_days??'';$('#gxPayDiamonds').value=p.diamonds??'';$('#gxPayReference').value=p.reference||'';$('#gxPayNotes').value=p.notes||'';$('#gxPayExistingReceipt').textContent=p.receipt_file_name?'Comprobante actual: '+p.receipt_file_name:'';itemsRoot.innerHTML=(itemsMap.get(p.id)||[]).map(gxPaymentItemRow).join('')||gxPaymentItemRow({concept:p.concept||'',currency:'COP',amount_original:p.amount,amount_cop:p.amount});bindItems();$('#gxPaymentFormTitle').textContent='Editar pago';$('#gxPaySubmit').textContent='Guardar cambios';document.querySelector('.gx-payment-form-card')?.scrollIntoView({behavior:'smooth',block:'start'});});
- rows?.querySelectorAll('[data-gx-payment-paid]').forEach(b=>b.onclick=async()=>{const p=payments.find(x=>x.id===b.dataset.gxPaymentPaid);if(!p)return;if(!confirm('¿Confirmas que el pago ya se realizó? Se enviará una notificación al beneficiario.'))return;b.disabled=true;try{if(p.recipient_user_id)await gxPaymentGetMethod(p.recipient_user_id);const {error}=await sb.from('gx_payments').update({status:'paid',updated_by:session.user.id}).eq('id',p.id);if(error)throw new Error(error.message);if(p.recipient_user_id){const targetDate=gxPaymentDate(p.payment_date);const {error:notificationError}=await sb.from('notifications').insert({user_id:p.recipient_user_id,type:'payment',title:'¡Tu pago fue realizado!',message:`Grayxon registró un pago a tu nombre con fecha ${targetDate}. Pulsa para ver el detalle y el comprobante.`,link_page:'payments',link_target:p.id});if(notificationError){toast('El pago quedó marcado como realizado, pero no se pudo crear la notificación: '+notificationError.message);await gxPaymentsPage();return;}}toast('Pago marcado como realizado y notificación generada ✓');await loadNotifications();await gxPaymentsPage();}catch(err){toast(err.message);b.disabled=false;}});
+ rows?.querySelectorAll('[data-gx-payment-paid]').forEach(b=>b.onclick=async()=>{const p=payments.find(x=>x.id===b.dataset.gxPaymentPaid);if(!p)return;if(!confirm('¿Confirmas que el pago ya se realizó? Se enviará una notificación al beneficiario.'))return;b.disabled=true;try{if(p.recipient_user_id)await gxPaymentGetMethod(p.recipient_user_id);const {error}=await sb.from('gx_payments').update({status:'paid',updated_by:session.user.id}).eq('id',p.id);if(error)throw new Error(error.message);toast('Pago marcado como realizado. Grayxon enviará una única notificación automáticamente ✓');await loadNotifications();await gxPaymentsPage();}catch(err){toast(err.message);b.disabled=false;}});
  rows?.querySelectorAll('[data-gx-payment-delete]').forEach(b=>b.onclick=async()=>{const p=payments.find(x=>x.id===b.dataset.gxPaymentDelete);if(!p||!confirm('¿Eliminar definitivamente este pago y su detalle? Esta acción no se puede deshacer.'))return;b.disabled=true;try{if(p.receipt_path){const {error:se}=await sb.storage.from(GX_PAYMENT_BUCKET).remove([p.receipt_path]);if(se)throw new Error('No se pudo eliminar el comprobante: '+se.message);}const {error}=await sb.from('gx_payments').delete().eq('id',p.id);if(error)throw new Error(error.message);toast('Pago eliminado.');await gxPaymentsPage();}catch(err){toast(err.message);b.disabled=false;}});
  rows?.querySelectorAll('[data-gx-receipt]').forEach(b=>b.onclick=async()=>{const p=payments.find(x=>x.id===b.dataset.gxReceipt);await gxOpenPaymentReceiptInApp(p);});$('#gxPaymentSearch')?.addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();rows?.querySelectorAll('.gx-payment-row').forEach(r=>r.classList.toggle('hidden',!r.textContent.toLowerCase().includes(q)));});
 }
@@ -4147,7 +4148,7 @@ function showGrayxonPushDiagnostics(){
     if(rows)rows.innerHTML='<div class="item">Comprobando dispositivo…</div>';
     const supported=!!(window.isSecureContext&&('serviceWorker'in navigator)&&('PushManager'in window)&&('Notification'in window));
     let registration=null,localSub=null,dbRows=null,dbError=null;
-    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.getRegistration('./');if(!registration)registration=await navigator.serviceWorker.register('./sw.js?v=44',{scope:'./'});await navigator.serviceWorker.ready;localSub=await registration.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
+    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.register('./sw.js?v=45',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;registration=await navigator.serviceWorker.getRegistration('./');localSub=await registration?.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
     try{const r=await sb.from('push_subscriptions').select('endpoint,is_active,last_seen_at,user_agent').eq('user_id',session.user.id).order('last_seen_at',{ascending:false});dbRows=r.data||null;dbError=r.error||null;}catch(e){dbError=e;}
     const permission=('Notification'in window)?Notification.permission:'No disponible';
     const match=localSub&&dbRows?dbRows.find(r=>r.endpoint===localSub.endpoint):null;
@@ -5030,7 +5031,7 @@ sb.auth.onAuthStateChange((event,newSession)=>{
 })();
 
 try{ sessionStorage.removeItem('grayxon_live_diag'); }catch(_){}
-init();
+grayxonInitPromise = init();
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(['admin','manager','creator'].includes(profile?.role)) { registerGrayxonPush({requestPermission:false}).catch(()=>{}); setTimeout(()=>showGrayxonPushPrompt(),500); } } });
 setInterval(() => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='manager' && managerView==='dashboard') refreshManagerLiveDashboardCard(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); if(current==='space'||current==='manager'||current==='admin') refreshMyPendingPaymentsBadge(); } }, 5000);
@@ -5049,10 +5050,16 @@ window.addEventListener('popstate', () => {
 async function handleGrayxonDeepLinkUrl(urlValue) {
   try {
     const parsed = new URL(String(urlValue || ''), window.location.href);
-    const page = parsed.hash.replace(/^#/, '') || parsed.searchParams.get('page') || 'home';
+    const hashRoute = parsed.hash.replace(/^#/, '');
+    const queryPage = parsed.searchParams.get('page') || '';
+    const page = hashRoute.startsWith('live-training/') ? hashRoute : (queryPage || hashRoute || 'home');
     if (session && (page === 'payments' || parsed.searchParams.get('page') === 'payments')) {
       const target = parsed.searchParams.get('target') || '';
       gxPendingPaymentTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(target) ? target : null;
+      const desiredHash = '#payments';
+      if (window.location.hash !== desiredHash) {
+        window.history.replaceState({page:'payments'}, '', `${window.location.pathname}${window.location.search}${desiredHash}`);
+      }
       if (current !== 'payments') nav('payments', false); else await gxPaymentsPage();
       return true;
     }
@@ -5094,19 +5101,33 @@ window.addEventListener('message', async (event) => {
   const data = event?.data;
   if (!data || !data.url) return;
 
-  // v44: the Service Worker asks whether this app window has a valid session
+  // v45: the Service Worker asks this window to resolve a push destination after auth initialization
   // and lets the already-authenticated window handle the route without a reload.
   if (data.type === 'GRAYXON_NOTIFICATION_NAVIGATE_REQUEST') {
     const port = event.ports?.[0];
     let authenticated = !!session?.user?.id;
     let handled = false;
     try {
-      if (!authenticated) {
+      // Do not answer the worker while app startup is halfway through restoring Supabase auth.
+      if (grayxonInitPromise) {
+        try { await Promise.race([grayxonInitPromise, new Promise(resolve => setTimeout(resolve, 7000))]); } catch (_) {}
+      }
+      if (!authenticated || !session?.user?.id) {
         const { data: sessionData } = await sb.auth.getSession();
         if (sessionData?.session) {
           session = sessionData.session;
           authenticated = true;
+        } else {
+          authenticated = false;
         }
+      }
+      if (!authenticated) {
+        try {
+          const pendingUrl = new URL(data.url, window.location.href);
+          if (pendingUrl.searchParams.get('grayxonPush') === '1') {
+            saveGrayxonPushIntent(pendingUrl.searchParams.get('page') || 'payments', pendingUrl.searchParams.get('target') || '');
+          }
+        } catch (_) {}
       }
       if (authenticated && !profile) {
         profile = await getProfile();
@@ -5124,7 +5145,7 @@ window.addEventListener('message', async (event) => {
     return;
   }
 
-  // Backwards compatibility with a v43 worker during rollout.
+  // Backwards compatibility with older workers during rollout.
   if (data.type === 'GRAYXON_NOTIFICATION_NAVIGATE') {
     await handleGrayxonDeepLinkUrl(data.url);
   }
