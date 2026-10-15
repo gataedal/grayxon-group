@@ -26,7 +26,7 @@ Migraciones registradas en la base Beta:
 - `20261015234112 secure_poll_visibility_and_rpcs_beta`
 - `20261015234136 event_and_poll_notifications_beta`
 - `20261015234222 align_poll_attachment_fields_beta`
-- `202610152343xx fix_poll_participation_audience_beta` (versión exacta registrada por Supabase pendiente de confirmar)
+- `20261015234423 fix_poll_participation_audience_beta`
 
 ## Pruebas de base de datos realizadas
 - Flujo de torneo en una prueba temporal: generar ronda, registrar resultado y consultar ranking.
