@@ -1,4 +1,4 @@
-/* Grayxon Academy · Web Push Service Worker v46 · dedupe + portal-relative deep links */
+/* Grayxon Academy · Web Push Service Worker v47 · dedupe + portal-relative deep links */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
@@ -38,7 +38,8 @@ function getPushParts(data) {
   // The DB notification ID is preferred; title/body/route is a fallback for
   // Edge Function payloads which omit it. Only a short duplicate window is used.
   const fingerprint = id ? `id:${String(id)}` : `msg:${title}|${body}|${target}`;
-  return { title, body, target, fingerprint };
+  const notificationId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id || '')) ? String(id) : '';
+  return { title, body, target, fingerprint, notificationId };
 }
 
 function shortHash(value) {
@@ -57,7 +58,7 @@ function isDuplicatePush(fingerprint, ttlMs = 15000) {
   return new Promise((resolve) => {
     if (!self.indexedDB) { resolve(false); return; }
     let request;
-    try { request = indexedDB.open('grayxon-push-dedupe-v45', 1); }
+    try { request = indexedDB.open('grayxon-push-dedupe-v47', 1); }
     catch (_) { resolve(false); return; }
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -102,7 +103,7 @@ self.addEventListener('push', event => {
     let data = {};
     try { data = event.data ? event.data.json() : {}; }
     catch (_) { data = { title: 'Grayxon', body: event.data ? event.data.text() : '' }; }
-    const { title, body, target, fingerprint } = getPushParts(data);
+    const { title, body, target, fingerprint, notificationId } = getPushParts(data);
     if (await isDuplicatePush(fingerprint)) {
       // Avoid a second banner/sound when the same underlying event is delivered twice.
       return;
@@ -112,13 +113,13 @@ self.addEventListener('push', event => {
     const icon = data.icon || './assets/grayxon-logo.png';
     const badge = data.badge || './assets/grayxon-logo.png';
     await self.registration.showNotification(title, {
-      body, icon, badge, data: { url: target }, tag,
+      body, icon, badge, data: { url: target, notificationId }, tag,
       renotify: false, silent: false, requireInteraction: false
     });
   })());
 });
 
-function askClientToNavigate(client, absoluteUrl, timeoutMs = 6500) {
+function askClientToNavigate(client, absoluteUrl, notificationId = '', timeoutMs = 6500) {
   return new Promise(resolve => {
     let done = false;
     let timer;
@@ -134,24 +135,30 @@ function askClientToNavigate(client, absoluteUrl, timeoutMs = 6500) {
       channel = new MessageChannel();
       channel.port1.onmessage = event => finish(event.data || null);
       timer = setTimeout(() => finish(null), timeoutMs);
-      client.postMessage({ type: 'GRAYXON_NOTIFICATION_NAVIGATE_REQUEST', url: absoluteUrl }, [channel.port2]);
+      client.postMessage({ type: 'GRAYXON_NOTIFICATION_NAVIGATE_REQUEST', url: absoluteUrl, notificationId }, [channel.port2]);
     } catch (_) { finish(null); }
   });
 }
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const target = event.notification?.data?.url || './';
+  const notificationData = event.notification?.data || {};
+  const target = notificationData.url || './portal.html';
+  const notificationId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(notificationData.notificationId || ''))
+    ? String(notificationData.notificationId) : '';
   event.waitUntil((async () => {
-    const absolute = new URL(target, self.registration.scope).href;
+    const destination = new URL(target, self.registration.scope);
+    // On cold launch, the portal reads this row ID after it restores the Supabase session.
+    if (notificationId) destination.searchParams.set('grayxonNotificationId', notificationId);
+    const absolute = destination.href;
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const inScopeClients = clientsList.filter(client => client.url && client.url.startsWith(self.registration.scope));
 
-    // First choice: let every open Grayxon window restore/confirm auth and route in-place.
-    // Query clients concurrently so one sleeping tab does not block the rest.
+    // Reuse the authenticated Grayxon window and dispatch the same DB notification
+    // through openNotification(), exactly like clicking it inside the bell panel.
     const attempts = await Promise.all(inScopeClients.map(async client => ({
       client,
-      result: await askClientToNavigate(client, absolute, 5500)
+      result: await askClientToNavigate(client, absolute, notificationId, 6500)
     })));
     for (const attempt of attempts) {
       if (attempt.result?.authenticated && attempt.result?.handled) {
@@ -160,18 +167,14 @@ self.addEventListener('notificationclick', event => {
       }
     }
 
-    // If an app window exists but did not answer or could not route, navigate that
-    // same window to the explicit push URL. This preserves page/target and avoids
-    // opening a second generic window that lands in Mi espacio or loses the route.
+    // If there is an existing window that cannot handle the message, keep the
+    // exact notification ID in the URL for app startup/login recovery.
     for (const client of inScopeClients) {
       try {
         const navigated = await client.navigate(absolute);
         if (navigated) { await navigated.focus(); return; }
       } catch (_) {}
     }
-
-    // No existing Grayxon window: open one target URL only. app.js preserves the
-    // intended page/payment ID across login if this browser context has no session.
     if (self.clients.openWindow) await self.clients.openWindow(absolute);
   })());
 });
