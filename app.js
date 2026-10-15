@@ -19,7 +19,7 @@ let grayxonInitPromise = null;
 // el login antes de recuperar la sesión. Solo guarda ruta e ID, nunca tokens.
 const GRAYXON_PENDING_PUSH_INTENT_KEY = 'grayxon_pending_push_intent_v1';
 function saveGrayxonPushIntent(page, target='') {
-  const allowed = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments'];
+  const allowed = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments','events'];
   if (!allowed.includes(String(page || ''))) return;
   try {
     localStorage.setItem(GRAYXON_PENDING_PUSH_INTENT_KEY, JSON.stringify({
@@ -67,6 +67,11 @@ function applyGrayxonPushIntent(intent) {
   if (intent.page === 'payments') {
     gxPendingPaymentTarget = uuid ? id : null;
     nav('payments');
+    return true;
+  }
+  if (intent.page === 'events') {
+    gxPendingEventTarget = uuid ? id : null;
+    nav('events');
     return true;
   }
   if (intent.page === 'live-training' && uuid) {
@@ -603,6 +608,13 @@ async function openNotification(id) {
   if (!n) return;
   await markNotificationRead(id);
   $('#notificationsPanel')?.classList.add('hidden');
+  // Eventos: reutiliza la ruta normal de Grayxon y abre el evento exacto después de cargar la lista.
+  if (n.type === 'event' || n.link_page === 'events') {
+    const target = String(n.link_target || '');
+    gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
+    nav('events');
+    return;
+  }
   // Pagos: debe tener prioridad sobre el fallback de comunicados. El destino contiene el UUID del pago.
   if (n.type === 'payment' || n.link_page === 'payments') {
     const target = String(n.link_target || '');
@@ -1070,8 +1082,9 @@ function isCreatorSession(){
 
 function nav(p, push = true) {
   const thisNav = ++navGeneration;
-  const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','force-password'];
+  const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'];
   if (!pages.includes(p)) p = 'home';
+  if (p === 'events' && typeof ensureEventsPage === 'function') ensureEventsPage();
   if (p === 'force-password' && !session) p = 'auth';
   if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
   // La portada pública oficial vive en index.html. No mostrar el inicio antiguo del portal
@@ -1089,6 +1102,7 @@ function nav(p, push = true) {
   if (p === 'manager') managerView = 'dashboard';
   if (p === 'live-training') ensureLiveTrainingPage();
   if (p === 'payments') { ensurePaymentsPage(); if(!session) p='auth'; }
+  if (p === 'events' && !session) p = 'auth';
   // Para creadores, Mi espacio debe volver a pintar inmediatamente el dashboard real.
   // Evita pasar primero por el shell antiguo con estados de carga al volver desde
   // Misiones, Mi perfil o Formación.
@@ -1186,6 +1200,7 @@ async function render(){
   }
   if(current==='announcements') await announcementsTpl();
   if(current==='payments') { ensureGrayxonPaymentStyles(); await gxPaymentsPage(); }
+  if (current==='events') await gxEventsPage();
   if(current==='auth')$('#auth').innerHTML=authTpl();
   if(current==='force-password')$('#force-password').innerHTML=forcePasswordTpl();
   if(current==='space') { if(profile?.role==='manager') await managerTpl(); else await spaceTpl(); }
@@ -2228,7 +2243,7 @@ async function enterCreatorLiveTraining(training){
   updateCreatorSpaceFloat();
   updateCreatorTopNav();
   document.body.classList.add('grayxon-live-training-active');
-  const pages=['home','benefits','auth','space','manager','training','live-training','missions','profile','admin'];
+  const pages=['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'];
   pages.forEach(id=>{
     const node=$('#'+id); if(!node)return;
     const active=id==='live-training';
@@ -4752,8 +4767,9 @@ async function init() {
   if (pushParams.get('grayxonPush') === '1') {
     const pushPage = pushParams.get('page');
     const pushTarget = pushParams.get('target') || '';
-    const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments'];
+    const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments','events'];
     const uuidTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pushTarget);
+    if (pushPage === 'events') gxPendingEventTarget = uuidTarget ? pushTarget : null;
     if (pushPages.includes(pushPage)) {
       if (!session) saveGrayxonPushIntent(pushPage, pushTarget);
       if (pushPage === 'live-training' && uuidTarget) {
@@ -4784,7 +4800,7 @@ async function init() {
       return;
     }
   }
-  const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','force-password'].includes(hashPage) ? hashPage : null;
+  const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'].includes(hashPage) ? hashPage : null;
   const initialPage = session ? (profile?.must_change_password ? 'force-password' : (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome)) : (requestedPage || 'home');
   nav(initialPage, false);
   if (validQueryNotificationId && session?.user?.id) {
@@ -5099,7 +5115,7 @@ window.addEventListener('popstate', () => {
   const hashPage = window.location.hash.replace(/^#/, '');
   const page = history.state?.page || hashPage || 'home';
   if (page === 'live-training') ensureLiveTrainingPage();
-  current = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments'].includes(page) ? page : 'home';
+  current = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events'].includes(page) ? page : 'home';
   render();
   updateCreatorSpaceFloat();
   updateCreatorTopNav();
@@ -5112,6 +5128,16 @@ async function handleGrayxonDeepLinkUrl(urlValue) {
     const hashRoute = parsed.hash.replace(/^#/, '');
     const queryPage = parsed.searchParams.get('page') || '';
     const page = hashRoute.startsWith('live-training/') ? hashRoute : (queryPage || hashRoute || 'home');
+    if (session && (page === 'events' || parsed.searchParams.get('page') === 'events')) {
+      const target = parsed.searchParams.get('target') || '';
+      gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
+      const desiredHash = '#events';
+      if (window.location.hash !== desiredHash) {
+        window.history.replaceState({page:'events'}, '', `${window.location.pathname}${window.location.search}${desiredHash}`);
+      }
+      if (current !== 'events') nav('events', false); else await gxEventsPage();
+      return true;
+    }
     if (session && (page === 'payments' || parsed.searchParams.get('page') === 'payments')) {
       const target = parsed.searchParams.get('target') || '';
       gxPendingPaymentTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(target) ? target : null;
@@ -5246,7 +5272,7 @@ window.addEventListener('hashchange', async () => {
   }
 
   if (page === 'live-training') ensureLiveTrainingPage();
-  if (!['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements'].includes(page)) return;
+  if (!['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events'].includes(page)) return;
   if (current === page) return;
   current = page;
   render();
@@ -5722,3 +5748,292 @@ function gxOpenAnnouncementPreview(url,type,name){
 /* Responsive feed media: never let an attachment exceed its card or viewport. */
 #announcements{min-width:0;width:100%;box-sizing:border-box}#announcements .gx-ann-wrap{width:100%;max-width:1080px;box-sizing:border-box;padding-left:clamp(0px,1.2vw,14px);padding-right:clamp(0px,1.2vw,14px)}#announcements .gx-ann-card,#announcements .gx-ann-hero,#announcements .gx-ann-composer-details{min-width:0;max-width:100%;box-sizing:border-box}#announcements .gx-ann-media-grid{grid-template-columns:minmax(0,1fr)}#announcements .gx-ann-inline-media{width:100%;max-width:100%;min-width:0;overflow:hidden;margin-top:12px;border-radius:12px;background:#050608;border:1px solid #252b34;box-sizing:border-box}#announcements .gx-ann-inline-media>img,#announcements .gx-ann-inline-media video,#announcements .gx-ann-inline-media audio,#announcements .gx-ann-inline-media iframe{display:block;width:100%;max-width:100%;box-sizing:border-box}#announcements .gx-ann-inline-media img{max-height:78vh;object-fit:contain;cursor:zoom-in}#announcements .gx-ann-inline-media video{max-height:78vh;background:#000}#announcements .gx-ann-inline-media audio{padding:8px;min-height:54px}#announcements .gx-ann-image-open{position:relative;display:block;width:100%;max-width:100%;padding:0;border:0;background:#050608;cursor:zoom-in}#announcements .gx-ann-image-open img{width:100%;max-width:100%;max-height:78vh;object-fit:contain;display:block}#announcements .gx-ann-image-open span{position:absolute;right:9px;bottom:9px;padding:6px 9px;border-radius:8px;background:#000b;color:#fff;font-size:11px}#announcements .gx-ann-pdf-wrap{width:100%;min-width:0}#announcements .gx-ann-pdf-label{padding:9px 11px;font-size:11px;color:#aeb6c2;border-bottom:1px solid #252b34}#announcements .gx-ann-pdf-wrap iframe{height:min(78vh,850px);border:0;background:#fff}#announcements .gx-ann-preview-error{display:block;padding:14px;color:#aeb6c2;font-size:12px;line-height:1.5;overflow-wrap:anywhere}#announcements .gx-ann-composer-details{margin-bottom:18px;border:1px solid #2d323a;border-radius:17px;background:linear-gradient(145deg,#121519,#0b0d10);box-shadow:0 12px 32px #0002;overflow:hidden}#announcements .gx-ann-composer-summary{display:flex;align-items:center;gap:12px;padding:15px 17px;cursor:pointer;list-style:none}#announcements .gx-ann-composer-summary::-webkit-details-marker{display:none}#announcements .gx-ann-compose-icon{width:40px;height:40px;flex:0 0 40px;border-radius:12px;display:grid;place-items:center;background:#242027;color:#f4a2c2;font-size:20px}#announcements .gx-ann-composer-summary>span:nth-child(2){display:grid;gap:4px;min-width:0;flex:1}#announcements .gx-ann-composer-summary strong{font-size:14px}#announcements .gx-ann-composer-summary small{font-size:11px;color:#9199a4;line-height:1.4}#announcements .gx-ann-compose-chevron{font-size:21px;color:#25f4ee;transition:transform .15s}#announcements .gx-ann-composer-details[open] .gx-ann-compose-chevron{transform:rotate(180deg)}#announcements .gx-ann-composer{border:0;border-top:1px solid #2b3037;border-radius:0;box-shadow:none;margin:0;padding:16px}#gxAnnPreviewOverlay.gx-ann-preview-overlay{display:none;position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.96);align-items:center;justify-content:center;padding:18px;box-sizing:border-box}#gxAnnPreviewOverlay.gx-ann-preview-overlay.is-open{display:flex}#gxAnnPreviewOverlay .gx-ann-preview-stage{display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0;min-height:0}#gxAnnPreviewOverlay .gx-ann-preview-stage img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}#gxAnnPreviewOverlay .gx-ann-preview-close{position:absolute;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:1;width:44px;height:44px;border:1px solid #ffffff55;border-radius:50%;background:#171a20;color:#fff;font-size:20px;cursor:pointer}#announcements .gx-ann-card-top [data-edit-poll]{width:auto!important;min-width:0;flex:0 0 auto;margin:0!important;padding:7px 11px!important;border:1px solid #3c4653!important;border-radius:8px!important;background:#171b22!important;color:#e8edf4!important;font-size:11px!important;font-weight:650!important;line-height:1.2!important;box-shadow:none!important}#announcements .gx-ann-card-top [data-delete-poll]{width:auto!important;flex:0 0 auto;margin:0!important}#announcements .gx-ann-card-top{min-width:0;flex-wrap:wrap}.gx-polls-section{margin:20px 0 30px;padding-top:4px;border-top:1px solid #282d35}.gx-poll-options{display:grid;gap:9px;margin-top:16px}.gx-poll-option{display:flex;align-items:center;gap:10px;border:1px solid #333943;border-radius:11px;padding:11px 12px;background:#0b0d10;cursor:pointer}.gx-poll-option input{accent-color:#fe2c55;flex:0 0 auto}.gx-poll-option.is-selected{border-color:#c25d84;background:#1b1218}.gx-poll-option-copy{display:grid;gap:7px;min-width:0;flex:1;font-size:13px}.gx-poll-option small{color:#c7ccd4;white-space:nowrap;font-size:11px}.gx-poll-result{display:block;height:5px;border-radius:99px;background:#292e37;overflow:hidden}.gx-poll-result i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#fe2c55,#25f4ee)}.gx-poll-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:15px;color:#a5acb7;font-size:11px}.gx-poll-footer .gx-ann-publish{width:auto;margin:0;padding:10px 15px}.gx-poll-multiple{align-content:start}.gx-compose-target-spacer{display:block}.gx-compose-target-spacer:empty{min-height:1px}#gxComposeSurveyFields.hidden{display:none!important}@media(max-width:650px){.gx-poll-footer{align-items:stretch;flex-direction:column}.gx-poll-footer .gx-ann-publish{width:100%}}#gxAnnPreviewOverlay .gx-ann-preview-close{position:absolute;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:1;width:44px;height:44px;border:1px solid #ffffff55;border-radius:50%;background:#171a20;color:#fff;font-size:20px;cursor:pointer}@media(max-width:650px){#announcements .gx-ann-wrap{padding:0 10px 24px}#announcements .gx-ann-hero{padding:18px 15px}#announcements .gx-ann-card{padding:13px}#announcements .gx-ann-card-top{align-items:flex-start}#announcements .gx-ann-inline-media img,#announcements .gx-ann-inline-media video,#announcements .gx-ann-pdf-wrap iframe{max-height:72vh}#announcements .gx-ann-composer-summary{padding:13px}#announcements .gx-ann-composer{padding:13px}.gx-ann-preview-overlay{padding:8px!important}}
 `;document.head.appendChild(style);})();
+
+/* GRAYXON EVENTOS v1 · módulo aditivo. Reutiliza notifications + grayxon-push. */
+let gxEventsCache = [];
+let gxEventsMyParticipants = [];
+let gxEventsFilter = 'upcoming';
+let gxPendingEventTarget = null;
+
+function gxEventsSafeHttpUrl(value){
+  try { const u = new URL(String(value || '').trim()); return ['https:','http:'].includes(u.protocol) ? u.href : ''; } catch (_) { return ''; }
+}
+function gxEnsureEventsStyles(){
+  if(document.getElementById('gx-events-styles-v1')) return;
+  const style=document.createElement('style'); style.id='gx-events-styles-v1';
+  style.textContent=`
+    #events .gx-events-wrap{max-width:1120px;margin:0 auto;padding:2px 0 30px;color:#f4f6f8}
+    #events .gx-events-top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:20px}
+    #events .gx-events-top h1{font-size:clamp(27px,4vw,38px);line-height:1.08;margin:6px 0 8px;color:#fff}
+    #events .gx-events-top p{margin:0;max-width:650px;color:#929ba7;line-height:1.55;font-size:13px}
+    #events .gx-events-eyebrow{font-size:10px;font-weight:850;letter-spacing:.17em;color:#25f4ee}
+    #events .gx-events-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 13px;border:1px solid rgba(255,255,255,.12);border-radius:11px;background:#15191f;color:#f5f6f8;font-weight:800;font-size:12px;cursor:pointer;text-decoration:none}
+    #events .gx-events-btn.primary{border:0;background:linear-gradient(110deg,#fe2c55,#25f4ee);color:#061014}
+    #events .gx-events-btn.danger{color:#ff8ca2;border-color:rgba(254,44,85,.35)}
+    #events .gx-events-btn:disabled{opacity:.5;cursor:wait}
+    #events .gx-events-filters{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 17px}
+    #events .gx-events-filter{padding:8px 12px;border:1px solid rgba(255,255,255,.10);border-radius:999px;background:#10141a;color:#aeb7c3;font-size:11px;font-weight:800;cursor:pointer}
+    #events .gx-events-filter.active{background:rgba(37,244,238,.09);border-color:rgba(37,244,238,.42);color:#aaf8f4}
+    #events .gx-events-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+    #events .gx-event-card{position:relative;overflow:hidden;display:flex;flex-direction:column;min-width:0;padding:18px;border:1px solid rgba(255,255,255,.09);border-radius:18px;background:linear-gradient(145deg,rgba(19,24,31,.97),rgba(12,15,20,.98));box-shadow:0 14px 36px rgba(0,0,0,.12)}
+    #events .gx-event-card:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#25f4ee,#fe2c55);opacity:.8}
+    #events .gx-event-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+    #events .gx-event-type{display:inline-flex;align-items:center;gap:6px;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#8cefe9}
+    #events .gx-event-status{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:5px 8px;color:#bec5ce;font-size:9px;font-weight:850;white-space:nowrap}
+    #events .gx-event-status.published,#events .gx-event-status.in_progress{color:#72e2b0;border-color:rgba(110,231,183,.25);background:rgba(110,231,183,.06)}
+    #events .gx-event-status.draft{color:#f4cf85;border-color:rgba(244,207,133,.25)}
+    #events .gx-event-card h2{font-size:20px;line-height:1.22;margin:0 0 7px;color:#fff;overflow-wrap:anywhere}
+    #events .gx-event-desc{color:#a2abb7;font-size:12px;line-height:1.55;margin:0 0 14px;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+    #events .gx-event-meta{display:grid;gap:7px;margin:0 0 15px}
+    #events .gx-event-meta-row{display:flex;gap:9px;align-items:flex-start;color:#b6bec8;font-size:11px;line-height:1.4}
+    #events .gx-event-meta-row span:first-child{width:18px;flex:0 0 18px;text-align:center}
+    #events .gx-event-card-foot{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.07)}
+    #events .gx-event-own-state{color:#70e2b1;font-size:10px;font-weight:800}
+    #events .gx-event-empty{padding:35px 20px;text-align:center;border:1px dashed rgba(255,255,255,.13);border-radius:16px;background:rgba(255,255,255,.015);color:#9da6b2;grid-column:1/-1}
+    #events .gx-event-empty strong{display:block;color:#edf1f5;font-size:16px;margin-bottom:6px}
+    #events .gx-event-error{padding:15px;border:1px solid rgba(254,44,85,.25);border-radius:13px;background:rgba(254,44,85,.055);color:#ffb0c0;font-size:12px;white-space:pre-wrap}
+    #events .gx-event-modal-backdrop{position:fixed;inset:0;z-index:10070;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.76);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+    #events .gx-event-modal{width:min(760px,100%);max-height:min(91vh,1000px);overflow:auto;padding:22px;border:1px solid rgba(255,255,255,.12);border-radius:20px;background:linear-gradient(145deg,#141922,#080b10);box-shadow:0 25px 90px rgba(0,0,0,.55);color:#f5f7fa}
+    #events .gx-event-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}
+    #events .gx-event-modal h2{font-size:clamp(23px,4vw,30px);line-height:1.12;margin:5px 0 8px;overflow-wrap:anywhere}
+    #events .gx-event-modal p{white-space:pre-line;color:#abb4c0;line-height:1.6;font-size:13px}
+    #events .gx-event-detail-panel{padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:rgba(255,255,255,.025);margin:12px 0}
+    #events .gx-event-detail-panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:#25f4ee;margin:0 0 9px}
+    #events .gx-event-detail-row{display:flex;justify-content:space-between;gap:15px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}
+    #events .gx-event-detail-row:last-child{border-bottom:0}.gx-event-detail-row span{color:#9ba6b3}.gx-event-detail-row strong{text-align:right;overflow-wrap:anywhere}
+    #events .gx-event-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+    #events .gx-event-form-grid .field{margin:8px 0}
+    #events .gx-event-form-grid .field label{display:block;color:#aeb7c3;font-size:11px;margin-bottom:6px}
+    #events .gx-event-form-grid input,#events .gx-event-form-grid select,#events .gx-event-form-grid textarea{width:100%;box-sizing:border-box;border:1px solid #303742;border-radius:10px;background:#0c1016;color:#f4f6f8;padding:11px;font:inherit;font-size:12px;min-width:0}
+    #events .gx-event-form-grid textarea{min-height:90px;resize:vertical}
+    #events .gx-event-form-grid .span-all{grid-column:1/-1}
+    #events .gx-event-form-foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:15px}
+    #events .gx-event-participants{display:grid;gap:7px;margin-top:10px}
+    #events .gx-event-participant{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:#0e1218}
+    #events .gx-event-participant strong{display:block;font-size:12px}#events .gx-event-participant small{display:block;color:#8994a2;font-size:10px;margin-top:3px}
+    #events .gx-event-participant select{max-width:145px;min-width:120px;padding:7px;border:1px solid #303742;border-radius:9px;background:#0a0d12;color:#fff;font-size:10px}
+    .gx-events-dashboard-card .gx-ann-unread-badge{margin-top:6px}
+    .admin-dashboard-card .gx-ann-unread-badge{grid-column:1/-1}
+    .gx-event-dashboard-count{display:inline-flex;align-items:center;gap:5px;margin-top:6px;width:max-content;max-width:100%;padding:4px 8px;border:1px solid rgba(254,44,85,.3);border-radius:999px;background:rgba(254,44,85,.1);color:#ff9db5;font-size:10px;font-weight:800}
+    .gx-event-dashboard-count b{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 3px;border-radius:999px;background:#fe2c55;color:#fff;font-size:10px}
+    @media(max-width:760px){#events .gx-events-grid{grid-template-columns:1fr}#events .gx-event-card{padding:15px}#events .gx-event-form-grid{grid-template-columns:1fr}#events .gx-event-form-grid .span-all{grid-column:auto}#events .gx-event-modal-backdrop{align-items:flex-end;padding:8px}#events .gx-event-modal{width:100%;max-height:94vh;padding:17px;border-radius:19px 19px 13px 13px}#events .gx-event-participant{align-items:flex-start;flex-direction:column}#events .gx-event-participant select{max-width:none;width:100%}}
+  `;
+  document.head.appendChild(style);
+}
+
+function ensureEventsPage(){
+  gxEnsureEventsStyles();
+  let el=document.getElementById('events');
+  if(!el){
+    el=document.createElement('section');el.id='events';el.className='page hidden';el.hidden=true;
+    const root=document.querySelector('main.wrap')||document.querySelector('main')||document.body;
+    root.appendChild(el);
+  }
+  return el;
+}
+
+function gxEventsEsc(value){return esc(String(value??''));}
+function gxEventsIsAdmin(){return !!session?.user?.id&&profile?.role==='admin';}
+function gxEventsStatusLabel(status){return ({draft:'Borrador',published:'Publicado',in_progress:'En curso',finished:'Finalizado',cancelled:'Cancelado'})[status]||status||'—';}
+function gxEventsTypeLabel(type){return ({event:'Evento',battle_league:'Liga de batallas',tournament:'Torneo',challenge:'Reto',other:'Otro'})[type]||'Evento';}
+function gxEventsAudienceLabel(value){return ({all:'Toda la agencia',creators:'Solo creadores',managers:'Solo managers'})[value]||'Toda la agencia';}
+function gxEventsDateInput(value){if(!value)return '';const d=new Date(value);if(Number.isNaN(d.getTime()))return '';const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+function gxEventsFormatCoins(v){if(v==null||v==='')return '—';try{return `${new Intl.NumberFormat('es-CO').format(Number(v))} monedas`; }catch{return `${v} monedas`;}}
+function gxEventsStatusBadge(event){return `<span class="gx-event-status ${gxEventsEsc(event.status)}">${gxEventsEsc(gxEventsStatusLabel(event.status))}</span>`;}
+
+function gxEventsDashboardCardMarkup(variant){
+  if(variant==='creator')return `<button type="button" class="creator-dashboard-card gx-ann-dashboard-card gx-events-dashboard-card" data-gx-open-events><span class="gx-ann-dashboard-icon">🎉</span><span class="gx-ann-dashboard-copy"><strong>Eventos Grayxon</strong><small>Participa en eventos, torneos y retos de la agencia.</small><span class="gx-ann-unread-badge hidden" data-gx-event-unread-badge aria-live="polite"><b>0</b> eventos pendientes por revisar</span></span><span class="gx-ann-dashboard-arrow">›</span></button>`;
+  if(variant==='manager')return `<button type="button" class="manager-dashboard-card gx-events-dashboard-card" data-gx-open-events><span class="manager-dashboard-card-icon">🎉</span><span class="manager-dashboard-card-copy"><strong>Eventos Grayxon</strong><small>Consulta actividades, torneos y próximos eventos.</small><span class="gx-ann-unread-badge hidden" data-gx-event-unread-badge aria-live="polite"><b>0</b> pendientes por revisar</span></span><span class="manager-dashboard-card-arrow">›</span></button>`;
+  if(variant==='admin')return `<button type="button" class="admin-dashboard-card gx-events-dashboard-card" data-gx-open-events><span class="admin-dashboard-card-icon">🎉</span><span class="admin-dashboard-card-copy"><strong>Eventos</strong><small>Crea eventos, gestiona inscripciones y publica resultados.</small><span class="gx-ann-unread-badge hidden" data-gx-event-unread-badge aria-live="polite"><b>0</b> pendientes por revisar</span></span><span class="admin-dashboard-card-arrow">›</span></button>`;
+  return `<button type="button" class="space-card card gx-events-dashboard-card" data-gx-open-events><span class="space-card-icon">🎉</span><div class="space-card-main"><div class="space-card-top"><strong>Eventos Grayxon</strong><span>›</span></div><p>Consulta eventos, torneos y retos de Grayxon.</p><div class="space-progress"><span style="width:100%"></span></div><span class="gx-ann-unread-badge hidden" data-gx-event-unread-badge><b>0</b> pendientes por revisar</span></div><span class="space-card-arrow">›</span></button>`;
+}
+
+function gxEventsInjectDashboardCard(){
+  if(!session?.user?.id||!profile?.role)return;
+  let target=null,variant='space';
+  if(profile.role==='creator') {target=document.querySelector('#space .creator-dashboard-grid');variant='creator';}
+  else if(profile.role==='manager') {target=document.querySelector('#manager .manager-dashboard-grid');variant='manager';}
+  else if(profile.role==='admin') {target=document.querySelector('#admin .admin-dashboard-grid');variant='admin';}
+  if(!target) target=document.querySelector('#space #spaceCards');
+  if(!target||target.querySelector('[data-gx-open-events]'))return;
+  target.insertAdjacentHTML('beforeend',gxEventsDashboardCardMarkup(variant));
+  gxEventsRefreshUnreadCount().catch(()=>{});
+}
+
+let gxEventsUnreadRequest=null;
+async function gxEventsRefreshUnreadCount(){
+  if(!session?.user?.id||!sb)return 0;
+  if(gxEventsUnreadRequest)return gxEventsUnreadRequest;
+  gxEventsUnreadRequest=(async()=>{
+    const {data,error}=await sb.rpc('gx_events_unread_count');
+    if(error){console.warn('Eventos: no se pudo actualizar el contador',error.message);return 0;}
+    const count=Math.max(0,Number(data)||0);
+    document.querySelectorAll('[data-gx-event-unread-badge]').forEach(b=>{
+      const n=b.querySelector('b');if(n)n.textContent=String(count);
+      b.classList.toggle('hidden',count===0);
+      b.setAttribute('aria-label',`${count} eventos pendientes por revisar`);
+    });
+    return count;
+  })();
+  try{return await gxEventsUnreadRequest;}finally{gxEventsUnreadRequest=null;}
+}
+
+async function gxEventsMarkRead(eventId){
+  if(!session?.user?.id||!eventId)return;
+  const {error}=await sb.from('gx_event_reads').insert({event_id:eventId,user_id:session.user.id});
+  if(error&&!String(error.code||'').includes('23505')&&!/duplicate key/i.test(error.message||''))console.warn('Eventos: no se pudo registrar la lectura',error.message);
+  gxEventsRefreshUnreadCount().catch(()=>{});
+}
+
+function gxEventsBackTarget(){return profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space';}
+
+async function gxEventsPage(){
+  const host=ensureEventsPage();
+  if(!session?.user?.id){host.innerHTML=authTpl();return;}
+  host.innerHTML=`<div class="gx-events-wrap"><div class="gx-events-top"><div><div class="gx-events-eyebrow">GRAYXON GROUP · COMUNIDAD</div><h1>Eventos Grayxon</h1><p>Encuentra actividades, torneos y retos. Revisa las reglas, consulta los premios y confirma tu participación desde un solo lugar.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="gx-events-btn" data-gx-events-back>← Volver al dashboard</button>${gxEventsIsAdmin()?'<button type="button" class="gx-events-btn primary" data-gx-event-create>＋ Crear evento</button>':''}</div></div><div class="gx-events-filters" role="tablist" aria-label="Filtrar eventos"><button type="button" class="gx-events-filter ${gxEventsFilter==='upcoming'?'active':''}" data-gx-event-filter="upcoming">Próximos</button><button type="button" class="gx-events-filter ${gxEventsFilter==='mine'?'active':''}" data-gx-event-filter="mine">Mis eventos</button><button type="button" class="gx-events-filter ${gxEventsFilter==='all'?'active':''}" data-gx-event-filter="all">Todos</button><button type="button" class="gx-events-filter ${gxEventsFilter==='past'?'active':''}" data-gx-event-filter="past">Historial</button></div><div id="gxEventsStatus" aria-live="polite" style="margin-bottom:12px"></div><div id="gxEventsList" class="gx-events-grid"><div class="gx-event-empty">Cargando eventos…</div></div></div>`;
+  host.querySelector('[data-gx-events-back]')?.addEventListener('click',()=>nav(gxEventsBackTarget()));
+  host.querySelector('[data-gx-event-create]')?.addEventListener('click',()=>gxEventsOpenForm(null));
+  host.querySelectorAll('[data-gx-event-filter]').forEach(b=>b.addEventListener('click',()=>{gxEventsFilter=b.dataset.gxEventFilter;host.querySelectorAll('[data-gx-event-filter]').forEach(x=>x.classList.toggle('active',x===b));gxEventsRenderCards();}));
+  const {data:rows,error}=await sb.from('gx_events').select('id,title,description,event_type,audience,rules,starts_at,ends_at,status,prize_description,prize_total_coins,location,event_url,results,created_by,created_at,updated_at').order('starts_at',{ascending:true,nullsFirst:false});
+  if(error){host.querySelector('#gxEventsList').innerHTML=`<div class="gx-event-error" style="grid-column:1/-1"><strong>No se pudieron cargar los eventos.</strong><br>${gxEventsEsc(error.message)}<br><br>Verifica que ejecutaste el archivo events_module.sql en Supabase.</div>`;return;}
+  gxEventsCache=rows||[];
+  const {data:mine,error:mineErr}=await sb.from('gx_event_participants').select('id,event_id,user_id,team_id,status,registered_at,notes').eq('user_id',session.user.id);
+  if(mineErr)console.warn('Eventos: no se pudo consultar tu inscripción',mineErr.message);
+  gxEventsMyParticipants=mine||[];
+  gxEventsRenderCards();
+  await gxEventsRefreshUnreadCount();
+  const target=gxPendingEventTarget;
+  if(target){gxPendingEventTarget=null;await gxEventsOpenDetail(target);}
+}
+
+function gxEventsRenderCards(){
+  const list=document.getElementById('gxEventsList');if(!list)return;
+  const admin=gxEventsIsAdmin();const now=Date.now();
+  const mineMap=new Map((gxEventsMyParticipants||[]).map(p=>[p.event_id,p]));
+  let items=(gxEventsCache||[]).slice();
+  if(!admin)items=items.filter(e=>e.status!=='draft');
+  if(gxEventsFilter==='upcoming')items=items.filter(e=>['published','in_progress'].includes(e.status)&&(!e.ends_at||new Date(e.ends_at).getTime()>=now));
+  else if(gxEventsFilter==='mine')items=items.filter(e=>['registered','confirmed'].includes(mineMap.get(e.id)?.status));
+  else if(gxEventsFilter==='past')items=items.filter(e=>['finished','cancelled'].includes(e.status)||(e.ends_at&&new Date(e.ends_at).getTime()<now));
+  items.sort((a,b)=>{
+    const priority=e=>e.status==='in_progress'?0:e.status==='published'?1:e.status==='draft'?2:3;
+    const p=priority(a)-priority(b);if(p)return p;
+    return new Date(a.starts_at||'2999-01-01').getTime()-new Date(b.starts_at||'2999-01-01').getTime();
+  });
+  if(!items.length){list.innerHTML=`<div class="gx-event-empty"><strong>${gxEventsFilter==='mine'?'Aún no te has inscrito a ningún evento.':'No hay eventos en esta categoría.'}</strong><span>${gxEventsIsAdmin()?'Puedes crear un evento y publicarlo cuando esté listo.':'Cuando la administración publique nuevas actividades, aparecerán aquí.'}</span></div>`;return;}
+  list.innerHTML=items.map(ev=>{
+    const own=mineMap.get(ev.id);const start=ev.starts_at?formatDateTime(ev.starts_at):'Fecha por confirmar';const end=ev.ends_at?formatDateTime(ev.ends_at):'';
+    const prize=ev.prize_description?`<div class="gx-event-meta-row"><span>🏆</span><span>${gxEventsEsc(ev.prize_description)}</span></div>`:'';
+    const attendance=own?.status==='registered'||own?.status==='confirmed'?`<span class="gx-event-own-state">✓ ${own.status==='confirmed'?'Inscripción confirmada':'Ya estás inscrito'}</span>`:'';
+    return `<article class="gx-event-card"><div class="gx-event-card-top"><span class="gx-event-type">${gxEventsEsc(gxEventsTypeLabel(ev.event_type))}</span>${gxEventsStatusBadge(ev)}</div><h2>${gxEventsEsc(ev.title)}</h2><p class="gx-event-desc">${gxEventsEsc(ev.description||'Consulta los detalles de este evento.')}</p><div class="gx-event-meta"><div class="gx-event-meta-row"><span>📅</span><span>${gxEventsEsc(start)}${end?`<br>Hasta ${gxEventsEsc(end)}`:''}</span></div>${ev.prize_total_coins?`<div class="gx-event-meta-row"><span>💎</span><span>${gxEventsEsc(gxEventsFormatCoins(ev.prize_total_coins))}</span></div>`:''}${ev.location?`<div class="gx-event-meta-row"><span>📍</span><span>${gxEventsEsc(ev.location)}</span></div>`:''}${prize}</div><div class="gx-event-card-foot">${attendance}<button type="button" class="gx-events-btn" data-gx-event-details="${gxEventsEsc(ev.id)}">Ver detalles ↗</button></div></article>`;
+  }).join('');
+  list.querySelectorAll('[data-gx-event-details]').forEach(b=>b.addEventListener('click',()=>gxEventsOpenDetail(b.dataset.gxEventDetails)));
+}
+
+async function gxEventsOpenDetail(eventId){
+  if(!session?.user?.id)return nav('auth');
+  let ev=(gxEventsCache||[]).find(x=>x.id===eventId);
+  if(!ev){const {data,error}=await sb.from('gx_events').select('*').eq('id',eventId).maybeSingle();if(error||!data){toast('Este evento no está disponible o tu cuenta no tiene acceso.');return;}ev=data;gxEventsCache=[ev,...gxEventsCache.filter(x=>x.id!==ev.id)];}
+  await gxEventsMarkRead(ev.id);
+  document.getElementById('gxEventModalOverlay')?.remove();
+  const admin=gxEventsIsAdmin();
+  const own=(gxEventsMyParticipants||[]).find(p=>p.event_id===ev.id&&['registered','confirmed'].includes(p.status));
+  const canRegister=ev.status==='published'&&(!ev.starts_at||new Date(ev.starts_at).getTime()>Date.now());
+  const overlay=document.createElement('div');overlay.id='gxEventModalOverlay';overlay.className='gx-event-modal-backdrop';
+  overlay.innerHTML=`<section class="gx-event-modal" role="dialog" aria-modal="true" aria-labelledby="gxEventDetailTitle"><div class="gx-event-modal-head"><div><div class="gx-events-eyebrow">${gxEventsEsc(gxEventsTypeLabel(ev.event_type))} · DETALLES</div><h2 id="gxEventDetailTitle">${gxEventsEsc(ev.title)}</h2>${gxEventsStatusBadge(ev)}</div><button type="button" class="gx-events-btn" data-gx-event-close aria-label="Cerrar">✕ Cerrar</button></div>${ev.description?`<p>${gxEventsEsc(ev.description)}</p>`:'<p>La administración aún no ha agregado una descripción.</p>'}<div class="gx-event-detail-panel"><h3>Información del evento</h3><div class="gx-event-detail-row"><span>Inicio</span><strong>${gxEventsEsc(ev.starts_at?formatDateTime(ev.starts_at):'Fecha por confirmar')}</strong></div><div class="gx-event-detail-row"><span>Finalización</span><strong>${gxEventsEsc(ev.ends_at?formatDateTime(ev.ends_at):'Por confirmar')}</strong></div><div class="gx-event-detail-row"><span>Tipo</span><strong>${gxEventsEsc(gxEventsTypeLabel(ev.event_type))}</strong></div><div class="gx-event-detail-row"><span>Audiencia</span><strong>${admin?gxEventsEsc(gxEventsAudienceLabel(ev.audience)):'Tu comunidad Grayxon'}</strong></div>${ev.prize_total_coins!=null?`<div class="gx-event-detail-row"><span>Premio total</span><strong>${gxEventsEsc(gxEventsFormatCoins(ev.prize_total_coins))}</strong></div>`:''}${ev.location?`<div class="gx-event-detail-row"><span>Lugar / plataforma</span><strong>${gxEventsEsc(ev.location)}</strong></div>`:''}${gxEventsSafeHttpUrl(ev.event_url)?`<div class="gx-event-detail-row"><span>Enlace</span><strong><a href="${gxEventsEsc(gxEventsSafeHttpUrl(ev.event_url))}" target="_blank" rel="noopener noreferrer" style="color:#25f4ee">Abrir evento ↗</a></strong></div>`:''}</div>${ev.prize_description?`<div class="gx-event-detail-panel"><h3>Premios</h3><p style="margin:0">${gxEventsEsc(ev.prize_description)}</p></div>`:''}${ev.rules?`<div class="gx-event-detail-panel"><h3>Reglas y requisitos</h3><p style="margin:0">${gxEventsEsc(ev.rules)}</p></div>`:''}${ev.results?`<div class="gx-event-detail-panel"><h3>Resultados y ganadores</h3><p style="margin:0">${gxEventsEsc(ev.results)}</p></div>`:''}<div id="gxEventDetailParticipants"></div><div id="gxEventDetailActions" class="gx-event-form-foot">${admin?`<button type="button" class="gx-events-btn" data-gx-event-edit="${gxEventsEsc(ev.id)}">Editar evento</button><button type="button" class="gx-events-btn danger" data-gx-event-delete="${gxEventsEsc(ev.id)}">Eliminar</button>`:own?`<span class="gx-event-own-state">✓ ${own.status==='confirmed'?'Inscripción confirmada':'Ya estás inscrito'}</span>${own.status==='registered'?`<button type="button" class="gx-events-btn danger" data-gx-event-leave="${gxEventsEsc(ev.id)}">Cancelar inscripción</button>`:''}`:canRegister?`<button type="button" class="gx-events-btn primary" data-gx-event-join="${gxEventsEsc(ev.id)}">Confirmar participación ↗</button>`:''}</div><div id="gxEventDetailMsg" class="muted small" style="margin-top:10px"></div></section>`;
+  document.body.appendChild(overlay);
+  const close=()=>overlay.remove();overlay.querySelector('[data-gx-event-close]')?.addEventListener('click',close);overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+  const onEsc=e=>{if(e.key==='Escape'&&document.getElementById('gxEventModalOverlay')){close();document.removeEventListener('keydown',onEsc);}};document.addEventListener('keydown',onEsc);
+  overlay.querySelector('[data-gx-event-edit]')?.addEventListener('click',()=>{close();gxEventsOpenForm(ev);});
+  overlay.querySelector('[data-gx-event-delete]')?.addEventListener('click',async()=>{
+    if(!confirm(`¿Eliminar el evento “${ev.title}”? También se eliminarán las inscripciones y las lecturas vinculadas.`))return;
+    const {error}=await sb.from('gx_events').delete().eq('id',ev.id);
+    if(error){toast('No se pudo eliminar: '+error.message);return;}
+    gxEventsCache=gxEventsCache.filter(x=>x.id!==ev.id);gxEventsMyParticipants=gxEventsMyParticipants.filter(x=>x.event_id!==ev.id);close();toast('Evento eliminado ✓');await gxEventsPage();
+  });
+  overlay.querySelector('[data-gx-event-join]')?.addEventListener('click',async b=>{
+    const button=overlay.querySelector('[data-gx-event-join]');button.disabled=true;
+    const {error}=await sb.from('gx_event_participants').insert({event_id:ev.id,user_id:session.user.id,team_id:profile?.team_id||null,status:'registered'});
+    if(error){toast(/23505/.test(error.code||'')?'Ya tienes una inscripción registrada.':error.message);button.disabled=false;return;}
+    gxEventsMyParticipants.push({event_id:ev.id,user_id:session.user.id,status:'registered',team_id:profile?.team_id||null});toast('¡Te inscribiste al evento! ✓');await gxEventsPage();
+  });
+  overlay.querySelector('[data-gx-event-leave]')?.addEventListener('click',async()=>{
+    if(!confirm('¿Quieres cancelar tu inscripción a este evento?'))return;
+    const {error}=await sb.from('gx_event_participants').delete().eq('event_id',ev.id).eq('user_id',session.user.id).eq('status','registered');
+    if(error){toast(error.message);return;}
+    gxEventsMyParticipants=gxEventsMyParticipants.filter(p=>!(p.event_id===ev.id&&p.user_id===session.user.id));toast('Inscripción cancelada.');await gxEventsPage();
+  });
+  if(admin) await gxEventsLoadParticipantsIntoDetail(ev,overlay);
+}
+
+async function gxEventsLoadParticipantsIntoDetail(ev,overlay){
+  const host=overlay.querySelector('#gxEventDetailParticipants');if(!host)return;
+  host.innerHTML='<div class="gx-event-detail-panel"><h3>Inscripciones</h3><div class="muted small">Cargando participantes…</div></div>';
+  const {data:parts,error}=await sb.from('gx_event_participants').select('id,event_id,user_id,team_id,status,registered_at,notes').eq('event_id',ev.id).order('registered_at',{ascending:true});
+  if(error){host.innerHTML=`<div class="gx-event-detail-panel"><h3>Inscripciones</h3><div class="gx-event-error">${gxEventsEsc(error.message)}</div></div>`;return;}
+  const ids=[...new Set((parts||[]).map(p=>p.user_id))];let profs=[];
+  if(ids.length){const res=await sb.from('profiles').select('id,username,full_name,role').in('id',ids);if(!res.error)profs=res.data||[];}
+  const map=new Map(profs.map(p=>[p.id,p]));
+  host.innerHTML=`<div class="gx-event-detail-panel"><h3>Inscripciones · ${(parts||[]).length}</h3>${parts?.length?`<div class="gx-event-participants">${parts.map(p=>{const user=map.get(p.user_id);return `<div class="gx-event-participant"><div><strong>@${gxEventsEsc(user?.username||'usuario')}</strong><small>${gxEventsEsc(user?.full_name||'')} · ${gxEventsEsc(user?.role||'')} · ${gxEventsEsc(formatDateTime(p.registered_at))}</small></div><select data-gx-event-participant-status="${gxEventsEsc(p.id)}" aria-label="Estado de inscripción"><option value="registered" ${p.status==='registered'?'selected':''}>Inscrito</option><option value="confirmed" ${p.status==='confirmed'?'selected':''}>Confirmado</option><option value="disqualified" ${p.status==='disqualified'?'selected':''}>Descalificado</option><option value="withdrawn" ${p.status==='withdrawn'?'selected':''}>Retirado</option></select></div>`;}).join('')}</div>`:'<p style="margin:0">Todavía no hay personas inscritas.</p>'}</div>`;
+  host.querySelectorAll('[data-gx-event-participant-status]').forEach(sel=>sel.addEventListener('change',async()=>{
+    const {error}=await sb.from('gx_event_participants').update({status:sel.value}).eq('id',sel.dataset.gxEventParticipantStatus);
+    if(error){toast('No se pudo actualizar la inscripción: '+error.message);return;}
+    toast('Estado de inscripción actualizado ✓');
+  }));
+}
+
+function gxEventsOpenForm(existing){
+  if(!gxEventsIsAdmin())return toast('Solo administración puede crear o editar eventos.');
+  document.getElementById('gxEventFormOverlay')?.remove();
+  const ev=existing||{};const overlay=document.createElement('div');overlay.id='gxEventFormOverlay';overlay.className='gx-event-modal-backdrop';
+  overlay.innerHTML=`<section class="gx-event-modal" role="dialog" aria-modal="true" aria-labelledby="gxEventFormTitle"><div class="gx-event-modal-head"><div><div class="gx-events-eyebrow">ADMINISTRACIÓN · EVENTOS</div><h2 id="gxEventFormTitle">${existing?'Editar evento':'Crear evento'}</h2><p style="margin:0">Los cambios se guardan en Grayxon. El aviso push se genera solo al publicar por primera vez.</p></div><button type="button" class="gx-events-btn" data-gx-event-form-close>✕</button></div><form id="gxEventForm"><div class="gx-event-form-grid"><label class="field span-all"><span>Título del evento *</span><input id="gxEventTitle" maxlength="180" required value="${gxEventsEsc(ev.title||'')}" placeholder="Ej. Grayxon Battle League"></label><label class="field"><span>Tipo de evento</span><select id="gxEventType"><option value="event" ${ev.event_type==='event'||!ev.event_type?'selected':''}>Evento de comunidad</option><option value="battle_league" ${ev.event_type==='battle_league'?'selected':''}>Liga de batallas</option><option value="tournament" ${ev.event_type==='tournament'?'selected':''}>Torneo</option><option value="challenge" ${ev.event_type==='challenge'?'selected':''}>Reto / desafío</option><option value="other" ${ev.event_type==='other'?'selected':''}>Otro</option></select></label><label class="field"><span>Dirigido a</span><select id="gxEventAudience"><option value="all" ${ev.audience==='all'||!ev.audience?'selected':''}>Toda la agencia</option><option value="creators" ${ev.audience==='creators'?'selected':''}>Solo creadores</option><option value="managers" ${ev.audience==='managers'?'selected':''}>Solo managers</option></select></label><label class="field"><span>Fecha y hora de inicio</span><input id="gxEventStarts" type="datetime-local" value="${gxEventsEsc(gxEventsDateInput(ev.starts_at))}"></label><label class="field"><span>Fecha y hora de finalización</span><input id="gxEventEnds" type="datetime-local" value="${gxEventsEsc(gxEventsDateInput(ev.ends_at))}"></label><label class="field"><span>Lugar o plataforma</span><input id="gxEventLocation" maxlength="250" value="${gxEventsEsc(ev.location||'')}" placeholder="Ej. TikTok LIVE / Google Meet"></label><label class="field"><span>Enlace del evento (opcional)</span><input id="gxEventUrl" type="url" maxlength="1000" value="${gxEventsEsc(ev.event_url||'')}" placeholder="https://..."></label><label class="field span-all"><span>Descripción</span><textarea id="gxEventDescription" maxlength="5000" placeholder="¿De qué trata el evento?">${gxEventsEsc(ev.description||'')}</textarea></label><label class="field span-all"><span>Reglas y requisitos</span><textarea id="gxEventRules" maxlength="8000" placeholder="Reglas, fechas límite, condiciones y formato…">${gxEventsEsc(ev.rules||'')}</textarea></label><label class="field"><span>Premio total (monedas, opcional)</span><input id="gxEventCoins" type="number" min="0" step="1" value="${ev.prize_total_coins??''}" placeholder="Ej. 1000"></label><label class="field"><span>Estado</span><select id="gxEventStatus"><option value="draft" ${ev.status==='draft'||!ev.status?'selected':''}>Borrador (sin notificar)</option><option value="published" ${ev.status==='published'?'selected':''}>Publicado (notificar audiencia)</option><option value="in_progress" ${ev.status==='in_progress'?'selected':''}>En curso</option><option value="finished" ${ev.status==='finished'?'selected':''}>Finalizado</option><option value="cancelled" ${ev.status==='cancelled'?'selected':''}>Cancelado</option></select></label><label class="field span-all"><span>Detalle de premios (opcional)</span><textarea id="gxEventPrizeDescription" maxlength="4000" placeholder="Premios por puesto, reconocimientos o beneficios…">${gxEventsEsc(ev.prize_description||'')}</textarea></label><label class="field span-all"><span>Resultados y ganadores (opcional)</span><textarea id="gxEventResults" maxlength="8000" placeholder="Publica aquí los ganadores, posiciones y resultados finales…">${gxEventsEsc(ev.results||'')}</textarea></label></div><div class="gx-event-form-foot"><button type="button" class="gx-events-btn" data-gx-event-form-close>Cancelar</button><button type="submit" class="gx-events-btn primary" id="gxEventSave">${existing?'Guardar cambios':'Guardar evento'}</button></div><div id="gxEventFormStatus" class="muted small" style="margin-top:10px" aria-live="polite"></div></form></section>`;
+  document.body.appendChild(overlay);
+  const close=()=>overlay.remove();overlay.querySelectorAll('[data-gx-event-form-close]').forEach(b=>b.addEventListener('click',close));overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+  overlay.querySelector('#gxEventForm').addEventListener('submit',async e=>{
+    e.preventDefault();const btn=overlay.querySelector('#gxEventSave'),status=overlay.querySelector('#gxEventFormStatus');btn.disabled=true;status.textContent='Guardando evento…';
+    try{
+      const startsRaw=overlay.querySelector('#gxEventStarts').value,endsRaw=overlay.querySelector('#gxEventEnds').value;
+      const starts=startsRaw?new Date(startsRaw).toISOString():null,ends=endsRaw?new Date(endsRaw).toISOString():null;
+      if(starts&&ends&&new Date(ends)<new Date(starts))throw new Error('La fecha final debe ser posterior a la fecha de inicio.');
+      const nextStatus=overlay.querySelector('#gxEventStatus').value;
+      const payload={title:overlay.querySelector('#gxEventTitle').value.trim(),event_type:overlay.querySelector('#gxEventType').value,audience:overlay.querySelector('#gxEventAudience').value,starts_at:starts,ends_at:ends,description:overlay.querySelector('#gxEventDescription').value.trim()||null,rules:overlay.querySelector('#gxEventRules').value.trim()||null,prize_total_coins:overlay.querySelector('#gxEventCoins').value===''?null:Number(overlay.querySelector('#gxEventCoins').value),prize_description:overlay.querySelector('#gxEventPrizeDescription').value.trim()||null,location:overlay.querySelector('#gxEventLocation').value.trim()||null,event_url:overlay.querySelector('#gxEventUrl').value.trim()||null,results:overlay.querySelector('#gxEventResults').value.trim()||null,status:nextStatus,updated_at:new Date().toISOString()};
+      if(!payload.title)throw new Error('Escribe el título del evento.');
+      if(payload.event_url && !gxEventsSafeHttpUrl(payload.event_url))throw new Error('El enlace debe comenzar por http:// o https://.');
+      if(payload.prize_total_coins!=null&&(!Number.isFinite(payload.prize_total_coins)||payload.prize_total_coins<0))throw new Error('El premio total debe ser un número positivo.');
+      let result;
+      if(existing)result=await sb.from('gx_events').update(payload).eq('id',existing.id).select('id').single();
+      else result=await sb.from('gx_events').insert({...payload,created_by:session.user.id}).select('id').single();
+      if(result.error)throw new Error(result.error.message);
+      const id=result.data.id;const shouldNotify=['published','in_progress'].includes(nextStatus)&&(!existing||!['published','in_progress'].includes(existing.status));const shouldNotifyResults=!!payload.results&&payload.results!==(existing?.results||'')&&!shouldNotify;
+      close();toast(existing?'Evento actualizado ✓':'Evento guardado ✓');
+      if(shouldNotify||shouldNotifyResults){
+        const rpcName=shouldNotify?'gx_events_notify_published':'gx_events_notify_results';
+        const notify=await sb.rpc(rpcName,{p_event_id:id});
+        if(notify.error){toast(`Evento guardado, pero no se pudieron crear las notificaciones: ${notify.error.message}`);console.warn('Eventos: notificación',notify.error.message);}
+        else toast(`${shouldNotify?'Evento publicado':'Resultados publicados'} · ${Number(notify.data)||0} notificaciones generadas ✓`);
+      }
+      await gxEventsMarkRead(id);gxEventsFilter='all';await gxEventsPage();
+      if(existing)await gxEventsOpenDetail(id);
+    }catch(err){status.textContent=err?.message||'No se pudo guardar el evento.';status.style.color='#ff8ca2';btn.disabled=false;}
+  });
+}
+
+(function gxEventsBindModule(){
+  if(window.__gxEventsModuleBound)return;window.__gxEventsModuleBound=true;
+  document.addEventListener('click',e=>{
+    const b=e.target.closest?.('[data-gx-open-events]');if(!b)return;
+    e.preventDefault();if(!session?.user?.id){nav('auth');return;}nav('events');
+  });
+  const refresh=()=>{gxEventsInjectDashboardCard();if(session?.user?.id)gxEventsRefreshUnreadCount().catch(()=>{});};
+  window.addEventListener('focus',refresh);window.addEventListener('pageshow',refresh);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
+  const observer=new MutationObserver(mutations=>{
+    let candidate=false,badge=false;
+    for(const m of mutations){for(const n of Array.from(m.addedNodes||[])){if(n.nodeType!==1)continue;if(n.matches?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards')||n.querySelector?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards'))candidate=true;if(n.matches?.('[data-gx-event-unread-badge]')||n.querySelector?.('[data-gx-event-unread-badge]'))badge=true;}}
+    if(candidate)gxEventsInjectDashboardCard();if(badge)gxEventsRefreshUnreadCount().catch(()=>{});
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
+  setTimeout(refresh,250);setTimeout(refresh,1200);
+  setInterval(()=>{if(!document.hidden&&session?.user?.id&&document.querySelector('[data-gx-event-unread-badge]'))gxEventsRefreshUnreadCount().catch(()=>{});},20000);
+})();
+
