@@ -230,3 +230,39 @@ CREATE POLICY gx_event_phases_view
 ON public.gx_event_phases
 FOR SELECT TO authenticated
 USING (public.gx_event_phase_visible(id));
+
+
+-- Permit viewing only the profile needed for a caller's own assigned match.
+CREATE OR REPLACE FUNCTION public.gx_event_profile_visible(p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT
+    p_user_id = auth.uid()
+    OR public.is_admin()
+    OR EXISTS (
+      SELECT 1
+      FROM public.profiles managed
+      JOIN public.managers m ON m.id = managed.manager_id
+      WHERE managed.id = p_user_id
+        AND m.user_id = auth.uid()
+        AND m.active IS TRUE
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.gx_event_participants target
+      JOIN public.gx_event_matches match_row
+        ON target.id = match_row.participant_a_id OR target.id = match_row.participant_b_id
+      WHERE target.user_id = p_user_id
+        AND public.gx_event_match_visible(match_row.id)
+    );
+$function$;
+
+DROP POLICY IF EXISTS gx_event_profiles_own_or_assigned_opponent ON public.profiles;
+CREATE POLICY gx_event_profiles_own_or_assigned_opponent
+ON public.profiles
+FOR SELECT TO authenticated
+USING (public.gx_event_profile_visible(id));
