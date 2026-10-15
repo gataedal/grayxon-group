@@ -1,4 +1,4 @@
-/* Grayxon Academy · Web Push Service Worker v43 · payments deep-link routing */
+/* Grayxon Academy · Web Push Service Worker v44 · dedupe + session-aware deep links */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
@@ -9,43 +9,135 @@ function resolveTarget(data) {
   const value = String(raw || '');
   const uuidMatch = value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
-  // Payment notifications must be routed BEFORE generic UUID matching. The old
-  // worker treated every UUID as a LIVE ID, so payment alerts opened the wrong screen.
+  // Payment routes take priority over UUID matching (which used to assume LIVE).
   if (page === 'payments' || value.toLowerCase() === 'payments' || data?.type === 'payment' || nested?.type === 'payment') {
     const target = uuidMatch ? value : String(data?.link_target || nested?.link_target || data?.target || nested?.target || '');
     const targetQuery = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(target) ? `&target=${encodeURIComponent(target)}` : '';
     return `./?grayxonPush=1&page=payments${targetQuery}#payments`;
   }
   if (!value) return './';
-  if (uuidMatch) return `./#live-training/${uuidMatch[0]}`;
-  if (/^live-training$/i.test(value)) return './#live-training';
-  if (/^missions?$/i.test(value)) return './#missions';
-  if (/^(training|formation)$/i.test(value)) return './#training';
-  if (/^(manager|admin|profile|space|home|benefits|auth|announcements)$/i.test(value)) return `./#${value.toLowerCase()}`;
+  if (uuidMatch) return `./?grayxonPush=1&page=live-training&target=${encodeURIComponent(value)}#live-training/${value}`;
+  if (/^live-training$/i.test(value)) return './?grayxonPush=1&page=live-training#live-training';
+  if (/^missions?$/i.test(value)) return './?grayxonPush=1&page=missions#missions';
+  if (/^(training|formation)$/i.test(value)) return './?grayxonPush=1&page=training#training';
+  if (/^(manager|admin|profile|space|home|benefits|auth|announcements)$/i.test(value)) {
+    const p = value.toLowerCase();
+    return `./?grayxonPush=1&page=${encodeURIComponent(p)}#${p}`;
+  }
   if (value.startsWith('#')) return `.${value}`;
   if (/^(https?:|mailto:|tel:)/i.test(value)) return value;
   return './';
 }
 
-self.addEventListener('push', event => {
-  let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch (_) {
-    data = { title: 'Grayxon', body: event.data ? event.data.text() : '' };
-  }
-  const title = data.title || data.notification?.title || 'Grayxon';
-  const body = data.body || data.message || data.notification?.body || 'Tienes una novedad en Grayxon.';
+function getPushParts(data) {
+  const title = String(data?.title || data?.notification?.title || 'Grayxon');
+  const body = String(data?.body || data?.message || data?.notification?.body || 'Tienes una novedad en Grayxon.');
   const target = resolveTarget(data);
-  const icon = data.icon || './assets/grayxon-logo.png';
-  const badge = data.badge || './assets/grayxon-logo.png';
-  event.waitUntil(self.registration.showNotification(title, {
-    body, icon, badge,
-    data: { url: target },
-    tag: data.tag || 'grayxon-notification',
-    renotify: true,
-    silent: false,
-    requireInteraction: false
-  }));
+  const nested = data?.record || data?.notification?.data || data?.data || {};
+  const id = data?.notification_id || data?.notificationId || data?.id || nested?.id || data?.record?.id || '';
+  // The DB notification ID is preferred; title/body/route is a fallback for
+  // Edge Function payloads which omit it. Only a short duplicate window is used.
+  const fingerprint = id ? `id:${String(id)}` : `msg:${title}|${body}|${target}`;
+  return { title, body, target, fingerprint };
+}
+
+function shortHash(value) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+// Persist signatures in IndexedDB because service workers may be terminated
+// between duplicate push events. Two copies of one push within 15 seconds are
+// treated as one; different destinations remain distinct.
+function isDuplicatePush(fingerprint, ttlMs = 15000) {
+  return new Promise((resolve) => {
+    if (!self.indexedDB) { resolve(false); return; }
+    let request;
+    try { request = indexedDB.open('grayxon-push-dedupe-v44', 1); }
+    catch (_) { resolve(false); return; }
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('seen')) db.createObjectStore('seen', { keyPath: 'key' });
+    };
+    request.onerror = () => resolve(false);
+    request.onsuccess = () => {
+      const db = request.result;
+      let transaction;
+      try { transaction = db.transaction('seen', 'readwrite'); }
+      catch (_) { db.close(); resolve(false); return; }
+      const store = transaction.objectStore('seen');
+      const key = shortHash(fingerprint);
+      let duplicate = false;
+      const get = store.get(key);
+      get.onsuccess = () => {
+        const now = Date.now();
+        const previous = get.result;
+        if (previous && now - Number(previous.at || 0) < ttlMs) {
+          duplicate = true;
+        } else {
+          store.put({ key, at: now });
+        }
+        try {
+          const cursor = store.openCursor();
+          cursor.onsuccess = () => {
+            const item = cursor.result;
+            if (!item) return;
+            if (now - Number(item.value.at || 0) > 120000) item.delete();
+            item.continue();
+          };
+        } catch (_) {}
+      };
+      transaction.oncomplete = () => { db.close(); resolve(duplicate); };
+      transaction.onerror = transaction.onabort = () => { db.close(); resolve(false); };
+    };
+  });
+}
+
+self.addEventListener('push', event => {
+  event.waitUntil((async () => {
+    let data = {};
+    try { data = event.data ? event.data.json() : {}; }
+    catch (_) { data = { title: 'Grayxon', body: event.data ? event.data.text() : '' }; }
+    const { title, body, target, fingerprint } = getPushParts(data);
+    if (await isDuplicatePush(fingerprint)) {
+      // Avoid a second banner/sound when the same underlying event is delivered twice.
+      return;
+    }
+    const suppliedTag = data?.tag || data?.notification?.tag;
+    const tag = suppliedTag ? String(suppliedTag) : `grayxon-${shortHash(fingerprint)}`;
+    const icon = data.icon || './assets/grayxon-logo.png';
+    const badge = data.badge || './assets/grayxon-logo.png';
+    await self.registration.showNotification(title, {
+      body, icon, badge, data: { url: target }, tag,
+      renotify: false, silent: false, requireInteraction: false
+    });
+  })());
 });
+
+function askClientToNavigate(client, absoluteUrl, timeoutMs = 1000) {
+  return new Promise(resolve => {
+    let done = false;
+    let timer;
+    let channel;
+    const finish = result => {
+      if (done) return;
+      done = true;
+      if (timer) clearTimeout(timer);
+      try { channel?.port1?.close(); } catch (_) {}
+      resolve(result || null);
+    };
+    try {
+      channel = new MessageChannel();
+      channel.port1.onmessage = event => finish(event.data || null);
+      timer = setTimeout(() => finish(null), timeoutMs);
+      client.postMessage({ type: 'GRAYXON_NOTIFICATION_NAVIGATE_REQUEST', url: absoluteUrl }, [channel.port2]);
+    } catch (_) { finish(null); }
+  });
+}
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
@@ -53,23 +145,30 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil((async () => {
     const absolute = new URL(target, self.location.origin).href;
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+    // Ask all open Grayxon windows first. The one that still has a Supabase
+    // session handles the route in-place; we do not also navigate/reload it.
     for (const client of clientsList) {
-      if ('focus' in client) {
-        // Cuando Grayxon ya está abierto, no dependemos únicamente de client.navigate().
-        // En PWA/móvil puede cambiar el foco sin entregar de forma fiable el hash al router.
-        // Enviamos el destino directamente a la app y dejamos navigate() como fallback.
-        try {
-          if ('postMessage' in client) {
-            client.postMessage({ type: 'GRAYXON_NOTIFICATION_NAVIGATE', url: absolute });
-          }
-        } catch (_) {}
-        try {
-          if (client.url !== absolute && 'navigate' in client) await client.navigate(absolute);
-        } catch (_) {}
-        await client.focus();
+      if (!client.url || !client.url.startsWith(self.registration.scope)) continue;
+      const result = await askClientToNavigate(client, absolute);
+      if (result?.authenticated && result?.handled) {
+        try { await client.focus(); } catch (_) {}
         return;
       }
     }
-    if (self.clients.openWindow) await self.clients.openWindow(absolute);
+
+    // If there is no authenticated open window, open the app URL once. init()
+    // restores Supabase auth and retains the intended destination through login.
+    if (self.clients.openWindow) {
+      await self.clients.openWindow(absolute);
+      return;
+    }
+    for (const client of clientsList) {
+      if (!client.url || !client.url.startsWith(self.registration.scope)) continue;
+      try {
+        const navigated = await client.navigate(absolute);
+        if (navigated) { await navigated.focus(); return; }
+      } catch (_) {}
+    }
   })());
 });
