@@ -191,16 +191,18 @@ async function registerGrayxonPush({requestPermission=false}={}) {
       const auth = json.keys?.auth;
       if (!endpoint || !p256dh || !auth) throw new Error('La suscripción Push no devolvió todas las claves necesarias.');
 
-      const { error } = await sb.from('push_subscriptions').upsert({
-        user_id: session.user.id,
-        endpoint,
-        p256dh,
-        auth,
-        user_agent: navigator.userAgent.slice(0, 500),
-        is_active: true,
-        last_seen_at: new Date().toISOString()
-      }, { onConflict: 'endpoint' });
-      if (error) throw error;
+      // Register through a narrowly-scoped SECURITY DEFINER RPC. Direct upsert
+      // can fail under RLS when this browser endpoint was previously linked to
+      // another Grayxon account (UPDATE's USING policy rejects that old row).
+      const { error } = await sb.rpc('gx_register_push_subscription', {
+        p_endpoint: endpoint,
+        p_p256dh: p256dh,
+        p_auth: auth,
+        p_user_agent: navigator.userAgent.slice(0, 500)
+      });
+      if (error) {
+        throw new Error(`${error.message || error} — ejecuta fix_push_rls_rpc.sql en Supabase y vuelve a activar las notificaciones.`);
+      }
       window.__grayxonLastPushError = '';
       return subscription;
     } catch (error) {
@@ -4128,10 +4130,9 @@ function showGrayxonPushDiagnostics(){
     try{
       const sub=await registerGrayxonPush({requestPermission:true});
       if(!sub)throw new Error(window.__grayxonLastPushError||((('Notification'in window)&&Notification.permission==='denied')?'El navegador bloqueó las notificaciones.':'No se pudo registrar la suscripción de este dispositivo.'));
-      const timestamp=new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
-      const {error}=await sb.from('notifications').insert({user_id:session.user.id,type:'push_test',title:'Prueba de notificación Grayxon',message:`Prueba enviada a las ${timestamp}. Si ves este aviso fuera de Grayxon, la entrega push al dispositivo funciona.`,link_page:'space',link_target:'space'});
-      if(error)throw new Error('No se pudo crear la notificación de prueba: '+error.message);
-      if(result)result.textContent='La notificación de prueba quedó registrada. Bloquea la pantalla o cierra Grayxon y espera unos segundos. Si no llega al celular, el siguiente punto a revisar es la Edge Function grayxon-push y el resultado de envío a los endpoints, no el registro de la notificación.';
+      const {data:testNotificationId,error}=await sb.rpc('gx_create_own_push_test_notification');
+      if(error)throw new Error('No se pudo crear la notificación de prueba: '+error.message+' — confirma que ejecutaste fix_push_rls_rpc.sql.');
+      if(result)result.textContent='La prueba quedó registrada'+(testNotificationId?' (ID '+testNotificationId+')':'')+'. Bloquea la pantalla o cierra Grayxon y espera unos segundos. Si no llega fuera de la app, revisa diagnostico_push.sql y los logs/respuesta de grayxon-push: la suscripción ya se habrá sincronizado, pero aún falta confirmar la entrega.';
       await loadNotifications();await check();
     }catch(e){if(result)result.textContent=e?.message||'No se pudo completar la prueba.';toast(e?.message||'Falló la prueba push.');}
     finally{testBtn.disabled=(!('Notification'in window)||Notification.permission==='denied');testBtn.textContent='Enviar prueba al celular';}
