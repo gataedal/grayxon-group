@@ -5009,8 +5009,20 @@ async function gxRefreshAnnouncementUnreadCount(){
 }
 (function gxBindAnnouncementUnreadRefresh(){
   if(window.__gxAnnUnreadRefreshBound)return;window.__gxAnnUnreadRefreshBound=true;
-  window.addEventListener('focus',()=>{if(session)gxRefreshAnnouncementUnreadCount();});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&session)gxRefreshAnnouncementUnreadCount();});
+  const refresh=()=>{if(session?.user?.id)gxRefreshAnnouncementUnreadCount();};
+  window.addEventListener('focus',refresh);
+  window.addEventListener('pageshow',refresh);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
+  // El dashboard móvil se renderiza de forma dinámica: la primera llamada puede
+  // ocurrir antes de que exista la tarjeta. Actualizar cuando esa tarjeta se inserte.
+  const observer=new MutationObserver(mutations=>{
+    const badgeAdded=mutations.some(m=>Array.from(m.addedNodes||[]).some(node=>{
+      if(node.nodeType!==1)return false;
+      return node.matches?.('[data-gx-ann-unread-badge]') || !!node.querySelector?.('[data-gx-ann-unread-badge]');
+    }));
+    if(badgeAdded)refresh();
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
 })();
 function gxAnnouncementDashboardTarget(){ return profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space'; }
 async function gxLoadAnnouncementTeams(){
