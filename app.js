@@ -1,4 +1,4 @@
-// GRAYXON BUILD V33.9 PUSH CACHE-BUST + PORTAL DEEP-LINK FIX
+// GRAYXON BUILD V33.10 PUSH NOTIFICATION-ID ROUTING
 const CFG = window.GRAYXON_CONFIG || {};
 // Auth uses a syntactically valid internal domain. Users still log in only with
 // their Grayxon username; this address is never shown in the portal UI.
@@ -40,6 +40,26 @@ function readGrayxonPushIntent(clear=false) {
     return value;
   } catch (_) { return null; }
 }
+const GRAYXON_PENDING_PUSH_NOTIFICATION_KEY = 'grayxon_pending_push_notification_id_v1';
+const GRAYXON_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function saveGrayxonPendingPushNotificationId(id) {
+  if (!GRAYXON_UUID_RE.test(String(id || ''))) return;
+  try { localStorage.setItem(GRAYXON_PENDING_PUSH_NOTIFICATION_KEY, JSON.stringify({ id: String(id), at: Date.now() })); } catch (_) {}
+}
+function readGrayxonPendingPushNotificationId(clear=false) {
+  try {
+    const raw = localStorage.getItem(GRAYXON_PENDING_PUSH_NOTIFICATION_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    if (!GRAYXON_UUID_RE.test(String(value?.id || '')) || !Number.isFinite(Number(value?.at)) || Date.now() - Number(value.at) > 30*60*1000) {
+      localStorage.removeItem(GRAYXON_PENDING_PUSH_NOTIFICATION_KEY);
+      return null;
+    }
+    if (clear) localStorage.removeItem(GRAYXON_PENDING_PUSH_NOTIFICATION_KEY);
+    return String(value.id);
+  } catch (_) { return null; }
+}
+
 function applyGrayxonPushIntent(intent) {
   if (!intent?.page) return false;
   const id = String(intent.target || '');
@@ -138,7 +158,7 @@ async function showGrayxonPushPrompt(){
   // database row (for example after clearing account data) and do not bother the creator.
   try{
     if('serviceWorker' in navigator && 'PushManager' in window){
-      const registration=await navigator.serviceWorker.register('./sw.js?v=46',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=47',{scope:'./',updateViaCache:'none'});
       const existing=await registration?.pushManager?.getSubscription();
       if(existing){
         if('Notification' in window && Notification.permission==='granted'){
@@ -214,7 +234,7 @@ async function registerGrayxonPush({requestPermission=false}={}) {
   pushRegistrationPromise = (async () => {
     try {
       ensureGrayxonPwaLinks();
-      const registration = await navigator.serviceWorker.register('./sw.js?v=46', { scope: './', updateViaCache: 'none' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=47', { scope: './', updateViaCache: 'none' });
       await navigator.serviceWorker.ready;
 
       let permission = Notification.permission;
@@ -633,6 +653,29 @@ async function openNotification(id) {
   }
   else if (n.link_page === 'manager') nav('manager');
   else nav('space');
+}
+
+// Push clicks reuse the existing in-app notification flow instead of rebuilding
+// the destination from the push payload. This keeps page/target semantics identical.
+async function openGrayxonNotificationById(notificationId) {
+  const id = String(notificationId || '');
+  if (!GRAYXON_UUID_RE.test(id)) return false;
+  if (!session?.user?.id) {
+    saveGrayxonPendingPushNotificationId(id);
+    return false;
+  }
+  let note = notifications.find(item => String(item.id) === id);
+  if (!note) {
+    const { data, error } = await sb.from('notifications')
+      .select('id,type,title,message,link_page,link_target,related_week_start,related_week_end,read_at,created_at')
+      .eq('id', id).eq('user_id', session.user.id).maybeSingle();
+    if (error) throw error;
+    if (!data) return false;
+    notifications = [data, ...notifications.filter(item => String(item.id) !== id)];
+  }
+  try { localStorage.removeItem(GRAYXON_PENDING_PUSH_NOTIFICATION_KEY); } catch (_) {}
+  await openNotification(id);
+  return true;
 }
 
 function toggleNotifications() {
@@ -4148,7 +4191,7 @@ function showGrayxonPushDiagnostics(){
     if(rows)rows.innerHTML='<div class="item">Comprobando dispositivo…</div>';
     const supported=!!(window.isSecureContext&&('serviceWorker'in navigator)&&('PushManager'in window)&&('Notification'in window));
     let registration=null,localSub=null,dbRows=null,dbError=null;
-    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.register('./sw.js?v=46',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;registration=await navigator.serviceWorker.getRegistration('./');localSub=await registration?.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
+    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.register('./sw.js?v=47',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;registration=await navigator.serviceWorker.getRegistration('./');localSub=await registration?.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
     try{const r=await sb.from('push_subscriptions').select('endpoint,is_active,last_seen_at,user_agent').eq('user_id',session.user.id).order('last_seen_at',{ascending:false});dbRows=r.data||null;dbError=r.error||null;}catch(e){dbError=e;}
     const permission=('Notification'in window)?Notification.permission:'No disponible';
     const match=localSub&&dbRows?dbRows.find(r=>r.endpoint===localSub.endpoint):null;
@@ -4571,6 +4614,15 @@ async function login() {
 
   updateHeaderAccessUI();
   if(profile?.must_change_password){ nav('force-password'); return; }
+  const pendingNotificationId = readGrayxonPendingPushNotificationId(true);
+  if (pendingNotificationId) {
+    try {
+      if (await openGrayxonNotificationById(pendingNotificationId)) {
+        if(['admin','manager','creator'].includes(profile?.role)) setTimeout(showGrayxonPushPrompt,900);
+        return;
+      }
+    } catch (error) { console.warn('No se pudo abrir la notificación pendiente:', error); }
+  }
   const pendingPushIntent = readGrayxonPushIntent(false);
   if (pendingPushIntent) {
     readGrayxonPushIntent(true);
@@ -4694,6 +4746,9 @@ async function init() {
   // The push service sends page/target in the query string. Restore the intended
   // route before normal hash routing, without changing ordinary non-push URLs.
   const pushParams = new URLSearchParams(window.location.search);
+  const queryNotificationId = pushParams.get('grayxonNotificationId') || '';
+  const validQueryNotificationId = GRAYXON_UUID_RE.test(queryNotificationId);
+  if (validQueryNotificationId && !session?.user?.id) saveGrayxonPendingPushNotificationId(queryNotificationId);
   if (pushParams.get('grayxonPush') === '1') {
     const pushPage = pushParams.get('page');
     const pushTarget = pushParams.get('target') || '';
@@ -4732,6 +4787,10 @@ async function init() {
   const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','force-password'].includes(hashPage) ? hashPage : null;
   const initialPage = session ? (profile?.must_change_password ? 'force-password' : (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome)) : (requestedPage || 'home');
   nav(initialPage, false);
+  if (validQueryNotificationId && session?.user?.id) {
+    try { await openGrayxonNotificationById(queryNotificationId); }
+    catch (error) { console.warn('No se pudo abrir la notificación desde el enlace:', error); }
+  }
   if(session && ['admin','manager','creator'].includes(profile?.role)) setTimeout(showGrayxonPushPrompt,1200);
 }
 
@@ -5129,6 +5188,7 @@ window.addEventListener('message', async (event) => {
           }
         } catch (_) {}
       }
+      if (!authenticated && data.notificationId) saveGrayxonPendingPushNotificationId(data.notificationId);
       if (authenticated && !profile) {
         profile = await getProfile();
         document.body.classList.toggle('grayxon-creator-session', profile?.role === 'creator');
@@ -5137,7 +5197,11 @@ window.addEventListener('message', async (event) => {
         await loadProfileDetails();
         await loadNotifications();
       }
-      if (authenticated) handled = await handleGrayxonDeepLinkUrl(data.url);
+      if (authenticated && data.notificationId) {
+        handled = await openGrayxonNotificationById(data.notificationId);
+      }
+      // Compatibility fallback for older push payloads that do not include a DB notification ID.
+      if (authenticated && !handled) handled = await handleGrayxonDeepLinkUrl(data.url);
     } catch (err) {
       console.warn('No se pudo abrir el destino de la notificación:', err);
     }
