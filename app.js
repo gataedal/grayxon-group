@@ -564,6 +564,7 @@ async function openNotification(id) {
       nav(destination); return;
     }
   }
+  if (n.link_page === 'payments') { gxPendingPaymentTarget=n.link_target||null; nav('payments'); return; }
   if (n.link_page === 'missions') {
     pendingNotificationTarget = { type:'missions', weekStart:n.related_week_start || null, weekEnd:n.related_week_end || null };
     nav('missions');
@@ -644,6 +645,80 @@ async function content() {
   (data || []).forEach(x => c[x.id] = x.content);
   return c;
 }
+
+function ensurePaymentsPage(){
+  let el=$('#payments');
+  if(el)return el;
+  el=document.createElement('section');
+  el.id='payments'; el.className='hidden page-section';
+  const pageContainer=$('#home')?.parentElement||document.body;
+  pageContainer.appendChild(el);
+  return el;
+}
+
+let gxPaymentEditId=null;
+let gxPendingPaymentTarget=null;
+function gxPaymentMoney(value){return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(value||0));}
+function gxPaymentDate(value){if(!value)return '—';try{return new Date(value+'T12:00:00').toLocaleDateString('es-CO',{year:'numeric',month:'short',day:'numeric'});}catch(_){return value;}}
+async function gxPaymentsPage(){
+  const el=ensurePaymentsPage();
+  if(!session?.user?.id){el.innerHTML='<div class="card"><h2>Pagos</h2><p>Inicia sesión para consultar esta sección.</p></div>';return;}
+  const isAdmin=profile?.role==='admin';
+  el.innerHTML=`<div class="gx-payments-wrap"><div class="gx-payments-head"><button class="secondary" data-payments-back>← Volver al dashboard</button><div class="eyebrow">GRAYXON GROUP · PAGOS</div><h1>${isAdmin?'Gestión de pagos':'Mis pagos'}</h1><p class="muted">${isAdmin?'Registra y administra pagos para usuarios de Grayxon o beneficiarios externos.':'Consulta el historial de pagos registrados a tu nombre.'}</p></div><div id="gxPaymentsContent"><div class="card">Cargando pagos…</div></div></div>`;
+  const [{data:payments,error:pe},{data:users,error:ue}]=await Promise.all([
+    sb.from('gx_payments').select('id,recipient_user_id,recipient_name,concept,amount,currency,status,payment_date,payment_method,reference,receipt_url,notes,created_at,updated_at').order('created_at',{ascending:false}).limit(300),
+    isAdmin?sb.from('profiles').select('id,full_name,username,role,active').eq('active',true).order('full_name') : Promise.resolve({data:[],error:null})
+  ]);
+  const root=$('#gxPaymentsContent'); if(!root)return;
+  if(pe){root.innerHTML=`<div class="card"><h3>No se pudieron cargar los pagos</h3><p class="error">${esc(pe.message)}</p><p class="muted small">Si la migración de pagos aún no se ha aplicado, esta tabla todavía no existe.</p></div>`;return;}
+  const userMap=new Map((users||[]).map(u=>[u.id,u]));
+  const rows=(payments||[]).map(p=>{
+    const recipient=userMap.get(p.recipient_user_id);
+    const label=recipient?(recipient.full_name||recipient.username||'Usuario'):(p.recipient_name||'Beneficiario externo');
+    const statusLabel=p.status==='paid'?'Pagado':p.status==='cancelled'?'Anulado':'Pendiente';
+    const statusClass=p.status==='paid'?'ok':p.status==='cancelled'?'danger':'pending';
+    const highlight=gxPendingPaymentTarget===p.id?' gx-payment-target':'';
+    return `<details class="gx-payment-row${highlight}" ${gxPendingPaymentTarget===p.id?'open':''} id="gx-payment-${esc(p.id)}"><summary><span class="gx-payment-summary-main"><strong>${esc(p.concept)}</strong><small>${esc(label)} · ${gxPaymentDate(p.payment_date)}</small></span><span class="gx-payment-summary-right"><b>${gxPaymentMoney(p.amount)}</b><i class="pill ${statusClass}">${statusLabel}</i></span></summary><div class="gx-payment-details"><div><span>Beneficiario</span><strong>${esc(label)}</strong></div><div><span>Fecha</span><strong>${gxPaymentDate(p.payment_date)}</strong></div><div><span>Método</span><strong>${esc(p.payment_method||'—')}</strong></div><div><span>Referencia</span><strong>${esc(p.reference||'—')}</strong></div>${p.notes?`<div class="gx-payment-notes"><span>Notas</span><p>${esc(p.notes)}</p></div>`:''}${p.receipt_url?`<a class="secondary small" href="${esc(p.receipt_url)}" target="_blank" rel="noopener noreferrer">Ver comprobante ↗</a>`:''}${isAdmin?`<div class="gx-payment-actions"><button class="secondary small" data-gx-payment-edit="${esc(p.id)}">Editar</button>${p.status==='pending'?`<button class="primary small" data-gx-payment-paid="${esc(p.id)}">Marcar como pagado y notificar</button>`:''}${p.status!=='cancelled'?`<button class="secondary small danger" data-gx-payment-cancel="${esc(p.id)}">Anular</button>`:''}</div>`:''}</div></details>`;
+  }).join('');
+  if(isAdmin){
+    const options=(users||[]).map(u=>`<option value="${esc(u.id)}">${esc(u.full_name||u.username||u.id)} · ${esc(u.role)}</option>`).join('');
+    root.innerHTML=`<section class="card gx-payment-form-card"><div class="gx-payment-form-head"><div><h2 id="gxPaymentFormTitle">Registrar pago</h2><p class="muted small">Los pagos a personas sin cuenta también se pueden registrar.</p></div><button type="button" class="secondary small" id="gxPaymentReset">Limpiar</button></div><form id="gxPaymentForm"><div class="gx-payment-form-grid"><div class="field"><label for="gxPayRecipientType">Tipo de beneficiario</label><select id="gxPayRecipientType"><option value="account">Usuario de Grayxon</option><option value="external">Persona externa</option></select></div><div class="field" id="gxPayUserField"><label for="gxPayRecipient">Usuario beneficiario</label><select id="gxPayRecipient" required><option value="">Seleccionar usuario…</option>${options}</select></div><div class="field hidden" id="gxPayExternalField"><label for="gxPayExternalName">Nombre del beneficiario externo</label><input id="gxPayExternalName" maxlength="160" placeholder="Nombre completo"></div><div class="field"><label for="gxPayConcept">Concepto</label><input id="gxPayConcept" maxlength="180" required placeholder="Ej. Pago de servicios multimedia"></div><div class="field"><label for="gxPayAmount">Valor (COP)</label><input id="gxPayAmount" type="number" min="1" step="1" required placeholder="0"></div><div class="field"><label for="gxPayDate">Fecha del pago</label><input id="gxPayDate" type="date" required value="${new Date().toISOString().slice(0,10)}"></div><div class="field"><label for="gxPayStatus">Estado</label><select id="gxPayStatus"><option value="pending">Pendiente</option><option value="paid">Pagado</option><option value="cancelled">Anulado</option></select></div><div class="field"><label for="gxPayMethod">Método de pago</label><select id="gxPayMethod"><option value="">Seleccionar…</option><option>Transferencia bancaria</option><option>Nequi</option><option>Daviplata</option><option>PayPal</option><option>Efectivo</option><option>Otro</option></select></div><div class="field"><label for="gxPayReference">Referencia / comprobante</label><input id="gxPayReference" maxlength="180" placeholder="Número de transacción o referencia"></div><div class="field"><label for="gxPayReceipt">Enlace privado del comprobante (opcional)</label><input id="gxPayReceipt" type="url" placeholder="https://…"></div><div class="field gx-payment-wide"><label for="gxPayNotes">Notas (opcional)</label><textarea id="gxPayNotes" rows="2" maxlength="1500" placeholder="Detalle adicional del pago"></textarea></div></div><div class="gx-payment-form-actions"><button class="primary" type="submit" id="gxPaySubmit">Guardar pago</button><span id="gxPaymentFormMessage" class="muted small" aria-live="polite"></span></div></form></section><section class="gx-payment-history"><div class="gx-payment-history-head"><div><h2>Historial de pagos</h2><p class="muted small">${payments?.length||0} registros · Incluye usuarios y beneficiarios externos.</p></div><input id="gxPaymentSearch" type="search" placeholder="Buscar beneficiario o concepto…" aria-label="Buscar pagos"></div><div id="gxPaymentRows">${rows||'<div class="card">Aún no hay pagos registrados.</div>'}</div></section>`;
+    gxPaymentBindAdmin(payments||[],users||[]);
+  } else {
+    const own=(payments||[]).filter(p=>p.recipient_user_id===session.user.id);
+    root.innerHTML=`<section class="gx-payment-history"><div class="gx-payment-history-head"><div><h2>Historial de pagos</h2><p class="muted small">Tus pagos registrados, con su fecha, estado y comprobante cuando esté disponible.</p></div><span class="pill">${own.length} pagos</span></div>${own.length?own.map(p=>{const statusLabel=p.status==='paid'?'Pagado':p.status==='cancelled'?'Anulado':'Pendiente';return `<details class="gx-payment-row${gxPendingPaymentTarget===p.id?' gx-payment-target':''}" id="gx-payment-${esc(p.id)}" ${gxPendingPaymentTarget===p.id?'open':''}><summary><span class="gx-payment-summary-main"><strong>${esc(p.concept)}</strong><small>${gxPaymentDate(p.payment_date)}</small></span><span class="gx-payment-summary-right"><b>${gxPaymentMoney(p.amount)}</b><i class="pill ${p.status==='paid'?'ok':p.status==='cancelled'?'danger':'pending'}">${statusLabel}</i></span></summary><div class="gx-payment-details"><div><span>Fecha</span><strong>${gxPaymentDate(p.payment_date)}</strong></div><div><span>Método</span><strong>${esc(p.payment_method||'—')}</strong></div><div><span>Referencia</span><strong>${esc(p.reference||'—')}</strong></div>${p.notes?`<div class="gx-payment-notes"><span>Notas</span><p>${esc(p.notes)}</p></div>`:''}${p.receipt_url?`<a class="secondary small" href="${esc(p.receipt_url)}" target="_blank" rel="noopener noreferrer">Ver comprobante ↗</a>`:''}</div></details>`}).join(''):'<div class="card">Todavía no tienes pagos registrados.</div>'}</section>`;
+  }
+  $$('[data-payments-back]').forEach(b=>b.onclick=()=>nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space'));
+  if(gxPendingPaymentTarget){const target=document.getElementById('gx-payment-'+gxPendingPaymentTarget);if(target)setTimeout(()=>target.scrollIntoView({behavior:'smooth',block:'center'}),100);gxPendingPaymentTarget=null;}
+}
+function gxPaymentBindAdmin(payments,users){
+  const form=$('#gxPaymentForm'); if(!form)return;
+  const type=$('#gxPayRecipientType'), userField=$('#gxPayUserField'), externalField=$('#gxPayExternalField'), userSelect=$('#gxPayRecipient'), externalName=$('#gxPayExternalName');
+  const syncType=()=>{const external=type.value==='external';userField.classList.toggle('hidden',external);externalField.classList.toggle('hidden',!external);userSelect.required=!external;externalName.required=external;};
+  type.addEventListener('change',syncType);syncType();
+  const reset=()=>{gxPaymentEditId=null;form.reset();$('#gxPaymentFormTitle').textContent='Registrar pago';$('#gxPaySubmit').textContent='Guardar pago';$('#gxPayDate').value=new Date().toISOString().slice(0,10);syncType();};
+  $('#gxPaymentReset')?.addEventListener('click',reset);
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();const btn=$('#gxPaySubmit');btn.disabled=true;$('#gxPaymentFormMessage').textContent='Guardando…';
+    const external=type.value==='external';
+    const payload={recipient_user_id:external?null:(userSelect.value||null),recipient_name:external?externalName.value.trim():null,concept:$('#gxPayConcept').value.trim(),amount:Number($('#gxPayAmount').value),currency:'COP',payment_date:$('#gxPayDate').value,status:$('#gxPayStatus').value,payment_method:$('#gxPayMethod').value||null,reference:$('#gxPayReference').value.trim()||null,receipt_url:$('#gxPayReceipt').value.trim()||null,notes:$('#gxPayNotes').value.trim()||null};
+    if(!payload.concept||!Number.isFinite(payload.amount)||payload.amount<=0||!payload.payment_date||(!external&&!payload.recipient_user_id)||(external&&!payload.recipient_name)){toast('Completa los datos obligatorios del pago.');btn.disabled=false;return;}
+    let result;
+    if(gxPaymentEditId)result=await sb.from('gx_payments').update(payload).eq('id',gxPaymentEditId).select('id').single();
+    else result=await sb.from('gx_payments').insert({...payload,created_by:session.user.id,updated_by:session.user.id}).select('id').single();
+    if(result.error){$('#gxPaymentFormMessage').textContent='';toast('No se pudo guardar el pago: '+result.error.message);btn.disabled=false;return;}
+    if(gxPaymentEditId){await sb.from('gx_payments').update({updated_by:session.user.id}).eq('id',result.data.id);}
+    toast(gxPaymentEditId?'Pago actualizado ✓':'Pago registrado ✓');await loadNotifications();await gxPaymentsPage();
+  });
+  const rows=$('#gxPaymentRows');
+  rows?.querySelectorAll('[data-gx-payment-edit]').forEach(b=>b.addEventListener('click',()=>{const p=payments.find(x=>x.id===b.dataset.gxPaymentEdit);if(!p)return;gxPaymentEditId=p.id;type.value=p.recipient_user_id?'account':'external';syncType();userSelect.value=p.recipient_user_id||'';externalName.value=p.recipient_name||'';$('#gxPayConcept').value=p.concept||'';$('#gxPayAmount').value=p.amount;$('#gxPayDate').value=p.payment_date||'';$('#gxPayStatus').value=p.status;$('#gxPayMethod').value=p.payment_method||'';$('#gxPayReference').value=p.reference||'';$('#gxPayReceipt').value=p.receipt_url||'';$('#gxPayNotes').value=p.notes||'';$('#gxPaymentFormTitle').textContent='Editar pago';$('#gxPaySubmit').textContent='Guardar cambios';document.querySelector('.gx-payment-form-card')?.scrollIntoView({behavior:'smooth',block:'start'}); }));
+  rows?.querySelectorAll('[data-gx-payment-paid]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('¿Marcar este pago como realizado? Se notificará al beneficiario si tiene cuenta Grayxon.'))return;b.disabled=true;const {error}=await sb.from('gx_payments').update({status:'paid',updated_by:session.user.id}).eq('id',b.dataset.gxPaymentPaid);if(error){toast('No se pudo actualizar: '+error.message);b.disabled=false;return;}toast('Pago marcado como realizado ✓');await loadNotifications();await gxPaymentsPage();}));
+  rows?.querySelectorAll('[data-gx-payment-cancel]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('¿Anular este pago?'))return;const {error}=await sb.from('gx_payments').update({status:'cancelled',updated_by:session.user.id}).eq('id',b.dataset.gxPaymentCancel);if(error){toast(error.message);return;}await gxPaymentsPage();toast('Pago anulado.');}));
+  $('#gxPaymentSearch')?.addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();rows?.querySelectorAll('.gx-payment-row').forEach(r=>r.classList.toggle('hidden',!r.textContent.toLowerCase().includes(q)));});
+}
+function ensureGrayxonPaymentStyles(){if($('#gx-payment-styles'))return;const st=document.createElement('style');st.id='gx-payment-styles';st.textContent=`
+.gx-payments-wrap{max-width:1180px;margin:0 auto;padding:22px 18px 56px;color:#f5f6f8}.gx-payments-head{margin-bottom:22px}.gx-payments-head h1{font-size:clamp(30px,4vw,42px);margin:10px 0}.gx-payment-form-card,.gx-payment-row,.gx-payment-history{background:#101318;border:1px solid rgba(255,255,255,.09);border-radius:18px}.gx-payment-form-card{padding:20px;margin-bottom:24px}.gx-payment-form-head,.gx-payment-history-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px}.gx-payment-form-head h2,.gx-payment-history h2{margin:0 0 5px}.gx-payment-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.gx-payment-form-grid .field{min-width:0}.gx-payment-form-grid input,.gx-payment-form-grid select,.gx-payment-form-grid textarea{width:100%;box-sizing:border-box}.gx-payment-wide{grid-column:1/-1}.gx-payment-form-actions{display:flex;align-items:center;gap:12px;margin-top:14px}.gx-payment-history{padding:18px}.gx-payment-history-head input{max-width:280px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid #343943;background:#090b0e;color:#fff}.gx-payment-row{margin:10px 0;overflow:hidden}.gx-payment-row summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px;cursor:pointer}.gx-payment-row summary::-webkit-details-marker{display:none}.gx-payment-summary-main,.gx-payment-summary-right{display:flex;flex-direction:column;gap:5px;min-width:0}.gx-payment-summary-main small{color:#9ca3af}.gx-payment-summary-right{align-items:flex-end;white-space:nowrap}.gx-payment-summary-right>b{font-size:16px}.gx-payment-details{border-top:1px solid rgba(255,255,255,.08);padding:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.gx-payment-details>div{min-width:0}.gx-payment-details span{display:block;color:#9ca3af;font-size:12px;margin-bottom:4px}.gx-payment-details strong{overflow-wrap:anywhere}.gx-payment-notes{grid-column:1/-1}.gx-payment-notes p{margin:4px 0;color:#d1d5db;white-space:pre-wrap}.gx-payment-actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}.gx-payment-target{border-color:#25f4ee!important;box-shadow:0 0 0 2px rgba(37,244,238,.12)}.gx-payment-row .pill.pending{background:#34270e;color:#f5d58b}.gx-payment-row .pill.danger{background:#3a151b;color:#ff9cab}@media(max-width:640px){.gx-payments-wrap{padding:14px 12px 40px}.gx-payment-form-grid,.gx-payment-details{grid-template-columns:1fr}.gx-payment-wide,.gx-payment-notes,.gx-payment-actions{grid-column:auto}.gx-payment-form-head,.gx-payment-history-head{align-items:flex-start;flex-direction:column}.gx-payment-history-head input{max-width:none}.gx-payment-row summary{padding:13px}.gx-payment-summary-right>b{font-size:14px}}
+`;document.head.appendChild(st);}
 
 function ensureLiveTrainingPage() {
   let el = $('#live-training');
@@ -809,7 +884,7 @@ function isCreatorSession(){
 
 function nav(p, push = true) {
   const thisNav = ++navGeneration;
-  const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','force-password'];
+  const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','force-password'];
   if (!pages.includes(p)) p = 'home';
   if (p === 'force-password' && !session) p = 'auth';
   if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
@@ -827,6 +902,7 @@ function nav(p, push = true) {
   if (session && p === 'space' && profile?.role === 'manager') p = 'manager';
   if (p === 'manager') managerView = 'dashboard';
   if (p === 'live-training') ensureLiveTrainingPage();
+  if (p === 'payments') { ensurePaymentsPage(); if(!session) p='auth'; }
   // Para creadores, Mi espacio debe volver a pintar inmediatamente el dashboard real.
   // Evita pasar primero por el shell antiguo con estados de carga al volver desde
   // Misiones, Mi perfil o Formación.
@@ -897,7 +973,7 @@ function renderSpaceShell(){
   const el=$('#space'); if(!el) return;
   if(!session){ el.innerHTML=authTpl(); return; }
   const base=profile||{full_name:session.user.user_metadata?.full_name||'',username:session.user.user_metadata?.username||session.user.email?.split('@')[0]||'creador'};
-  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">MI ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-card space-team-card-loading"><div class="space-team-card-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong></div></div></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}${spaceCard('📣','Centro de comunicados','Consulta novedades, avisos importantes y recursos de tu equipo.',0,'announcements','Ver comunicados recientes')}<button class="space-card card live-training-space-card" data-space-action="live-training"><span class="space-card-icon">🎥</span><div class="space-card-main"><div class="space-card-top"><strong>Entrenamientos</strong><span class="live-training-card-status">Sin entrenamiento</span></div><p class="live-training-card-title">Consulta los entrenamientos en vivo de Grayxon.</p><div class="space-progress"><span style="width:0%"></span></div><small class="live-training-card-detail">Cuando haya uno activo aparecerá aquí.</small></div><span class="space-card-arrow">›</span></button></div></div>`;
+  el.innerHTML=`<div class="space-page"><div class="space-hero"><div class="space-hero-main"><div class="eyebrow">MI ESPACIO</div><h1>Hola, ${esc(base.username||'creador')} 👋</h1><p class="muted space-intro">Aquí tienes todo lo que necesitas para avanzar dentro de Grayxon.</p></div><div class="space-total"><span>PROGRESO GENERAL</span><strong id="spaceOverallPct">0%</strong></div><div id="spaceTeamBlock" class="space-team-inline"><div class="space-team-card space-team-card-loading"><div class="space-team-card-info"><span class="space-team-label">TU EQUIPO</span><strong>Cargando equipo...</strong></div></div></div></div><div class="space-grid" id="spaceCards">${spaceCard('👤','Tu perfil','Completa tus datos para mantener tu información actualizada.',0,'profile','Cargando información…')}${spaceCard('🎓','Formación','Aprende con los módulos, lecciones, videos y recursos de Grayxon.',0,'training','Cargando formación…')}${spaceCard('🎯','Tus misiones','Cumple tus objetivos semanales y registra tus avances.',0,'missions','Cargando misiones…')}${spaceCard('📣','Centro de comunicados','Consulta novedades, avisos importantes y recursos de tu equipo.',0,'announcements','Ver comunicados recientes')}${spaceCard('💸','Mis pagos','Consulta los pagos registrados a tu nombre y su historial.',0,'payments','Ver historial de pagos')}<button class="space-card card live-training-space-card" data-space-action="live-training"><span class="space-card-icon">🎥</span><div class="space-card-main"><div class="space-card-top"><strong>Entrenamientos</strong><span class="live-training-card-status">Sin entrenamiento</span></div><p class="live-training-card-title">Consulta los entrenamientos en vivo de Grayxon.</p><div class="space-progress"><span style="width:0%"></span></div><small class="live-training-card-detail">Cuando haya uno activo aparecerá aquí.</small></div><span class="space-card-arrow">›</span></button></div></div>`;
   bind();
   refreshLiveTrainingCard();
 }
@@ -923,6 +999,7 @@ async function render(){
     if(current==='admin')await adminTpl(c);
   }
   if(current==='announcements') await announcementsTpl();
+  if(current==='payments') { ensureGrayxonPaymentStyles(); await gxPaymentsPage(); }
   if(current==='auth')$('#auth').innerHTML=authTpl();
   if(current==='force-password')$('#force-password').innerHTML=forcePasswordTpl();
   if(current==='space') { if(profile?.role==='manager') await managerTpl(); else await spaceTpl(); }
@@ -2515,7 +2592,7 @@ async function managerTpl(){
   const trainingManagement=await liveTrainingManagementTpl('manager',false);
   const managerCard=(view,icon,title,desc,meta='›')=>`<button type="button" class="manager-dashboard-card" data-manager-view="${view}"><span class="manager-dashboard-card-icon">${icon}</span><span class="manager-dashboard-card-copy"><strong>${title}</strong><small ${view==='training'?`data-manager-live-status data-default-text="${esc(desc)}"`:''}>${desc}</small></span><span class="manager-dashboard-card-arrow">${meta}</span></button>`;
   const managerCommsCard=`<button type="button" class="manager-dashboard-card" data-manager-view="announcements"><span class="manager-dashboard-card-icon gx-manager-comms-icon">📣</span><span class="manager-dashboard-card-copy"><strong>Centro de comunicados</strong><small>Novedades, avisos importantes y recursos de tu equipo.</small><span class="gx-ann-unread-badge hidden" data-gx-ann-unread-badge aria-live="polite"><b>0</b> pendientes por leer</span></span><span class="manager-dashboard-card-arrow">›</span></button>`;
-  const dashboardMarkup=`<div class="manager-dashboard-grid">${managerCommsCard}${managerCard('training','🎥','Entrenamientos en vivo',`${managerUpcoming.length} próximos programados · Consulta y gestiona las sesiones.`)}${managerCard('creators','👥','Mis creadores','Consulta y administra los creadores asignados a tu equipo.',(creators||[]).length)}${managerCard('tasks','📋','Tareas asignadas','Consulta y completa las tareas que te asignó la administración.',tasks.length)}</div>`;
+  const dashboardMarkup=`<div class="manager-dashboard-grid">${managerCommsCard}${managerCard('training','🎥','Entrenamientos en vivo',`${managerUpcoming.length} próximos programados · Consulta y gestiona las sesiones.`)}${managerCard('creators','👥','Mis creadores','Consulta y administra los creadores asignados a tu equipo.',(creators||[]).length)}${managerCard('tasks','📋','Tareas asignadas','Consulta y completa las tareas que te asignó la administración.',tasks.length)}<button type="button" class="manager-dashboard-card" data-page="payments"><span class="manager-dashboard-card-icon">💸</span><span class="manager-dashboard-card-copy"><strong>Mis pagos</strong><small>Consulta el historial de pagos registrados a tu nombre.</small></span><span class="manager-dashboard-card-arrow">›</span></button></div>`;
   const pageHeader=(title,desc)=>`<div class="manager-subpage-header"><button type="button" class="secondary" data-manager-back>← Volver a Tu espacio</button><div><div class="eyebrow">PANEL DE MANAGER</div><h2>${title}</h2><p class="muted small">${desc}</p></div></div>`;
   let managerContent='';
   if(managerView==='dashboard') managerContent=dashboardMarkup;
@@ -3150,7 +3227,8 @@ async function adminTpl(c) {
     ['teams','🧩','Equipos y managers','Gestiona equipos y responsables.'],
     ['manager_tasks','📋','Asignar tareas','Organiza las tareas de los managers.'],
     ['live_trainings','📡','Entrenamientos en vivo','Gestiona las sesiones LIVE de la agencia.'],
-    ['formation','🎓','Formación','Administra módulos, lecciones y videos.']
+    ['formation','🎓','Formación','Administra módulos, lecciones y videos.'],
+    ['payments','💸','Pagos','Registra pagos para usuarios y beneficiarios externos.']
   ];
   let body = '';
   if (adminView === 'dashboard') {
@@ -3166,6 +3244,7 @@ async function adminTpl(c) {
     else if (adminView === 'teams') body = await adminTeams();
     else if (adminView === 'manager_tasks') body = await adminManagerTasks();
     else if (adminView === 'live_trainings') body = await liveTrainingManagementTpl('admin');
+    else if (adminView === 'payments') { ensurePaymentsPage(); body = '<div class="card"><p>Abre el módulo de pagos desde el panel.</p><button class="primary" data-open-payments>Gestionar pagos</button></div>'; }
     else body = await adminFormation();
     const sectionTitle = adminSections.find(x=>x[0]===adminView)?.[2] || 'Administración';
     body = `<div class="admin-subpage"><div class="admin-subpage-header"><button type="button" class="secondary" data-admin="dashboard">← Volver al panel</button><div class="admin-subpage-title"><div class="eyebrow">GRAYXON GROUP · ADMINISTRACIÓN</div><h1>${sectionTitle}</h1></div><button id="adminLogout" class="secondary">Cerrar sesión</button></div>${body}</div>`;
@@ -4044,7 +4123,8 @@ function bind() {
       if (panel) { panel.classList.remove('hidden'); btn.classList.add('open'); setTimeout(() => btn.scrollIntoView({ behavior:'smooth', block:'center' }), 60); }
     }
   }
-  $$('[data-admin]').forEach(b => b.onclick = () => { adminView = b.dataset.admin; render(); });
+  $$('[data-admin]').forEach(b => b.onclick = () => { if(b.dataset.admin==='payments'){nav('payments');return;} adminView = b.dataset.admin; render(); });
+  $$('[data-open-payments]').forEach(b=>b.onclick=()=>nav('payments'));
   $$('[data-manager-creator-toggle]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.managerCreatorToggle;
     const actions=$(`[data-manager-actions="${id}"]`);
