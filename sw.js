@@ -1,17 +1,27 @@
-/* Grayxon Academy · Web Push Service Worker v41 */
+/* Grayxon Academy · Web Push Service Worker v43 · payments deep-link routing */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
 function resolveTarget(data) {
-  const raw = data?.link_target || data?.linkTarget || data?.url || data?.notification?.data?.link_target || data?.notification?.data?.url || data?.link_page || data?.linkPage || '';
-  if (!raw) return './';
-  const value = String(raw);
-  const uuid = value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-  if (uuid) return `./#live-training/${uuid[0]}`;
+  const nested = data?.record || data?.notification?.data || data?.data || {};
+  const page = String(data?.link_page || data?.linkPage || nested?.link_page || nested?.linkPage || data?.page || nested?.page || '').toLowerCase();
+  const raw = data?.link_target || data?.linkTarget || nested?.link_target || nested?.linkTarget || data?.url || nested?.url || data?.notification?.data?.url || page || '';
+  const value = String(raw || '');
+  const uuidMatch = value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+
+  // Payment notifications must be routed BEFORE generic UUID matching. The old
+  // worker treated every UUID as a LIVE ID, so payment alerts opened the wrong screen.
+  if (page === 'payments' || value.toLowerCase() === 'payments' || data?.type === 'payment' || nested?.type === 'payment') {
+    const target = uuidMatch ? value : String(data?.link_target || nested?.link_target || data?.target || nested?.target || '');
+    const targetQuery = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(target) ? `&target=${encodeURIComponent(target)}` : '';
+    return `./?grayxonPush=1&page=payments${targetQuery}#payments`;
+  }
+  if (!value) return './';
+  if (uuidMatch) return `./#live-training/${uuidMatch[0]}`;
   if (/^live-training$/i.test(value)) return './#live-training';
   if (/^missions?$/i.test(value)) return './#missions';
   if (/^(training|formation)$/i.test(value)) return './#training';
-  if (/^(manager|admin|profile|space|home|benefits|auth)$/i.test(value)) return `./#${value.toLowerCase()}`;
+  if (/^(manager|admin|profile|space|home|benefits|auth|announcements)$/i.test(value)) return `./#${value.toLowerCase()}`;
   if (value.startsWith('#')) return `.${value}`;
   if (/^(https?:|mailto:|tel:)/i.test(value)) return value;
   return './';
