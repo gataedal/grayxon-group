@@ -1,4 +1,4 @@
-// GRAYXON BUILD V33.8 LIVE NOTIFICATION ATOMIC FIX
+// GRAYXON BUILD V33.9 PUSH CACHE-BUST + PORTAL DEEP-LINK FIX
 const CFG = window.GRAYXON_CONFIG || {};
 // Auth uses a syntactically valid internal domain. Users still log in only with
 // their Grayxon username; this address is never shown in the portal UI.
@@ -138,7 +138,7 @@ async function showGrayxonPushPrompt(){
   // database row (for example after clearing account data) and do not bother the creator.
   try{
     if('serviceWorker' in navigator && 'PushManager' in window){
-      const registration=await navigator.serviceWorker.register('./sw.js?v=45',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=46',{scope:'./',updateViaCache:'none'});
       const existing=await registration?.pushManager?.getSubscription();
       if(existing){
         if('Notification' in window && Notification.permission==='granted'){
@@ -214,7 +214,7 @@ async function registerGrayxonPush({requestPermission=false}={}) {
   pushRegistrationPromise = (async () => {
     try {
       ensureGrayxonPwaLinks();
-      const registration = await navigator.serviceWorker.register('./sw.js?v=45', { scope: './', updateViaCache: 'none' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=46', { scope: './', updateViaCache: 'none' });
       await navigator.serviceWorker.ready;
 
       let permission = Notification.permission;
@@ -4148,7 +4148,7 @@ function showGrayxonPushDiagnostics(){
     if(rows)rows.innerHTML='<div class="item">Comprobando dispositivo…</div>';
     const supported=!!(window.isSecureContext&&('serviceWorker'in navigator)&&('PushManager'in window)&&('Notification'in window));
     let registration=null,localSub=null,dbRows=null,dbError=null;
-    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.register('./sw.js?v=45',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;registration=await navigator.serviceWorker.getRegistration('./');localSub=await registration?.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
+    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.register('./sw.js?v=46',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;registration=await navigator.serviceWorker.getRegistration('./');localSub=await registration?.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
     try{const r=await sb.from('push_subscriptions').select('endpoint,is_active,last_seen_at,user_agent').eq('user_id',session.user.id).order('last_seen_at',{ascending:false});dbRows=r.data||null;dbError=r.error||null;}catch(e){dbError=e;}
     const permission=('Notification'in window)?Notification.permission:'No disponible';
     const match=localSub&&dbRows?dbRows.find(r=>r.endpoint===localSub.endpoint):null;
@@ -5101,7 +5101,7 @@ window.addEventListener('message', async (event) => {
   const data = event?.data;
   if (!data || !data.url) return;
 
-  // v45: the Service Worker asks this window to resolve a push destination after auth initialization
+  // v46: the Service Worker asks this window to resolve a push destination after auth initialization
   // and lets the already-authenticated window handle the route without a reload.
   if (data.type === 'GRAYXON_NOTIFICATION_NAVIGATE_REQUEST') {
     const port = event.ports?.[0];
