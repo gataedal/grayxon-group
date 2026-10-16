@@ -1,4 +1,4 @@
-/* Grayxon Academy · Web Push Service Worker v47 · dedupe + portal-relative deep links */
+/* Grayxon Academy · Web Push Service Worker v49 · dedupe + portal-relative deep links */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
@@ -8,6 +8,9 @@ function resolveTarget(data) {
   const raw = data?.link_target || data?.linkTarget || nested?.link_target || nested?.linkTarget || data?.url || nested?.url || data?.notification?.data?.url || page || '';
   const value = String(raw || '');
   const uuidMatch = value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+
+  // Official thread notifications open the event directly on its thread tab.
+  if (page === 'event-thread') return `./portal.html?grayxonPush=1&page=event-thread&target=${encodeURIComponent(value)}#events`;
 
   // Battle IDs are resolved by the portal after restoring the session; never treat them as LIVE IDs.
   if (page === 'event-match') return `./portal.html?grayxonPush=1&page=event-match&target=${encodeURIComponent(value)}#events`;
@@ -61,7 +64,7 @@ function isDuplicatePush(fingerprint, ttlMs = 15000) {
   return new Promise((resolve) => {
     if (!self.indexedDB) { resolve(false); return; }
     let request;
-    try { request = indexedDB.open('grayxon-push-dedupe-v47', 1); }
+    try { request = indexedDB.open('grayxon-push-dedupe-v49', 1); }
     catch (_) { resolve(false); return; }
     request.onupgradeneeded = () => {
       const db = request.result;
