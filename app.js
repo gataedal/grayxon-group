@@ -1635,10 +1635,8 @@ async function missionsTpl() {
       <div class="mission-head"><div class="mission-icon">${v>=100?'✓':expired?'⌁':m.type==='checkbox'?'✓':'↗'}</div><div><strong>${esc(m.title)}</strong><p class="muted small">${esc(m.description||'')}</p><small>${esc(weekLabel(m.week_start,m.week_end))}${expired?' · Semana finalizada':''}</small></div><span class="mission-pct">${v}%</span></div>
       <div class="space-progress mission-progress"><span style="width:${v}%"></span></div>
       <div class="mission-actions">
-        ${m.link_url?`<a class="mission-link" href="${esc(m.link_url)}" target="_blank" rel="noopener noreferrer">🔗 Abrir recurso</a>`:''}
-        ${!historical && !expired && m.type==='checkbox'?`<button class="mission-check ${p.completed?'checked':''}" data-complete-mission="${m.id}">${p.completed?'✓ Guardado':'Guardar'}</button>`:''}
-        ${!historical && !expired && m.type==='numeric'?`<div class="mission-number-wrap"><input type="number" min="0" step="1" value="${esc(p.value||0)}" id="missionValue-${m.id}" placeholder="0"><span>/ ${fmt(m.target)}</span></div><button class="mission-save" data-save-mission="${m.id}">Guardar</button>`:''}
-        ${historical?`<span class="mission-status-pill ${expired?'expired':''}">${expired?'Semana finalizada':(p.completed && v<100?'✓ Guardada':'✓ Completada')}</span>`:''}
+        ${m.link_url?`<a class="mission-link" href="${esc(m.link_url)}" target="_blank" rel="noopener noreferrer">🔗 Abrir recurso</a>`:'' }
+        <span class="mission-status-pill ${submitted?'':'mission-following'}">${submitted?'✓ Registrada por Grayxon':'En seguimiento por Grayxon'}</span>
       </div>
     </div>`;
   };
@@ -5817,7 +5815,7 @@ let gxEventsMyParticipants=[];
 let gxEventsMyResponses=[];
 let gxEventsMediaCache=[];
 let gxPendingEventTarget=null;
-let gxEventsFilter='upcoming';
+let gxEventsFilter='in_progress';
 let gxEventsSelectedId=null;
 let gxEventsActiveTab='ranking';
 let gxEventsDashboardData=null;
@@ -5896,7 +5894,16 @@ function gxEnsureEventsMatrixStyles(){
   #events .gxev-prize-podium{width:100%;min-width:0;align-items:stretch}
   #events .gxev-prize-place{min-width:0;max-width:100%;overflow:hidden}
   #events .gxev-prize-item{width:100%;min-width:0}
-  #events .gxev-prize-item img{display:block;width:min(100%,260px)!important;max-width:100%!important;height:170px!important;min-height:0;object-fit:contain!important;margin-inline:auto}
+  #events .gxev-prize-item img{display:block!important;visibility:visible!important;opacity:1!important;position:static!important;width:100%!important;max-width:100%!important;height:170px!important;min-height:100px!important;object-fit:contain!important;margin-inline:auto;background:#090c11;border-radius:10px}
+  #events .gxev-prize-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  #events .gxev-battle-details{display:grid;gap:12px;padding:18px;border:1px solid #344052;border-radius:16px;background:linear-gradient(145deg,#151c27,#0b1018)}
+  #events .gxev-battle-details-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  #events .gxev-battle-description{margin:0;color:#aeb9c9;line-height:1.5}
+  #events .gxev-battle-opponent{font-size:clamp(19px,3vw,26px);font-weight:900;overflow-wrap:anywhere}
+  #events .gxev-creator-battle-time{display:grid;gap:5px;padding:12px;border:1px solid #29374a;border-radius:12px;background:#0b111a}
+  #events .gxev-creator-battle-time span{font-size:11px;color:#98a6b8;text-transform:uppercase;letter-spacing:.08em}
+  #events .gxev-creator-battle-time strong{font-size:15px;line-height:1.5;color:#f4f7fb}
+  #events .gxev-follow-opponent{width:100%;min-height:48px;font-size:14px;letter-spacing:.06em}
   #events .gxev-card-cover-static{cursor:default;pointer-events:none}
   @media(max-width:760px){
     html,body{max-width:100%;overflow-x:hidden}
@@ -5904,7 +5911,14 @@ function gxEnsureEventsMatrixStyles(){
     #events .gxev-hero{display:flex;flex-direction:column;overflow:hidden}
     #events .gxev-hero-media{width:100%;max-width:none;min-width:0;flex:0 0 auto;height:clamp(150px,48vw,230px);min-height:0}
     #events .gxev-hero-main{width:100%;max-width:100%;min-width:0;padding:16px;box-sizing:border-box}
-    #events .gxev-top-three,#events .gxev-prize-podium{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px;width:100%;min-width:0;overflow:visible;padding:0}
+    #events .gxev-top-three{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px;width:100%;min-width:0;overflow:visible;padding:0}
+     #events .gxev-prize-podium{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px;width:100%;min-width:0;overflow:visible;padding:0}
+     #events .gxev-prize-place{padding:7px 5px!important}
+     #events .gxev-prize-place h4{font-size:11px;overflow-wrap:anywhere}
+     #events .gxev-prize-item{gap:6px}
+     #events .gxev-prize-item img{height:clamp(65px,20vw,115px)!important;min-height:65px!important}
+     #events .gxev-prize-item b{font-size:11px;overflow-wrap:anywhere}
+     #events .gxev-prize-place-1{grid-column:auto!important}
     #events .gxev-top-rank,#events .gxev-prize-place{box-sizing:border-box;min-width:0;max-width:100%;width:100%;padding:10px;grid-column:auto!important;grid-row:auto!important;overflow-wrap:anywhere}
     #events .gxev-prize-place-1{grid-column:1/-1!important}
     #events .gxev-prize-item img{width:100%!important;max-width:100%!important;height:clamp(95px,28vw,145px)!important}
@@ -5921,7 +5935,7 @@ function gxEnsureEventsMatrixStyles(){
   }
   @media(max-width:420px){
     #events .gxev-top-three{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-    #events .gxev-prize-podium{grid-template-columns:1fr!important}
+    #events .gxev-prize-podium{grid-template-columns:repeat(3,minmax(0,1fr))!important}
     #events .gxev-prize-place-1{grid-column:auto!important}
     #events .gxev-top-rank{padding:9px 6px}
     #events .gxev-top-rank b,#events .gxev-top-rank strong{font-size:12px}
@@ -6006,7 +6020,7 @@ function gxEventsMediaPreview(media){if(!media)return '';const u=gxEventsSafeHtt
 function gxEventsRenderList(){
   gxEventsExitFullscreen();const host=ensureEventsPage(),body=host.querySelector('#gxevPageBody'),status=host.querySelector('#gxevPageStatus');if(!body)return;
   if(status){status.textContent='';status.style.display='none';}
-  body.innerHTML=`<div class="gxev-filters"><button type="button" class="gxev-filter ${gxEventsFilter==='upcoming'?'active':''}" data-gxev-filter="upcoming">Próximos</button><button type="button" class="gxev-filter ${gxEventsFilter==='in_progress'?'active':''}" data-gxev-filter="in_progress">En curso</button><button type="button" class="gxev-filter ${gxEventsFilter==='past'?'active':''}" data-gxev-filter="past">Historial</button></div><div id="gxevEventGrid" class="gxev-grid"></div>`;
+  body.innerHTML=`<div class="gxev-filters"><button type="button" class="gxev-filter ${gxEventsFilter==='upcoming'?'active':''}" data-gxev-filter="in_progress">En curso</button><button type="button" class="gxev-filter ${gxEventsFilter==='upcoming'?'active':''}" data-gxev-filter="upcoming">Próximos</button><button type="button" class="gxev-filter ${gxEventsFilter==='past'?'active':''}" data-gxev-filter="past">Historial</button></div><div id="gxevEventGrid" class="gxev-grid"></div>`;
   const grid=body.querySelector('#gxevEventGrid'),admin=gxEventsAdmin(),now=Date.now();let items=gxEventsCache.filter(e=>admin||e.status!=='draft');
   const startOf=e=>e.starts_at?new Date(e.starts_at).getTime():0,endOf=e=>e.ends_at?new Date(e.ends_at).getTime():Infinity;
   const isPast=e=>['finished','cancelled','completed'].includes(e.status)||(e.ends_at&&endOf(e)<now);
@@ -6088,7 +6102,7 @@ function gxEventsMatchCard(m,d){
     const opponentHandle=opponent?.tiktok_username||opponentRank?.tiktok_username||'';
     const opponentName=opponentRank?.username||opponentProfile?.username||opponentHandle||'tu contrincante';
     const opponentUrl=gxEventsTikTokUrl(opponentHandle);
-    return `<article class="gxev-battle gxev-battle-creator"><div class="gxev-creator-battle-time">📅 ${m.scheduled_at?gxEventsFmtDate(m.scheduled_at):'Fecha y hora pendientes de asignar'}</div>${opponentUrl?`<a class="gxev-btn primary gxev-follow-opponent" href="${gxEventsEsc(opponentUrl)}" target="_blank" rel="noopener noreferrer">Seguir a @${gxEventsEsc(opponentName)} en TikTok ↗</a>`:`<div class="gxev-muted">El usuario de TikTok de tu contrincante aún no está disponible.</div>`}</article>`;
+    return `<article class="gxev-battle gxev-battle-creator gxev-battle-details"><div class="gxev-battle-details-head"><span class="gxev-pill">DETALLES DE TU BATALLA</span><strong>${gxEventsEsc(resultLabel)}</strong></div><p class="gxev-battle-description">${gxEventsEsc(phase?.title||round?.title||'Batalla programada')}</p><div class="gxev-battle-opponent">@${gxEventsEsc(opponentName)}</div><div class="gxev-creator-battle-time"><span>FECHA Y HORA</span><strong>${m.scheduled_at?gxEventsFmtDate(m.scheduled_at):'Pendiente de asignar'}</strong></div>${opponentUrl?`<a class="gxev-btn primary gxev-follow-opponent" href="${gxEventsEsc(opponentUrl)}" target="_blank" rel="noopener noreferrer">SEGUIR ↗</a>`:`<div class="gxev-muted">El usuario de TikTok de tu contrincante aún no está disponible.</div>`}</article>`;
   }
   const participantOption=(p,sideId)=>{const profile=d.profileMap.get(p.user_id)||d.profiles.find(x=>x.id===p.user_id)||{};return `<option value="${gxEventsEsc(p.id)}" ${p.id===sideId?'selected':''}>${gxEventsEsc('@'+(profile.username||profile.full_name||p.tiktok_username||p.user_id.slice(0,8)))}</option>`;};
   const available=d.participants.filter(p=>p.id===m.participant_a_id||p.id===m.participant_b_id||p.user_id!==a?.user_id&&p.user_id!==b?.user_id);
