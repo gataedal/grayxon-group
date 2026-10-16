@@ -3507,6 +3507,9 @@ function ensureAdminUsersStyles(){
     .admin-users-search{display:flex;align-items:center;gap:10px;margin-top:16px;padding:0 13px;min-height:48px;border:1px solid #344454;border-radius:13px;background:#0d1722;color:#8fd6f5}
     .admin-users-search input{flex:1;min-width:0;border:0!important;outline:0!important;background:transparent!important;color:var(--text,#f4f7fb)!important;box-shadow:none!important;padding:12px 0!important}
     .admin-users-search small{white-space:nowrap;color:#9aaabc}
+    .admin-users-filter-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .admin-users-filter-label{display:flex;align-items:center;gap:9px;color:#b8c7d6;font-size:13px;font-weight:700}
+    .admin-users-filter{min-height:40px;min-width:150px;padding:8px 32px 8px 12px!important;border:1px solid #344454!important;border-radius:11px!important;background:#101c28!important;color:#f4f7fb!important}
     .admin-user-identity{display:flex;align-items:center;gap:12px;min-width:0}
     .admin-user-avatar{width:44px;height:44px;min-width:44px;border-radius:13px;object-fit:cover;background:#1c3547;border:1px solid #34495a}
     .admin-user-avatar-fallback{display:flex;align-items:center;justify-content:center;color:#e9f7ff;font-weight:800}
@@ -3548,10 +3551,10 @@ async function adminUsers(){
     const lastSeen=presenceMap.get(u.id);
     const presenceState=getAdminPresenceState(lastSeen);
     const presenceText=presenceState.label;
-    return `<div class="item admin-user-row" data-admin-user-row data-search="${esc([u.full_name,u.username,roleLabel(u.role),tm.get(u.team_id),m?.name].filter(Boolean).join(' ').toLowerCase())}"><div class="admin-user-main"><div class="admin-user-identity">${avatar?`<img class="admin-user-avatar" src="${esc(avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<span class="admin-user-avatar admin-user-avatar-fallback">${esc(initials)}</span>`}<div><b>${esc(u.full_name||u.username||'Usuario')}</b><div class="muted small">@${esc(u.username||'—')} · ${roleLabel(u.role)} · ${u.active?'Activo':'Inactivo'}</div><div class="muted small">${esc(tm.get(u.team_id)||'Sin equipo')}${m?` · Manager: ${esc(m.name)}`:''}</div><div class="admin-user-presence ${presenceState.state}" data-user-presence="${u.id}" title="${esc(presenceState.title)}"><span class="admin-user-presence-dot"></span><span data-user-presence-label>${esc(presenceText)}</span></div></div></div><span class="pill ${u.active?'ok':''}">${u.active?'Activo':'Inactivo'}</span></div><div class="admin-user-actions"><select class="admin-user-role" data-user-role="${u.id}"><option value="creator" ${u.role==='creator'?'selected':''}>Creador</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option></select><button class="secondary small" data-save-user-role="${u.id}">Guardar rol</button><button class="secondary small" data-view-user="${u.id}">Ver información</button><button class="secondary small ${u.active?'danger':'ok'}" data-toggle-user="${u.id}">${u.active?'Desactivar':'Activar'}</button>${u.id!==session?.user?.id?`<button class="secondary small danger" data-delete-user="${u.id}">Eliminar</button>`:''}</div></div>`;
+    return `<div class="item admin-user-row" data-admin-user-row data-presence-status="${presenceState.state==='is-offline'?'inactive':'active'}" data-search="${esc([u.full_name,u.username,roleLabel(u.role),tm.get(u.team_id),m?.name].filter(Boolean).join(' ').toLowerCase())}"><div class="admin-user-main"><div class="admin-user-identity">${avatar?`<img class="admin-user-avatar" src="${esc(avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<span class="admin-user-avatar admin-user-avatar-fallback">${esc(initials)}</span>`}<div><b>${esc(u.full_name||u.username||'Usuario')}</b><div class="muted small">@${esc(u.username||'—')} · ${roleLabel(u.role)} · ${u.active?'Activo':'Inactivo'}</div><div class="muted small">${esc(tm.get(u.team_id)||'Sin equipo')}${m?` · Manager: ${esc(m.name)}`:''}</div><div class="admin-user-presence ${presenceState.state}" data-user-presence="${u.id}" title="${esc(presenceState.title)}"><span class="admin-user-presence-dot"></span><span data-user-presence-label>${esc(presenceText)}</span></div></div></div><span class="pill ${u.active?'ok':''}">${u.active?'Activo':'Inactivo'}</span></div><div class="admin-user-actions"><select class="admin-user-role" data-user-role="${u.id}"><option value="creator" ${u.role==='creator'?'selected':''}>Creador</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option></select><button class="secondary small" data-save-user-role="${u.id}">Guardar rol</button><button class="secondary small" data-view-user="${u.id}">Ver información</button><button class="secondary small ${u.active?'danger':'ok'}" data-toggle-user="${u.id}">${u.active?'Desactivar':'Activar'}</button>${u.id!==session?.user?.id?`<button class="secondary small danger" data-delete-user="${u.id}">Eliminar</button>`:''}</div></div>`;
   }).join('');
   const creatorCount=(users||[]).filter(u=>u.role==='creator').length;
-  return `<div class="card admin-users-page"><div class="row"><div><h2>Todos los usuarios</h2><p class="muted small">Administra todas las cuentas Grayxon desde aquí: creadores, managers y administradores. Los cambios respetan la estructura de equipos y managers.</p></div><span class="pill">${(users||[]).length} usuarios · ${creatorCount} creadores</span></div><div class="inline admin-users-toolbar"><button type="button" class="primary" data-admin-create-creator>＋ Crear creador</button><button type="button" class="primary" data-admin-import-creators>⇧ Importar</button></div><label class="admin-users-search"><span>⌕</span><input id="adminUsersSearch" type="search" placeholder="Buscar por nombre, usuario, rol, equipo o manager…" autocomplete="off"><small>${(users||[]).length} cuentas</small></label><div class="admin-users-list" style="margin-top:12px">${rows||'<div class="item"><span class="muted small">No hay usuarios.</span></div>'}</div><div id="adminUsersNoMatch" class="item muted small" style="display:none">No encontramos usuarios con esa búsqueda.</div></div>`;
+  return `<div class="card admin-users-page"><div class="row"><div><h2>Todos los usuarios</h2><p class="muted small">Administra todas las cuentas Grayxon desde aquí: creadores, managers y administradores. Los cambios respetan la estructura de equipos y managers.</p></div><span class="pill">${(users||[]).length} usuarios · ${creatorCount} creadores</span></div><div class="inline admin-users-toolbar"><button type="button" class="primary" data-admin-create-creator>＋ Crear creador</button><button type="button" class="primary" data-admin-import-creators>⇧ Importar</button></div><label class="admin-users-search"><span>⌕</span><input id="adminUsersSearch" type="search" placeholder="Buscar por nombre, usuario, rol, equipo o manager…" autocomplete="off"><small>${(users||[]).length} cuentas</small></label><div class="admin-users-filter-row"><label class="admin-users-filter-label" for="adminUsersPresenceFilter">Actividad</label><select id="adminUsersPresenceFilter" class="admin-users-filter"><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></div><div class="admin-users-list" style="margin-top:12px">${rows||'<div class="item"><span class="muted small">No hay usuarios.</span></div>'}</div><div id="adminUsersNoMatch" class="item muted small" style="display:none">No encontramos usuarios con esa búsqueda.</div></div>`;
 }
 
 
@@ -4488,12 +4491,25 @@ function bind() {
   $$('[data-toggle-user]').forEach(b => b.onclick = () => toggleAdminUser(b.dataset.toggleUser));
   $$('[data-delete-user]').forEach(b => b.onclick = () => deleteAdminUser(b.dataset.deleteUser));
   $$('[data-view-user]').forEach(b => b.onclick = () => adminUserModal(b.dataset.viewUser));
-  $('#adminUsersSearch')?.addEventListener('input',e=>{
-    const q=String(e.target.value||'').trim().toLocaleLowerCase();
+  const applyAdminUserFilters=()=>{
+    const q=String($('#adminUsersSearch')?.value||'').trim().toLocaleLowerCase();
+    const activity=$('#adminUsersPresenceFilter')?.value||'all';
     let visible=0;
-    $$('[data-admin-user-row]').forEach(row=>{const match=!q||String(row.dataset.search||'').includes(q);row.style.display=match?'':'none';if(match)visible++;});
-    const empty=$('#adminUsersNoMatch');if(empty)empty.style.display=visible?'none':'';
-  });
+    $('[data-admin-user-row]').forEach(row=>{
+      const matchesSearch=!q||String(row.dataset.search||'').includes(q);
+      const matchesActivity=activity==='all'||row.dataset.presenceStatus===activity;
+      const show=matchesSearch&&matchesActivity;
+      row.style.display=show?'':'none';
+      if(show)visible++;
+    });
+    const empty=$('#adminUsersNoMatch');
+    if(empty){
+      empty.textContent=activity==='active'?'No hay usuarios con actividad en los últimos 7 días que coincidan con esa búsqueda.':activity==='inactive'?'No hay usuarios sin actividad en los últimos 7 días que coincidan con esa búsqueda.':'No encontramos usuarios con esa búsqueda.';
+      empty.style.display=visible?'none':'';
+    }
+  };
+  $('#adminUsersSearch')?.addEventListener('input',applyAdminUserFilters);
+  $('#adminUsersPresenceFilter')?.addEventListener('change',applyAdminUserFilters);
   $('#newTeamManager')?.addEventListener('click',()=>teamManagerModal());
   $$('[data-view-team]').forEach(b=>b.onclick=()=>adminTeamModal(b.dataset.viewTeam));
   $$('[data-edit-team]').forEach(b=>b.onclick=()=>editTeam(b.dataset.editTeam));
