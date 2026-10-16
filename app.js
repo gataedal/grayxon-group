@@ -4499,8 +4499,8 @@ function bind() {
   $('#bImage')?.addEventListener('change', previewBenefitsImage);
   $('#newCreator')?.addEventListener('click', creatorModal);
   $('#importCreators')?.addEventListener('click', creatorImportModal);
-  $('[data-admin-create-creator]').forEach(b => b.onclick = creatorModal);
-  $('[data-admin-import-creators]').forEach(b => b.onclick = creatorImportModal);
+  $$('[data-admin-create-creator]').forEach(b => b.onclick = creatorModal);
+  $$('[data-admin-import-creators]').forEach(b => b.onclick = creatorImportModal);
   $('#saveFirstPassword')?.addEventListener('click', saveFirstPassword);
   $('#newModule')?.addEventListener('click', newModule);
   $$('[data-edit-module]').forEach(b => b.onclick = () => editModule(b.dataset.editModule));
