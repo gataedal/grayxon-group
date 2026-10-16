@@ -3565,16 +3565,22 @@ async function saveGxAppIcon() {
   if(['image/png','image/jpeg','image/webp'].indexOf(file.type)<0){if(err)err.textContent='Usa una imagen PNG, JPG o WebP.';return;}
   if(file.size>8*1024*1024){if(err)err.textContent='La imagen debe pesar menos de 8 MB.';return;}
   if(button)button.disabled=true;
+  const backups={}, uploadedNames=[];
   try {
     if(progress)progress.textContent='Preparando tamaños del icono…';
     const image=await createImageBitmap(file);
     const variants=[['grayxon-app-icon-192.png',192,false],['grayxon-app-icon-512.png',512,false],['grayxon-app-icon-maskable-512.png',512,true],['apple-touch-icon.png',180,false],['favicon-32.png',32,false]];
+    for(const variant of variants){
+      const old=await sb.storage.from(GX_APP_ICON_BUCKET).download('app-icons/' + variant[0]);
+      if(!old.error && old.data) backups[variant[0]]=old.data;
+    }
     for(const variant of variants){
       const name=variant[0], size=variant[1], padded=variant[2];
       const blob=await gxRenderIconVariant(image,size,padded);
       if(progress)progress.textContent='Subiendo icono ' + size + ' × ' + size + '…';
       const upload=await sb.storage.from(GX_APP_ICON_BUCKET).upload('app-icons/' + name,blob,{upsert:true,cacheControl:'0',contentType:'image/png'});
       if(upload.error)throw upload.error;
+      uploadedNames.push(name);
     }
     const urls={};
     for(const variant of variants) urls[variant[0]]=gxAppIconPublicUrl(variant[0]);
@@ -3587,6 +3593,10 @@ async function saveGxAppIcon() {
     if(progress)progress.textContent='Icono guardado. Las nuevas instalaciones usarán esta imagen cuando se publique la configuración de instalación.';
     toast('Icono de Grayxon guardado.');
   } catch(e) {
+    for(const name of uploadedNames){
+      if(!backups[name])continue;
+      try{await sb.storage.from(GX_APP_ICON_BUCKET).upload('app-icons/' + name,backups[name],{upsert:true,cacheControl:'0',contentType:'image/png'});}catch(_){ }
+    }
     if(err)err.textContent=e && e.message ? e.message : 'No se pudo guardar el icono.';
     if(progress)progress.textContent='No se completó la actualización.';
   } finally { if(button)button.disabled=false; }
