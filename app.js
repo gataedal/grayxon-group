@@ -634,7 +634,7 @@ async function openNotification(id) {
   if (n.type === 'event' || n.link_page === 'events' || n.link_page === 'event-thread') {
     const target = String(n.link_target || '');
     gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
-    gxPendingEventTab = n.link_page === 'event-thread' || /hilo oficial|nueva publicación en un evento/i.test(String(n.title||'')) ? 'thread' : (gxEventsAdmin() && /solicitud de inscripci[oó]n/i.test(String(n.title||'')) ? 'enrollment-requests' : null);
+    gxPendingEventTab = n.link_page === 'event-thread' || /hilo oficial|nueva publicación|novedad en un evento/i.test(String(n.title||'')) ? 'thread' : (gxEventsAdmin() && /solicitud de inscripci[oó]n/i.test(String(n.title||'')) ? 'enrollment-requests' : null);
     nav('events');
     return;
   }
