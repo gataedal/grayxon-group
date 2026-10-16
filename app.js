@@ -6266,7 +6266,7 @@ function gxEventsRenderTab(d){
     const roundHTML=(r)=>{
       const mm=d.matches.filter(m=>m.round_id===r.id&&(admin||profile?.role==='manager'||(myParticipant&&(m.participant_a_id===myParticipant.id||m.participant_b_id===myParticipant.id))));
       const content=`${mm.length?mm.map(m=>gxEventsMatchCard(m,d)).join(''):'<div class="gxev-empty">No hay batallas asignadas a esta ronda para mostrar.</div>'}`;
-      if(!admin)return '';
+      if(!admin&&profile?.role!=='manager')return '';
       return `<details class="gxev-battle-round"><summary class="gxev-panel-head"><div><h4>⚔ Batallas de esta fase</h4><div class="gxev-muted">${r.phase_id?gxEventsEsc(d.phases.find(p=>p.id===r.phase_id)?.title||'Fase'): 'Batallas sin fase asignada'}</div></div><span class="gxev-pill">${mm.length} cruces</span></summary><div class="gxev-actions" style="margin:8px 0"><button type="button" class="gxev-btn" data-gxev-bulk-select-all>Marcar todas</button><button type="button" class="gxev-btn" data-gxev-bulk-select-none>Desmarcar todas</button><button type="button" class="gxev-btn" data-gxev-bulk-cancel>Cancelar seleccionadas</button><button type="button" class="gxev-btn danger" data-gxev-bulk-delete>Eliminar seleccionadas</button></div><div class="gxev-battles">${content}</div></details>`;
     };
     const phaseBuckets=d.phases.map((phase,index)=>({phase,index}));
