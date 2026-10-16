@@ -3513,29 +3513,17 @@ function gxAppIconPublicUrl(name) {
 async function ensureGxAppIconAssets() {
   const result = await sb.from('site_content').select('content').eq('id','app_icon').maybeSingle();
   if (result.error) throw result.error;
-  if (result.data && result.data.content && result.data.content.initialized) return result.data.content;
-  const urls = {};
-  for (const [name, source] of Object.entries(GX_APP_ICON_FILES)) {
-    const response = await fetch(source, {cache:'no-store'});
-    if (!response.ok) throw new Error('No se pudo preparar el icono inicial (' + name + ').');
-    const blob = await response.blob();
-    const upload = await sb.storage.from(GX_APP_ICON_BUCKET).upload('app-icons/' + name, blob, {
-      upsert:true, cacheControl:'0', contentType:'image/png'
-    });
-    if (upload.error) throw upload.error;
-    urls[name] = gxAppIconPublicUrl(name);
-  }
-  const content = {initialized:true, updated_at:new Date().toISOString(), urls:urls};
-  const saved = await sb.from('site_content').upsert({id:'app_icon',content:content,updated_at:content.updated_at});
-  if (saved.error) throw saved.error;
-  return content;
+  if (result.data && result.data.content && result.data.content.urls) return result.data.content;
+  // No subir ni escribir nada al abrir esta pantalla: los iconos base ya viven en /assets.
+  // La inicialización automática anterior provocaba un INSERT bloqueado por RLS.
+  return {initialized:false, updated_at:null, urls:Object.fromEntries(Object.entries(GX_APP_ICON_FILES).map(([name,source])=>[name,source]))};
 }
 async function adminAppIdentity() {
   ensureGxAppIconAdminStyles();
   let content = null, loadError = '';
   try { content = await ensureGxAppIconAssets(); }
   catch(e) { loadError = e && e.message ? e.message : 'No se pudieron preparar los iconos.'; }
-  const preview = content && content.urls && content.urls['grayxon-app-icon-512.png'] ? content.urls['grayxon-app-icon-512.png'] : gxAppIconPublicUrl('grayxon-app-icon-512.png');
+  const preview = content && content.urls && content.urls['grayxon-app-icon-512.png'] ? content.urls['grayxon-app-icon-512.png'] : GX_APP_ICON_FILES['grayxon-app-icon-512.png'];
   return '<div class="card gx-app-icon-admin"><div class="eyebrow">GRAYXON GROUP · IDENTIDAD</div>' +
     '<h2>Icono de la app</h2><p class="muted">Sube una imagen cuadrada para cambiar el icono que identifica a Grayxon cuando se instala en el celular o computador. Generaremos automáticamente los tamaños para Android, iPhone, navegador y el icono adaptable de Android.</p>' +
     '<div class="gx-app-icon-preview"><img id="gxAppIconCurrent" src="' + esc(preview) + '?v=' + Date.now() + '" alt="Icono actual de Grayxon"><div><b>Vista previa</b><div class="muted small">Recomendado: PNG cuadrado, con el símbolo centrado y margen suficiente alrededor.</div></div></div>' +
@@ -3585,7 +3573,7 @@ async function saveGxAppIcon() {
     const urls={};
     for(const variant of variants) urls[variant[0]]=gxAppIconPublicUrl(variant[0]);
     const content={initialized:true,updated_at:new Date().toISOString(),urls:urls};
-    const saved=await sb.from('site_content').upsert({id:'app_icon',content:content,updated_at:content.updated_at});
+    const saved=await sb.from('site_content').upsert({id:'app_icon',content:content,published:true,updated_at:content.updated_at});
     if(saved.error)throw saved.error;
     const img=$('#gxAppIconCurrent');if(img)img.src=urls['grayxon-app-icon-512.png']+'?v='+Date.now();
     const selected=$('#gxAppIconSelectedPreview');if(selected){selected.innerHTML='';selected.classList.add('hidden');}
