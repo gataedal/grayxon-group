@@ -4495,7 +4495,7 @@ function bind() {
     const q=String($('#adminUsersSearch')?.value||'').trim().toLocaleLowerCase();
     const activity=$('#adminUsersPresenceFilter')?.value||'all';
     let visible=0;
-    $('[data-admin-user-row]').forEach(row=>{
+    $$('[data-admin-user-row]').forEach(row=>{
       const matchesSearch=!q||String(row.dataset.search||'').includes(q);
       const matchesActivity=activity==='all'||row.dataset.presenceStatus===activity;
       const show=matchesSearch&&matchesActivity;
