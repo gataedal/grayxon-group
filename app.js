@@ -3514,6 +3514,7 @@ function ensureAdminUsersStyles(){
     .admin-user-presence{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-top:4px}
     .admin-user-presence-dot{display:inline-block;width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#778391}
     .admin-user-presence.is-online{color:#6fe6a0}.admin-user-presence.is-online .admin-user-presence-dot{background:#39e58c;box-shadow:0 0 0 3px rgba(57,229,140,.13),0 0 10px rgba(57,229,140,.65)}
+    .admin-user-presence.is-recent{color:#76d9f7}.admin-user-presence.is-recent .admin-user-presence-dot{background:#42c7ed;box-shadow:0 0 0 3px rgba(66,199,237,.12)}
     .admin-user-presence.is-offline{color:#b5c0cc}.admin-user-presence.is-offline .admin-user-presence-dot{background:#8794a3}
     .admin-user-actions button{min-height:36px!important;border-width:1px!important;font-weight:800!important;box-shadow:0 4px 12px rgba(0,0,0,.2)!important;transition:transform .15s ease,filter .15s ease}
     .admin-user-actions button:hover{filter:brightness(1.12);transform:translateY(-1px)}
@@ -3545,9 +3546,9 @@ async function adminUsers(){
     const m=mm.get(u.manager_id), avatar=detailMap.get(u.id)?.avatar_url;
     const initials=String(u.full_name||u.username||'U').trim().charAt(0).toUpperCase();
     const lastSeen=presenceMap.get(u.id);
-    const online=!!lastSeen && Number.isFinite(Date.parse(lastSeen)) && (Date.now()-Date.parse(lastSeen))<604800000;
-    const presenceText=online?'Activa · uso en los últimos 7 días':'Sin uso en los últimos 7 días';
-    return `<div class="item admin-user-row" data-admin-user-row data-search="${esc([u.full_name,u.username,roleLabel(u.role),tm.get(u.team_id),m?.name].filter(Boolean).join(' ').toLowerCase())}"><div class="admin-user-main"><div class="admin-user-identity">${avatar?`<img class="admin-user-avatar" src="${esc(avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<span class="admin-user-avatar admin-user-avatar-fallback">${esc(initials)}</span>`}<div><b>${esc(u.full_name||u.username||'Usuario')}</b><div class="muted small">@${esc(u.username||'—')} · ${roleLabel(u.role)} · ${u.active?'Activo':'Inactivo'}</div><div class="muted small">${esc(tm.get(u.team_id)||'Sin equipo')}${m?` · Manager: ${esc(m.name)}`:''}</div><div class="admin-user-presence ${online?'is-online':'is-offline'}" data-user-presence="${u.id}" title="Se considera activa si registra actividad en los últimos 7 días"><span class="admin-user-presence-dot"></span>${presenceText}</div></div></div><span class="pill ${u.active?'ok':''}">${u.active?'Activo':'Inactivo'}</span></div><div class="admin-user-actions"><select class="admin-user-role" data-user-role="${u.id}"><option value="creator" ${u.role==='creator'?'selected':''}>Creador</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option></select><button class="secondary small" data-save-user-role="${u.id}">Guardar rol</button><button class="secondary small" data-view-user="${u.id}">Ver información</button><button class="secondary small ${u.active?'danger':'ok'}" data-toggle-user="${u.id}">${u.active?'Desactivar':'Activar'}</button>${u.id!==session?.user?.id?`<button class="secondary small danger" data-delete-user="${u.id}">Eliminar</button>`:''}</div></div>`;
+    const presenceState=getAdminPresenceState(lastSeen);
+    const presenceText=presenceState.label;
+    return `<div class="item admin-user-row" data-admin-user-row data-search="${esc([u.full_name,u.username,roleLabel(u.role),tm.get(u.team_id),m?.name].filter(Boolean).join(' ').toLowerCase())}"><div class="admin-user-main"><div class="admin-user-identity">${avatar?`<img class="admin-user-avatar" src="${esc(avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<span class="admin-user-avatar admin-user-avatar-fallback">${esc(initials)}</span>`}<div><b>${esc(u.full_name||u.username||'Usuario')}</b><div class="muted small">@${esc(u.username||'—')} · ${roleLabel(u.role)} · ${u.active?'Activo':'Inactivo'}</div><div class="muted small">${esc(tm.get(u.team_id)||'Sin equipo')}${m?` · Manager: ${esc(m.name)}`:''}</div><div class="admin-user-presence ${presenceState.state}" data-user-presence="${u.id}" title="${esc(presenceState.title)}"><span class="admin-user-presence-dot"></span><span data-user-presence-label>${esc(presenceText)}</span></div></div></div><span class="pill ${u.active?'ok':''}">${u.active?'Activo':'Inactivo'}</span></div><div class="admin-user-actions"><select class="admin-user-role" data-user-role="${u.id}"><option value="creator" ${u.role==='creator'?'selected':''}>Creador</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option></select><button class="secondary small" data-save-user-role="${u.id}">Guardar rol</button><button class="secondary small" data-view-user="${u.id}">Ver información</button><button class="secondary small ${u.active?'danger':'ok'}" data-toggle-user="${u.id}">${u.active?'Desactivar':'Activar'}</button>${u.id!==session?.user?.id?`<button class="secondary small danger" data-delete-user="${u.id}">Eliminar</button>`:''}</div></div>`;
   }).join('');
   const creatorCount=(users||[]).filter(u=>u.role==='creator').length;
   return `<div class="card admin-users-page"><div class="row"><div><h2>Todos los usuarios</h2><p class="muted small">Administra todas las cuentas Grayxon desde aquí: creadores, managers y administradores. Los cambios respetan la estructura de equipos y managers.</p></div><span class="pill">${(users||[]).length} usuarios · ${creatorCount} creadores</span></div><div class="inline admin-users-toolbar"><button type="button" class="primary" data-admin-create-creator>＋ Crear creador</button><button type="button" class="primary" data-admin-import-creators>⇧ Importar</button></div><label class="admin-users-search"><span>⌕</span><input id="adminUsersSearch" type="search" placeholder="Buscar por nombre, usuario, rol, equipo o manager…" autocomplete="off"><small>${(users||[]).length} cuentas</small></label><div class="admin-users-list" style="margin-top:12px">${rows||'<div class="item"><span class="muted small">No hay usuarios.</span></div>'}</div><div id="adminUsersNoMatch" class="item muted small" style="display:none">No encontramos usuarios con esa búsqueda.</div></div>`;
@@ -5206,19 +5207,35 @@ grayxonInitPromise = init();
 setInterval(() => { if(session && !document.hidden) { updateGrayxonPresence(); refreshAdminPresenceIndicators(); } }, 45000);
 
 let gxPresenceHeartbeatBusy = false;
+function getAdminPresenceState(lastSeen){
+  const stamp=lastSeen?Date.parse(lastSeen):NaN;
+  const age=Date.now()-stamp;
+  if(!Number.isFinite(stamp)||age<0||age>=604800000){
+    return {state:'is-offline',label:'Sin uso en los últimos 7 días',title:'No ha registrado actividad en los últimos 7 días'};
+  }
+  if(age<120000){
+    return {state:'is-online',label:'En uso ahora',title:'Actividad registrada hace menos de 2 minutos'};
+  }
+  let label;
+  if(age<3600000) label='Última vez: hace '+Math.max(1,Math.floor(age/60000))+' min';
+  else if(age<86400000) label='Última vez: hace '+Math.floor(age/3600000)+' h';
+  else label='Última vez: hace '+Math.floor(age/86400000)+' días';
+  return {state:'is-recent',label,title:'Última actividad: '+new Date(stamp).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})};
+}
+
 async function refreshAdminPresenceIndicators(){
   if(profile?.role!=='admin'||current!=='admin')return;
-  const {data}=await sb.from('user_presence').select('user_id,last_seen_at');
-  if(!data)return;
+  const {data,error}=await sb.from('user_presence').select('user_id,last_seen_at');
+  if(error||!data)return;
   const presenceMap=new Map(data.map(x=>[x.user_id,x.last_seen_at]));
   $('[data-user-presence]').forEach(el=>{
-    const lastSeen=presenceMap.get(el.dataset.userPresence);
-    const online=!!lastSeen&&Number.isFinite(Date.parse(lastSeen))&&(Date.now()-Date.parse(lastSeen))<604800000;
-    el.classList.toggle('is-online',online);
-    el.classList.toggle('is-offline',!online);
-    const dot=el.querySelector('.admin-user-presence-dot');
-    if(dot)dot.setAttribute('aria-label',online?'En línea':'Sin actividad reciente');
-    el.lastChild.textContent=online?'Activa · uso en los últimos 7 días':'Sin uso en los últimos 7 días';
+    const state=getAdminPresenceState(presenceMap.get(el.dataset.userPresence));
+    el.classList.toggle('is-online',state.state==='is-online');
+    el.classList.toggle('is-recent',state.state==='is-recent');
+    el.classList.toggle('is-offline',state.state==='is-offline');
+    el.title=state.title;
+    const label=el.querySelector('[data-user-presence-label]');
+    if(label)label.textContent=state.label;
   });
 }
 
