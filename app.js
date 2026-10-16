@@ -2785,19 +2785,12 @@ async function managerTpl(){
   const {data:creators,error:crErr}=await sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('role','creator').eq('manager_id',me.id).order('full_name');
   if(meErr||crErr){ $('#manager').innerHTML=`<div class="card"><h2>Panel de manager</h2><div class="error">${esc((meErr||crErr)?.message||'No se pudo cargar tu panel.')}</div></div>`; return; }
   const creatorIds=(creators||[]).map(x=>x.id);
-  const tmIds=[...new Set((creators||[]).map(c=>c.team_id).filter(Boolean))];
-  const [mRes,pRes,teamRes,detailRes,tasksRes] = await Promise.all([
-    creatorIds.length?sb.from('missions').select('id,title,type,target,week_start,week_end,assigned_to,published,created_at').in('assigned_to',creatorIds).order('week_start',{ascending:false}):Promise.resolve({data:[],error:null}),
-    creatorIds.length?sb.from('mission_progress').select('mission_id,user_id,value,completed').in('user_id',creatorIds):Promise.resolve({data:[],error:null}),
-    tmIds.length?sb.from('teams').select('id,name').in('id',tmIds):Promise.resolve({data:[],error:null}),
-    creatorIds.length?sb.from('profile_details').select('user_id,avatar_url').in('user_id',creatorIds):Promise.resolve({data:[],error:null}),
-    sb.from('manager_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('manager_id',me?.id||'').order('completed',{ascending:true}).order('assigned_at',{ascending:false})
+  const [detailRes,tasksRes] = await Promise.all([
+    managerView==='creators'&&creatorIds.length?sb.from('profile_details').select('user_id,avatar_url').in('user_id',creatorIds):Promise.resolve({data:[],error:null}),
+    ['dashboard','tasks'].includes(managerView)?sb.from('manager_tasks').select('id,title,description,due_at,assigned_at,completed,completed_at').eq('manager_id',me.id).order('completed',{ascending:true}).order('assigned_at',{ascending:false}):Promise.resolve({data:[],error:null})
   ]);
-  const missions=mRes.data||[],progress=pRes.data||[],teams=teamRes.data||[],creatorDetails=detailRes.data||[],tasks=tasksRes.data||[];
-  const tm=new Map(teams.map(t=>[t.id,t.name]));
+  const creatorDetails=detailRes.data||[],tasks=tasksRes.data||[];
   const avatarMap=new Map(creatorDetails.map(d=>[d.user_id,d.avatar_url]));
-  const pm=new Map(progress.map(x=>[`${x.user_id}:${x.mission_id}`,x]));
-  const missionPct=m=>{const x=pm.get(`${m.assigned_to}:${m.id}`);if(!x)return 0;if(m.type==='checkbox')return x.completed?100:0;return Number(m.target)>0?Math.min(100,Math.round(Number(x.value||0)/Number(m.target)*100)):0;};
   const creatorCard=(c)=>{
     const avatar=avatarMap.get(c.id);
     const initials=esc((c.full_name||c.username||'C').trim().charAt(0).toUpperCase());
@@ -2808,9 +2801,9 @@ async function managerTpl(){
   };
   const creatorRows=(creators||[]).map(creatorCard).join('') || '<div class="item"><p class="muted small" style="margin:0">No tienes creadores asignados actualmente.</p></div>';
   const taskHtml=tasks.length?tasks.map(t=>`<div class="item manager-task-row ${t.completed?'task-done':''}"><div><b>${esc(t.title)}</b>${t.description?`<div class="muted small" style="margin-top:4px">${esc(t.description)}</div>`:''}<div class="muted small" style="margin-top:6px">Asignada: <b>${formatDateTime(t.assigned_at)}</b>${t.due_at?` · Vence: <b>${formatDateTime(t.due_at)}</b>`:''}${t.completed_at?` · Lista: <b>${formatDateTime(t.completed_at)}</b>`:''}</div></div><div>${t.completed?'<span class="pill ok">✓ Lista</span>':'<button class="primary small" data-complete-manager-task="'+t.id+'">Marcar como lista</button>'}</div></div>`).join(''):'<div class="item"><p class="muted small" style="margin:0">No tienes tareas asignadas.</p></div>';
-  const managerUpcomingRes=await sb.from('live_trainings').select('id,title,scheduled_at,status,instructor_name,created_by').eq('status','scheduled').order('scheduled_at',{ascending:true}).limit(10);
+  const managerUpcomingRes=managerView==='dashboard'?await sb.from('live_trainings').select('id,title,scheduled_at,status,instructor_name,created_by').eq('status','scheduled').order('scheduled_at',{ascending:true}).limit(10):{data:[]};
   const managerUpcoming=(managerUpcomingRes.data||[]).filter(t=>t.scheduled_at && new Date(t.scheduled_at)>=new Date()).slice(0,3);
-  const trainingManagement=await liveTrainingManagementTpl('manager',false);
+  const trainingManagement=managerView==='training'?await liveTrainingManagementTpl('manager',false):'';
   const managerCard=(view,icon,title,desc,meta='›')=>`<button type="button" class="manager-dashboard-card" data-manager-view="${view}"><span class="manager-dashboard-card-icon">${icon}</span><span class="manager-dashboard-card-copy"><strong>${title}</strong><small ${view==='training'?`data-manager-live-status data-default-text="${esc(desc)}"`:''}>${desc}</small></span><span class="manager-dashboard-card-arrow">${meta}</span></button>`;
   const managerCommsCard=`<button type="button" class="manager-dashboard-card" data-manager-view="announcements"><span class="manager-dashboard-card-icon gx-manager-comms-icon">📣</span><span class="manager-dashboard-card-copy"><strong>Centro de comunicados</strong><small>Novedades, avisos importantes y recursos de tu equipo.</small><span class="gx-ann-unread-badge hidden" data-gx-ann-unread-badge aria-live="polite"><b>0</b> pendientes por leer</span></span><span class="manager-dashboard-card-arrow">›</span></button>`;
   const dashboardMarkup=`<div class="manager-dashboard-grid">${managerCommsCard}${managerCard('training','🎥','Entrenamientos en vivo',`${managerUpcoming.length} próximos programados · Consulta y gestiona las sesiones.`)}${managerCard('creators','👥','Mis creadores','Consulta y administra los creadores asignados a tu equipo.',(creators||[]).length)}${managerCard('tasks','📋','Tareas asignadas','Consulta y completa las tareas que te asignó la administración.',tasks.length)}<button type="button" class="manager-dashboard-card gx-payments-dashboard-card" data-page="payments"><span class="manager-dashboard-card-icon">💸</span><span class="manager-dashboard-card-copy"><strong>Mis pagos</strong><small>Consulta el historial de pagos registrados a tu nombre.</small></span><span class="manager-dashboard-card-arrow">›</span></button></div>`;
@@ -2822,8 +2815,8 @@ async function managerTpl(){
   else if(managerView==='training') managerContent=`${pageHeader('Entrenamientos en vivo','Consulta y gestiona las sesiones LIVE de la agencia.')}<section class="manager-training-fullpage">${trainingManagement}</section>`;
   else managerContent=dashboardMarkup;
   $('#manager').innerHTML=`<div class="manager-page"><div class="manager-hero card"><div><div class="eyebrow">PANEL DE MANAGER</div><h1>Hola, ${esc(me?.name||profile.username)} 👋</h1><p class="muted">${managerView==='dashboard'?'Aquí puedes ver tus creadores, asignar misiones y gestionar tus entrenamientos en vivo.':'Gestiona esta sección de tu equipo desde una vista completa.'}</p></div><div class="manager-hero-stat"><strong>${(creators||[]).length}</strong><span>CREADORES</span></div></div>${managerContent}</div>`;
-  $$('[data-manager-view]').forEach(b=>b.onclick=async()=>{if(b.dataset.busy==='1')return;b.dataset.busy='1';const next=b.dataset.managerView;if(next==='announcements'){nav('announcements');return;}managerView=next;await render();window.scrollTo(0,0);});
-  $$('[data-manager-back]').forEach(b=>b.onclick=async()=>{if(b.dataset.busy==='1')return;b.dataset.busy='1';managerView='dashboard';await render();window.scrollTo(0,0);});
+  $$('[data-manager-view]').forEach(b=>b.onclick=async()=>{if(b.dataset.busy==='1')return;b.dataset.busy='1';const next=b.dataset.managerView;if(next==='announcements'){nav('announcements');return;}managerView=next;await managerTpl();window.scrollTo(0,0);});
+  $$('[data-manager-back]').forEach(b=>b.onclick=async()=>{if(b.dataset.busy==='1')return;b.dataset.busy='1';managerView='dashboard';await managerTpl();window.scrollTo(0,0);});
   $('#managerCreatorSearch')?.addEventListener('input',e=>{
     const q=(e.target.value||'').trim().toLowerCase();
     let visible=0;
