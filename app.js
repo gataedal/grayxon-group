@@ -6001,7 +6001,7 @@ async function gxEventsSaveMatchLineup(matchId){
 async function gxEventsCancelMatch(matchId){
   if(!gxEventsAdmin())return;const m=gxEventsDashboardData?.matches.find(x=>x.id===matchId);if(!m)return;
   const next=m.status==='cancelled'?'scheduled':'cancelled';if(!confirm(next==='cancelled'?'¿Cancelar esta batalla? Se conservará el registro.':'¿Reactivar esta batalla?'))return;
-  const r=await sb.from('gx_event_matches').update({status:next,updated_at:new Date().toISOString()}).eq('id',matchId);
+  const r=await sb.from('gx_event_matches').update({status:next,...(next==='cancelled'?{winner_participant_id:null,score_a:null,score_b:null,result_note:null}:{}) ,updated_at:new Date().toISOString()}).eq('id',matchId);
   if(r.error)return toast('No se pudo cambiar el estado: '+r.error.message);toast(next==='cancelled'?'Batalla cancelada':'Batalla reactivada');await gxEventsReloadDashboard(gxEventsSelectedId,true);
 }
 async function gxEventsDeleteMatch(matchId){
