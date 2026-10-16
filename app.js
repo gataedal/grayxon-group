@@ -69,8 +69,9 @@ async function applyGrayxonPushIntent(intent) {
     nav('payments');
     return true;
   }
-  if (intent.page === 'events') {
+  if (intent.page === 'events' || intent.page === 'event-thread') {
     gxPendingEventTarget = uuid ? id : null;
+    if(intent.page==='event-thread')gxPendingEventTab='thread';
     nav('events');
     return true;
   }
@@ -633,7 +634,7 @@ async function openNotification(id) {
   if (n.type === 'event' || n.link_page === 'events') {
     const target = String(n.link_target || '');
     gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
-    gxPendingEventTab = gxEventsAdmin() && /solicitud de inscripci[oó]n/i.test(String(n.title||'')) ? 'enrollment-requests' : null;
+    gxPendingEventTab = n.link_page === 'event-thread' || /hilo oficial|nueva publicación en un evento/i.test(String(n.title||'')) ? 'thread' : (gxEventsAdmin() && /solicitud de inscripci[oó]n/i.test(String(n.title||'')) ? 'enrollment-requests' : null);
     nav('events');
     return;
   }
@@ -4784,9 +4785,10 @@ async function init() {
   if (pushParams.get('grayxonPush') === '1') {
     const pushPage = pushParams.get('page');
     const pushTarget = pushParams.get('target') || '';
-    const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','event-match'];
+    const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','event-match','event-thread'];
     const uuidTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pushTarget);
-    if (pushPage === 'events') gxPendingEventTarget = uuidTarget ? pushTarget : null;
+    if (pushPage === 'events' || pushPage === 'event-thread') gxPendingEventTarget = uuidTarget ? pushTarget : null;
+    if (pushPage === 'event-thread') gxPendingEventTab = 'thread';
     if (pushPages.includes(pushPage)) {
       if (!session) saveGrayxonPushIntent(pushPage, pushTarget);
       if (pushPage === 'live-training' && uuidTarget) {
@@ -4817,7 +4819,8 @@ async function init() {
       return;
     }
   }
-  const matchTargetId=pushParams.get('target')||''; if (session && pushParams.get('grayxonPush') === '1' && pushParams.get('page') === 'event-match' && GRAYXON_UUID_RE.test(matchTargetId)) { const {data: battleTarget}=await sb.from('gx_event_matches').select('event_id').eq('id',matchTargetId).maybeSingle(); if(battleTarget?.event_id){gxPendingEventTarget=battleTarget.event_id;gxPendingEventMatchTarget=matchTargetId;gxEventsActiveTab='missions';if(window.location.hash!=='#events')window.history.replaceState({page:'events'},'',`${window.location.pathname}${window.location.search}#events`);} }
+  const matchTargetId=pushParams.get('target')||''; if (session && pushParams.get('grayxonPush') === '1' && pushParams.get('page') === 'event-thread' && GRAYXON_UUID_RE.test(pushTarget)) { gxPendingEventTarget=pushTarget;gxPendingEventTab='thread'; }
+  if (session && pushParams.get('grayxonPush') === '1' && pushParams.get('page') === 'event-match' && GRAYXON_UUID_RE.test(matchTargetId)) { const {data: battleTarget}=await sb.from('gx_event_matches').select('event_id').eq('id',matchTargetId).maybeSingle(); if(battleTarget?.event_id){gxPendingEventTarget=battleTarget.event_id;gxPendingEventMatchTarget=matchTargetId;gxEventsActiveTab='missions';if(window.location.hash!=='#events')window.history.replaceState({page:'events'},'',`${window.location.pathname}${window.location.search}#events`);} }
   const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'].includes(hashPage) ? hashPage : null;
   const initialPage = session ? (profile?.must_change_password ? 'force-password' : (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome)) : (requestedPage || 'home');
   nav(initialPage, false);
