@@ -3567,6 +3567,17 @@ async function adminUserModal(id){
     <div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(tm.get(p.team_id))} · <b>Manager:</b> ${safe(mm.get(p.manager_id))}</div>
   </div>`;
   document.body.appendChild(el);
+  if(p.role==='creator'){
+    const assignment=document.createElement('section');
+    assignment.className='card';
+    assignment.style.marginTop='16px';
+    assignment.innerHTML='<h3>Equipo y manager</h3><div class="grid" style="grid-template-columns:1fr 1fr;gap:12px"><label class="field"><span>Equipo</span><select id="adminInfoTeam"><option value="">Sin equipo</option></select></label><div class="field"><span>Manager asignado</span><div id="adminInfoManagerPreview" class="item" style="min-height:44px;display:flex;align-items:center"></div></div></div><p class="muted small">El manager se asigna según el equipo seleccionado.</p><button type="button" class="primary small" id="saveAdminInfoAssignment">Guardar asignación</button>';
+    const teamSelect=assignment.querySelector('#adminInfoTeam');
+    teamSelect.innerHTML+=[...(teams||[])].map(t=>'<option value="'+esc(t.id)+'"'+(p.team_id===t.id?' selected':'')+'>'+esc(t.name)+'</option>').join('');
+    teamSelect.value=p.team_id||'';
+    assignment.querySelector('#adminInfoManagerPreview').textContent=mm.get(p.manager_id)||'Sin manager';
+    el.querySelector('.creator-profile-modal').appendChild(assignment);
+  }
   $('#closeAdminUser').onclick=()=>el.remove();
   $('#openAdminUserMissions')?.addEventListener('click',()=>{el.remove();adminProfileModal(id);});
   const syncAdminInfoManager=async()=>{const teamId=$('#adminInfoTeam')?.value||'';const preview=$('#adminInfoManagerPreview');if(!preview)return;if(!teamId){preview.textContent='Sin equipo / sin manager';return;}const {data:t,error:te}=await sb.from('teams').select('manager_id').eq('id',teamId).maybeSingle();if(te){preview.textContent='No se pudo consultar el manager';return;}const managerId=t?.manager_id||null;const {data:m}=managerId?await sb.from('managers').select('name').eq('id',managerId).maybeSingle():{data:null};preview.textContent=m?.name||'Este equipo no tiene manager asignado';};
