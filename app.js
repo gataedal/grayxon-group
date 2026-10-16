@@ -6095,8 +6095,8 @@ function gxEventsRenderTab(d){
       return `<section class="gxev-battle-round"><div class="gxev-panel-head"><div><h4>⚔ ${gxEventsEsc(r.title)}</h4><div class="gxev-muted">${r.phase_id?gxEventsEsc(d.phases.find(p=>p.id===r.phase_id)?.title||'Fase'): 'Batallas sin fase asignada'}</div></div><span class="gxev-pill">${mm.length} cruces</span></div><div class="gxev-battles">${mm.length?mm.map(m=>gxEventsMatchCard(m,d)).join(''):'<div class="gxev-empty">No hay batallas asignadas a esta ronda para mostrar.</div>'}</div></section>`;
     };
     const phaseBuckets=d.phases.map((phase,index)=>({phase,index}));
-    const unassignedMissions=active.filter(m=>!m.phase_id);
-    const unassignedRounds=visibleRounds.filter(r=>!r.phase_id);
+    const unassignedMissions=active.filter(m=>!d.phases.some(p=>p.id===m.phase_id));
+    const unassignedRounds=visibleRounds.filter(r=>!d.phases.some(p=>p.id===r.phase_id));
     if(unassignedMissions.length||unassignedRounds.length||(!d.phases.length&&(active.length||visibleRounds.length)))phaseBuckets.push({phase:null,index:phaseBuckets.length});
     const hasBattles=active.some(m=>m.metric_key==='battles')||(d.rounds||[]).length>0||(d.matches||[]).length>0;
     html+=`<div class="gxev-panel"><div class="gxev-panel-head"><div><h3>Misiones y batallas por fase</h3><p class="gxev-muted">Abre cada fase para ver todas sus misiones y las batallas que pertenecen a ese periodo.</p></div><span class="gxev-pill">${active.length} misiones · ${visibleRounds.length} rondas</span></div>`;
