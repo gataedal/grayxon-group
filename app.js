@@ -5890,6 +5890,52 @@ function gxEnsureEventsMatrixStyles(){
   .gxev-ranking-full-table th,.gxev-ranking-full-table td{padding:12px 15px;text-align:left;border-bottom:1px solid #293546}
   .gxev-ranking-full-table th{position:sticky;top:0;background:#111923;z-index:1;color:#b8c6d9}
   @media(max-width:650px){#events .gxev-top-three,#events .gxev-prize-podium{display:flex;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding:4px 2px 12px;gap:12px;-webkit-overflow-scrolling:touch}#events .gxev-top-rank,#events .gxev-prize-place{flex:0 0 min(78vw,270px);min-width:min(78vw,270px);grid-column:auto!important;grid-row:auto!important;scroll-snap-align:start}#events .gxev-prize-item img{height:130px}#events .gxev-ranking-modal-scroll{max-height:calc(100dvh - 220px)}#events .gxev-layout{min-width:0}#events .gxev-workspace{min-width:0;overflow-wrap:anywhere}#events .gxev-localnav{overflow-x:auto;flex-wrap:nowrap;max-width:100%;-webkit-overflow-scrolling:touch}#events .gxev-localnav button{flex:0 0 auto}}
+  /* Grayxon: correcciones estrictas para medios y responsive en pantallas pequeñas */
+  #events .gxev-hero-media{position:relative;flex:0 0 34%;width:34%;min-width:0;max-width:360px;min-height:185px;overflow:hidden}
+  #events .gxev-hero-media img,#events .gxev-hero-media video{display:block;width:100%;height:100%;position:absolute;inset:0;object-fit:cover}
+  #events .gxev-prize-podium{width:100%;min-width:0;align-items:stretch}
+  #events .gxev-prize-place{min-width:0;max-width:100%;overflow:hidden}
+  #events .gxev-prize-item{width:100%;min-width:0}
+  #events .gxev-prize-item img{display:block;width:min(100%,260px)!important;max-width:100%!important;height:170px!important;min-height:0;object-fit:contain!important;margin-inline:auto}
+  #events .gxev-card-cover-static{cursor:default;pointer-events:none}
+  @media(max-width:760px){
+    html,body{max-width:100%;overflow-x:hidden}
+    #events,#events .gxev-wrap,#events .gxev-page,#events #gxevPageBody,#events .gxev-panel,#events .gxev-hero,#events .gxev-layout,#events .gxev-workspace,#events .gxev-prizes-panel{box-sizing:border-box;max-width:100%;min-width:0}
+    #events .gxev-hero{display:flex;flex-direction:column;overflow:hidden}
+    #events .gxev-hero-media{width:100%;max-width:none;min-width:0;flex:0 0 auto;height:clamp(150px,48vw,230px);min-height:0}
+    #events .gxev-hero-main{width:100%;max-width:100%;min-width:0;padding:16px;box-sizing:border-box}
+    #events .gxev-top-three,#events .gxev-prize-podium{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px;width:100%;min-width:0;overflow:visible;padding:0}
+    #events .gxev-top-rank,#events .gxev-prize-place{box-sizing:border-box;min-width:0;max-width:100%;width:100%;padding:10px;grid-column:auto!important;grid-row:auto!important;overflow-wrap:anywhere}
+    #events .gxev-prize-place-1{grid-column:1/-1!important}
+    #events .gxev-prize-item img{width:100%!important;max-width:100%!important;height:clamp(95px,28vw,145px)!important}
+    #events .gxev-layout{display:flex;flex-direction:column;gap:12px;overflow:visible}
+    #events .gxev-localnav{display:flex;flex-wrap:nowrap;width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain}
+    #events .gxev-localnav button{flex:0 0 auto;max-width:80vw}
+    #events .gxev-workspace,#events .gxev-workspace>*{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+    #events .gxev-meta,#events .gxev-actions,#events .gxev-panel-head,#events .gxev-card-head,#events .gxev-card-foot{min-width:0;max-width:100%;flex-wrap:wrap;overflow-wrap:anywhere}
+    #events .gxev-modal-backdrop{padding:10px;box-sizing:border-box}
+    #events .gxev-modal{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+    #events .gxev-ranking-modal-scroll{width:100%;max-width:100%;overflow:auto}
+    #events .gxev-ranking-full-table{min-width:0;width:100%;table-layout:fixed}
+    #events .gxev-ranking-full-table th,#events .gxev-ranking-full-table td{overflow-wrap:anywhere;padding:8px 5px}
+  }
+  @media(max-width:420px){
+    #events .gxev-top-three{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+    #events .gxev-prize-podium{grid-template-columns:1fr!important}
+    #events .gxev-prize-place-1{grid-column:auto!important}
+    #events .gxev-top-rank{padding:9px 6px}
+    #events .gxev-top-rank b,#events .gxev-top-rank strong{font-size:12px}
+    #events .gxev-prize-place{padding:10px}
+  }
+  /* Mi espacio: iconos homogéneos incluso cuando el contenido es emoji, SVG o imagen. */
+  .space-card{display:flex!important;align-items:center!important;gap:12px!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;overflow:hidden}
+  .space-card-icon{width:46px!important;height:46px!important;min-width:46px!important;max-width:46px!important;flex:0 0 46px!important;display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;overflow:hidden!important;line-height:1!important;font-size:23px!important}
+  .space-card-icon>*{width:23px!important;height:23px!important;min-width:0!important;max-width:23px!important;max-height:23px!important;flex:0 0 23px!important;display:flex;align-items:center;justify-content:center;object-fit:contain!important;font-size:23px!important;line-height:1!important}
+  .space-card-icon svg,.space-card-icon img,.space-card-icon i{width:23px!important;height:23px!important;min-width:23px!important;min-height:23px!important;max-width:23px!important;max-height:23px!important;flex:0 0 23px!important;object-fit:contain!important}
+  .space-card-main{flex:1 1 0!important;min-width:0!important;max-width:100%!important}
+  .space-card-arrow{width:18px!important;min-width:18px!important;max-width:18px!important;flex:0 0 18px!important;text-align:center!important}
+  @media(max-width:650px){.space-card{gap:9px!important;padding:12px!important}.space-card-icon{width:42px!important;height:42px!important;min-width:42px!important;max-width:42px!important;flex-basis:42px!important}.space-card-icon>* ,.space-card-icon svg,.space-card-icon img,.space-card-icon i{width:21px!important;height:21px!important;max-width:21px!important;max-height:21px!important;flex-basis:21px!important}.space-card-main .space-card-top{gap:6px;min-width:0}.space-card-main p,.space-card-main small{overflow-wrap:anywhere;word-break:break-word}}
+
   /* El modal se inserta en body, por eso su overlay no debe estar limitado a #events. */
   .gxev-modal-backdrop{position:fixed!important;inset:0!important;z-index:10100!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:18px!important;overflow:auto!important;background:rgba(2,5,10,.84)!important;backdrop-filter:blur(10px)!important}
   .gxev-modal{width:min(1120px,100%)!important;max-height:calc(100dvh - 36px)!important;overflow:auto!important;margin:auto!important;padding:clamp(16px,2vw,28px)!important;border:1px solid #33465b!important;border-radius:22px!important;background:radial-gradient(ellipse at 95% 0%,#123449 0,transparent 38%),linear-gradient(145deg,#141b28,#080b10)!important;box-shadow:0 30px 110px #000d!important;color:#f4f7fb!important}
@@ -6014,7 +6060,7 @@ async function gxEventsRenderDashboard(ev,quiet=false){
   d.leaderboard=[...rankRows.values()].sort((a,b)=>(Number(b.points)||0)-(Number(a.points)||0)||String(a.username||'').localeCompare(String(b.username||''),'es')).map((r,i)=>({...r,rank_position:i+1,points:Number(r.points)||0}));
   d.rankByUser=new Map(d.leaderboard.map(r=>[r.user_id,r]));gxEventsDashboardData=d;gxEventsMediaCache=gxEventsMediaCache.filter(m=>m.event_id!==id).concat(d.media);gxEventsAttachRealtime(id);
   const activeMissions=d.missions.filter(m=>m.is_active),battleMission=activeMissions.some(m=>m.metric_key==='battles'),mineRank=d.leaderboard.find(r=>r.user_id===session.user.id),myResponse=d.responses.find(r=>r.user_id===session.user.id)||d.ownResponse,cover=d.media.find(m=>m.is_cover&&String(m.mime_type||'').startsWith('image/'))||d.media.find(m=>String(m.mime_type||'').startsWith('image/'))||null;
-  const coverHtml=cover?`<div class="gxev-hero-media"><button type="button" data-gxev-view-media="${gxEventsEsc(cover.id)}" class="gxev-hero-cover-button"><img src="${gxEventsEsc(cover.file_url)}" alt="Portada del evento"></button></div>`:'';
+  const coverHtml=cover?`<div class="gxev-hero-media gxev-hero-cover-static"><img src="${gxEventsEsc(gxEventsSafeHttpUrl(cover.file_url))}" alt="Portada del evento" loading="eager"></div>`:'';
   const owner=gxEventsIsOwner(ev);
   const prizeGroups=new Map();for(const prize of d.prizes){const place=Number(prize.placement)||1;if(!prizeGroups.has(place))prizeGroups.set(place,[]);prizeGroups.get(place).push(prize);}const prizesTopHTML=d.prizes.length?`<section class="gxev-panel gxev-prizes-panel"><div class="gxev-panel-head"><h3>🎁 Premios del evento</h3></div><div class="gxev-prize-podium">${[...prizeGroups.entries()].sort((a,b)=>a[0]-b[0]).map(([place,items])=>`<article class="gxev-prize-place gxev-prize-place-${place<=3?place:'extra'}" style="${place===1?'grid-column:2;grid-row:1':place===2?'grid-column:1;grid-row:1':place===3?'grid-column:3;grid-row:1':''}"><h4>${place===1?'🥇':place===2?'🥈':place===3?'🥉':'🏅'} ${place}º puesto</h4>${items.map(p=>`<div class="gxev-prize-item">${p.image_url?`<img src="${gxEventsEsc(p.image_url)}" alt="${gxEventsEsc(p.prize_title||'Premio')}" loading="lazy">`:'<div class="gxev-prize-no-image">🎁</div>'}<b>${gxEventsEsc(p.prize_title||'Premio')}</b>${p.coins!=null?`<span class="gxev-muted">${gxEventsEsc(gxEventsFormatCoins(p.coins))}</span>`:''}${p.prize_description?`<p class="gxev-muted">${gxEventsEsc(p.prize_description)}</p>`:''}</div>`).join('')}</article>`).join('')}</div></section>`:'';
   body.innerHTML=`<div class="gxev-top"><div><div class="gxev-eyebrow">EVENT MATRIX / ${gxEventsEsc(gxEventsTypeLabel(ev.event_type))}</div><h1 style="margin-bottom:5px">${gxEventsEsc(ev.title)}</h1><div class="gxev-muted">Panel individual del evento · TikTok LIVE</div></div><div class="gxev-actions">${gxEventsStatusHTML(ev)}${admin?'<button type="button" class="gxev-btn primary" data-gxev-edit>Editar configuración</button>':''}</div></div>
@@ -6084,7 +6130,7 @@ function gxEventsRenderTab(d){
   if(gxEventsActiveTab==='overview'){
     const missionsHTML=active.length?`<div class="gxev-panel"><div class="gxev-panel-head"><h3>Misiones activas</h3><button type="button" class="gxev-btn" data-gxev-tab="missions">Ver todas →</button></div><div class="gxev-missions">${active.slice(0,4).map(m=>{const p=ownProgress.find(x=>x.mission_id===m.id);const pct=p?Math.min(100,Number(p.value)/Number(m.target_value)*100):0;return `<article class="gxev-mission"><div class="gxev-mission-top"><h4>${gxEventsEsc(m.title)}</h4><span class="gxev-pill">${gxEventsFormatNumber(m.points_per_unit)} pts/u</span></div><p class="gxev-muted">Meta: ${gxEventsFormatNumber(m.target_value)} ${gxEventsEsc(m.unit_label)}${m.score_over_target?' · suma excedentes':''}</p><div class="gxev-bar"><span style="width:${pct}%"></span></div><div class="gxev-muted">${p?.status==='approved'?'✓ Validada':p?.status==='pending'?'En revisión':p?.status==='rejected'?'Requiere ajuste':'Aún sin registrar'}</div></article>`}).join('')}</div></div>`:'';
     const phasesHTML=d.phases.length?`<div class="gxev-panel"><div class="gxev-panel-head"><h3>🗓 Fases del evento</h3><span class="gxev-pill">${d.phases.length} fases</span></div><div class="gxev-missions">${d.phases.map(p=>`<article class="gxev-mission"><h4>${gxEventsEsc(p.title)}</h4><p class="gxev-muted">${gxEventsFmtDate(p.starts_at)} – ${gxEventsFmtDate(p.ends_at)}</p>${p.notes?`<p class="gxev-muted">${gxEventsEsc(p.notes)}</p>`:''}<div class="gxev-muted">${active.filter(m=>m.phase_id===p.id).length} misiones vinculadas</div></article>`).join('')}</div></div>`:'';
-    const prizeImageUrls=new Set((d.prizes||[]).map(p=>gxEventsSafeHttpUrl(p.image_url)).filter(Boolean));const additionalMedia=d.media.filter(m=>!m.is_cover&&!prizeImageUrls.has(gxEventsSafeHttpUrl(m.file_url)));const media=additionalMedia.length?`<div class="gxev-panel"><div class="gxev-panel-head"><h3>Material adicional del evento</h3></div><div class="gxev-media-gallery">${additionalMedia.map(gxEventsMediaItem).join('')}</div></div>`:'';
+    const prizeImageUrls=new Set((d.prizes||[]).map(p=>gxEventsSafeHttpUrl(p.image_url)).filter(Boolean));const coverImageUrls=new Set(d.media.filter(m=>m.is_cover).map(m=>gxEventsSafeHttpUrl(m.file_url)).filter(Boolean));const additionalMedia=d.media.filter(m=>!m.is_cover&&!prizeImageUrls.has(gxEventsSafeHttpUrl(m.file_url))&&!coverImageUrls.has(gxEventsSafeHttpUrl(m.file_url)));const media=additionalMedia.length?`<div class="gxev-panel"><div class="gxev-panel-head"><h3>Material adicional del evento</h3></div><div class="gxev-media-gallery">${additionalMedia.map(gxEventsMediaItem).join('')}</div></div>`:'';
     const result=ev.results?`<div class="gxev-panel"><div class="gxev-panel-head"><h3>Resultados y novedades</h3></div><p class="gxev-muted" style="white-space:pre-line">${gxEventsEsc(ev.results)}</p></div>`:'';
     return `<div class="gxev-panel"><div class="gxev-panel-head"><h3>Resumen del evento</h3>${gxEventsStatusHTML(ev)}</div>${ev.rules?`<div class="gxev-muted" style="white-space:pre-line">${gxEventsEsc(ev.rules)}</div>`:''}<div class="gxev-meta" style="margin-top:14px;display:grid;gap:8px"><div>📝 Inscripciones: ${ev.registration_open?'Abiertas':'Cerradas'}</div>${d.phases.length?`<div>🗓 Evento por fases: ${d.phases.length}</div>`:''}</div></div>${phasesHTML}${missionsHTML}${result}${media}`;
   }
