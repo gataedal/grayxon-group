@@ -3496,21 +3496,24 @@ function adminBenefits(b) {
 }
 
 async function adminUsers(){
-  const [{data:users,error:ue},{data:teams},{data:managers}] = await Promise.all([
+  const [{data:users,error:ue},{data:teams},{data:managers},{data:details}] = await Promise.all([
     sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').order('full_name'),
     sb.from('teams').select('id,name').order('name'),
-    sb.from('managers').select('id,name,user_id,active').order('name')
+    sb.from('managers').select('id,name,user_id,active').order('name'),
+    sb.from('profile_details').select('user_id,avatar_url')
   ]);
   if(ue) return `<div class="card"><h2>Todos los usuarios</h2><div class="error">${esc(ue.message)}</div></div>`;
   const tm=new Map((teams||[]).map(x=>[x.id,x.name]));
   const mm=new Map((managers||[]).map(x=>[x.id,x]));
   const roleLabel=r=>r==='admin'?'Administrador':r==='manager'?'Manager':'Creador';
+  const detailMap=new Map((details||[]).map(x=>[x.user_id,x]));
   const rows=(users||[]).map(u=>{
-    const m=mm.get(u.manager_id);
-    return `<div class="item admin-user-row"><div class="admin-user-main"><div><b>${esc(u.full_name||u.username||'Usuario')}</b><div class="muted small">@${esc(u.username||'—')} · ${roleLabel(u.role)} · ${u.active?'Activo':'Inactivo'}</div><div class="muted small">${esc(tm.get(u.team_id)||'Sin equipo')}${m?` · Manager: ${esc(m.name)}`:''}</div></div><span class="pill ${u.active?'ok':''}">${u.active?'Activo':'Inactivo'}</span></div><div class="admin-user-actions"><select class="admin-user-role" data-user-role="${u.id}"><option value="creator" ${u.role==='creator'?'selected':''}>Creador</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option></select><button class="secondary small" data-save-user-role="${u.id}">Guardar rol</button><button class="secondary small" data-view-user="${u.id}">Ver información</button><button class="secondary small ${u.active?'danger':'ok'}" data-toggle-user="${u.id}">${u.active?'Desactivar':'Activar'}</button>${u.id!==session?.user?.id?`<button class="secondary small danger" data-delete-user="${u.id}">Eliminar</button>`:''}</div></div>`;
+    const m=mm.get(u.manager_id), avatar=detailMap.get(u.id)?.avatar_url;
+    const initials=String(u.full_name||u.username||'U').trim().charAt(0).toUpperCase();
+    return `<div class="item admin-user-row" data-admin-user-row data-search="${esc([u.full_name,u.username,roleLabel(u.role),tm.get(u.team_id),m?.name].filter(Boolean).join(' ').toLowerCase())}"><div class="admin-user-main"><div class="admin-user-identity">${avatar?`<img class="admin-user-avatar" src="${esc(avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<span class="admin-user-avatar admin-user-avatar-fallback">${esc(initials)}</span>`}<div><b>${esc(u.full_name||u.username||'Usuario')}</b><div class="muted small">@${esc(u.username||'—')} · ${roleLabel(u.role)} · ${u.active?'Activo':'Inactivo'}</div><div class="muted small">${esc(tm.get(u.team_id)||'Sin equipo')}${m?` · Manager: ${esc(m.name)}`:''}</div></div></div><span class="pill ${u.active?'ok':''}">${u.active?'Activo':'Inactivo'}</span></div><div class="admin-user-actions"><select class="admin-user-role" data-user-role="${u.id}"><option value="creator" ${u.role==='creator'?'selected':''}>Creador</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option></select><button class="secondary small" data-save-user-role="${u.id}">Guardar rol</button><button class="secondary small" data-view-user="${u.id}">Ver información</button><button class="secondary small ${u.active?'danger':'ok'}" data-toggle-user="${u.id}">${u.active?'Desactivar':'Activar'}</button>${u.id!==session?.user?.id?`<button class="secondary small danger" data-delete-user="${u.id}">Eliminar</button>`:''}</div></div>`;
   }).join('');
   const creatorCount=(users||[]).filter(u=>u.role==='creator').length;
-  return `<div class="card admin-users-page"><div class="row"><div><h2>Todos los usuarios</h2><p class="muted small">Administra todas las cuentas Grayxon desde aquí: creadores, managers y administradores. Los cambios respetan la estructura de equipos y managers.</p></div><span class="pill">${(users||[]).length} usuarios · ${creatorCount} creadores</span></div><div class="inline" style="margin-top:14px;flex-wrap:wrap"><button class="primary" id="newCreator">＋ Crear creador</button><button class="secondary" id="importCreators">⇧ Importar creadores Excel/CSV</button></div><div class="admin-users-list" style="margin-top:18px">${rows||'<div class="item"><span class="muted small">No hay usuarios.</span></div>'}</div></div>`;
+  return `<div class="card admin-users-page"><div class="row"><div><h2>Todos los usuarios</h2><p class="muted small">Administra todas las cuentas Grayxon desde aquí: creadores, managers y administradores. Los cambios respetan la estructura de equipos y managers.</p></div><span class="pill">${(users||[]).length} usuarios · ${creatorCount} creadores</span></div><div class="inline" style="margin-top:14px;flex-wrap:wrap"><button class="primary" id="newCreator">＋ Crear creador</button><button class="secondary" id="importCreators">⇧ Importar creadores Excel/CSV</button></div><label class="admin-users-search"><span>⌕</span><input id="adminUsersSearch" type="search" placeholder="Buscar por nombre, usuario, rol, equipo o manager…" autocomplete="off"><small>${(users||[]).length} cuentas</small></label><div class="admin-users-list" style="margin-top:12px">${rows||'<div class="item"><span class="muted small">No hay usuarios.</span></div>'}</div><div id="adminUsersNoMatch" class="item muted small" style="display:none">No encontramos usuarios con esa búsqueda.</div></div>`;
 }
 
 
