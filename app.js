@@ -4779,7 +4779,7 @@ async function init() {
   if (pushParams.get('grayxonPush') === '1') {
     const pushPage = pushParams.get('page');
     const pushTarget = pushParams.get('target') || '';
-    const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments','events'];
+    const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','event-match'];
     const uuidTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pushTarget);
     if (pushPage === 'events') gxPendingEventTarget = uuidTarget ? pushTarget : null;
     if (pushPages.includes(pushPage)) {
@@ -4812,6 +4812,7 @@ async function init() {
       return;
     }
   }
+  if (session && pushParams.get('grayxonPush') === '1' && pushParams.get('page') === 'event-match' && uuidTarget) { const {data: battleTarget}=await sb.from('gx_event_matches').select('event_id').eq('id',pushTarget).maybeSingle(); if(battleTarget?.event_id){gxPendingEventTarget=battleTarget.event_id;gxPendingEventMatchTarget=pushTarget;gxEventsActiveTab='missions';if(window.location.hash!=='#events')window.history.replaceState({page:'events'},'',`${window.location.pathname}${window.location.search}#events`);} }
   const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'].includes(hashPage) ? hashPage : null;
   const initialPage = session ? (profile?.must_change_password ? 'force-password' : (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome)) : (requestedPage || 'home');
   nav(initialPage, false);
@@ -5140,6 +5141,19 @@ async function handleGrayxonDeepLinkUrl(urlValue) {
     const hashRoute = parsed.hash.replace(/^#/, '');
     const queryPage = parsed.searchParams.get('page') || '';
     const page = hashRoute.startsWith('live-training/') ? hashRoute : (queryPage || hashRoute || 'home');
+    if (session && (page === 'event-match' || parsed.searchParams.get('page') === 'event-match')) {
+      const matchId = parsed.searchParams.get('target') || '';
+      if (!GRAYXON_UUID_RE.test(matchId)) return false;
+      const {data: match,error} = await sb.from('gx_event_matches').select('event_id').eq('id',matchId).maybeSingle();
+      if (error || !match?.event_id) { toast('Esta batalla ya no está disponible o no tienes acceso.'); return false; }
+      gxPendingEventTarget = match.event_id;
+      gxPendingEventMatchTarget = matchId;
+      gxEventsActiveTab = 'missions';
+      const desiredHash = '#events';
+      if (window.location.hash !== desiredHash) window.history.replaceState({page:'events'}, '', `${window.location.pathname}${window.location.search}${desiredHash}`);
+      if (current !== 'events') nav('events', false); else await gxEventsPage();
+      return true;
+    }
     if (session && (page === 'events' || parsed.searchParams.get('page') === 'events')) {
       const target = parsed.searchParams.get('target') || '';
       gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
@@ -6324,9 +6338,9 @@ async function gxEventsAssignUnmatched(participantId,randomTikTok=false){
   const payload={event_id:ev.id,round_id:round.id,participant_a_id:participantId,participant_b_id:null,status:'scheduled',needs_opponent:!randomTikTok,opponent_mode:randomTikTok?'random_tiktok':'event',winner_participant_id:null,score_a:null,score_b:null,result_note:randomTikTok?'Batalla al azar en TikTok':null,updated_at:new Date().toISOString()};
   if(!randomTikTok){const rivalId=document.querySelector('[data-gxev-unassigned-opponent="'+participantId+'"]')?.value;if(!rivalId)return toast('Selecciona un contrincante.');if(rivalId===participantId)return toast('Elige una cuenta diferente.');const rival=d.participants.find(x=>x.id===rivalId);if(!rival)return toast('El contrincante ya no está activo.');payload.participant_b_id=rivalId;payload.needs_opponent=false;}
   else if(!confirm('¿Dejar esta batalla en modalidad al azar en TikTok? La participación se contará cuando administración registre el resultado.'))return;
-  const r=await sb.from('gx_event_matches').insert(payload);
+  const r=await sb.from('gx_event_matches').insert(payload).select('id').single();
   if(r.error)return toast('No se pudo crear la asignación: '+r.error.message);
-  const createdMatch=r.data?.[0];
+  const createdMatch=r.data;
   let notify={error:null};if(createdMatch?.id)notify=await sb.rpc('gx_events_notify_match',{p_match_id:createdMatch.id});
   if(notify.error)console.warn('No se pudo notificar la nueva batalla:',notify.error);
   toast(notify.error?'Batalla asignada, pero falló la notificación.':(randomTikTok?'Batalla al azar asignada y notificada ✓':'Batalla asignada y notificada ✓'));await gxEventsReloadDashboard(gxEventsSelectedId,true);
