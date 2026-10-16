@@ -6232,6 +6232,7 @@ async function gxEventsRenderDashboard(ev,quiet=false){
   const d={event:ev,missions:missions.data||[],progress:progress.data||[],media:media.data||[],participants:(participants.data||[]).filter(p=>['registered','confirmed'].includes(p.status)),allParticipantRows:participants.data||[],responses:responses.data||[],rounds:rounds.data||[],matches:matches.data||[],posts:posts.data||[],leaderboard:leaderboard.data||[],phases:phases.data||[],prizes:prizes.data||[],audienceTargets:audienceTargets.data||[],reactions:reactions.data||[],ownResponse:gxEventsMyResponses.find(r=>r.event_id===id)||null,admin,profiles:[]};
   const postReq=await sb.from('gx_event_post_requests').select('*').eq('event_id',id).order('created_at',{ascending:false});
   const postRequests=!postReq.error?(postReq.data||[]).filter(r=>admin||r.manager_user_id===session.user.id):[];
+  d.postRequests=postRequests;
   const userIds=[...new Set([...d.posts.map(p=>p.user_id),...d.participants.map(p=>p.user_id),...d.responses.map(p=>p.user_id),...d.reactions.map(p=>p.user_id),...d.leaderboard.map(p=>p.user_id),...d.progress.map(p=>p.user_id),...postRequests.flatMap(r=>[r.manager_user_id,r.reviewed_by]),...(d.enrollmentRequests||[]).flatMap(r=>[r.creator_user_id,r.manager_user_id])].filter(Boolean))];
   if(userIds.length){const pr=await sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,tiktok_username').in('id',userIds);if(!pr.error)d.profiles=pr.data||[];}
   d.availableCreators=[];d.teams=[];
@@ -6446,6 +6447,7 @@ function gxEventsRenderTab(d){
     return html||'<div class="gxev-empty">No hay misiones que mostrar.</div>';
   }
   if(gxEventsActiveTab==='thread'){
+    const postRequests=d.postRequests||[];
     const sorted=d.posts.slice().sort((a,b)=>Number(b.is_pinned)-Number(a.is_pinned)||new Date(a.created_at)-new Date(b.created_at));
     const canPost=owner||profile?.role==='manager';
     const postRequestsHTML=postRequests.length?'<div class="gxev-panel"><div class="gxev-panel-head"><h3>Solicitudes de publicación</h3><span class="gxev-pill">'+postRequests.filter(r=>r.status==='pending').length+' pendientes</span></div>'+postRequests.map(r=>{const m=d.profileMap.get(r.manager_user_id)||{};return '<div style="padding:12px 0;border-bottom:1px solid #263244"><b>@'+gxEventsEsc(m.username||m.full_name||'manager')+'</b> · '+gxEventsEsc(({pending:'En revisión',approved:'Aprobada',rejected:'Rechazada'})[r.status]||r.status)+'<p class="gxev-post-body">'+gxEventsEsc(r.body)+'</p>'+(r.admin_comment?'<small class="gxev-muted">Comentario: '+gxEventsEsc(r.admin_comment)+'</small>':'')+(gxEventsAdmin()&&r.status==='pending'?'<div class="gxev-actions"><button type="button" class="gxev-btn primary" data-gxev-post-request-review="'+r.id+'" data-action="approve">Aprobar y publicar</button><button type="button" class="gxev-btn danger" data-gxev-post-request-review="'+r.id+'" data-action="reject">Rechazar con comentario</button></div>':'')+'</div>';}).join('')+'</div>':'';
@@ -6664,6 +6666,58 @@ async function gxEventsClick(e){const importConfirm=e.target.closest('#gxevParti
   if(b.dataset.gxevManagerEnroll){if(profile?.role!=='manager')return;const creatorId=b.dataset.gxevManagerEnroll,eventId=gxEventsSelectedId,button=b;if(!eventId||!creatorId)return toast('No se pudo identificar el evento o el creador.');if(button.dataset.busy==='1')return;button.dataset.busy='1';button.disabled=true;const original=button.textContent;button.textContent='Enviando…';const entry=button.closest('[data-gxev-roster-entry]');let statusEl=entry?.querySelector('[data-gxev-enrollment-feedback]');if(!statusEl&&entry){statusEl=document.createElement('small');statusEl.dataset.gxevEnrollmentFeedback='1';statusEl.style.cssText='display:block;margin-top:6px;color:#9fb2c8';entry.appendChild(statusEl);}if(statusEl)statusEl.textContent='Enviando solicitud al administrador…';try{const r=await sb.rpc('gx_event_manager_request_enrollment',{p_event_id:eventId,p_creator_user_id:creatorId});if(r.error){console.error('Grayxon enrollment request RPC:',r.error);if(statusEl)statusEl.textContent='No se pudo enviar: '+r.error.message;toast('No se pudo solicitar la inscripción: '+r.error.message);return;}if(!r.data?.ok){if(statusEl)statusEl.textContent='No se recibió confirmación del servidor.';return toast('Supabase no confirmó la solicitud.');}if(statusEl)statusEl.textContent='✓ Solicitud enviada; estado: '+(r.data.status||'pendiente')+'. Actualizando…';toast(r.data.already_pending?'La solicitud ya estaba pendiente ✓':'Solicitud enviada al administrador ✓');await gxEventsReloadDashboard(eventId,true);}catch(err){console.error('Grayxon enrollment request:',err);if(statusEl)statusEl.textContent='Error: '+(err?.message||'intenta nuevamente');toast('Error al enviar la solicitud: '+(err?.message||'intenta nuevamente'));}finally{if(button.isConnected){button.disabled=false;button.dataset.busy='0';button.textContent=original;}}return;}
   if(b.dataset.gxevManagerEnrollCancel){if(profile?.role!=='manager')return;const requestId=b.dataset.gxevManagerEnrollCancel;if(b.dataset.busy==='1')return;b.dataset.busy='1';b.disabled=true;try{const r=await sb.from('gx_event_enrollment_requests').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',requestId).eq('manager_user_id',session.user.id).eq('status','pending').select('id').maybeSingle();if(r.error)return toast('No se pudo cancelar la solicitud: '+r.error.message);if(!r.data)return toast('La solicitud ya fue revisada o no está disponible para cancelar.');toast('Solicitud cancelada');await gxEventsReloadDashboard(gxEventsSelectedId,true);}catch(err){console.error('Grayxon enrollment cancellation:',err);toast('Error al cancelar: '+(err?.message||'intenta nuevamente'));}finally{if(b.isConnected){b.disabled=false;b.dataset.busy='0';}}return;}
     if(b.dataset.gxevEnrollReview){if(!gxEventsAdmin())return;const requestId=b.dataset.gxevEnrollReview,status=b.dataset.status;if(!['approved','rejected'].includes(status))return;const req=gxEventsDashboardData?.enrollmentRequests.find(x=>x.id===requestId);if(!req)return;const update=await sb.from('gx_event_enrollment_requests').update({status,reviewed_by:session.user.id,reviewed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',requestId);if(update.error)return toast('No se pudo revisar la solicitud: '+update.error.message);if(status==='approved'){const add=await sb.rpc('gx_events_admin_set_participant',{p_event_id:gxEventsSelectedId,p_user_id:req.creator_user_id,p_action:'add',p_tiktok_username:null});if(add.error){await sb.from('gx_event_enrollment_requests').update({status:'pending',reviewed_by:null,reviewed_at:null}).eq('id',requestId);return toast('No se pudo añadir al participante: '+add.error.message);}}toast(status==='approved'?'Inscripción aprobada ✓':'Solicitud rechazada');await gxEventsReloadDashboard(gxEventsSelectedId,true);return;}
+  if(b.dataset.gxevPostRequestReview){
+    if(!gxEventsAdmin())return toast('Solo administración puede revisar solicitudes de publicación.');
+    const requestId=String(b.dataset.gxevPostRequestReview||''),action=String(b.dataset.action||'');
+    if(!requestId||!['approve','reject'].includes(action))return toast('No se pudo identificar la solicitud o la acción.');
+    const d=gxEventsDashboardData,req=(d?.postRequests||[]).find(x=>x.id===requestId);
+    if(!req||req.event_id!==gxEventsSelectedId)return toast('La solicitud ya no está disponible. Actualiza el evento e inténtalo de nuevo.');
+    if(req.status!=='pending')return toast('Esta solicitud ya fue revisada.');
+    if(b.dataset.busy==='1')return;
+    let comment=null;
+    if(action==='reject'){
+      comment=window.prompt('Escribe un comentario para el manager (opcional):','');
+      if(comment===null)return;
+      comment=String(comment).trim().slice(0,2000)||null;
+    }
+    const card=b.closest('div[style*="padding:12px 0"]')||b.parentElement;
+    const buttons=card?.querySelectorAll('button[data-gxev-post-request-review]')||[b];
+    buttons.forEach(x=>{x.disabled=true;x.dataset.busy='1';});
+    const originalText=b.textContent;
+    b.textContent=action==='approve'?'Publicando…':'Rechazando…';
+    try{
+      if(action==='approve'){
+        const created=await sb.from('gx_event_posts').insert({
+          event_id:req.event_id,user_id:req.manager_user_id,parent_id:null,
+          body:req.body,link_url:req.link_url||null
+        }).select('id').single();
+        if(created.error)throw new Error('No se pudo publicar el contenido: '+created.error.message);
+        const reviewed=await sb.from('gx_event_post_requests').update({
+          status:'approved',reviewed_by:session.user.id,reviewed_at:new Date().toISOString(),admin_comment:null
+        }).eq('id',requestId).eq('status','pending').select('id').maybeSingle();
+        if(reviewed.error||!reviewed.data){
+          await sb.from('gx_event_posts').delete().eq('id',created.data.id);
+          throw new Error(reviewed.error?.message||'La solicitud ya fue revisada por otra sesión.');
+        }
+        toast('Solicitud aprobada y publicación añadida al Hilo oficial ✓');
+      }else{
+        const reviewed=await sb.from('gx_event_post_requests').update({
+          status:'rejected',reviewed_by:session.user.id,reviewed_at:new Date().toISOString(),admin_comment:comment
+        }).eq('id',requestId).eq('status','pending').select('id').maybeSingle();
+        if(reviewed.error)throw new Error(reviewed.error.message);
+        if(!reviewed.data)throw new Error('La solicitud ya fue revisada por otra sesión.');
+        toast('Solicitud rechazada; el manager podrá consultar el comentario.');
+      }
+      await gxEventsReloadDashboard(gxEventsSelectedId,true);
+    }catch(err){
+      console.error('Grayxon: revisión de publicación del hilo',err);
+      toast(err?.message||'No se pudo revisar la solicitud.');
+    }finally{
+      buttons.forEach(x=>{if(x.isConnected){x.disabled=false;delete x.dataset.busy;}});
+      if(b.isConnected)b.textContent=originalText;
+    }
+    return;
+  }
   if(b.dataset.gxevTab){gxEventsActiveTab=b.dataset.gxevTab;const d=gxEventsDashboardData;if(!d||d.event?.id!==gxEventsSelectedId){await gxEventsRenderDashboard(gxEventsCache.find(x=>x.id===gxEventsSelectedId),true);return;}const nav=document.querySelector('#events .gxev-localnav');nav?.querySelectorAll('[data-gxev-tab]').forEach(t=>t.classList.toggle('active',t.dataset.gxevTab===gxEventsActiveTab));const workspace=document.getElementById('gxevWorkspace');if(workspace)workspace.innerHTML=gxEventsRenderTab(d);return;}
   if(b.hasAttribute('data-gxev-edit')){await gxEventsOpenForm(gxEventsCache.find(x=>x.id===gxEventsSelectedId)||gxEventsDashboardData?.event);return;}
   if(b.hasAttribute('data-gxev-response')){b.disabled=true;try{await gxEventsRespond(b.dataset.gxevResponse);}finally{if(b.isConnected)b.disabled=false;}return;}
