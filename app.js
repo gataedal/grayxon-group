@@ -3453,8 +3453,7 @@ async function adminTpl(c) {
   const adminSections = [
     ['home','🏠','Inicio del sitio','Edita el contenido principal de la web.'],
     ['benefits','✨','Beneficios y requisitos','Actualiza beneficios, requisitos e imagen destacada.'],
-    ['users','👥','Todos los usuarios','Administra roles, accesos y cuentas.'],
-    ['creators','🎥','Creadores','Crea cuentas y administra creadores.'],
+    ['users','👥','Todos los usuarios','Administra todas las cuentas, incluidos creadores, managers y administradores.'],
     ['teams','🧩','Equipos y managers','Gestiona equipos y responsables.'],
     ['manager_tasks','📋','Asignar tareas','Organiza las tareas de los managers.'],
     ['live_trainings','📡','Entrenamientos en vivo','Gestiona las sesiones LIVE de la agencia.'],
@@ -3470,7 +3469,7 @@ async function adminTpl(c) {
   } else {
     if (adminView === 'home') body = adminHome(c.home);
     else if (adminView === 'benefits') body = adminBenefits(c.benefits);
-    else if (adminView === 'creators') body = await adminCreators();
+    else if (adminView === 'creators') { adminView = 'users'; body = await adminUsers(); }
     else if (adminView === 'users') body = await adminUsers();
     else if (adminView === 'teams') body = await adminTeams();
     else if (adminView === 'manager_tasks') body = await adminManagerTasks();
@@ -3508,9 +3507,10 @@ async function adminUsers(){
   const roleLabel=r=>r==='admin'?'Administrador':r==='manager'?'Manager':'Creador';
   const rows=(users||[]).map(u=>{
     const m=mm.get(u.manager_id);
-    return `<div class="item admin-user-row"><div class="admin-user-main"><div><b>${esc(u.full_name||u.username||'Usuario')}</b><div class="muted small">@${esc(u.username||'—')} · ${roleLabel(u.role)} · ${u.active?'Activo':'Inactivo'}</div><div class="muted small">${esc(tm.get(u.team_id)||'Sin equipo')}${m?` · Manager: ${esc(m.name)}`:''}</div></div><span class="pill ${u.active?'ok':''}">${u.active?'Activo':'Inactivo'}</span></div><div class="admin-user-actions"><select class="admin-user-role" data-user-role="${u.id}"><option value="creator" ${u.role==='creator'?'selected':''}>Creador</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option></select><button class="secondary small" data-save-user-role="${u.id}">Guardar rol</button><button class="secondary small" data-view-user="${u.id}">Ver información</button><button class="secondary small ${u.active?'danger':'ok'}" data-toggle-user="${u.id}">${u.active?'Desactivar':'Activar'}</button>${u.id!==session?.user?.id?`<button class="secondary small danger" data-delete-user="${u.id}">Eliminar</button>`:''}</div></div>`;
+    return `<div class="item admin-user-row"><div class="admin-user-main"><div><b>${esc(u.full_name||u.username||'Usuario')}</b><div class="muted small">@${esc(u.username||'—')} · ${roleLabel(u.role)} · ${u.active?'Activo':'Inactivo'}</div><div class="muted small">${esc(tm.get(u.team_id)||'Sin equipo')}${m?` · Manager: ${esc(m.name)}`:''}</div></div><span class="pill ${u.active?'ok':''}">${u.active?'Activo':'Inactivo'}</span></div><div class="admin-user-actions"><select class="admin-user-role" data-user-role="${u.id}"><option value="creator" ${u.role==='creator'?'selected':''}>Creador</option><option value="manager" ${u.role==='manager'?'selected':''}>Manager</option><option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option></select><button class="secondary small" data-save-user-role="${u.id}">Guardar rol</button><button class="secondary small" data-view-user="${u.id}">Ver información</button>${u.role==='creator'?'<button class="secondary small" data-view-profile="'+u.id+'">Perfil y misiones</button>':''}<button class="secondary small ${u.active?'danger':'ok'}" data-toggle-user="${u.id}">${u.active?'Desactivar':'Activar'}</button>${u.id!==session?.user?.id?`<button class="secondary small danger" data-delete-user="${u.id}">Eliminar</button>`:''}</div></div>`;
   }).join('');
-  return `<div class="card admin-users-page"><div class="row"><div><h2>Todos los usuarios</h2><p class="muted small">Administra el acceso y el rol de todas las cuentas Grayxon. Los cambios de rol respetan la estructura de equipos y managers.</p></div><span class="pill">${(users||[]).length} usuarios</span></div><div class="admin-users-list" style="margin-top:18px">${rows||'<div class="item"><span class="muted small">No hay usuarios.</span></div>'}</div></div>`;
+  const creatorCount=(users||[]).filter(u=>u.role==='creator').length;
+  return `<div class="card admin-users-page"><div class="row"><div><h2>Todos los usuarios</h2><p class="muted small">Administra todas las cuentas Grayxon desde aquí: creadores, managers y administradores. Los cambios respetan la estructura de equipos y managers.</p></div><span class="pill">${(users||[]).length} usuarios · ${creatorCount} creadores</span></div><div class="inline" style="margin-top:14px;flex-wrap:wrap"><button class="primary" id="newCreator">＋ Crear creador</button><button class="secondary" id="importCreators">⇧ Importar creadores Excel/CSV</button></div><div class="admin-users-list" style="margin-top:18px">${rows||'<div class="item"><span class="muted small">No hay usuarios.</span></div>'}</div></div>`;
 }
 
 
