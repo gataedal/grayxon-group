@@ -3454,6 +3454,7 @@ async function adminTpl(c) {
   const adminSections = [
     ['home','🏠','Inicio del sitio','Edita el contenido principal de la web.'],
     ['benefits','✨','Beneficios y requisitos','Actualiza beneficios, requisitos e imagen destacada.'],
+    ['app_identity','📱','Identidad de la app','Cambia el icono de instalación de Grayxon.']
     ['users','👥','Todos los usuarios','Administra todas las cuentas, incluidos creadores, managers y administradores.'],
     ['teams','🧩','Equipos y managers','Gestiona equipos y responsables.'],
     ['manager_tasks','📋','Asignar tareas','Organiza las tareas de los managers.'],
@@ -3470,6 +3471,7 @@ async function adminTpl(c) {
   } else {
     if (adminView === 'home') body = adminHome(c.home);
     else if (adminView === 'benefits') body = adminBenefits(c.benefits);
+    else if (adminView === 'app_identity') body = await adminAppIdentity();
     else if (adminView === 'creators') { adminView = 'users'; body = await adminUsers(); }
     else if (adminView === 'users') body = await adminUsers();
     else if (adminView === 'teams') body = await adminTeams();
@@ -3494,6 +3496,115 @@ function adminHome(h) {
 function adminBenefits(b) {
   const preview = b.image_url ? `<div class="media-preview"><img src="${esc(b.image_url)}" alt="Imagen actual"><div class="muted small">Imagen actual. Selecciona otra para reemplazarla.</div></div>` : `<div class="media-empty">No hay imagen destacada configurada.</div>`;
   return `<div class="card"><h2>Beneficios y requisitos</h2><p class="muted small">Aquí puedes editar el contenido público y agregar una imagen destacada que aparecerá en esta sección.</p>${field('bTitle','Título',b.title || 'Beneficios y requisitos')}${field('bIntro','Introducción',b.intro,true)}<div class="field"><label>Imagen destacada</label><input id="bImage" type="file" accept="image/png,image/jpeg,image/webp"><div id="bImagePreview" style="margin-top:10px">${preview}</div><div class="muted small" style="margin-top:7px">Recomendado: JPG, PNG o WebP. Idealmente 1600 px de ancho o menos.</div></div>${field('bBenefits','Beneficios (uno por línea)',(b.benefits || []).join('\n'),true)}${field('bReq','Requisitos (uno por línea)',(b.requirements || []).join('\n'),true)}<button class="primary" id="saveBenefits">Guardar cambios</button><div id="benefitsProgress" class="muted small" style="margin-top:10px"></div><div id="benefitsErr" class="error"></div></div>`;
+}
+
+
+const GX_APP_ICON_BUCKET = 'public-assets';
+const GX_APP_ICON_FILES = {
+  'grayxon-app-icon-192.png': './assets/grayxon-app-icon-192.png',
+  'grayxon-app-icon-512.png': './assets/grayxon-app-icon-512.png',
+  'grayxon-app-icon-maskable-512.png': './assets/grayxon-app-icon-maskable-512.png',
+  'favicon-32.png': './assets/favicon-32.png',
+  'apple-touch-icon.png': './assets/apple-touch-icon.png'
+};
+function gxAppIconPublicUrl(name) {
+  return sb.storage.from(GX_APP_ICON_BUCKET).getPublicUrl('app-icons/' + name).data.publicUrl;
+}
+async function ensureGxAppIconAssets() {
+  const result = await sb.from('site_content').select('content').eq('id','app_icon').maybeSingle();
+  if (result.error) throw result.error;
+  if (result.data && result.data.content && result.data.content.initialized) return result.data.content;
+  const urls = {};
+  for (const [name, source] of Object.entries(GX_APP_ICON_FILES)) {
+    const response = await fetch(source, {cache:'no-store'});
+    if (!response.ok) throw new Error('No se pudo preparar el icono inicial (' + name + ').');
+    const blob = await response.blob();
+    const upload = await sb.storage.from(GX_APP_ICON_BUCKET).upload('app-icons/' + name, blob, {
+      upsert:true, cacheControl:'0', contentType:'image/png'
+    });
+    if (upload.error) throw upload.error;
+    urls[name] = gxAppIconPublicUrl(name);
+  }
+  const content = {initialized:true, updated_at:new Date().toISOString(), urls:urls};
+  const saved = await sb.from('site_content').upsert({id:'app_icon',content:content,updated_at:content.updated_at});
+  if (saved.error) throw saved.error;
+  return content;
+}
+async function adminAppIdentity() {
+  ensureGxAppIconAdminStyles();
+  let content = null, loadError = '';
+  try { content = await ensureGxAppIconAssets(); }
+  catch(e) { loadError = e && e.message ? e.message : 'No se pudieron preparar los iconos.'; }
+  const preview = content && content.urls && content.urls['grayxon-app-icon-512.png'] ? content.urls['grayxon-app-icon-512.png'] : gxAppIconPublicUrl('grayxon-app-icon-512.png');
+  return '<div class="card gx-app-icon-admin"><div class="eyebrow">GRAYXON GROUP · IDENTIDAD</div>' +
+    '<h2>Icono de la app</h2><p class="muted">Sube una imagen cuadrada para cambiar el icono que identifica a Grayxon cuando se instala en el celular o computador. Generaremos automáticamente los tamaños para Android, iPhone, navegador y el icono adaptable de Android.</p>' +
+    '<div class="gx-app-icon-preview"><img id="gxAppIconCurrent" src="' + esc(preview) + '?v=' + Date.now() + '" alt="Icono actual de Grayxon"><div><b>Vista previa</b><div class="muted small">Recomendado: PNG cuadrado, con el símbolo centrado y margen suficiente alrededor.</div></div></div>' +
+    '<div class="field"><label for="gxAppIconFile">Nuevo icono</label><input id="gxAppIconFile" type="file" accept="image/png,image/jpeg,image/webp"></div>' +
+    '<div id="gxAppIconSelectedPreview" class="gx-app-icon-selected hidden"></div><p class="muted small">Máximo 8 MB. Se conservará el icono actual si la carga no termina correctamente.</p>' +
+    '<div class="inline"><button class="primary" id="gxSaveAppIcon" ' + (loadError ? 'disabled' : '') + '>Guardar nuevo icono</button></div>' +
+    '<div id="gxAppIconProgress" class="muted small" style="margin-top:10px">' + esc(loadError || (content ? 'Iconos preparados correctamente.' : '')) + '</div><div id="gxAppIconError" class="error"></div>' +
+    '<div class="item" style="margin-top:14px"><b>Nota sobre dispositivos</b><p class="muted small" style="margin:6px 0 0">Las nuevas instalaciones recibirán el icono actualizado después de publicar la configuración de instalación. En instalaciones existentes, Android y algunos navegadores pueden tardar en refrescarlo; en iPhone puede ser necesario volver a añadir Grayxon a la pantalla de inicio.</p></div></div>';
+}
+function gxIconBlob(canvas) {
+  return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('No se pudo generar una versión del icono.')),'image/png'));
+}
+async function gxRenderIconVariant(image, size, padded) {
+  const canvas=document.createElement('canvas'); canvas.width=size; canvas.height=size;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#050609'; ctx.fillRect(0,0,size,size);
+  const box=size*(padded?0.78:1), ratio=Math.min(box/image.width,box/image.height);
+  const w=image.width*ratio,h=image.height*ratio;
+  ctx.drawImage(image,(size-w)/2,(size-h)/2,w,h);
+  return gxIconBlob(canvas);
+}
+async function saveGxAppIcon() {
+  const input=$('#gxAppIconFile'), progress=$('#gxAppIconProgress'), err=$('#gxAppIconError'), button=$('#gxSaveAppIcon');
+  if(err)err.textContent='';
+  if(!input || !input.files || !input.files[0]){if(err)err.textContent='Selecciona primero la nueva imagen.';return;}
+  const file=input.files[0];
+  if(['image/png','image/jpeg','image/webp'].indexOf(file.type)<0){if(err)err.textContent='Usa una imagen PNG, JPG o WebP.';return;}
+  if(file.size>8*1024*1024){if(err)err.textContent='La imagen debe pesar menos de 8 MB.';return;}
+  if(button)button.disabled=true;
+  try {
+    if(progress)progress.textContent='Preparando tamaños del icono…';
+    const image=await createImageBitmap(file);
+    const variants=[['grayxon-app-icon-192.png',192,false],['grayxon-app-icon-512.png',512,false],['grayxon-app-icon-maskable-512.png',512,true],['apple-touch-icon.png',180,false],['favicon-32.png',32,false]];
+    for(const variant of variants){
+      const name=variant[0], size=variant[1], padded=variant[2];
+      const blob=await gxRenderIconVariant(image,size,padded);
+      if(progress)progress.textContent='Subiendo icono ' + size + ' × ' + size + '…';
+      const upload=await sb.storage.from(GX_APP_ICON_BUCKET).upload('app-icons/' + name,blob,{upsert:true,cacheControl:'0',contentType:'image/png'});
+      if(upload.error)throw upload.error;
+    }
+    const urls={};
+    for(const variant of variants) urls[variant[0]]=gxAppIconPublicUrl(variant[0]);
+    const content={initialized:true,updated_at:new Date().toISOString(),urls:urls};
+    const saved=await sb.from('site_content').upsert({id:'app_icon',content:content,updated_at:content.updated_at});
+    if(saved.error)throw saved.error;
+    const img=$('#gxAppIconCurrent');if(img)img.src=urls['grayxon-app-icon-512.png']+'?v='+Date.now();
+    const selected=$('#gxAppIconSelectedPreview');if(selected){selected.innerHTML='';selected.classList.add('hidden');}
+    input.value='';
+    if(progress)progress.textContent='Icono guardado. Las nuevas instalaciones usarán esta imagen cuando se publique la configuración de instalación.';
+    toast('Icono de Grayxon guardado.');
+  } catch(e) {
+    if(err)err.textContent=e && e.message ? e.message : 'No se pudo guardar el icono.';
+    if(progress)progress.textContent='No se completó la actualización.';
+  } finally { if(button)button.disabled=false; }
+}
+function previewGxAppIcon() {
+  const input=$('#gxAppIconFile'), wrap=$('#gxAppIconSelectedPreview'), file=input && input.files && input.files[0];
+  if(!wrap)return;
+  if(!file){wrap.innerHTML='';wrap.classList.add('hidden');return;}
+  if(!file.type.startsWith('image/')){wrap.innerHTML='<span class="error">Selecciona un archivo de imagen.</span>';wrap.classList.remove('hidden');return;}
+  const url=URL.createObjectURL(file);
+  wrap.innerHTML='<img src="' + url + '" alt="Vista previa del nuevo icono"><span class="muted small">Así se verá la imagen que vas a guardar.</span>';
+  wrap.classList.remove('hidden');
+}
+function ensureGxAppIconAdminStyles(){
+  if(document.getElementById('gx-app-icon-admin-styles'))return;
+  const style=document.createElement('style');style.id='gx-app-icon-admin-styles';
+  style.textContent='.gx-app-icon-admin{max-width:900px}.gx-app-icon-preview{display:flex;align-items:center;gap:16px;margin:18px 0;padding:16px;border:1px solid var(--border,#30333b);border-radius:14px}.gx-app-icon-preview img,.gx-app-icon-selected img{width:112px;height:112px;object-fit:contain;background:#050609;border-radius:22px;border:1px solid #343741}.gx-app-icon-selected{display:flex;align-items:center;gap:12px;margin:12px 0;flex-wrap:wrap}.gx-app-icon-admin .field input[type=file]{max-width:100%}@media(max-width:520px){.gx-app-icon-preview{align-items:flex-start;flex-direction:column}.gx-app-icon-preview img{width:92px;height:92px}}';
+  document.head.appendChild(style);
 }
 
 function ensureAdminUsersStyles(){
@@ -4545,6 +4656,7 @@ function bind() {
   $('#deleteProfileAvatar')?.addEventListener('click', deleteProfileAvatar);
   $('#saveHome')?.addEventListener('click', saveHome);
   $('#saveBenefits')?.addEventListener('click', saveBenefits);
+  if ($('#gxAppIconFile')) { $('#gxAppIconFile').addEventListener('change', previewGxAppIcon); $('#gxSaveAppIcon')?.addEventListener('click', saveGxAppIcon); }
   $('#bImage')?.addEventListener('change', previewBenefitsImage);
   $('#newCreator')?.addEventListener('click', creatorModal);
   $('#importCreators')?.addEventListener('click', creatorImportModal);
