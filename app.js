@@ -628,7 +628,7 @@ async function openNotification(id) {
   if (n.type === 'event' || n.link_page === 'events') {
     const target = String(n.link_target || '');
     gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
-    gxPendingEventTab = gxEventsAdmin() ? 'enrollment-requests' : null;
+    gxPendingEventTab = gxEventsAdmin() && /solicitud de inscripci[oó]n/i.test(String(n.title||'')) ? 'enrollment-requests' : null;
     nav('events');
     return;
   }
