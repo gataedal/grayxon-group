@@ -9,7 +9,9 @@ function resolveTarget(data) {
   const value = String(raw || '');
   const uuidMatch = value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
-  // Official thread notifications open the event directly on its thread tab.
+  // Official thread notifications open the exact publication in the thread.
+  if (page === 'event-post') return `./portal.html?grayxonPush=1&page=event-post&target=${encodeURIComponent(value)}#events`;
+  // Legacy thread notifications still open the event thread.
   if (page === 'event-thread') return `./portal.html?grayxonPush=1&page=event-thread&target=${encodeURIComponent(value)}#events`;
 
   // Battle IDs are resolved by the portal after restoring the session; never treat them as LIVE IDs.
