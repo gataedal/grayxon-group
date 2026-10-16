@@ -5249,6 +5249,8 @@ async function refreshAdminPresenceIndicators(){
     el.classList.toggle('is-online',state.state==='is-online');
     el.classList.toggle('is-recent',state.state==='is-recent');
     el.classList.toggle('is-offline',state.state==='is-offline');
+    const row=el.closest('[data-admin-user-row]');
+    if(row)row.dataset.presenceStatus=state.state==='is-offline'?'inactive':'active';
     el.title=state.title;
     const label=el.querySelector('[data-user-presence-label]');
     if(label)label.textContent=state.label;
