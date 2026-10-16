@@ -1092,13 +1092,23 @@ function updateCreatorSpaceFloat(){
 }
 
 function updateCreatorTopNav(){
-  const buttons=$$('[data-page="space"]');
-  const hide=!!session && (profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session'));
-  buttons.forEach(b=>{
+  const role=profile?.role||'';
+  const isAdmin=!!session&&role==='admin';
+  const isCreator=!!session&&(role==='creator'||document.body.classList.contains('grayxon-creator-session'));
+  const benefitsButton=$('.nav [data-page="benefits"]');
+  benefitsButton.forEach(b=>{b.textContent=isAdmin?'Inicio':'Beneficios y requisitos';b.dataset.page='home';b.classList.remove('hidden');b.style.setProperty('display','', 'important');b.setAttribute('aria-label',isAdmin?'Ir al sitio público de Grayxon':'Ir al inicio');});
+  const spaceButtons=$('.nav [data-page="space"]');
+  spaceButtons.forEach(b=>{
+    b.textContent=isAdmin?'Admin':'Tu espacio';
+    b.dataset.page=isAdmin?'admin':'space';
+    const hide=isCreator;
     b.classList.toggle('hidden',hide);
     b.style.setProperty('display',hide?'none':'', 'important');
     b.setAttribute('aria-hidden',hide?'true':'false');
+    b.setAttribute('aria-label',isAdmin?'Abrir panel de administración':'Abrir tu espacio');
   });
+  const adminButton=$('#adminOpen');
+  if(adminButton){adminButton.classList.add('hidden');adminButton.style.setProperty('display','none','important');adminButton.setAttribute('aria-hidden','true');}
 }
 
 function isCreatorSession(){
@@ -1112,16 +1122,11 @@ function nav(p, push = true) {
   if (p === 'events' && typeof ensureEventsPage === 'function') ensureEventsPage();
   if (p === 'force-password' && !session) p = 'auth';
   if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
-  // La portada pública oficial vive en index.html. No mostrar el inicio antiguo del portal
-  // cuando no hay sesión; conservar las rutas de autenticación y los enlaces profundos.
-  if (!session && p === 'home') {
-  window.location.replace('./index.html');
-  return;
-}
-  // Una cuenta autenticada nunca vuelve a la portada pública por accidente.
-  // Su entrada natural siempre es su espacio/panel correspondiente.
-  if (session && p === 'home') {
-    p = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
+  // "Inicio" siempre abre la portada pública oficial, incluso para cuentas autenticadas.
+  // Los accesos privados se mantienen explícitos en "Admin", "Manager" o "Tu espacio".
+  if (p === 'home') {
+    window.location.href = './index.html';
+    return;
   }
   if (session && p === 'space' && profile?.role === 'manager') p = 'manager';
   if (p === 'manager') managerView = 'dashboard';
