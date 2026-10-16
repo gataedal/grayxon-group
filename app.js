@@ -6287,9 +6287,8 @@ async function gxEventsRenderDashboard(ev,quiet=false){
     setTimeout(()=>{
       const target=document.getElementById('gxev-battle-'+matchTarget);
       if(target){
-        target.scrollIntoView({behavior:'smooth',block:'center'});
-        target.classList.add('gxev-battle-highlight');
-        setTimeout(()=>target.classList.remove('gxev-battle-highlight'),2600);
+        let parent=target.parentElement;while(parent){if(parent.tagName==='DETAILS')parent.open=true;parent=parent.parentElement;}
+        setTimeout(()=>{target.scrollIntoView({behavior:'smooth',block:'center'});target.classList.add('gxev-battle-highlight');setTimeout(()=>target.classList.remove('gxev-battle-highlight'),3200);},80);
       }else toast('La batalla no está visible para esta cuenta o ya no existe.');
     },180);
   }
@@ -6355,7 +6354,7 @@ async function gxEventsCancelMatch(matchId){
   if(!gxEventsAdmin())return;const m=gxEventsDashboardData?.matches.find(x=>x.id===matchId);if(!m)return;
   const next=m.status==='cancelled'?'scheduled':'cancelled';if(!confirm(next==='cancelled'?'¿Cancelar esta batalla? Se conservará el registro.':'¿Reactivar esta batalla?'))return;
   const r=await sb.from('gx_event_matches').update({status:next,...(next==='cancelled'?{winner_participant_id:null,score_a:null,score_b:null,result_note:null}:{}) ,updated_at:new Date().toISOString()}).eq('id',matchId);
-  if(r.error)return toast('No se pudo cambiar el estado: '+r.error.message);toast(next==='cancelled'?'Batalla cancelada':'Batalla reactivada');await gxEventsReloadDashboard(gxEventsSelectedId,true);
+  if(r.error)return toast('No se pudo cambiar el estado: '+r.error.message);const notify=await sb.rpc('gx_events_notify_match_update',{p_match_id:matchId});if(notify.error)console.warn('No se pudo notificar el cambio de estado:',notify.error);toast(notify.error?(next==='cancelled'?'Batalla cancelada, pero falló la notificación.':'Batalla reactivada, pero falló la notificación.'):(next==='cancelled'?'Batalla cancelada y notificada':'Batalla reactivada y notificada'));await gxEventsReloadDashboard(gxEventsSelectedId,true);
 }
 async function gxEventsDeleteMatch(matchId){
   if(!gxEventsAdmin())return;if(!confirm('¿Eliminar definitivamente esta batalla? Esta acción no se puede deshacer.'))return;
