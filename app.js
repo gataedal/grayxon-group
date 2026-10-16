@@ -3454,7 +3454,7 @@ async function adminTpl(c) {
   const adminSections = [
     ['home','🏠','Inicio del sitio','Edita el contenido principal de la web.'],
     ['benefits','✨','Beneficios y requisitos','Actualiza beneficios, requisitos e imagen destacada.'],
-    ['app_identity','📱','Identidad de la app','Cambia el icono de instalación de Grayxon.']
+    ['app_identity','📱','Identidad de la app','Cambia el icono de instalación de Grayxon.'],
     ['users','👥','Todos los usuarios','Administra todas las cuentas, incluidos creadores, managers y administradores.'],
     ['teams','🧩','Equipos y managers','Gestiona equipos y responsables.'],
     ['manager_tasks','📋','Asignar tareas','Organiza las tareas de los managers.'],
