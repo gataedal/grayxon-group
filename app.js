@@ -628,6 +628,7 @@ async function openNotification(id) {
   if (n.type === 'event' || n.link_page === 'events') {
     const target = String(n.link_target || '');
     gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
+    gxPendingEventTab = gxEventsAdmin() ? 'enrollment-requests' : null;
     nav('events');
     return;
   }
@@ -5827,6 +5828,7 @@ let gxEventsMyParticipants=[];
 let gxEventsMyResponses=[];
 let gxEventsMediaCache=[];
 let gxPendingEventTarget=null;
+let gxPendingEventTab=null;
 let gxPendingEventMatchTarget=null;
 let gxEventsFilter='in_progress';
 let gxEventsSelectedId=null;
@@ -6153,7 +6155,7 @@ async function gxEventsPage(){
   ]);
   gxEventsMyParticipants=mine.data||[];gxEventsMyResponses=responses.data||[];gxEventsMediaCache=media.data||[];
   await gxEventsRefreshUnreadCount();
-  const target=gxPendingEventTarget;if(target){gxPendingEventTarget=null;gxEventsSelectedId=target;}
+  const target=gxPendingEventTarget;if(target){gxPendingEventTarget=null;gxEventsSelectedId=target;if(gxPendingEventTab){gxEventsActiveTab=gxPendingEventTab;gxPendingEventTab=null;}else gxEventsActiveTab='overview';}
   if(gxEventsSelectedId){host.classList.add('gxev-event-fullscreen');document.body.classList.add('gxev-event-fullscreen-open');const e=gxEventsCache.find(x=>x.id===gxEventsSelectedId);if(e){await gxEventsMarkRead(e.id);await gxEventsRenderDashboard(e);return;}gxEventsSelectedId=null;gxEventsExitFullscreen();}
   gxEventsRenderList();
 }
@@ -6227,7 +6229,7 @@ async function gxEventsRenderDashboard(ev,quiet=false){
   if(admin||profile?.role==='manager'){
     let rq=sb.from('gx_event_enrollment_requests').select('*').eq('event_id',id).order('created_at',{ascending:false});
     if(profile?.role==='manager')rq=rq.eq('manager_user_id',session.user.id);
-    const rr=await rq;if(!rr.error){d.enrollmentRequests=rr.data||[];const missing=[...new Set(d.enrollmentRequests.flatMap(x=>[x.creator_user_id,x.manager_user_id]).filter(Boolean))].filter(uid=>!d.profiles.some(p=>p.id===uid));if(missing.length){const extra=await sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,tiktok_username').in('id',missing);if(!extra.error)d.profiles.push(...(extra.data||[]));}}
+    const rr=await rq;if(!rr.error){d.enrollmentRequests=rr.data||[];const missing=[...new Set(d.enrollmentRequests.flatMap(x=>[x.creator_user_id,x.manager_user_id]).filter(Boolean))].filter(uid=>!d.profiles.some(p=>p.id===uid));if(missing.length){const extra=await sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,tiktok_username').in('id',missing);if(!extra.error)d.profiles.push(...(extra.data||[]));}}else{console.error('Eventos: no se pudieron cargar solicitudes de inscripción',rr.error);if(admin)toast('No se pudieron cargar las solicitudes: '+rr.error.message);}
   }
   d.profileMap=new Map(d.profiles.map(p=>[p.id,p]));d.participantById=new Map(d.participants.map(p=>[p.id,p]));
   const rankRows=new Map((d.leaderboard||[]).map(r=>[r.user_id,{...r}]));
