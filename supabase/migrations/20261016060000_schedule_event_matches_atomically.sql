@@ -18,8 +18,10 @@ BEGIN
   IF auth.uid() IS NULL OR NOT public.is_admin() THEN
     RAISE EXCEPTION 'Solo administración puede programar batallas.' USING ERRCODE = '42501';
   END IF;
-  IF p_event_id IS NULL OR jsonb_typeof(p_schedules) IS DISTINCT FROM 'array'
-     OR jsonb_array_length(p_schedules) = 0 THEN
+  IF p_event_id IS NULL OR p_schedules IS NULL OR jsonb_typeof(p_schedules) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'Envía una lista de batallas con fecha y hora.' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_array_length(p_schedules) = 0 THEN
     RAISE EXCEPTION 'Envía al menos una batalla con fecha y hora.' USING ERRCODE = '22023';
   END IF;
 
