@@ -3510,6 +3510,31 @@ const GX_APP_ICON_FILES = {
 function gxAppIconPublicUrl(name) {
   return sb.storage.from(GX_APP_ICON_BUCKET).getPublicUrl('app-icons/' + name).data.publicUrl;
 }
+async function refreshGxAppIconHead() {
+  try {
+    const result = await sb.from('site_content').select('content,updated_at').eq('id','app_icon').maybeSingle();
+    if (result.error || !result.data) return;
+    const content = result.data.content || {};
+    const urls = content.urls || {};
+    const version = encodeURIComponent(content.updated_at || result.data.updated_at || Date.now());
+    const setLink = (selector, rel, sizes, url) => {
+      if (!url) return;
+      let link = document.head.querySelector(selector);
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = rel;
+        if (sizes) link.sizes = sizes;
+        document.head.appendChild(link);
+      }
+      link.href = url + (url.includes('?') ? '&' : '?') + 'v=' + version;
+    };
+    setLink('link[rel="icon"][sizes="32x32"]', 'icon', '32x32', urls['favicon-32.png'] || GX_APP_ICON_FILES['favicon-32.png']);
+    setLink('link[rel="apple-touch-icon"][sizes="180x180"]', 'apple-touch-icon', '180x180', urls['apple-touch-icon.png'] || GX_APP_ICON_FILES['apple-touch-icon.png']);
+  } catch (e) {
+    console.warn('No se pudo actualizar el icono del navegador:', e);
+  }
+}
+refreshGxAppIconHead().catch(()=>{});
 async function ensureGxAppIconAssets() {
   const result = await sb.from('site_content').select('content').eq('id','app_icon').maybeSingle();
   if (result.error) throw result.error;
@@ -3586,6 +3611,7 @@ async function saveGxAppIcon() {
     stage='Guardando la configuración del icono';
     const saved=await sb.from('site_content').upsert({id:'app_icon',content:content,published:true,updated_at:content.updated_at});
     if(saved.error)throw new Error(stage+': '+saved.error.message);
+    await refreshGxAppIconHead();
     const img=$('#gxAppIconCurrent');if(img)img.src=urls['grayxon-app-icon-512.png']+'?v='+Date.now();
     const selected=$('#gxAppIconSelectedPreview');if(selected){selected.innerHTML='';selected.classList.add('hidden');}
     input.value='';
