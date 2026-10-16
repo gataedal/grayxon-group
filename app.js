@@ -6138,9 +6138,15 @@ async function gxEventsRenderDashboard(ev,quiet=false){
   if(admin){const [cr,tr]=await Promise.all([sb.from('profiles').select('id,username,full_name,role,active,team_id').eq('active',true).in('role',['creator','manager']).order('username'),sb.from('teams').select('id,name,manager_id').order('name')]);d.availableCreators=cr.data||[];d.teams=tr.data||[];}
   d.managerCreators=[];d.enrollmentRequests=[];
   if(profile?.role==='manager'){
-    let cq=sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').eq('role','creator').eq('active',true);
-    const cr=profile.team_id?await cq.or('manager_id.eq.'+session.user.id+',team_id.eq.'+profile.team_id):await cq.eq('manager_id',session.user.id);
+    const mr=await sb.from('managers').select('id,active').eq('user_id',session.user.id).maybeSingle();
+    const managerRowId=mr.data?.id;
+    let cq=sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,tiktok_username').eq('role','creator').eq('active',true);
+    if(managerRowId&&profile.team_id)cq=cq.or('manager_id.eq.'+managerRowId+',team_id.eq.'+profile.team_id);
+    else if(managerRowId)cq=cq.eq('manager_id',managerRowId);
+    else if(profile.team_id)cq=cq.eq('team_id',profile.team_id);
+    const cr=await cq.order('username');
     if(!cr.error)d.managerCreators=cr.data||[];
+    else console.warn('Eventos: no se pudieron cargar creadores del manager',cr.error.message);
   }
   if(admin||profile?.role==='manager'){
     let rq=sb.from('gx_event_enrollment_requests').select('*').eq('event_id',id).order('created_at',{ascending:false});
@@ -6182,7 +6188,7 @@ async function gxEventsRenderDashboard(ev,quiet=false){
 }
 
 function gxEventsMatchCard(m,d){
-  const getParticipant=(id)=>d.participantById.get(id)||(()=>{const r=d.leaderboard.find(x=>x.participant_id===id);return r?{id,user_id:r.user_id,tiktok_username:r.tiktok_username}:null;})();
+  const getParticipant=(id)=>d.participantById.get(id)||(d.allParticipantRows||[]).find(p=>p.id===id)||(()=>{const r=d.leaderboard.find(x=>x.participant_id===id);return r?{id,user_id:r.user_id,tiktok_username:r.tiktok_username}:null;})();
   const a=getParticipant(m.participant_a_id),b=m.participant_b_id?getParticipant(m.participant_b_id):null;
   const ar=a?d.rankByUser.get(a.user_id):null,br=b?d.rankByUser.get(b.user_id):null;
   const ap=a?d.profileMap.get(a.user_id):null,bp=b?d.profileMap.get(b.user_id):null;
