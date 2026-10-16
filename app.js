@@ -60,7 +60,7 @@ function readGrayxonPendingPushNotificationId(clear=false) {
   } catch (_) { return null; }
 }
 
-function applyGrayxonPushIntent(intent) {
+async function applyGrayxonPushIntent(intent) {
   if (!intent?.page) return false;
   const id = String(intent.target || '');
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -73,6 +73,11 @@ function applyGrayxonPushIntent(intent) {
     gxPendingEventTarget = uuid ? id : null;
     nav('events');
     return true;
+  }
+  if (intent.page === 'event-match' && uuid) {
+    const {data: match,error}=await sb.from('gx_event_matches').select('event_id').eq('id',id).maybeSingle();
+    if(error||!match?.event_id)return false;
+    gxPendingEventTarget=match.event_id;gxPendingEventMatchTarget=id;gxEventsActiveTab='missions';nav('events');return true;
   }
   if (intent.page === 'live-training' && uuid) {
     window.history.replaceState({page:'live-training'}, '', `${window.location.pathname}${window.location.search}#live-training/${id}`);
@@ -4653,7 +4658,7 @@ async function login() {
   const pendingPushIntent = readGrayxonPushIntent(false);
   if (pendingPushIntent) {
     readGrayxonPushIntent(true);
-    if (!applyGrayxonPushIntent(pendingPushIntent)) nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
+    if (!await applyGrayxonPushIntent(pendingPushIntent)) nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
   } else {
     nav(profile.role === 'admin' ? 'admin' : profile.role === 'manager' ? 'manager' : 'space');
   }
