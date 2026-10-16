@@ -4454,11 +4454,11 @@ function bind() {
   $$('[data-save-user-role]').forEach(b => b.onclick = () => { const sel = $(`[data-user-role="${b.dataset.saveUserRole}"]`); if(sel) saveAdminUserRole(b.dataset.saveUserRole, sel.value); });
   $$('[data-toggle-user]').forEach(b => b.onclick = () => toggleAdminUser(b.dataset.toggleUser));
   $$('[data-delete-user]').forEach(b => b.onclick = () => deleteAdminUser(b.dataset.deleteUser));
-  $('[data-view-user]').forEach(b => b.onclick = () => adminUserModal(b.dataset.viewUser));
+  $$('[data-view-user]').forEach(b => b.onclick = () => adminUserModal(b.dataset.viewUser));
   $('#adminUsersSearch')?.addEventListener('input',e=>{
     const q=String(e.target.value||'').trim().toLocaleLowerCase();
     let visible=0;
-    $('[data-admin-user-row]').forEach(row=>{const match=!q||String(row.dataset.search||'').includes(q);row.style.display=match?'':'none';if(match)visible++;});
+    $$('[data-admin-user-row]').forEach(row=>{const match=!q||String(row.dataset.search||'').includes(q);row.style.display=match?'':'none';if(match)visible++;});
     const empty=$('#adminUsersNoMatch');if(empty)empty.style.display=visible?'none':'';
   });
   $('#newTeamManager')?.addEventListener('click',()=>teamManagerModal());
