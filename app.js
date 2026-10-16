@@ -6235,7 +6235,7 @@ async function gxEventsRenderDashboard(ev,quiet=false){
   if(admin||profile?.role==='manager'){
     let rq=sb.from('gx_event_enrollment_requests').select('*').eq('event_id',id).order('created_at',{ascending:false});
     if(profile?.role==='manager')rq=rq.eq('manager_user_id',session.user.id);
-    const rr=await rq;if(!rr.error)d.enrollmentRequests=rr.data||[];
+    const rr=await rq;if(!rr.error){d.enrollmentRequests=rr.data||[];const missing=[...new Set(d.enrollmentRequests.flatMap(x=>[x.creator_user_id,x.manager_user_id]).filter(Boolean))].filter(uid=>!d.profiles.some(p=>p.id===uid));if(missing.length){const extra=await sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,tiktok_username').in('id',missing);if(!extra.error)d.profiles.push(...(extra.data||[]));}}
   }
   d.profileMap=new Map(d.profiles.map(p=>[p.id,p]));d.participantById=new Map(d.participants.map(p=>[p.id,p]));
   const rankRows=new Map((d.leaderboard||[]).map(r=>[r.user_id,{...r}]));
