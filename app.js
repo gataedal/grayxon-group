@@ -6548,6 +6548,25 @@ async function gxEventsOpenForm(existing){
 function gxEventsRosterSearch(e){const adminInput=e.target.closest?.('[data-gxev-admin-request-search]');if(adminInput){const root=adminInput.closest('.gxev-admin-enrollment-wrap');if(!root)return;const q=String(adminInput.value||'').trim().toLowerCase();let visible=0;root.querySelectorAll('[data-gxev-admin-request-card]').forEach(card=>{const show=!q||String(card.dataset.searchText||'').includes(q);card.hidden=!show;if(show)visible++;});const count=root.querySelector('[data-gxev-admin-search-count]');if(count)count.textContent=String(visible);const empty=root.querySelector('.gxev-admin-no-search-results');if(empty)empty.hidden=visible>0;return;}const input=e.target.closest?.('[data-gxev-roster-search]');if(!input)return;const section=input.closest('[data-gxev-roster-section]');if(!section)return;const query=String(input.value||'').trim().toLowerCase();let visible=0;section.querySelectorAll('[data-gxev-roster-entry]').forEach(card=>{const show=!query||String(card.dataset.searchText||'').includes(query);card.hidden=!show;if(show)visible++;});const count=section.querySelector('[data-gxev-search-count]');if(count)count.textContent=String(visible);const empty=section.querySelector('.gxev-manager-no-search-results');if(empty)empty.hidden=visible>0;}
 
 async function gxEventsClick(e){const importConfirm=e.target.closest('#gxevParticipantImportConfirm');if(importConfirm){if(!gxEventsAdmin())return;const ids=[...document.querySelectorAll('[data-gxev-import-user]:checked')].map(x=>x.value);if(!ids.length)return toast('Marca al menos una cuenta.');importConfirm.disabled=true;let added=0,failed=[];for(const id of ids){const r=await sb.rpc('gx_events_admin_set_participant',{p_event_id:gxEventsSelectedId,p_user_id:id,p_action:'add',p_tiktok_username:null});if(r.error)failed.push(r.error.message);else added++;}toast(added+' participantes añadidos'+(failed.length?'; '+failed.length+' no se pudieron agregar.':' ✓'));await gxEventsReloadDashboard(gxEventsSelectedId,true);return;}const b=e.target.closest?.('button,a');if(!b)return;
+  if(b.hasAttribute('data-gxev-enroll-review')){
+    if(!gxEventsAdmin())return toast('Solo administración puede revisar solicitudes.');
+    const requestId=String(b.dataset.gxevEnrollReview||''),status=String(b.dataset.status||'');
+    if(!requestId||!['approved','rejected'].includes(status))return toast('No se pudo identificar la solicitud o la acción.');
+    if(b.dataset.busy==='1')return;
+    const card=b.closest('.gxev-admin-enrollment-actions')||b.parentElement;
+    const buttons=card?.querySelectorAll('button')||[b];
+    buttons.forEach(x=>{x.disabled=true;x.dataset.busy='1';});
+    const oldText=b.textContent;b.textContent=status==='approved'?'Aprobando…':'Rechazando…';
+    try{
+      const r=await sb.rpc('gx_event_admin_review_enrollment',{p_request_id:requestId,p_status:status,p_note:null});
+      if(r.error){console.error('Grayxon: revisión de inscripción',r.error);toast('No se pudo '+(status==='approved'?'aprobar':'rechazar')+': '+r.error.message);return;}
+      if(!r.data?.ok){toast('Supabase no confirmó la revisión.');return;}
+      toast(status==='approved'?'Solicitud aprobada y creador inscrito ✓':'Solicitud rechazada ✓');
+      await gxEventsReloadDashboard(gxEventsSelectedId,true);
+    }catch(err){console.error('Grayxon: revisión de inscripción',err);toast('Error al revisar la solicitud: '+(err?.message||String(err)));}
+    finally{buttons.forEach(x=>{if(x.isConnected){x.disabled=false;delete x.dataset.busy;}});if(b.isConnected)b.textContent=oldText;}
+    return;
+  }
   if(b.hasAttribute('data-gxev-open-full-ranking')){
     const d=gxEventsDashboardData;if(!d)return;document.getElementById('gxevEventModal')?.remove();
     const currentUserId=String(session?.user?.id||'').trim().toLowerCase();const currentUsername=String(profile?.username||d.profileMap?.get?.(session?.user?.id)?.username||'').trim().replace(/^@/,'').toLowerCase();const rows=d.leaderboard.map((r,i)=>{const rowUserId=String(r.user_id||r.participant_user_id||'').trim().toLowerCase();const rowParticipantId=String(r.participant_id||'').trim().toLowerCase();const rowUsername=String(r.username||r.tiktok_username||'').trim().replace(/^@/,'').toLowerCase();const isMe=!!currentUserId&&(rowUserId===currentUserId||rowParticipantId===currentUserId)||(!!currentUsername&&rowUsername===currentUsername);const position=Number(r.rank_position)||i+1;return `<tr class="${isMe?'gxev-current-user-rank':''}"><td><b>${position<=3?(['','🥇','🥈','🥉'][position]||'#'+position):'#'+position}</b></td><td><b>@${gxEventsEsc(r.username||r.tiktok_username||'usuario')}${isMe?' · Tú':''}</b></td><td><b>${gxEventsFormatNumber(r.points)} puntos</b></td></tr>`;}).join('');
