@@ -1106,7 +1106,8 @@ function nav(p, push = true) {
   // Para creadores, Mi espacio debe volver a pintar inmediatamente el dashboard real.
   // Evita pasar primero por el shell antiguo con estados de carga al volver desde
   // Misiones, Mi perfil o Formación.
-  if (p === 'space' && isCreatorSession()) renderCreatorSpaceImmediate();
+  // El dashboard inmediato se pinta una sola vez desde spaceTpl(). Evitamos
+  // reconstruirlo aquí y volver a reemplazarlo al entrar en el template.
   if (p === 'live-training') { const se=$('#space'); if(se){se.hidden=true;se.classList.add('hidden');se.style.setProperty('display','none','important');} document.body.classList.add('grayxon-live-training-active'); }
   if (push && current !== p) {
     const url = p === 'home'
@@ -1491,7 +1492,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const cachedName=profile?.full_name||profile?.username||'Grayxon';
   const cachedUser=profile?.username||'creador';
   const cachedAvatar=profileDetails?.avatar_url ? `<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
-  if(spaceEl){
+  if(spaceEl && !spaceEl.querySelector('.creator-dashboard')){
     spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
       <section class="creator-dashboard-hero">
         <div class="creator-dashboard-avatar">${cachedAvatar}</div>
