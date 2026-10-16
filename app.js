@@ -5849,6 +5849,9 @@ function gxEventsFmtDate(value){return value?gxEventsEsc(formatDateTime(value)):
 function gxEnsureEventsMatrixStyles(){
   if(document.getElementById('gx-events-styles-v3'))return;
   const st=document.createElement('style');st.id='gx-events-styles-v3';st.textContent=`
+  /* Normalizar los iconos reales de los dashboards de creador, manager y admin. */
+  .admin-dashboard-card-icon,.manager-dashboard-card-icon,.creator-dashboard-card-icon,.space-card-icon,.gx-ann-dashboard-icon{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;flex:0 0 44px!important;display:inline-grid!important;place-items:center!important;box-sizing:border-box!important;font-size:20px!important;line-height:1!important}
+  .admin-dashboard-card-icon svg,.manager-dashboard-card-icon svg,.creator-dashboard-card-icon svg,.space-card-icon svg,.gx-ann-dashboard-icon svg{width:22px!important;height:22px!important;max-width:22px!important;max-height:22px!important}
   /* Normalizar iconos del dashboard. */
   #dashboard .card-icon,#dashboard .dashboard-icon,#dashboard .quick-action-icon,.dashboard-grid .card-icon,.dashboard-grid .icon-wrap{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;flex:0 0 44px!important}
   #dashboard .card-icon svg,#dashboard .dashboard-icon svg,#dashboard .quick-action-icon svg,.dashboard-grid .card-icon svg,.dashboard-grid .icon-wrap svg{width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important}
