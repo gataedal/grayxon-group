@@ -6802,28 +6802,10 @@ const importConfirm=e.target.closest('#gxevParticipantImportConfirm');if(importC
     const originalText=b.textContent;
     b.textContent=action==='approve'?'Publicando…':'Rechazando…';
     try{
-      if(action==='approve'){
-        const created=await sb.from('gx_event_posts').insert({
-          event_id:req.event_id,user_id:req.manager_user_id,parent_id:null,
-          body:req.body,link_url:req.link_url||null,attachments:req.attachments||[]
-        }).select('id').single();
-        if(created.error)throw new Error('No se pudo publicar el contenido: '+created.error.message);
-        const reviewed=await sb.from('gx_event_post_requests').update({
-          status:'approved',reviewed_by:session.user.id,reviewed_at:new Date().toISOString(),admin_comment:null
-        }).eq('id',requestId).eq('status','pending').select('id').maybeSingle();
-        if(reviewed.error||!reviewed.data){
-          await sb.from('gx_event_posts').delete().eq('id',created.data.id);
-          throw new Error(reviewed.error?.message||'La solicitud ya fue revisada por otra sesión.');
-        }
-        toast('Solicitud aprobada y publicación añadida al Hilo oficial ✓');
-      }else{
-        const reviewed=await sb.from('gx_event_post_requests').update({
-          status:'rejected',reviewed_by:session.user.id,reviewed_at:new Date().toISOString(),admin_comment:comment
-        }).eq('id',requestId).eq('status','pending').select('id').maybeSingle();
-        if(reviewed.error)throw new Error(reviewed.error.message);
-        if(!reviewed.data)throw new Error('La solicitud ya fue revisada por otra sesión.');
-        toast('Solicitud rechazada; el manager podrá consultar el comentario.');
-      }
+      const reviewResult=await sb.rpc('gx_event_post_request_review',{p_request_id:requestId,p_action:action,p_admin_comment:comment});
+      if(reviewResult.error)throw new Error(reviewResult.error.message);
+      if(!reviewResult.data?.success)throw new Error('Supabase no confirmó la revisión de la solicitud.');
+      toast(action==='approve'?'Solicitud aprobada y publicación añadida al Hilo oficial ✓':'Solicitud rechazada; el manager podrá consultar el comentario.');
       await gxEventsReloadDashboard(gxEventsSelectedId,true);
     }catch(err){
       console.error('Grayxon: revisión de publicación del hilo',err);
