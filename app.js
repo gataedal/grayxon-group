@@ -5934,11 +5934,11 @@ function gxEnsureEventsMatrixStyles(){
     #events .gxev-ranking-full-table th,#events .gxev-ranking-full-table td{overflow-wrap:anywhere;padding:8px 5px}
   }
   @media(max-width:420px){
-    #events .gxev-top-three{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+    #events .gxev-top-three{grid-template-columns:repeat(3,minmax(0,1fr))!important}
     #events .gxev-prize-podium{grid-template-columns:repeat(3,minmax(0,1fr))!important}
     #events .gxev-prize-place-1{grid-column:auto!important}
-    #events .gxev-top-rank{padding:9px 6px}
-    #events .gxev-top-rank b,#events .gxev-top-rank strong{font-size:12px}
+    #events .gxev-top-rank{padding:8px 5px}
+    #events .gxev-top-rank b,#events .gxev-top-rank strong{font-size:clamp(10px,2.7vw,12px)}
     #events .gxev-prize-place{padding:10px}
   }
   /* Mi espacio: iconos homogéneos incluso cuando el contenido es emoji, SVG o imagen. */
@@ -6139,7 +6139,7 @@ function gxEventsRenderTab(d){
     const rankColumns=3;
     const visibleRanks=d.leaderboard;
     const table=visibleRanks.map(r=>`<tr class="${r.user_id===session.user.id?'gxev-my-rank':''}"><td><b style="color:#ffcf66">${r.rank_position===1?'🥇':r.rank_position===2?'🥈':r.rank_position===3?'🥉':'#'+r.rank_position}</b></td><td><b>@${gxEventsEsc(r.username||'usuario')}</b></td><td><b>${gxEventsFormatNumber(r.points)}</b></td></tr>`).join('');
-    return `<div class="gxev-panel"><div class="gxev-panel-head"><div><h3>🏆 Clasificación del evento</h3><div class="gxev-muted">Usuarios ordenados por puesto y puntos acumulados.</div></div><span class="gxev-pill">${d.leaderboard.length} participantes</span>${admin?'<button type="button" class="gxev-btn" data-gxev-rank-refresh>↻ Actualizar</button>':''}</div><div class="gxev-tablewrap"><table><thead><tr><th>Puesto</th><th>Usuario</th><th>Puntos</th></tr></thead><tbody>${table||`<tr><td colspan="${rankColumns}">Cuando se registren los primeros avances aprobados, la clasificación aparecerá aquí.</td></tr>`}</tbody></table></div></div>`;
+    return `<div class="gxev-panel"><div class="gxev-panel-head gxev-ranking-head"><div><h3>🏆 Clasificación del evento</h3><div class="gxev-muted">Usuarios ordenados por puesto y puntos acumulados.</div></div><span class="gxev-pill">${d.leaderboard.length} participantes</span>${admin?'<button type="button" class="gxev-btn" data-gxev-rank-refresh>↻ Actualizar</button>':''}</div><div class="gxev-tablewrap"><table><thead><tr><th>Puesto</th><th>Usuario</th><th>Puntos</th></tr></thead><tbody>${table||`<tr><td colspan="${rankColumns}">Cuando se registren los primeros avances aprobados, la clasificación aparecerá aquí.</td></tr>`}</tbody></table></div></div>`;
   }
   if(gxEventsActiveTab==='overview'){
     const missionsHTML=active.length?`<div class="gxev-panel"><div class="gxev-panel-head"><h3>Misiones activas</h3><button type="button" class="gxev-btn" data-gxev-tab="missions">Ver todas →</button></div><div class="gxev-missions">${active.slice(0,4).map(m=>{const p=ownProgress.find(x=>x.mission_id===m.id);const pct=p?Math.min(100,Number(p.value)/Number(m.target_value)*100):0;return `<article class="gxev-mission"><div class="gxev-mission-top"><h4>${gxEventsEsc(m.title)}</h4><span class="gxev-pill">${gxEventsFormatNumber(m.points_per_unit)} pts/u</span></div><p class="gxev-muted">Meta: ${gxEventsFormatNumber(m.target_value)} ${gxEventsEsc(m.unit_label)}${m.score_over_target?' · suma excedentes':''}</p><div class="gxev-bar"><span style="width:${pct}%"></span></div><div class="gxev-muted">${p?.status==='approved'?'✓ Validada':p?.status==='pending'?'En revisión':p?.status==='rejected'?'Requiere ajuste':'Aún sin registrar'}</div></article>`}).join('')}</div></div>`:'';
