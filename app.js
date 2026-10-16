@@ -4812,7 +4812,7 @@ async function init() {
       return;
     }
   }
-  if (session && pushParams.get('grayxonPush') === '1' && pushParams.get('page') === 'event-match' && uuidTarget) { const {data: battleTarget}=await sb.from('gx_event_matches').select('event_id').eq('id',pushTarget).maybeSingle(); if(battleTarget?.event_id){gxPendingEventTarget=battleTarget.event_id;gxPendingEventMatchTarget=pushTarget;gxEventsActiveTab='missions';if(window.location.hash!=='#events')window.history.replaceState({page:'events'},'',`${window.location.pathname}${window.location.search}#events`);} }
+  const matchTargetId=pushParams.get('target')||''; if (session && pushParams.get('grayxonPush') === '1' && pushParams.get('page') === 'event-match' && GRAYXON_UUID_RE.test(matchTargetId)) { const {data: battleTarget}=await sb.from('gx_event_matches').select('event_id').eq('id',matchTargetId).maybeSingle(); if(battleTarget?.event_id){gxPendingEventTarget=battleTarget.event_id;gxPendingEventMatchTarget=matchTargetId;gxEventsActiveTab='missions';if(window.location.hash!=='#events')window.history.replaceState({page:'events'},'',`${window.location.pathname}${window.location.search}#events`);} }
   const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'].includes(hashPage) ? hashPage : null;
   const initialPage = session ? (profile?.must_change_password ? 'force-password' : (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome)) : (requestedPage || 'home');
   nav(initialPage, false);
