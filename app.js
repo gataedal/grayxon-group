@@ -1107,6 +1107,9 @@ function updateCreatorTopNav(){
     b.setAttribute('aria-hidden',hide?'true':'false');
     b.setAttribute('aria-label',isAdmin?'Abrir panel de administración':'Abrir tu espacio');
   });
+  // El botón original "Inicio" se oculta solo para administración: su acceso "Inicio" es el que antes era "Beneficios y requisitos".
+  const publicHomeButton=document.querySelector('.nav button[data-page="home"]');
+  if(publicHomeButton){const hideOriginalHome=isAdmin;publicHomeButton.classList.toggle('hidden',hideOriginalHome);publicHomeButton.style.setProperty('display',hideOriginalHome?'none':'','important');publicHomeButton.setAttribute('aria-hidden',hideOriginalHome?'true':'false');}
   const adminButton=$('#adminOpen');
   if(adminButton){adminButton.classList.add('hidden');adminButton.style.setProperty('display','none','important');adminButton.setAttribute('aria-hidden','true');}
 }
