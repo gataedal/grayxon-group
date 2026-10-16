@@ -2867,6 +2867,7 @@ async function managerCreatorModal(id){
   el.innerHTML=`<div class="card modal creator-profile-modal">
     <div class="row"><div class="creator-profile-modal-head">${avatar}<div><div class="eyebrow">CREADOR</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.active?'Activo':'Inactivo'}</div></div></div><button class="secondary" id="closeManagerCreator">Cerrar</button></div>
     <div class="hr"></div>
+    <div class="card" style="margin:12px 0"><h3>Equipo y manager</h3><div class="grid"><label class="field"><span>Equipo</span><select id="adminInfoTeam"><option value="">Sin equipo</option>${(teams||[]).map(t=>`<option value="${t.id}" ${p.team_id===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><div class="field"><span>Manager asignado</span><div id="adminInfoManagerPreview" class="item" style="min-height:44px;display:flex;align-items:center">${esc(mm.get(p.manager_id)?.name||'Sin manager')}</div></div></div><p class="muted small">El manager se asigna según el equipo seleccionado.</p><button class="primary small" id="saveAdminInfoAssignment">Guardar asignación</button></div>
     <h3>Información personal</h3>
     <div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div>
     <h3 style="margin-top:22px">Pago</h3>
@@ -3568,6 +3569,9 @@ async function adminUserModal(id){
   document.body.appendChild(el);
   $('#closeAdminUser').onclick=()=>el.remove();
   $('#openAdminUserMissions')?.addEventListener('click',()=>{el.remove();adminProfileModal(id);});
+  const syncAdminInfoManager=async()=>{const teamId=$('#adminInfoTeam')?.value||'';const preview=$('#adminInfoManagerPreview');if(!preview)return;if(!teamId){preview.textContent='Sin equipo / sin manager';return;}const {data:t,error:te}=await sb.from('teams').select('manager_id').eq('id',teamId).maybeSingle();if(te){preview.textContent='No se pudo consultar el manager';return;}const managerId=t?.manager_id||null;const {data:m}=managerId?await sb.from('managers').select('name').eq('id',managerId).maybeSingle():{data:null};preview.textContent=m?.name||'Este equipo no tiene manager asignado';};
+  $('#adminInfoTeam')?.addEventListener('change',syncAdminInfoManager);
+  $('#saveAdminInfoAssignment')?.addEventListener('click',async()=>{const btn=$('#saveAdminInfoAssignment');btn.disabled=true;const teamId=$('#adminInfoTeam')?.value||null;let managerId=null;if(teamId){const {data:t,error:te}=await sb.from('teams').select('manager_id').eq('id',teamId).maybeSingle();if(te){toast(te.message);btn.disabled=false;return;}managerId=t?.manager_id||null;}const {error}=await sb.from('profiles').update({team_id:teamId,manager_id:managerId}).eq('id',id);if(error){toast(error.message);btn.disabled=false;return;}toast('Equipo y manager actualizados ✓');el.remove();await adminUserModal(id);});
   $('#saveAdminUserAccess').onclick=async()=>{
     const btn=$('#saveAdminUserAccess'),err=$('#adminUserAccessErr');
     const username=$('#adminUserUsername')?.value.trim().toLowerCase()||'';
