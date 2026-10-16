@@ -10,14 +10,21 @@ function pad(n){return String(n).padStart(2,'0');}
 function state(){return typeof gxEventsDashboardData!=='undefined'?gxEventsDashboardData:null;}
 function phaseById(id){return (state()?.phases||[]).find(function(p){return p.id===id;})||null;}
 function phaseForMatch(m){var r=(state()?.rounds||[]).find(function(x){return x.id===m.round_id;});return phaseById(r?.phase_id);}
-function localDT(phaseId){
-  var d=new Date(Date.now()+3600000);d.setMinutes(Math.ceil(d.getMinutes()/5)*5,0,0);
-  var phase=phaseById(phaseId);
-  if(phase?.starts_at){var start=new Date(phase.starts_at);if(d<start){d=new Date(start);d.setMinutes(Math.ceil(d.getMinutes()/5)*5,0,0);}}
-  if(phase?.ends_at&&d>new Date(phase.ends_at)){var end=new Date(phase.ends_at);end.setMinutes(Math.floor(end.getMinutes()/5)*5,0,0);d=end;}
-  return {date:d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()),time:pad(d.getHours())+':'+pad(d.getMinutes())};
+function bogotaParts(value){
+  var d=value instanceof Date?value:new Date(value);
+  var parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d);
+  var out={};parts.forEach(function(p){if(p.type!=='literal')out[p.type]=p.value;});
+  return {date:out.year+'-'+out.month+'-'+out.day,time:out.hour+':'+out.minute};
 }
-function iso(date,time){if(!date||!time)return null;var d=new Date(date+'T'+time+':00');return isNaN(d.getTime())?null:d.toISOString();}
+function localDT(phaseId){
+  var d=new Date(Date.now()+3600000);d.setUTCMinutes(Math.ceil(d.getUTCMinutes()/5)*5,0,0);
+  var phase=phaseById(phaseId);
+  if(phase?.starts_at&&d<new Date(phase.starts_at)){d=new Date(phase.starts_at);d.setUTCMinutes(Math.ceil(d.getUTCMinutes()/5)*5,0,0);}
+  if(phase?.ends_at&&d>new Date(phase.ends_at)){d=new Date(phase.ends_at);d.setUTCMinutes(Math.floor(d.getUTCMinutes()/5)*5,0,0);}
+  return bogotaParts(d);
+}
+// The administrator always enters wall-clock time in Colombia, regardless of the device timezone.
+function iso(date,time){if(!date||!time)return null;var d=new Date(date+'T'+time+':00-05:00');return isNaN(d.getTime())?null:d.toISOString();}
 function close(){document.querySelector('.gxbs-backdrop')?.remove();}
 function modal(title,subtitle,body,actions){
   close();var w=document.createElement('div');w.className='gxbs-backdrop';
@@ -69,7 +76,7 @@ function addPending(){
 }
 function individual(matches,title){
   var body='<div class="gxbs-note">Se guardarán todos los horarios en una sola operación. Las notificaciones solo se disparan cuando se confirma la programación completa.</div><div class="gxbs-match-list">';
-  matches.forEach(function(m,i){var phase=phaseForMatch(m),dt=localDT(phase?.id),phaseLabel=phase?.title?' · '+phase.title:'';body+='<div class="gxbs-match" data-gxbs-match="'+m.id+'"><div class="gxbs-match-title">Batalla '+(i+1)+': '+esc(label(m.participant_a_id))+' vs '+esc(label(m.participant_b_id))+esc(phaseLabel)+'</div><div class="gxbs-fields"><div class="gxbs-field"><label>Fecha</label><input type="date" data-date value="'+dt.date+'" required></div><div class="gxbs-field"><label>Hora (Colombia)</label><input type="time" data-time value="'+dt.time+'" required></div></div></div>';});
+  matches.forEach(function(m,i){var phase=phaseForMatch(m),dt=localDT(phase?.id),phaseLabel=phase?.title?' · '+phase.title:'';body+='<div class="gxbs-match" data-gxbs-match="'+m.id+'"><div class="gxbs-match-title">Batalla '+(i+1)+': '+esc(label(m.participant_a_id))+' vs '+esc(label(m.participant_b_id))+esc(phaseLabel)+'</div><div class="gxbs-fields"><div class="gxbs-field"><label>Fecha</label><input type="date" data-date value="'+dt.date+'" required></div><div class="gxbs-field"><label>Hora de Colombia (UTC−5)</label><input type="time" data-time value="'+dt.time+'" required></div></div></div>';});
   body+='</div>';
   var w=modal('Programa cada batalla','Asigna fecha y hora a '+title+'.',body,'<button type="button" class="gxbs-btn" data-later>Dejar para después</button><button type="button" class="gxbs-btn primary" data-save>Guardar programación y notificar</button>');
   w.querySelector('[data-later]').onclick=function(){close();if(typeof toast==='function')toast('Las batallas quedaron pendientes de programación.');};
