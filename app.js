@@ -3554,10 +3554,19 @@ async function saveGxAppIcon() {
   if(file.size>8*1024*1024){if(err)err.textContent='La imagen debe pesar menos de 8 MB.';return;}
   if(button)button.disabled=true;
   const backups={}, uploadedNames=[];
+  let stage='Validando sesión de administrador';
   try {
+    const auth=await sb.auth.getUser();
+    if(auth.error)throw new Error('No se pudo validar la sesión: '+auth.error.message);
+    if(!auth.data || !auth.data.user)throw new Error('La sesión de Supabase no está autenticada. Cierra sesión y vuelve a entrar al portal.');
+    const profile=await sb.from('profiles').select('role,active').eq('id',auth.data.user.id).maybeSingle();
+    if(profile.error)throw new Error('No se pudo verificar el perfil administrador: '+profile.error.message);
+    if(!profile.data || profile.data.role!=='admin' || profile.data.active!==true)throw new Error('La sesión actual no corresponde a un perfil administrador activo. Cierra sesión y vuelve a entrar con la cuenta administradora.');
     if(progress)progress.textContent='Preparando tamaños del icono…';
+    stage='Preparando la imagen';
     const image=await createImageBitmap(file);
     const variants=[['grayxon-app-icon-192.png',192,false],['grayxon-app-icon-512.png',512,false],['grayxon-app-icon-maskable-512.png',512,true],['apple-touch-icon.png',180,false],['favicon-32.png',32,false]];
+    stage='Comprobando archivos anteriores';
     for(const variant of variants){
       const old=await sb.storage.from(GX_APP_ICON_BUCKET).download('app-icons/' + variant[0]);
       if(!old.error && old.data) backups[variant[0]]=old.data;
@@ -3565,16 +3574,18 @@ async function saveGxAppIcon() {
     for(const variant of variants){
       const name=variant[0], size=variant[1], padded=variant[2];
       const blob=await gxRenderIconVariant(image,size,padded);
+      stage='Subiendo '+name+' a Supabase Storage';
       if(progress)progress.textContent='Subiendo icono ' + size + ' × ' + size + '…';
       const upload=await sb.storage.from(GX_APP_ICON_BUCKET).upload('app-icons/' + name,blob,{upsert:true,cacheControl:'0',contentType:'image/png'});
-      if(upload.error)throw upload.error;
+      if(upload.error)throw new Error(stage+': '+upload.error.message);
       uploadedNames.push(name);
     }
     const urls={};
     for(const variant of variants) urls[variant[0]]=gxAppIconPublicUrl(variant[0]);
     const content={initialized:true,updated_at:new Date().toISOString(),urls:urls};
+    stage='Guardando la configuración del icono';
     const saved=await sb.from('site_content').upsert({id:'app_icon',content:content,published:true,updated_at:content.updated_at});
-    if(saved.error)throw saved.error;
+    if(saved.error)throw new Error(stage+': '+saved.error.message);
     const img=$('#gxAppIconCurrent');if(img)img.src=urls['grayxon-app-icon-512.png']+'?v='+Date.now();
     const selected=$('#gxAppIconSelectedPreview');if(selected){selected.innerHTML='';selected.classList.add('hidden');}
     input.value='';
@@ -3585,7 +3596,7 @@ async function saveGxAppIcon() {
       if(!backups[name])continue;
       try{await sb.storage.from(GX_APP_ICON_BUCKET).upload('app-icons/' + name,backups[name],{upsert:true,cacheControl:'0',contentType:'image/png'});}catch(_){ }
     }
-    if(err)err.textContent=e && e.message ? e.message : 'No se pudo guardar el icono.';
+    if(err)err.textContent=e && e.message ? e.message : stage+': no se pudo completar la operación.';
     if(progress)progress.textContent='No se completó la actualización.';
   } finally { if(button)button.disabled=false; }
 }
