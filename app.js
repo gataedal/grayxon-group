@@ -1095,9 +1095,9 @@ function updateCreatorTopNav(){
   const role=profile?.role||'';
   const isAdmin=!!session&&role==='admin';
   const isCreator=!!session&&(role==='creator'||document.body.classList.contains('grayxon-creator-session'));
-  const benefitsButton=$('.nav [data-page="benefits"]');
+  const benefitsButton=$('[data-page="benefits"]');
   benefitsButton.forEach(b=>{b.textContent=isAdmin?'Inicio':'Beneficios y requisitos';b.dataset.page=isAdmin?'home':'benefits';b.classList.remove('hidden');b.style.setProperty('display','', 'important');b.setAttribute('aria-label',isAdmin?'Ir al sitio público de Grayxon':'Ver beneficios y requisitos');});
-  const spaceButtons=$('.nav [data-page="space"]');
+  const spaceButtons=$('[data-page="space"]');
   spaceButtons.forEach(b=>{
     b.textContent=isAdmin?'Admin':'Tu espacio';
     b.dataset.page=isAdmin?'admin':'space';
