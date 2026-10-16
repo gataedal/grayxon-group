@@ -3495,7 +3495,23 @@ function adminBenefits(b) {
   return `<div class="card"><h2>Beneficios y requisitos</h2><p class="muted small">Aquí puedes editar el contenido público y agregar una imagen destacada que aparecerá en esta sección.</p>${field('bTitle','Título',b.title || 'Beneficios y requisitos')}${field('bIntro','Introducción',b.intro,true)}<div class="field"><label>Imagen destacada</label><input id="bImage" type="file" accept="image/png,image/jpeg,image/webp"><div id="bImagePreview" style="margin-top:10px">${preview}</div><div class="muted small" style="margin-top:7px">Recomendado: JPG, PNG o WebP. Idealmente 1600 px de ancho o menos.</div></div>${field('bBenefits','Beneficios (uno por línea)',(b.benefits || []).join('\n'),true)}${field('bReq','Requisitos (uno por línea)',(b.requirements || []).join('\n'),true)}<button class="primary" id="saveBenefits">Guardar cambios</button><div id="benefitsProgress" class="muted small" style="margin-top:10px"></div><div id="benefitsErr" class="error"></div></div>`;
 }
 
+function ensureAdminUsersStyles(){
+  if(document.getElementById('grayxon-admin-users-styles'))return;
+  const style=document.createElement('style');style.id='grayxon-admin-users-styles';
+  style.textContent=`
+    .admin-users-search{display:flex;align-items:center;gap:10px;margin-top:16px;padding:0 13px;min-height:48px;border:1px solid #344454;border-radius:13px;background:#0d1722;color:#8fd6f5}
+    .admin-users-search input{flex:1;min-width:0;border:0!important;outline:0!important;background:transparent!important;color:var(--text,#f4f7fb)!important;box-shadow:none!important;padding:12px 0!important}
+    .admin-users-search small{white-space:nowrap;color:#9aaabc}
+    .admin-user-identity{display:flex;align-items:center;gap:12px;min-width:0}
+    .admin-user-avatar{width:44px;height:44px;min-width:44px;border-radius:13px;object-fit:cover;background:#1c3547;border:1px solid #34495a}
+    .admin-user-avatar-fallback{display:flex;align-items:center;justify-content:center;color:#e9f7ff;font-weight:800}
+    .admin-user-row{border-radius:14px}
+    @media(max-width:600px){.admin-user-main{gap:8px}.admin-user-avatar{width:40px;height:40px;min-width:40px}.admin-user-actions{gap:7px;flex-wrap:wrap}.admin-users-search{gap:8px}}
+  `;
+  document.head.appendChild(style);
+}
 async function adminUsers(){
+  ensureAdminUsersStyles();
   const [{data:users,error:ue},{data:teams},{data:managers},{data:details}] = await Promise.all([
     sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').order('full_name'),
     sb.from('teams').select('id,name').order('name'),
@@ -4434,7 +4450,13 @@ function bind() {
   $$('[data-save-user-role]').forEach(b => b.onclick = () => { const sel = $(`[data-user-role="${b.dataset.saveUserRole}"]`); if(sel) saveAdminUserRole(b.dataset.saveUserRole, sel.value); });
   $$('[data-toggle-user]').forEach(b => b.onclick = () => toggleAdminUser(b.dataset.toggleUser));
   $$('[data-delete-user]').forEach(b => b.onclick = () => deleteAdminUser(b.dataset.deleteUser));
-  $$('[data-view-user]').forEach(b => b.onclick = () => adminUserModal(b.dataset.viewUser));
+  $('[data-view-user]').forEach(b => b.onclick = () => adminUserModal(b.dataset.viewUser));
+  $('#adminUsersSearch')?.addEventListener('input',e=>{
+    const q=String(e.target.value||'').trim().toLocaleLowerCase();
+    let visible=0;
+    $('[data-admin-user-row]').forEach(row=>{const match=!q||String(row.dataset.search||'').includes(q);row.style.display=match?'':'none';if(match)visible++;});
+    const empty=$('#adminUsersNoMatch');if(empty)empty.style.display=visible?'none':'';
+  });
   $('#newTeamManager')?.addEventListener('click',()=>teamManagerModal());
   $$('[data-view-team]').forEach(b=>b.onclick=()=>adminTeamModal(b.dataset.viewTeam));
   $$('[data-edit-team]').forEach(b=>b.onclick=()=>editTeam(b.dataset.editTeam));
