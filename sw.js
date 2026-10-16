@@ -1,4 +1,4 @@
-/* Grayxon Academy · Web Push Service Worker v49 · dedupe + portal-relative deep links */
+/* Grayxon Academy · Web Push Service Worker v50 · event post deep links + dedupe */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
@@ -66,7 +66,7 @@ function isDuplicatePush(fingerprint, ttlMs = 15000) {
   return new Promise((resolve) => {
     if (!self.indexedDB) { resolve(false); return; }
     let request;
-    try { request = indexedDB.open('grayxon-push-dedupe-v49', 1); }
+    try { request = indexedDB.open('grayxon-push-dedupe-v50', 1); }
     catch (_) { resolve(false); return; }
     request.onupgradeneeded = () => {
       const db = request.result;
