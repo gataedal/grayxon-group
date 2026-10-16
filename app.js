@@ -168,7 +168,7 @@ async function showGrayxonPushPrompt(){
   // database row (for example after clearing account data) and do not bother the creator.
   try{
     if('serviceWorker' in navigator && 'PushManager' in window){
-      const registration=await navigator.serviceWorker.register('./sw.js?v=47',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=48',{scope:'./',updateViaCache:'none'});
       const existing=await registration?.pushManager?.getSubscription();
       if(existing){
         if('Notification' in window && Notification.permission==='granted'){
