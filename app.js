@@ -69,6 +69,7 @@ async function applyGrayxonPushIntent(intent) {
     nav('payments');
     return true;
   }
+  if(intent.page==='event-post')return await gxEventsNavigateToPost(id);
   if (intent.page === 'events' || intent.page === 'event-thread') {
     gxPendingEventTarget = uuid ? id : null;
     if(intent.page==='event-thread')gxPendingEventTab='thread';
@@ -631,6 +632,7 @@ async function openNotification(id) {
     return;
   }
   // Eventos: reutiliza la ruta normal de Grayxon y abre el evento exacto después de cargar la lista.
+  if(n.link_page==='event-post'){await gxEventsNavigateToPost(String(n.link_target||''));return;}
   if (n.type === 'event' || n.link_page === 'events' || n.link_page === 'event-thread') {
     const target = String(n.link_target || '');
     gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
@@ -4785,10 +4787,11 @@ async function init() {
   if (pushParams.get('grayxonPush') === '1') {
     const pushPage = pushParams.get('page');
     const pushTarget = pushParams.get('target') || '';
-    const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','event-match','event-thread'];
+    const pushPages = ['home','benefits','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','event-match','event-thread','event-post'];
     const uuidTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pushTarget);
     if (pushPage === 'events' || pushPage === 'event-thread') gxPendingEventTarget = uuidTarget ? pushTarget : null;
     if (pushPage === 'event-thread') gxPendingEventTab = 'thread';
+    if(session&&pushPage==='event-post'&&uuidTarget){const {data:post}=await sb.from('gx_event_posts').select('id,event_id').eq('id',pushTarget).maybeSingle();if(post?.event_id){gxPendingEventTarget=post.event_id;gxPendingEventPostTarget=post.id;gxPendingEventTab='thread';}}
     if (pushPages.includes(pushPage)) {
       if (!session) saveGrayxonPushIntent(pushPage, pushTarget);
       if (pushPage === 'live-training' && uuidTarget) {
@@ -5149,6 +5152,7 @@ async function handleGrayxonDeepLinkUrl(urlValue) {
     const hashRoute = parsed.hash.replace(/^#/, '');
     const queryPage = parsed.searchParams.get('page') || '';
     const page = hashRoute.startsWith('live-training/') ? hashRoute : (queryPage || hashRoute || 'home');
+    if(session&&(page==='event-post'||parsed.searchParams.get('page')==='event-post')){const postId=parsed.searchParams.get('target')||'';return await gxEventsNavigateToPost(postId);}
     if (session && (page === 'event-match' || parsed.searchParams.get('page') === 'event-match')) {
       const matchId = parsed.searchParams.get('target') || '';
       if (!GRAYXON_UUID_RE.test(matchId)) return false;
@@ -5850,6 +5854,7 @@ let gxEventsMyParticipants=[];
 let gxEventsMyResponses=[];
 let gxEventsMediaCache=[];
 let gxPendingEventTarget=null;
+let gxPendingEventPostTarget=null;
 let gxPendingEventTab=null;
 let gxPendingEventMatchTarget=null;
 let gxEventsFilter='in_progress';
@@ -6196,7 +6201,45 @@ function gxEventsDashboardCardMarkup(variant){
   return `<button type="button" class="space-card card gx-events-dashboard-card" data-gx-open-events><span class="space-card-icon">🎉</span><div class="space-card-main"><div class="space-card-top"><strong>Eventos Grayxon</strong><span>›</span></div><p>Consulta eventos, misiones y clasificación.</p><div class="space-progress"><span style="width:100%"></span></div><span class="gx-ann-unread-badge hidden" data-gx-event-unread-badge><b>0</b> pendientes por revisar</span></div><span class="space-card-arrow">›</span></button>`;
 }
 function gxEventsInjectDashboardCard(){if(!session?.user?.id||!profile?.role)return;let target=null,variant='space';if(profile.role==='creator'){target=document.querySelector('#space .creator-dashboard-grid');variant='creator';}else if(profile.role==='manager'){target=document.querySelector('#manager .manager-dashboard-grid');variant='manager';}else if(profile.role==='admin'){target=document.querySelector('#admin .admin-dashboard-grid');variant='admin';}if(!target)target=document.querySelector('#space #spaceCards');if(!target||target.querySelector('[data-gx-open-events]'))return;const markup=gxEventsDashboardCardMarkup(variant);const holder=document.createElement('div');holder.innerHTML=markup.trim();const card=holder.firstElementChild;let anchor=null;if(variant==='admin')anchor=target.querySelector('[data-admin="formation"]');else{anchor=[...target.querySelectorAll('button')].find(x=>/entrenamientos/i.test(x.innerText||''))||null;}if(anchor)target.insertBefore(card,anchor);else target.appendChild(card);gxEventsRefreshUnreadCount().catch(()=>{});}
-async function gxEventsRefreshUnreadCount(){if(!session?.user?.id||!sb)return 0;if(gxEventsUnreadRequest)return gxEventsUnreadRequest;gxEventsUnreadRequest=(async()=>{const {data,error}=await sb.rpc('gx_events_unread_count');if(error){console.warn('Eventos: contador',error.message);return 0;}const n=Math.max(0,Number(data)||0);document.querySelectorAll('[data-gx-event-unread-badge]').forEach(el=>{const b=el.querySelector('b');if(b)b.textContent=String(n);el.title=n+' eventos pendientes por revisar';el.setAttribute('aria-label',el.title);el.classList.toggle('hidden',n===0);});return n;})();try{return await gxEventsUnreadRequest;}finally{gxEventsUnreadRequest=null;}}
+
+async function gxEventsMarkPostRead(postId,eventId){
+  if(!session?.user?.id||!postId||!eventId)return;
+  const {error}=await sb.from('gx_event_post_reads').upsert(
+    {user_id:session.user.id,post_id:postId,event_id:eventId,read_at:new Date().toISOString()},
+    {onConflict:'user_id,post_id'}
+  );
+  if(error)console.warn('Eventos: marcar publicación leída',error.message);
+  gxEventsRefreshUnreadCount().catch(()=>{});
+}
+async function gxEventsMarkThreadRead(eventId){
+  if(!session?.user?.id||!eventId)return;
+  const {data:posts,error}=await sb.from('gx_event_posts').select('id,user_id').eq('event_id',eventId);
+  if(error){console.warn('Eventos: cargar publicaciones leídas',error.message);return;}
+  const rows=(posts||[]).filter(p=>p.user_id!==session.user.id).map(p=>({user_id:session.user.id,post_id:p.id,event_id:eventId,read_at:new Date().toISOString()}));
+  if(rows.length){
+    const {error:writeError}=await sb.from('gx_event_post_reads').upsert(rows,{onConflict:'user_id,post_id'});
+    if(writeError)console.warn('Eventos: marcar hilo leído',writeError.message);
+  }
+  gxEventsRefreshUnreadCount().catch(()=>{});
+}
+function gxEventsFocusPost(postId){
+  if(!postId)return;
+  const target=document.getElementById('gxev-post-'+postId);
+  if(target){target.scrollIntoView({behavior:'smooth',block:'center'});target.classList.add('gxev-post-targeted');setTimeout(()=>target.classList.remove('gxev-post-targeted'),3500);}
+}
+async function gxEventsNavigateToPost(postId){
+  if(!GRAYXON_UUID_RE.test(String(postId||'')))return false;
+  const {data:post,error}=await sb.from('gx_event_posts').select('id,event_id').eq('id',postId).maybeSingle();
+  if(error||!post?.event_id){toast('Esta publicación ya no está disponible o tu cuenta no tiene acceso.');return false;}
+  gxPendingEventTarget=post.event_id;
+  gxPendingEventPostTarget=post.id;
+  gxPendingEventTab='thread';
+  gxEventsSelectedId=null;
+  gxEventsExitFullscreen();
+  nav('events');
+  return true;
+}
+async function gxEventsRefreshUnreadCount(){if(!session?.user?.id||!sb)return 0;if(gxEventsUnreadRequest)return gxEventsUnreadRequest;gxEventsUnreadRequest=(async()=>{const {data,error}=await sb.rpc('gx_events_unread_count');if(error){console.warn('Eventos: contador',error.message);return 0;}const n=Math.max(0,Number(data)||0);document.querySelectorAll('[data-gx-event-unread-badge]').forEach(el=>{const b=el.querySelector('b');if(b)b.textContent=String(n);el.title=n+' publicaciones pendientes por leer';el.setAttribute('aria-label',el.title);el.classList.toggle('hidden',n===0);});return n;})();try{return await gxEventsUnreadRequest;}finally{gxEventsUnreadRequest=null;}}
 async function gxEventsMarkRead(eventId){if(!session?.user?.id||!eventId)return;const {error}=await sb.from('gx_event_reads').upsert({event_id:eventId,user_id:session.user.id},{onConflict:'event_id,user_id',ignoreDuplicates:true});if(error&&error.code!=='23505'&&!/duplicate key/i.test(error.message||''))console.warn('Eventos: lectura',error.message);gxEventsRefreshUnreadCount().catch(()=>{});}
 
 async function gxEventsPage(){
@@ -6214,7 +6257,7 @@ async function gxEventsPage(){
   gxEventsMyParticipants=mine.data||[];gxEventsMyResponses=responses.data||[];gxEventsMediaCache=media.data||[];
   await gxEventsRefreshUnreadCount();
   const target=gxPendingEventTarget;if(target){gxPendingEventTarget=null;gxEventsSelectedId=target;if(gxPendingEventTab){gxEventsActiveTab=gxPendingEventTab;gxPendingEventTab=null;}else if(!gxPendingEventMatchTarget)gxEventsActiveTab='overview';}
-  if(gxEventsSelectedId){host.classList.add('gxev-event-fullscreen');document.body.classList.add('gxev-event-fullscreen-open');const e=gxEventsCache.find(x=>x.id===gxEventsSelectedId);if(e){await gxEventsMarkRead(e.id);await gxEventsRenderDashboard(e);return;}gxEventsSelectedId=null;gxEventsExitFullscreen();}
+  if(gxEventsSelectedId){host.classList.add('gxev-event-fullscreen');document.body.classList.add('gxev-event-fullscreen-open');const e=gxEventsCache.find(x=>x.id===gxEventsSelectedId);if(e){await gxEventsMarkRead(e.id);const targetedPost=gxPendingEventPostTarget;await gxEventsRenderDashboard(e);if(gxEventsActiveTab==='thread'){if(targetedPost){gxPendingEventPostTarget=null;gxEventsFocusPost(targetedPost);await gxEventsMarkPostRead(targetedPost,e.id);}else{await gxEventsMarkThreadRead(e.id);}}return;}gxEventsSelectedId=null;gxEventsExitFullscreen();}
   gxEventsRenderList();
 }
 function gxEventsExitFullscreen(){document.getElementById('events')?.classList.remove('gxev-event-fullscreen');document.body.classList.remove('gxev-event-fullscreen-open');}
@@ -6487,7 +6530,7 @@ function gxEventsRenderTab(d){
     const sorted=d.posts.slice().sort((a,b)=>Number(b.is_pinned)-Number(a.is_pinned)||new Date(a.created_at)-new Date(b.created_at));
     const canPost=owner||gxEventsAdmin()||profile?.role==='manager';
     const postRequestsHTML=postRequests.length?'<div class="gxev-panel"><div class="gxev-panel-head"><h3>Solicitudes de publicación</h3><span class="gxev-pill">'+postRequests.filter(r=>r.status==='pending').length+' pendientes</span></div>'+postRequests.map(r=>{const m=d.profileMap.get(r.manager_user_id)||{};return '<div style="padding:12px 0;border-bottom:1px solid #263244"><b>@'+gxEventsEsc(m.username||m.full_name||'manager')+'</b> · '+gxEventsEsc(({pending:'En revisión',approved:'Aprobada',rejected:'Rechazada'})[r.status]||r.status)+'<p class="gxev-post-body">'+gxEventsEsc(r.body)+'</p>'+gxEventsRenderThreadAttachments(r.attachments)+(r.link_url&&gxEventsSafeHttpUrl(r.link_url)?'<a class="gxev-tiktok" href="'+gxEventsEsc(gxEventsSafeHttpUrl(r.link_url))+'" target="_blank" rel="noopener noreferrer">Abrir enlace ↗</a>':'')+(r.admin_comment?'<small class="gxev-muted">Comentario: '+gxEventsEsc(r.admin_comment)+'</small>':'')+(gxEventsAdmin()&&r.status==='pending'?'<div class="gxev-actions"><button type="button" class="gxev-btn primary" data-gxev-post-request-review="'+r.id+'" data-action="approve">Aprobar y publicar</button><button type="button" class="gxev-btn danger" data-gxev-post-request-review="'+r.id+'" data-action="reject">Rechazar con comentario</button></div>':'')+'</div>';}).join('')+'</div>':'';
-    const postsHTML=sorted.map(p=>{const u=d.profileMap.get(p.user_id)||{};const rx=d.reactions.filter(r=>r.post_id===p.id),mine=rx.find(r=>r.user_id===session.user.id);const opts=[['like','👍'],['heart','❤️'],['fire','🔥'],['clap','👏']];return `<article class="gxev-post ${p.is_pinned?'is-pinned':''}"><div class="gxev-post-meta"><span><b>@${gxEventsEsc(u.username||'Grayxon')}</b> · ${gxEventsEsc(formatDateTime(p.created_at))}${p.is_pinned?' · 📌 OFICIAL':''}</span><span class="gxev-actions">${owner?`<button type="button" class="gxev-btn" data-gxev-pin="${p.id}" data-pinned="${p.is_pinned?'1':'0'}">${p.is_pinned?'Desfijar':'Fijar'}</button><button type="button" class="gxev-btn danger" data-gxev-post-delete="${p.id}">Eliminar</button>`:''}</span></div><div class="gxev-post-body">${gxEventsEsc(p.body)}</div>${p.link_url&&gxEventsSafeHttpUrl(p.link_url)?`<a class="gxev-tiktok" href="${gxEventsEsc(gxEventsSafeHttpUrl(p.link_url))}" target="_blank" rel="noopener noreferrer">Abrir enlace ↗</a>`:''}${gxEventsRenderThreadAttachments(p.attachments)}<div class="gxev-reactions">${opts.map(([key,emoji])=>{const count=rx.filter(r=>r.reaction===key).length;return `<button type="button" class="gxev-post-reaction ${mine?.reaction===key?'active':''}" data-gxev-react-post="${p.id}" data-reaction="${key}" aria-label="Reaccionar ${emoji}">${emoji}<small>${count||''}</small></button>`;}).join('')}</div></article>`;}).join('');
+    const postsHTML=sorted.map(p=>{const u=d.profileMap.get(p.user_id)||{};const rx=d.reactions.filter(r=>r.post_id===p.id),mine=rx.find(r=>r.user_id===session.user.id);const opts=[['like','👍'],['heart','❤️'],['fire','🔥'],['clap','👏']];return `<article id="gxev-post-${p.id}" data-gxev-post-id="${p.id}" class="gxev-post ${p.is_pinned?'is-pinned':''}"><div class="gxev-post-meta"><span><b>@${gxEventsEsc(u.username||'Grayxon')}</b> · ${gxEventsEsc(formatDateTime(p.created_at))}${p.is_pinned?' · 📌 OFICIAL':''}</span><span class="gxev-actions">${owner?`<button type="button" class="gxev-btn" data-gxev-pin="${p.id}" data-pinned="${p.is_pinned?'1':'0'}">${p.is_pinned?'Desfijar':'Fijar'}</button><button type="button" class="gxev-btn danger" data-gxev-post-delete="${p.id}">Eliminar</button>`:''}</span></div><div class="gxev-post-body">${gxEventsEsc(p.body)}</div>${p.link_url&&gxEventsSafeHttpUrl(p.link_url)?`<a class="gxev-tiktok" href="${gxEventsEsc(gxEventsSafeHttpUrl(p.link_url))}" target="_blank" rel="noopener noreferrer">Abrir enlace ↗</a>`:''}${gxEventsRenderThreadAttachments(p.attachments)}<div class="gxev-reactions">${opts.map(([key,emoji])=>{const count=rx.filter(r=>r.reaction===key).length;return `<button type="button" class="gxev-post-reaction ${mine?.reaction===key?'active':''}" data-gxev-react-post="${p.id}" data-reaction="${key}" aria-label="Reaccionar ${emoji}">${emoji}<small>${count||''}</small></button>`;}).join('')}</div></article>`;}).join('');
     return `<div class="gxev-panel"><div class="gxev-panel-head"><div><h3>Hilo oficial del evento</h3><div class="gxev-muted">${d.posts.length} publicación${d.posts.length===1?'':'es'}</div></div>${(owner||gxEventsAdmin())?'<span class="gxev-pill">Publicación directa</span>':profile?.role==='manager'?'<span class="gxev-pill">Tus publicaciones requieren aprobación</span>':'<span class="gxev-pill">Solo lectura · reacciones habilitadas</span>'}</div><p class="gxev-muted">Aquí aparecen las publicaciones oficiales del evento. Los managers pueden enviar texto, archivos o notas de voz para revisión; administración publica solo después de aprobar.</p>${canPost?`<form id="gxevPostForm"><div class="gxev-field"><label>Nueva publicación</label><textarea name="body" maxlength="5000" placeholder="Escribe una novedad, instrucción o actualización del evento…"></textarea></div><div class="gxev-field"><label>Enlace opcional</label><input name="link_url" type="url" maxlength="1000" placeholder="https://..."></div><div class="gxev-field"><label>📎 Archivos adjuntos (máximo 8; imágenes, videos, audio, PDF y documentos)</label><input id="gxevPostFiles" name="attachments" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"><div class="gxev-muted" id="gxevPostFilesLabel" style="margin-top:6px">Ningún archivo seleccionado · máximo 100 MB en total</div></div><div class="gxev-field"><label>🎙️ Nota de voz</label><div class="gxev-actions"><button type="button" class="gxev-btn" data-gxev-record-audio>🎙️ Grabar audio</button><button type="button" class="gxev-btn danger" data-gxev-remove-audio style="display:none">Eliminar audio</button></div><div class="gxev-muted" id="gxevPostAudioStatus" style="margin-top:6px">Puedes grabar una nota de voz desde el navegador.</div><audio id="gxevPostAudioPreview" controls style="display:none;width:100%;max-width:560px;margin-top:8px"></audio></div><div class="gxev-actions"><button type="submit" class="gxev-btn primary">${(owner||gxEventsAdmin())?'Publicar en el hilo':'Enviar solicitud de publicación'}</button></div><div class="gxev-muted" id="gxevPostStatus" style="margin-top:8px"></div></form>`:''}</div>${postRequestsHTML}<div class="gxev-panel"><div class="gxev-thread">${postsHTML||'<div class="gxev-empty">Todavía no hay publicaciones oficiales del evento.</div>'}</div></div>`;
   }
   if(gxEventsActiveTab==='settings'&&admin){
@@ -6791,7 +6834,7 @@ const importConfirm=e.target.closest('#gxevParticipantImportConfirm');if(importC
     }
     return;
   }
-  if(b.dataset.gxevTab){gxEventsActiveTab=b.dataset.gxevTab;const d=gxEventsDashboardData;if(!d||d.event?.id!==gxEventsSelectedId){await gxEventsRenderDashboard(gxEventsCache.find(x=>x.id===gxEventsSelectedId),true);return;}const nav=document.querySelector('#events .gxev-localnav');nav?.querySelectorAll('[data-gxev-tab]').forEach(t=>t.classList.toggle('active',t.dataset.gxevTab===gxEventsActiveTab));const workspace=document.getElementById('gxevWorkspace');if(workspace)workspace.innerHTML=gxEventsRenderTab(d);return;}
+  if(b.dataset.gxevTab){gxEventsActiveTab=b.dataset.gxevTab;const d=gxEventsDashboardData;if(!d||d.event?.id!==gxEventsSelectedId){await gxEventsRenderDashboard(gxEventsCache.find(x=>x.id===gxEventsSelectedId),true);if(gxEventsActiveTab==='thread')await gxEventsMarkThreadRead(gxEventsSelectedId);return;}const nav=document.querySelector('#events .gxev-localnav');nav?.querySelectorAll('[data-gxev-tab]').forEach(t=>t.classList.toggle('active',t.dataset.gxevTab===gxEventsActiveTab));const workspace=document.getElementById('gxevWorkspace');if(workspace)workspace.innerHTML=gxEventsRenderTab(d);if(gxEventsActiveTab==='thread')await gxEventsMarkThreadRead(gxEventsSelectedId);return;}
   if(b.hasAttribute('data-gxev-edit')){await gxEventsOpenForm(gxEventsCache.find(x=>x.id===gxEventsSelectedId)||gxEventsDashboardData?.event);return;}
   if(b.hasAttribute('data-gxev-response')){b.disabled=true;try{await gxEventsRespond(b.dataset.gxevResponse);}finally{if(b.isConnected)b.disabled=false;}return;}
   if(b.dataset.gxevMissionToggle){const active=b.dataset.active!=='1';const r=await sb.from('gx_event_missions').update({is_active:active,updated_at:new Date().toISOString()}).eq('id',b.dataset.gxevMissionToggle);if(r.error)toast(r.error.message);else{toast(active?'Misión activada':'Misión desactivada');await gxEventsReloadDashboard(gxEventsSelectedId,true);}return;}
@@ -6828,4 +6871,4 @@ async function gxEventsGenerateRound(phaseId=null){if(!gxEventsAdmin())return;co
 async function gxEventsSaveMatchSchedule(matchId){if(!gxEventsAdmin())return;const m=gxEventsDashboardData?.matches.find(x=>x.id===matchId);if(!m)return;const input=document.querySelector(`[data-gxev-match-schedule="${matchId}"]`);const raw=String(input?.value||'');if(!raw)return toast('Selecciona la fecha y hora de la batalla.');const round=(gxEventsDashboardData?.rounds||[]).find(r=>r.id===m.round_id),phase=(gxEventsDashboardData?.phases||[]).find(p=>p.id===round?.phase_id);const selected=new Date(raw+'-05:00');if(!Number.isFinite(selected.getTime()))return toast('La fecha y hora no son válidas.');if(phase){const start=new Date(phase.starts_at),end=new Date(phase.ends_at);if(selected<start||selected>end)return toast('El horario debe estar dentro del rango de la fase seleccionada.');}const btn=document.querySelector(`[data-gxev-save-schedule="${matchId}"]`);if(btn)btn.disabled=true;try{const r=await sb.from('gx_event_matches').update({scheduled_at:selected.toISOString(),updated_at:new Date().toISOString()}).eq('id',matchId);if(r.error)return toast('No se pudo guardar el horario: '+r.error.message);const notify=await sb.rpc('gx_events_notify_match_update',{p_match_id:matchId});if(notify.error)console.warn('No se pudo notificar el cambio de horario:',notify.error);toast(notify.error?'Horario guardado, pero falló la notificación.':'Fecha y hora guardadas y notificadas ✓');await gxEventsReloadDashboard(gxEventsSelectedId,true);}finally{if(btn?.isConnected)btn.disabled=false;}}
 async function gxEventsSaveMatch(matchId){if(!gxEventsAdmin())return;const m=gxEventsDashboardData?.matches.find(x=>x.id===matchId);if(!m)return;const select=document.querySelector(`[data-gxev-match-result="${matchId}"]`),sa=document.querySelector(`[data-gxev-score-a="${matchId}"]`),sbx=document.querySelector(`[data-gxev-score-b="${matchId}"]`),value=String(select?.value||'');if(!value)return toast('Selecciona ganador o empate.');const winner=value==='a'?m.participant_a_id:value==='b'?m.participant_b_id:null,scoreA=sa?.value===''?null:Number(sa?.value),scoreB=sbx?.value===''?null:Number(sbx?.value);const r=await sb.rpc('gx_events_save_match_result',{p_match_id:matchId,p_winner_participant_id:winner,p_score_a:scoreA,p_score_b:scoreB,p_notes:null});if(r.error)return toast(r.error.message);toast('Resultado guardado y avisos enviados ✓');await gxEventsReloadDashboard(gxEventsSelectedId,true);}
 
-(function gxEventsBindModuleV23(){if(window.__gxEventsModuleV23Bound)return;window.__gxEventsModuleV23Bound=true;document.addEventListener('change',e=>{if(e.target?.id==='gxevParticipantCsv')gxEventsChange(e);},{capture:true});document.addEventListener('click',e=>{const b=e.target.closest?.('[data-gx-open-events]');if(!b)return;e.preventDefault();if(!session?.user?.id){nav('auth');return;}gxEventsSelectedId=null;gxEventsExitFullscreen();nav('events');});const refresh=()=>{gxEventsInjectDashboardCard();if(session?.user?.id)gxEventsRefreshUnreadCount().catch(()=>{});};window.addEventListener('focus',refresh);window.addEventListener('pageshow',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});const observer=new MutationObserver(ms=>{let maybe=false;for(const m of ms)for(const n of Array.from(m.addedNodes||[])){if(n.nodeType!==1)continue;if(n.matches?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards')||n.querySelector?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards'))maybe=true;}if(maybe)gxEventsInjectDashboardCard();});observer.observe(document.body,{childList:true,subtree:true});setTimeout(refresh,250);setTimeout(refresh,1200);setInterval(()=>{if(!document.hidden&&session?.user?.id)gxEventsRefreshUnreadCount().catch(()=>{});},30000);})();
+(function gxEventsBindModuleV23(){if(window.__gxEventsModuleV23Bound)return;window.__gxEventsModuleV23Bound=true;document.addEventListener('change',e=>{if(e.target?.id==='gxevParticipantCsv')gxEventsChange(e);},{capture:true});document.addEventListener('click',async e=>{const b=e.target.closest?.('[data-gx-open-events]');if(!b)return;e.preventDefault();if(!session?.user?.id){nav('auth');return;}gxEventsSelectedId=null;gxPendingEventPostTarget=null;gxPendingEventTab=null;gxEventsExitFullscreen();try{const {data,error}=await sb.rpc('gx_events_latest_unread_post');const latest=!error&&Array.isArray(data)?data[0]:null;if(latest?.event_id&&latest?.post_id){gxPendingEventTarget=latest.event_id;gxPendingEventPostTarget=latest.post_id;gxPendingEventTab='thread';}}catch(err){console.warn('Eventos: abrir publicación pendiente',err);}nav('events');});const refresh=()=>{gxEventsInjectDashboardCard();if(session?.user?.id)gxEventsRefreshUnreadCount().catch(()=>{});};window.addEventListener('focus',refresh);window.addEventListener('pageshow',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});const observer=new MutationObserver(ms=>{let maybe=false;for(const m of ms)for(const n of Array.from(m.addedNodes||[])){if(n.nodeType!==1)continue;if(n.matches?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards')||n.querySelector?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards'))maybe=true;}if(maybe)gxEventsInjectDashboardCard();});observer.observe(document.body,{childList:true,subtree:true});setTimeout(refresh,250);setTimeout(refresh,1200);setInterval(()=>{if(!document.hidden&&session?.user?.id)gxEventsRefreshUnreadCount().catch(()=>{});},30000);})();
