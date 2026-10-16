@@ -608,6 +608,22 @@ async function openNotification(id) {
   if (!n) return;
   await markNotificationRead(id);
   $('#notificationsPanel')?.classList.add('hidden');
+  // Batallas: abre el evento y desplaza directamente al cruce asignado.
+  if (n.link_page === 'event-match') {
+    const matchId = String(n.link_target || '');
+    if (GRAYXON_UUID_RE.test(matchId)) {
+      const { data: match, error } = await sb.from('gx_event_matches').select('event_id').eq('id', matchId).maybeSingle();
+      if (!error && match?.event_id) {
+        gxPendingEventTarget = match.event_id;
+        gxPendingEventMatchTarget = matchId;
+        gxEventsActiveTab = 'missions';
+        nav('events');
+        return;
+      }
+    }
+    toast('Esta batalla ya no está disponible o no tienes acceso.');
+    return;
+  }
   // Eventos: reutiliza la ruta normal de Grayxon y abre el evento exacto después de cargar la lista.
   if (n.type === 'event' || n.link_page === 'events') {
     const target = String(n.link_target || '');
@@ -5822,6 +5838,7 @@ let gxEventsMyParticipants=[];
 let gxEventsMyResponses=[];
 let gxEventsMediaCache=[];
 let gxPendingEventTarget=null;
+let gxPendingEventMatchTarget=null;
 let gxEventsFilter='in_progress';
 let gxEventsSelectedId=null;
 let gxEventsActiveTab='overview';
@@ -6133,6 +6150,18 @@ async function gxEventsRenderDashboard(ev,quiet=false){
     <section class="gxev-rank-feature gxev-rank-feature-compact"><div class="gxev-rank-feature-head"><span class="gxev-eyebrow">🏆 CLASIFICACIÓN DEL EVENTO</span><span class="gxev-pill">${d.leaderboard.length} participantes</span></div><div class="gxev-rank-compact-list">${[2,1,3].map(place=>{const r=d.leaderboard.find(x=>Number(x.rank_position)===place)||d.leaderboard[place-1];return r?`<div class="gxev-rank-compact-row gxev-rank-compact-row-${place}"><span>${place===1?'🥇':place===2?'🥈':'🥉'} ${place}º</span><b>@${gxEventsEsc(r.username||'usuario')}</b><strong>${gxEventsFormatNumber(r.points)} pts</strong></div>`:''}).join('')||'<div class="gxev-empty">Aún no hay participantes en la clasificación.</div>'}</div><button type="button" class="gxev-rank-cta-button" data-gxev-open-full-ranking>Ver ranking completo →</button></section>
     <div class="gxev-layout"><nav class="gxev-localnav">${(admin?[['overview','⌂','Centro de eventos'],['settings','⚙','Creador de eventos'],['missions','◷','Misiones configurables'],['thread','☰','Hilo oficial']]:[['overview','⌂','Resumen'],['missions','◷','Misiones'],['thread','☰','Hilo oficial']]).map(([key,icon,label])=>`<button type="button" class="${gxEventsActiveTab===key?'active':''} ${key==='ranking'?'gxev-nav-rank':''}" data-gxev-tab="${key}"><span>${icon}</span>${label}</button>`).join('')}</nav><div class="gxev-workspace" id="gxevWorkspace">${gxEventsRenderTab(d)}</div></div>`;
   await gxEventsRefreshUnreadCount();
+  if(gxPendingEventMatchTarget){
+    const matchTarget=gxPendingEventMatchTarget;
+    gxPendingEventMatchTarget=null;
+    setTimeout(()=>{
+      const target=document.getElementById('gxev-battle-'+matchTarget);
+      if(target){
+        target.scrollIntoView({behavior:'smooth',block:'center'});
+        target.classList.add('gxev-battle-highlight');
+        setTimeout(()=>target.classList.remove('gxev-battle-highlight'),2600);
+      }else toast('La batalla no está visible para esta cuenta o ya no existe.');
+    },180);
+  }
 }
 
 function gxEventsMatchCard(m,d){
@@ -6152,13 +6181,13 @@ function gxEventsMatchCard(m,d){
     const opponentHandle=opponent?.tiktok_username||opponentRank?.tiktok_username||'';
     const opponentName=opponentRank?.username||opponentProfile?.username||opponentHandle||'tu contrincante';
     const opponentUrl=gxEventsTikTokUrl(opponentHandle);
-    return `<article class="gxev-mission gxev-battle-creator gxev-battle-simple"><div class="gxev-mission-top"><h4>${gxEventsEsc(phase?.title||round?.title||'Batalla')}</h4><span class="gxev-pill">${gxEventsEsc(resultLabel)}</span></div><p class="gxev-battle-simple-opponent"><strong>Contrincante:</strong> @${gxEventsEsc(opponentName)}</p>${m.scheduled_at?`<p class="gxev-muted">${gxEventsFmtDate(m.scheduled_at)}</p>`:''}${opponentUrl?`<a class="gxev-btn primary gxev-follow-opponent" href="${gxEventsEsc(opponentUrl)}" target="_blank" rel="noopener noreferrer">Seguir ↗</a>`:`<span class="gxev-muted">El usuario de TikTok del contrincante aún no está disponible.</span>`}</article>`;
+    return `<article id="gxev-battle-${m.id}" tabindex="0" data-gxev-battle-card="${m.id}" class="gxev-mission gxev-battle-creator gxev-battle-simple"><div class="gxev-mission-top"><h4>${gxEventsEsc(phase?.title||round?.title||'Batalla')}</h4><span class="gxev-pill">${gxEventsEsc(resultLabel)}</span></div><p class="gxev-battle-simple-opponent"><strong>Contrincante:</strong> @${gxEventsEsc(opponentName)}</p>${m.scheduled_at?`<p class="gxev-muted">${gxEventsFmtDate(m.scheduled_at)}</p>`:''}${opponentUrl?`<a class="gxev-btn primary gxev-follow-opponent" href="${gxEventsEsc(opponentUrl)}" target="_blank" rel="noopener noreferrer">Seguir ↗</a>`:`<span class="gxev-muted">El usuario de TikTok del contrincante aún no está disponible.</span>`}</article>`;
   }
   const participantOption=(p,sideId)=>{const profile=d.profileMap.get(p.user_id)||d.profiles.find(x=>x.id===p.user_id)||{};return `<option value="${gxEventsEsc(p.id)}" ${p.id===sideId?'selected':''}>${gxEventsEsc('@'+(profile.username||profile.full_name||p.tiktok_username||p.user_id.slice(0,8)))}</option>`;};
   const available=d.participants.filter(p=>p.id===m.participant_a_id||p.id===m.participant_b_id||p.user_id!==a?.user_id&&p.user_id!==b?.user_id);
   const lineup=d.admin&&m.status!=='bye'? `<div class="gxev-form" style="margin-top:12px"><div class="gxev-field"><label>Participante A</label><select data-gxev-match-side-a="${m.id}">${a&&!available.some(p=>p.id===a.id)?participantOption(a,m.participant_a_id):''}${available.map(p=>participantOption(p,m.participant_a_id)).join('')}</select></div><div class="gxev-field"><label>Participante B</label><select data-gxev-match-side-b="${m.id}"><option value="">Selecciona rival…</option>${b&&!available.some(p=>p.id===b.id)?participantOption(b,m.participant_b_id):''}${available.map(p=>participantOption(p,m.participant_b_id)).join('')}</select></div><div class="full gxev-actions"><button type="button" class="gxev-btn primary" data-gxev-save-lineup="${m.id}">Guardar participantes</button></div></div>`:'';
   const adminControls=d.admin&&m.status!=='bye'? `<div class="gxev-form" style="margin-top:10px"><div class="gxev-field"><label>Fecha y hora de esta batalla</label><input type="datetime-local" data-gxev-match-schedule="${m.id}" value="${gxEventsEsc(scheduleValue)}"></div><div class="gxev-field" style="align-self:end"><button type="button" class="gxev-btn" data-gxev-save-schedule="${m.id}">Guardar horario</button></div></div><div class="gxev-field" style="margin-top:10px"><label>Resultado</label><select data-gxev-match-result="${m.id}"><option value="">Pendiente</option><option value="a" ${m.winner_participant_id===m.participant_a_id&&m.status==='completed'?'selected':''}>Gana @${gxEventsEsc(an)}</option><option value="b" ${m.winner_participant_id===m.participant_b_id&&m.status==='completed'?'selected':''}>Gana @${gxEventsEsc(bn)}</option><option value="draw" ${m.status==='completed'&&!m.winner_participant_id?'selected':''}>Empate</option></select></div><div class="gxev-form" style="margin-top:8px"><div class="gxev-field"><label>Puntaje A (opcional)</label><input type="number" min="0" step="1" data-gxev-score-a="${m.id}" value="${m.score_a??''}"></div><div class="gxev-field"><label>Puntaje B (opcional)</label><input type="number" min="0" step="1" data-gxev-score-b="${m.id}" value="${m.score_b??''}"></div></div><button type="button" class="gxev-btn primary" style="margin-top:8px" data-gxev-save-match="${m.id}">Guardar resultado</button><div class="gxev-actions" style="margin-top:12px"><button type="button" class="gxev-btn" data-gxev-cancel-match="${m.id}">${m.status==='cancelled'?'Reactivar batalla':'Cancelar batalla'}</button><button type="button" class="gxev-row-remove" data-gxev-delete-match="${m.id}">Eliminar batalla</button></div>`:'';
-  return `<article class="gxev-battle"><div class="gxev-panel-head"><span class="gxev-pill">${gxEventsEsc(m.status==='cancelled'?'CANCELADA':m.status==='bye'?'PASE LIBRE':m.status==='completed'?'RESULTADO REGISTRADO':'BATALLA')}</span><span class="gxev-muted">${m.score_a!=null||m.score_b!=null?`${m.score_a??'—'} : ${m.score_b??'—'}`:''}</span></div><div class="gxev-versus"><div><b>@${gxEventsEsc(an)}</b>${gxEventsTikTokUrl(at)?`<br><a class="gxev-tiktok" href="${gxEventsEsc(gxEventsTikTokUrl(at))}" target="_blank" rel="noopener noreferrer">Abrir TikTok ↗</a>`:''}</div><div class="gxev-vs">VS</div><div class="right"><b>${b?'@'+gxEventsEsc(bn):gxEventsEsc(bn)}</b>${gxEventsTikTokUrl(bt)?`<br><a class="gxev-tiktok" href="${gxEventsEsc(gxEventsTikTokUrl(bt))}" target="_blank" rel="noopener noreferrer">Abrir TikTok ↗</a>`:''}</div></div><div class="gxev-muted">${gxEventsEsc(resultLabel)}</div><div class="gxev-muted">📅 ${m.scheduled_at?`Fecha y hora: ${gxEventsFmtDate(m.scheduled_at)}`:'Horario pendiente de asignar'}${phase?` · Rango permitido: ${gxEventsFmtDate(phase.starts_at)} – ${gxEventsFmtDate(phase.ends_at)}`:''}</div>${lineup}${adminControls}</article>`;
+  return `<article id="gxev-battle-${m.id}" tabindex="0" data-gxev-battle-card="${m.id}" class="gxev-battle"><div class="gxev-panel-head"><span class="gxev-pill">${gxEventsEsc(m.status==='cancelled'?'CANCELADA':m.status==='bye'?'PASE LIBRE':m.status==='completed'?'RESULTADO REGISTRADO':'BATALLA')}</span><span class="gxev-muted">${m.score_a!=null||m.score_b!=null?`${m.score_a??'—'} : ${m.score_b??'—'}`:''}</span></div><div class="gxev-versus"><div><b>@${gxEventsEsc(an)}</b>${gxEventsTikTokUrl(at)?`<br><a class="gxev-tiktok" href="${gxEventsEsc(gxEventsTikTokUrl(at))}" target="_blank" rel="noopener noreferrer">Abrir TikTok ↗</a>`:''}</div><div class="gxev-vs">VS</div><div class="right"><b>${b?'@'+gxEventsEsc(bn):gxEventsEsc(bn)}</b>${gxEventsTikTokUrl(bt)?`<br><a class="gxev-tiktok" href="${gxEventsEsc(gxEventsTikTokUrl(bt))}" target="_blank" rel="noopener noreferrer">Abrir TikTok ↗</a>`:''}</div></div><div class="gxev-muted">${gxEventsEsc(resultLabel)}</div><div class="gxev-muted">📅 ${m.scheduled_at?`Fecha y hora: ${gxEventsFmtDate(m.scheduled_at)}`:'Horario pendiente de asignar'}${phase?` · Rango permitido: ${gxEventsFmtDate(phase.starts_at)} – ${gxEventsFmtDate(phase.ends_at)}`:''}</div>${lineup}${adminControls}</article>`;
 }
 async function gxEventsSaveMatchLineup(matchId){
   if(!gxEventsAdmin())return;const m=gxEventsDashboardData?.matches.find(x=>x.id===matchId);if(!m)return;
@@ -6198,12 +6227,12 @@ function gxEventsRenderTab(d){
     const visibleRounds=(d.rounds||[]).filter(r=>admin||(d.matches||[]).some(m=>m.round_id===r.id&&myParticipant&&(m.participant_a_id===myParticipant.id||m.participant_b_id===myParticipant.id)));
     const missionCard=(m)=>{
       const p=ownProgress.find(x=>x.mission_id===m.id),pct=p?Math.min(100,Number(p.value)/Math.max(1,Number(m.target_value))*100):0,canSubmit=false;
-      return `<article class="gxev-mission"><div class="gxev-mission-top"><div><h4>${gxEventsEsc(m.title)}</h4><div class="gxev-muted">${gxEventsEsc(gxEventsMetricLabel(m.metric_key))}</div></div><span class="gxev-pill">${gxEventsFormatNumber(m.points_per_unit)} pts/u</span></div><p class="gxev-muted">Meta: ${gxEventsFormatNumber(m.target_value)} ${gxEventsEsc(m.unit_label)}${Number(m.completion_bonus)>0?` · Bono ${gxEventsFormatNumber(m.completion_bonus)} pts`:''}${m.score_over_target?' · Se suman excedentes':''}</p>${m.description?`<p class="gxev-muted">${gxEventsEsc(m.description)}</p>`:''}${!admin?`<div class="gxev-bar"><span style="width:${pct}%"></span></div><div class="gxev-muted">Tu avance: ${p?gxEventsFormatNumber(p.value)+' '+gxEventsEsc(m.unit_label)+' · '+({pending:'En revisión',approved:'Aprobado',rejected:'Devuelto para ajustar'}[p.status]||p.status):'Sin registro'}${p?.status==='approved'?` · ${gxEventsFormatNumber((m.score_over_target?Number(p.value):Math.min(Number(p.value),Number(m.target_value)))*Number(m.points_per_unit)+(Number(p.value)>=Number(m.target_value)?Number(m.completion_bonus):0))} puntos`:''}</div>`:`<div class="gxev-actions"><button type="button" class="gxev-btn" data-gxev-edit>Editar configuración del evento</button><button type="button" class="gxev-btn" data-gxev-mission-toggle="${m.id}" data-active="1">Desactivar</button></div>`}</article>`;
+      return `<article class="gxev-mission"><div class="gxev-mission-top"><div><h4>${gxEventsEsc(m.title)}</h4><div class="gxev-muted">${gxEventsEsc(gxEventsMetricLabel(m.metric_key))}</div></div><span class="gxev-pill">${gxEventsFormatNumber(m.points_per_unit)} pts/u</span></div><p class="gxev-muted">Meta: ${gxEventsFormatNumber(m.target_value)} ${gxEventsEsc(m.unit_label)}${Number(m.completion_bonus)>0?` · Bono ${gxEventsFormatNumber(m.completion_bonus)} pts`:''}${m.score_over_target?' · Se suman excedentes':''}</p>${m.description?`<details class="gxev-description" style="margin:10px 0"><summary style="cursor:pointer;color:#c7a35b;font-size:13px;font-weight:800">Ver descripción y requisitos</summary><p class="gxev-muted" style="white-space:pre-line;margin-top:9px">${gxEventsEsc(m.description)}</p></details>`:''}${!admin?`<div class="gxev-bar"><span style="width:${pct}%"></span></div><div class="gxev-muted">Tu avance: ${p?gxEventsFormatNumber(p.value)+' '+gxEventsEsc(m.unit_label)+' · '+({pending:'En revisión',approved:'Aprobado',rejected:'Devuelto para ajustar'}[p.status]||p.status):'Sin registro'}${p?.status==='approved'?` · ${gxEventsFormatNumber((m.score_over_target?Number(p.value):Math.min(Number(p.value),Number(m.target_value)))*Number(m.points_per_unit)+(Number(p.value)>=Number(m.target_value)?Number(m.completion_bonus):0))} puntos`:''}</div>`:`<div class="gxev-actions"><button type="button" class="gxev-btn" data-gxev-edit>Editar configuración del evento</button><button type="button" class="gxev-btn" data-gxev-mission-toggle="${m.id}" data-active="1">Desactivar</button></div>`}</article>`;
     };
     const roundHTML=(r)=>{
       const mm=d.matches.filter(m=>m.round_id===r.id&&(admin||(myParticipant&&(m.participant_a_id===myParticipant.id||m.participant_b_id===myParticipant.id))));
       const content=`${mm.length?mm.map(m=>gxEventsMatchCard(m,d)).join(''):'<div class="gxev-empty">No hay batallas asignadas a esta ronda para mostrar.</div>'}`;
-      if(!admin)return `<section class="gxev-battle-round gxev-battle-round-visible"><div class="gxev-panel-head"><div><h4>⚔ ${gxEventsEsc(r.title)}</h4><div class="gxev-muted">${r.phase_id?gxEventsEsc(d.phases.find(p=>p.id===r.phase_id)?.title||'Fase'):'Batallas sin fase asignada'}</div></div><span class="gxev-pill">${mm.length} batallas</span></div><div class="gxev-battles">${content}</div></section>`;
+      if(!admin){const phase=d.phases.find(p=>p.id===r.phase_id);return `<section class="gxev-battle-round gxev-battle-round-visible"><div class="gxev-panel-head"><div><h4>⚔ ${gxEventsEsc(phase?.title||r.title)}</h4><div class="gxev-muted">${phase?`${gxEventsFmtDate(phase.starts_at)} – ${gxEventsFmtDate(phase.ends_at)}`:'Batallas sin fase asignada'}</div></div><span class="gxev-pill">${mm.length} batallas</span></div><div class="gxev-battles">${content}</div></section>`;}
       return `<details class="gxev-battle-round"><summary class="gxev-panel-head"><div><h4>⚔ ${gxEventsEsc(r.title)}</h4><div class="gxev-muted">${r.phase_id?gxEventsEsc(d.phases.find(p=>p.id===r.phase_id)?.title||'Fase'): 'Batallas sin fase asignada'}</div></div><span class="gxev-pill">${mm.length} cruces</span></summary><div class="gxev-battles">${content}</div></details>`;
     };
     const phaseBuckets=d.phases.map((phase,index)=>({phase,index}));

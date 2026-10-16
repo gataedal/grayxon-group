@@ -9,6 +9,9 @@ function resolveTarget(data) {
   const value = String(raw || '');
   const uuidMatch = value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
+  // Battle IDs are resolved by the portal after restoring the session; never treat them as LIVE IDs.
+  if (page === 'event-match') return './portal.html?grayxonPush=1&page=events#events';
+
   // Payment routes take priority over UUID matching (which used to assume LIVE).
   if (page === 'payments' || value.toLowerCase() === 'payments' || data?.type === 'payment' || nested?.type === 'payment') {
     const target = uuidMatch ? value : String(data?.link_target || nested?.link_target || data?.target || nested?.target || '');
