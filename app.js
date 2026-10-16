@@ -6130,6 +6130,17 @@ async function gxEventsRenderDashboard(ev,quiet=false){
   if(userIds.length){const pr=await sb.from('profiles').select('id,username,full_name,role,active,team_id').in('id',userIds);if(!pr.error)d.profiles=pr.data||[];}
   d.availableCreators=[];d.teams=[];
   if(admin){const [cr,tr]=await Promise.all([sb.from('profiles').select('id,username,full_name,role,active,team_id').eq('active',true).in('role',['creator','manager']).order('username'),sb.from('teams').select('id,name,manager_id').order('name')]);d.availableCreators=cr.data||[];d.teams=tr.data||[];}
+  d.managerCreators=[];d.enrollmentRequests=[];
+  if(profile?.role==='manager'){
+    let cq=sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id').eq('role','creator').eq('active',true);
+    const cr=profile.team_id?await cq.or('manager_id.eq.'+session.user.id+',team_id.eq.'+profile.team_id):await cq.eq('manager_id',session.user.id);
+    if(!cr.error)d.managerCreators=cr.data||[];
+  }
+  if(admin||profile?.role==='manager'){
+    let rq=sb.from('gx_event_enrollment_requests').select('*').eq('event_id',id).order('created_at',{ascending:false});
+    if(profile?.role==='manager')rq=rq.eq('manager_user_id',session.user.id);
+    const rr=await rq;if(!rr.error)d.enrollmentRequests=rr.data||[];
+  }
   d.profileMap=new Map(d.profiles.map(p=>[p.id,p]));d.participantById=new Map(d.participants.map(p=>[p.id,p]));
   const rankRows=new Map((d.leaderboard||[]).map(r=>[r.user_id,{...r}]));
   for(const participant of d.participants){const profile=d.profileMap.get(participant.user_id)||{};let row=rankRows.get(participant.user_id);
