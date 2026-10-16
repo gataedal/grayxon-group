@@ -631,7 +631,7 @@ async function openNotification(id) {
     return;
   }
   // Eventos: reutiliza la ruta normal de Grayxon y abre el evento exacto después de cargar la lista.
-  if (n.type === 'event' || n.link_page === 'events') {
+  if (n.type === 'event' || n.link_page === 'events' || n.link_page === 'event-thread') {
     const target = String(n.link_target || '');
     gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
     gxPendingEventTab = n.link_page === 'event-thread' || /hilo oficial|nueva publicación en un evento/i.test(String(n.title||'')) ? 'thread' : (gxEventsAdmin() && /solicitud de inscripci[oó]n/i.test(String(n.title||'')) ? 'enrollment-requests' : null);
