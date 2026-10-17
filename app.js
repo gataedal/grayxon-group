@@ -2467,36 +2467,39 @@ async function startGrayxonLiveTraining(training, options={}){
     // Recalcular el tamaño del iframe tras la inicialización. En Grayxon la sala se
     // abre dentro de una vista que cambia a pantalla completa; Jitsi puede conservar
     // las dimensiones previas y dejar el vídeo negro aunque las pistas estén activas.
+    // El contenedor cambia de una tarjeta normal a una sala de pantalla completa.
+    // Mantener el iframe sincronizado con el tamaño REAL del host evita que Jitsi
+    // conserve dimensiones antiguas al abrir/cerrar la sala.
+    let gxJitsiResizeObserver = null;
     const resizeGrayxonJitsi = () => {
       if (jaasApi !== api || !host.isConnected) return;
       const rect = host.getBoundingClientRect();
       if (rect.width < 2 || rect.height < 2) return;
       try {
-        if (typeof api.resize === 'function') api.resize(Math.round(rect.width), Math.round(rect.height));
         const frame = host.querySelector('iframe');
         if (frame) {
-          frame.style.setProperty('display', 'block', 'important');
-          frame.style.setProperty('position', 'absolute', 'important');
-          frame.style.setProperty('inset', '0', 'important');
-          frame.style.setProperty('width', '100%', 'important');
-          frame.style.setProperty('height', '100%', 'important');
-          frame.style.setProperty('min-width', '0', 'important');
-          frame.style.setProperty('min-height', '0', 'important');
-          frame.style.setProperty('border', '0', 'important');
-          // Explicitly grant media capabilities to the cross-origin Jitsi iframe.
+          frame.style.display = 'block';
+          frame.style.width = '100%';
+          frame.style.height = '100%';
+          frame.style.border = '0';
           frame.setAttribute('allow', 'camera; microphone; autoplay; fullscreen; display-capture; clipboard-write');
           frame.setAttribute('allowfullscreen', '');
-          frame.setAttribute('webkitallowfullscreen', '');
-          frame.setAttribute('mozallowfullscreen', '');
           frame.removeAttribute('aria-hidden');
           frame.tabIndex = 0;
         }
+        if (typeof api.resize === 'function') api.resize(Math.round(rect.width), Math.round(rect.height));
       } catch (err) {
         console.warn('No se pudo recalcular el tamaño de Jitsi:', err);
       }
     };
     const scheduleGrayxonJitsiResize = () => {
-      [0, 250, 800, 1600].forEach(delay => setTimeout(resizeGrayxonJitsi, delay));
+      [0, 100, 300, 700, 1400].forEach(delay => setTimeout(resizeGrayxonJitsi, delay));
+      if (typeof ResizeObserver === 'function') {
+        if (!gxJitsiResizeObserver) {
+          gxJitsiResizeObserver = new ResizeObserver(() => resizeGrayxonJitsi());
+          gxJitsiResizeObserver.observe(host);
+        }
+      }
     };
     api.addEventListener?.('ready',()=>{
       // "ready" solo indica que el iframe/API está lista; la sesión multimedia todavía
