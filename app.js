@@ -2499,7 +2499,8 @@ async function startGrayxonLiveTraining(training, options={}){
       [0, 250, 800, 1600].forEach(delay => setTimeout(resizeGrayxonJitsi, delay));
     };
     api.addEventListener?.('ready',()=>{
-      gxJitsiReady=true;
+      // "ready" solo indica que el iframe/API está lista; la sesión multimedia todavía
+      // puede no existir. No habilitar cámara/micrófono hasta videoConferenceJoined.
       gxLogVideoDiag('ready');
       scheduleGrayxonJitsiResize();
     });
