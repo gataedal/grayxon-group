@@ -331,6 +331,14 @@ const GRAYXON_LIVE_TRAINING_ROOM = 'grayxon-live-training';
 // v14: training audiences are controlled by live_training_audience + RLS.
 let jaasApi = null;
 let jaasApiRoom = null;
+let gxLiveCallRealtimeChannel = null;
+let gxLiveCallRealtimeTrainingId = null;
+async function sendGrayxonLiveBroadcast(event,payload){
+  const channel=gxLiveCallRealtimeChannel;
+  if(!channel){console.warn('Grayxon LIVE: canal de sincronización aún no está conectado.',event);return {error:new Error('Canal de sincronización no conectado')};}
+  try{return await channel.send({type:'broadcast',event,payload});}
+  catch(error){console.warn('Grayxon LIVE: no se pudo enviar el evento',event,error);return {error};}
+}
 let currentLiveTraining = null;
 let currentLiveParticipantRow = null;
 let liveTrainingEnding = false;
@@ -2198,6 +2206,10 @@ async function getSelfHostedJitsiJwt(trainingId) {
 function destroyJaasMeeting() {
   if (jaasApi) { try { jaasApi.dispose(); } catch (_) {} }
   jaasApi = null; jaasApiRoom = null;
+  if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
+  gxLiveCallRealtimeTrainingId=null;
+  grayxonRaisedHands.clear();
+  window.__gxLocalParticipantId=null;
 }
 async function recordLiveTrainingJoin(trainingId){
   if(!trainingId||!session?.user?.id)return null;
@@ -2357,12 +2369,29 @@ async function startGrayxonLiveTraining(training, options={}){
       }
     });
     jaasApi=api; jaasApiRoom=roomName;
+    // Sincronización de controles propios de Grayxon por entrenamiento; no depende del chat de Jitsi.
+    if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
+    gxLiveCallRealtimeTrainingId=training.id;
+    gxLiveCallRealtimeChannel=sb.channel(`grayxon-live-call-${training.id}`,{config:{broadcast:{self:false}}})
+      .on('broadcast',{event:'hand'},({payload})=>{
+        if(!payload||payload.userId===session?.user?.id)return;
+        const participantId=String(payload.participantId||'');
+        if(participantId)grayxonRaisedHands.set(participantId,!!payload.raised);
+        refreshGrayxonParticipants(api);
+        if(payload.raised&&(isHost||isAdmin))toast('✋ '+String(payload.name||'Un participante')+' levantó la mano');
+      })
+      .on('broadcast',{event:'reaction'},({payload})=>{
+        if(!payload||payload.userId===session?.user?.id||!payload.emoji)return;
+        showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));
+        playGrayxonSound('reaction');
+      })
+      .subscribe(status=>{if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Grayxon LIVE: error en canal de sincronización',status);});
     let gxJitsiReady=false;
     let gxAudioMuted=true;
     let gxVideoMuted=true;
     let gxHandRaised=false;
     const callControls=$('.gx-call-controls');
-    const callCommand={audio:'toggleAudio',video:'toggleVideo',hand:'toggleRaiseHand'};
+    const callCommand={audio:'toggleAudio',video:'toggleVideo'};
     callControls?.querySelectorAll('[data-gx-call]').forEach(button=>{
       button.onclick=()=>{
         const action=button.getAttribute('data-gx-call');
@@ -2387,6 +2416,17 @@ async function startGrayxonLiveTraining(training, options={}){
             button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;
           }
           if(!gxJitsiReady){toast('La llamada todavía se está conectando…');return;}
+          if(action==='hand'){
+            gxHandRaised=!gxHandRaised;
+            const handButton=$('[data-gx-call="hand"]');
+            if(handButton){handButton.setAttribute('aria-pressed',String(gxHandRaised));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=gxHandRaised?'Bajar la mano':'Levantar la mano';}
+            let localId=window.__gxLocalParticipantId;
+            if(!localId){try{const ps=await api.getParticipantsInfo();const lp=Array.isArray(ps)?ps.find(p=>p.isLocal):null;localId=lp?.participantId||lp?.id||null;window.__gxLocalParticipantId=localId;}catch(_){}}
+            if(localId)grayxonRaisedHands.set(localId,gxHandRaised);
+            refreshGrayxonParticipants(api);
+            sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,participantId:localId,raised:gxHandRaised,name:profile?.full_name||profile?.username||'Participante'}).then(result=>{if(result?.error)console.warn('Grayxon LIVE: no se sincronizó la mano.');});
+            return;
+          }
           if(callCommand[action]) api.executeCommand(callCommand[action]);
         } catch(err) { console.warn('No se pudo ejecutar el control de llamada:',action,err); }
       };
@@ -2491,21 +2531,9 @@ async function startGrayxonLiveTraining(training, options={}){
 
     api.addEventListener?.('participantJoined',ev=>{gxLogVideoDiag('participantJoined', ev);refreshGrayxonParticipants(api);});
     api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);});
-    api.addEventListener?.('raiseHandUpdated',ev=>{
-      const id=ev?.id||ev?.participantId||'';
-      const localId=!!ev?.id && (ev.id===window.__gxLocalParticipantId || ev.participantId===window.__gxLocalParticipantId);
-      if(id)grayxonRaisedHands.set(id,!!ev.handRaised);
-      if(localId){
-        gxHandRaised=!!ev.handRaised;
-        const b=$('[data-gx-call="hand"]');
-        if(b){b.setAttribute('aria-pressed',String(gxHandRaised));const label=b.querySelector('[data-gx-hand-label]');if(label)label.textContent=gxHandRaised?'Bajar la mano':'Levantar la mano';}
-      }
-      if(ev?.handRaised && (isHost||isAdmin) && !localId){
-        const who=ev?.name||ev?.displayName||'Un participante';
-        toast('✋ '+who+' levantó la mano');
-      }
-      refreshGrayxonParticipants(api);
-    });
+    // El estado de la mano se gestiona con el canal de Grayxon y el ID del participante,
+    // evitando que eventos nativos con formatos distintos se asignen a otra persona.
+    api.addEventListener?.('raiseHandUpdated',ev=>gxLogVideoDiag('raiseHandUpdated',ev));
     api.addEventListener?.('dominantSpeakerChanged',ev=>{window.__grayxonDominantSpeaker=ev?.id||null;refreshGrayxonParticipants(api);});
     api.addEventListener?.('largeVideoChanged',ev=>{window.__grayxonLargeVideoParticipant=ev?.id||null;refreshGrayxonParticipants(api);});
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
@@ -2778,7 +2806,10 @@ async function liveTrainingTpl(trainingOverride=null) {
   $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');});
   $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(profile?.full_name||profile?.username||'Tú',message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
   $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
-    try{const emoji=button.getAttribute('data-gx-reaction');showGrayxonReaction(profile?.full_name||profile?.username||'Tú',emoji);playGrayxonSound('reaction');jaasApi?.executeCommand('sendChatMessage','[GXREACTION:'+emoji+']');}catch(e){console.warn('No se pudo enviar la reacción:',e);}
+    const emoji=button.getAttribute('data-gx-reaction');
+    const name=profile?.full_name||profile?.username||'Participante';
+    showGrayxonReaction(name,emoji);playGrayxonSound('reaction');
+    sendGrayxonLiveBroadcast('reaction',{userId:session?.user?.id||null,name,emoji}).then(result=>{if(result?.error)toast('La reacción se mostró aquí, pero no se pudo enviar a los demás.');});
     const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
     $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
   }));
