@@ -323,6 +323,10 @@ async function enableGrayxonPushFromAccount() {
 const JAAS_APP_ID = 'vpaas-magic-cookie-7db4f66a87d64b5696c9aa9ac4b08b7e';
 const JAAS_DOMAIN = '8x8.vc';
 const JAAS_JWT_FUNCTION = 'generate-jaas-jwt';
+// Nueva integración aislada; JaaS permanece disponible como alternativa manual.
+const JITSI_DOMAIN = 'meet.grayxongroup.com';
+const JITSI_JWT_FUNCTION = 'generate-jitsi-jwt';
+const GRAYXON_LIVE_PROVIDER = 'jitsi';
 const GRAYXON_LIVE_TRAINING_ROOM = 'grayxon-live-training';
 // v14: training audiences are controlled by live_training_audience + RLS.
 let jaasApi = null;
@@ -1014,14 +1018,17 @@ function ensureLiveTrainingPage() {
       .profile-menu-wrap{z-index:5001!important}
       #profileMenu{z-index:5002!important}
       body.grayxon-live-training-active #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important} body.grayxon-live-training-active #live-training{display:block!important;visibility:visible!important}
-      body.grayxon-live-training-call #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
+      body.grayxon-live-training-call{overflow:hidden!important;background:#050608!important;overscroll-behavior:none!important}
+       body.grayxon-live-training-call #live-training{position:fixed!important;inset:0!important;z-index:99999!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#050608!important}
+       body.grayxon-live-training-call #live-training .live-training-page{width:100%!important;max-width:none!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important}
+       body.grayxon-live-training-call #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #live-training .live-training-hero,
       body.grayxon-live-training-call #live-training .live-training-feature{display:none!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap{display:block!important;visibility:visible!important;margin:0!important;padding:0!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-toolbar{display:none!important}
-      body.grayxon-live-training-call #grayxonJaasMeet{min-height:0!important;height:calc(100vh - 8px)!important;background:#050608!important}
-      body.grayxon-live-training-call #grayxonJaasMeet iframe{height:100%!important;min-height:0!important}
+      body.grayxon-live-training-call #grayxonJaasMeet{position:relative!important;width:100%!important;min-width:0!important;min-height:0!important;height:100vh!important;height:100dvh!important;background:#050608!important;overflow:hidden!important}
+      body.grayxon-live-training-call #grayxonJaasMeet iframe{display:block!important;width:100%!important;height:100%!important;min-height:0!important;border:0!important}
       body.grayxon-live-training-call .live-training-loading{display:none!important}
       .page-section[hidden], #space[hidden], #home[hidden], #benefits[hidden], #auth[hidden], #manager[hidden], #training[hidden], #live-training[hidden], #missions[hidden], #profile[hidden], #admin[hidden]{display:none!important;}
       .live-training-space-card .space-progress span{width:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}
@@ -2119,6 +2126,41 @@ async function getJaasJwt(room = GRAYXON_LIVE_TRAINING_ROOM) {
   return data;
 }
 
+function loadSelfHostedJitsiApi() {
+  return new Promise((resolve, reject) => {
+    if (window.JitsiMeetExternalAPI) return resolve(window.JitsiMeetExternalAPI);
+    const existing = document.querySelector('script[data-grayxon-selfhosted-jitsi-api]');
+    if (existing) {
+      existing.addEventListener('load', () => window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de Jitsi no quedó disponible.')), { once:true });
+      existing.addEventListener('error', () => reject(new Error('No se pudo cargar la API de Jitsi.')), { once:true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = `https://${JITSI_DOMAIN}/external_api.js`;
+    script.async = true;
+    script.dataset.grayxonSelfhostedJitsiApi = 'true';
+    script.onload = () => window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de Jitsi no quedó disponible.'));
+    script.onerror = () => reject(new Error('No se pudo cargar la API de Jitsi autohospedado.'));
+    document.head.appendChild(script);
+  });
+}
+
+async function getSelfHostedJitsiJwt(trainingId) {
+  if (!trainingId) throw new Error('No se identificó el entrenamiento que quieres abrir.');
+  const { data: sessionData } = await sb.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+  if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible. Vuelve a iniciar sesión.');
+  const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/${JITSI_JWT_FUNCTION}`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':CFG.SUPABASE_PUBLISHABLE_KEY,'Authorization':`Bearer ${accessToken}`},
+    body:JSON.stringify({trainingId})
+  });
+  let data=null; try { data=await res.json(); } catch (_) {}
+  if (!res.ok || data?.error) throw new Error(data?.error || data?.message || `No se pudo preparar Jitsi (${res.status}).`);
+  if (!data?.token || !data?.roomName || data?.domain !== JITSI_DOMAIN) throw new Error('Jitsi no devolvió los datos de conexión esperados.');
+  return data;
+}
+
 function destroyJaasMeeting() {
   if (jaasApi) { try { jaasApi.dispose(); } catch (_) {} }
   jaasApi = null; jaasApiRoom = null;
@@ -2167,6 +2209,7 @@ async function endLiveTrainingConference(api, trainingId) {
 }
 
 async function startGrayxonLiveTraining(training, options={}){
+  const provider = options.provider || GRAYXON_LIVE_PROVIDER;
   const host=$('#grayxonJaasMeet'); if(!host||!training?.room_name)return;
   destroyJaasMeeting();
   host.innerHTML='<div id="grayxonJaasLoading" class="live-training-loading" aria-hidden="true"></div>';
@@ -2175,9 +2218,13 @@ async function startGrayxonLiveTraining(training, options={}){
   const isHost = !!session?.user?.id && training.created_by === session.user.id;
   const isAdmin = profile?.role === 'admin';
   try{
-    const [{token,roomName},JitsiMeetExternalAPI]=await Promise.all([getJaasJwt(training.room_name),loadJaasIframeApi()]);
+    const [connection,JitsiMeetExternalAPI]=await Promise.all([
+      provider === 'jitsi' ? getSelfHostedJitsiJwt(training.id) : getJaasJwt(training.room_name),
+      provider === 'jitsi' ? loadSelfHostedJitsiApi() : loadJaasIframeApi()
+    ]);
+    const {token,roomName}=connection;
     if(!$('#grayxonJaasMeet'))return;
-    const api=new JitsiMeetExternalAPI(JAAS_DOMAIN,{
+    const api=new JitsiMeetExternalAPI(provider === 'jitsi' ? JITSI_DOMAIN : JAAS_DOMAIN,{
       roomName,
       jwt:token,
       parentNode:$('#grayxonJaasMeet'),
@@ -2251,9 +2298,10 @@ async function startGrayxonLiveTraining(training, options={}){
     });
   }catch(error){
     liveTrainingEnding=false;
-    console.error('GRAYXON JAAAS ERROR:',error);
-    host.innerHTML=`<div class="live-training-error"><h3>No pudimos abrir el entrenamiento</h3><p>${esc(error?.message||'Ocurrió un error al preparar la videollamada.')}</p><button class="primary" id="retryGrayxonTraining">Intentar nuevamente</button></div>`;
-    $('#retryGrayxonTraining')?.addEventListener('click',()=>startGrayxonLiveTraining(training,options));
+    console.error('GRAYXON LIVE TRAINING ERROR:',error);
+    host.innerHTML=`<div class="live-training-error" style="max-width:620px;margin:8vh auto;padding:24px;color:#fff;background:#11141a;border:1px solid rgba(255,255,255,.12);border-radius:18px"><h3>No pudimos abrir el entrenamiento</h3><p>${esc(error?.message||'Ocurrió un error al preparar la videollamada.')}</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="primary" id="retryGrayxonTraining">Intentar nuevamente</button>${provider==='jitsi'?'<button class="secondary" id="fallbackGrayxonJaas">Usar la sala anterior temporalmente</button>':''}</div></div>`;
+    $('#retryGrayxonTraining')?.addEventListener('click',()=>startGrayxonLiveTraining(training,{...options,provider}));
+    $('#fallbackGrayxonJaas')?.addEventListener('click',()=>startGrayxonLiveTraining(training,{...options,provider:'jaas'}));
   }
 }
 
