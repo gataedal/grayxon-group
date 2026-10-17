@@ -2369,9 +2369,9 @@ async function startGrayxonLiveTraining(training, options={}){
         toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
         filmstrip:{disableStageFilmstrip:false,disableResizable:true},
-        // La cámara propia debe ocupar la vista principal sin duplicarse en una miniatura.
-        // Jitsi podrá mostrar el contenido compartido como vista principal cuando se comparta pantalla.
-        disableSelfView:true,
+        // Mantener disponible la cámara propia; la vista principal se fija por participante.
+        // El self-view se deja habilitado para que la cámara local no se convierta en avatar.
+        disableSelfView:false,
         maxFullResolutionParticipants:4,
         // Grayxon uses its own Jitsi server. Force media through the Jitsi Videobridge
         // while diagnosing black remote video; this avoids a broken P2P ICE path
@@ -2405,7 +2405,7 @@ async function startGrayxonLiveTraining(training, options={}){
         const hostParticipantId=String(payload?.participantId||'');
         if(!hostParticipantId)return;
         window.__gxHostParticipantId=hostParticipantId;
-        try{api.executeCommand('pinParticipant',hostParticipantId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}
+        try{api.executeCommand('pinParticipant',hostParticipantId);setTimeout(()=>{try{api.executeCommand('pinParticipant',hostParticipantId);}catch(_){}},700);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}
       })
       .subscribe(status=>{if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Grayxon LIVE: error en canal de sincronización',status);});
     let gxJitsiReady=false;
@@ -2467,7 +2467,12 @@ async function startGrayxonLiveTraining(training, options={}){
       const action=button.getAttribute('data-gx-camera-option');
       try{
         if(action==='flip')api.executeCommand('toggleCamera');
-        else if(action==='mirror')api.executeCommand('toggleCameraMirror');
+        else if(action==='mirror'){
+          // Jitsi aplica el espejo al vídeo local mediante este comando; si el cliente
+          // no lo implementa, informar en vez de fingir que el cambio funcionó.
+          api.executeCommand('toggleCameraMirror');
+          setTimeout(()=>{toast('Si la imagen no cambió, este cliente Jitsi no admite voltear desde el menú.');},250);
+        }
         else if(action==='background')api.executeCommand('toggleVirtualBackgroundDialog');
         else if(action==='settings')api.executeCommand('openSettings');
       }catch(err){console.warn('No se pudo ejecutar la opción de cámara:',action,err);toast('Esta opción no está disponible en este dispositivo.');}
@@ -2600,7 +2605,7 @@ async function startGrayxonLiveTraining(training, options={}){
             // El anfitrión es la vista principal predeterminada. Al ocultar self-view
             // no queda una segunda miniatura de la cámara local.
             window.__gxHostParticipantId=localId;
-            try{api.executeCommand('pinParticipant',localId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión local',err);}
+            try{api.executeCommand('pinParticipant',localId);setTimeout(()=>{try{api.executeCommand('pinParticipant',localId);}catch(_){}},900);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión local',err);}
             sendGrayxonLiveBroadcast('host-camera-pin',{participantId:localId,userId:session?.user?.id||null});
           }else if(window.__gxHostParticipantId){
             try{api.executeCommand('pinParticipant',String(window.__gxHostParticipantId));}catch(_){}
