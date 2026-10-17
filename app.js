@@ -1035,6 +1035,10 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call .gx-call-controls button[aria-pressed="true"]{border-color:rgba(37,244,238,.65)!important;background:rgba(37,244,238,.12)!important}
       body.grayxon-live-training-call .gx-call-controls button.gx-call-end{background:#fe2c55!important;border-color:#fe2c55!important;color:white!important}
       body.grayxon-live-training-call .gx-call-controls button:disabled{opacity:.45!important;cursor:wait!important}
+      body.grayxon-live-training-call .gx-call-more-menu{position:fixed!important;right:16px!important;bottom:calc(84px + env(safe-area-inset-bottom))!important;z-index:100004!important;display:flex!important;flex-direction:column!important;gap:5px!important;min-width:190px!important;padding:8px!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:14px!important;background:rgba(12,15,20,.98)!important;box-shadow:0 12px 40px #0008!important}
+      body.grayxon-live-training-call .gx-call-more-menu[hidden],body.grayxon-live-training-call .gx-call-more-menu.hidden{display:none!important}
+      body.grayxon-live-training-call .gx-call-more-menu button{padding:11px 12px!important;border:0!important;border-radius:9px!important;background:#1a2029!important;color:#fff!important;text-align:left!important;font:600 12px system-ui,sans-serif!important}
+      @media(max-width:600px){body.grayxon-live-training-call .gx-call-more-menu{right:12px!important;bottom:calc(76px + env(safe-area-inset-bottom))!important;left:12px!important;min-width:0!important}}
       @media(max-width:600px){body.grayxon-live-training-call .gx-call-brand{top:calc(8px + env(safe-area-inset-top))!important;left:10px!important}body.grayxon-live-training-call .gx-call-brand img{width:70px!important;max-height:28px!important}body.grayxon-live-training-call .gx-call-brand .gx-live-pill{font-size:9px!important;padding:5px 7px!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-controls{left:8px!important;right:8px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:none!important;max-width:none!important;gap:4px!important;padding:7px 5px!important;border-radius:17px!important}body.grayxon-live-training-call .gx-call-controls button{flex:1 1 0!important;min-width:0!important;min-height:45px!important;padding:5px 2px!important;font-size:9px!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon{font-size:18px!important}}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-toolbar{display:flex!important;visibility:visible!important;position:fixed!important;left:12px!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;z-index:100001!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;gap:8px!important;flex-wrap:wrap!important;background:rgba(10,12,16,.94)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:18px!important;padding:10px!important;backdrop-filter:blur(16px)!important}
       body.grayxon-live-training-call #grayxonJaasMeet{position:relative!important;width:100%!important;min-width:0!important;min-height:0!important;height:100vh!important;height:100dvh!important;padding-bottom:90px!important;box-sizing:border-box!important;background:#050608!important;overflow:hidden!important}
@@ -2274,7 +2278,13 @@ async function startGrayxonLiveTraining(training, options={}){
         const action=button.getAttribute('data-gx-call');
         try {
           if(action==='hangup'){ api.executeCommand('hangup'); return; }
-          if(action==='more'){ api.executeCommand('toggleShareScreen'); return; }
+          if(action==='more'){
+            const menu=$('.gx-call-more-menu');
+            const open=button.getAttribute('aria-expanded')==='true';
+            button.setAttribute('aria-expanded',String(!open));
+            if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}
+            return;
+          }
           if(callCommand[action]) api.executeCommand(callCommand[action]);
           if(action==='audio'||action==='video'||action==='hand') {
             const pressed=button.getAttribute('aria-pressed')==='true';
@@ -2282,6 +2292,28 @@ async function startGrayxonLiveTraining(training, options={}){
           }
         } catch(err) { console.warn('No se pudo ejecutar el control de llamada:',action,err); }
       });
+    });
+    $('.gx-call-more-menu')?.querySelectorAll('[data-gx-more]').forEach(button=>{
+      button.addEventListener('click',()=>{
+        const action=button.getAttribute('data-gx-more');
+        try {
+          if(action==='share') api.executeCommand('toggleShareScreen');
+          else if(action==='participants') api.executeCommand('toggleParticipantsPane');
+          else if(action==='settings') api.executeCommand('openSettings');
+          const menu=$('.gx-call-more-menu'); if(menu){menu.hidden=true;menu.classList.add('hidden');}
+          $('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');
+        } catch(err) { console.warn('No se pudo ejecutar la opción:',action,err); }
+      });
+    });
+    api.addEventListener?.('audioMuteStatusChanged',ev=>{
+      const b=$('[data-gx-call="audio"]'); if(!b)return;
+      b.setAttribute('aria-pressed',String(!!ev.muted));
+      const label=b.querySelector('span:last-child'); if(label)label.textContent=ev.muted?'Micrófono apagado':'Micrófono';
+    });
+    api.addEventListener?.('videoMuteStatusChanged',ev=>{
+      const b=$('[data-gx-call="video"]'); if(!b)return;
+      b.setAttribute('aria-pressed',String(!!ev.muted));
+      const label=b.querySelector('span:last-child'); if(label)label.textContent=ev.muted?'Cámara apagada':'Cámara';
     });
 
     api.addEventListener?.('videoConferenceJoined',async(ev)=>{
@@ -2546,7 +2578,7 @@ async function liveTrainingTpl(trainingOverride=null) {
     bind();
     return;
   }
-  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div class="gx-call-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"><span class="gx-live-pill">EN VIVO</span></div><div id="grayxonJaasMeet" class="live-training-meet"></div><nav class="gx-call-controls" aria-label="Controles de la llamada"><button type="button" data-gx-call="audio" aria-pressed="false"><span class="gx-ctl-icon">🎙</span><span>Micrófono</span></button><button type="button" data-gx-call="video" aria-pressed="false"><span class="gx-ctl-icon">▣</span><span>Cámara</span></button><button type="button" data-gx-call="hand" aria-pressed="false"><span class="gx-ctl-icon">✋</span><span>Levantar</span></button><button type="button" data-gx-call="hangup" class="gx-call-end"><span class="gx-ctl-icon">☎</span><span>Salir</span></button><button type="button" data-gx-call="chat"><span class="gx-ctl-icon">▤</span><span>Chat</span></button><button type="button" data-gx-call="reactions"><span class="gx-ctl-icon">☺</span><span>Reacciones</span></button><button type="button" data-gx-call="more"><span class="gx-ctl-icon">•••</span><span>Más</span></button></nav></div></div></div>`;
+  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div class="gx-call-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"><span class="gx-live-pill">EN VIVO</span></div><div id="grayxonJaasMeet" class="live-training-meet"></div><nav class="gx-call-controls" aria-label="Controles de la llamada"><button type="button" data-gx-call="audio" aria-pressed="false"><span class="gx-ctl-icon">🎙</span><span>Micrófono</span></button><button type="button" data-gx-call="video" aria-pressed="false"><span class="gx-ctl-icon">▣</span><span>Cámara</span></button><button type="button" data-gx-call="hand" aria-pressed="false"><span class="gx-ctl-icon">✋</span><span>Levantar</span></button><button type="button" data-gx-call="hangup" class="gx-call-end"><span class="gx-ctl-icon">☎</span><span>Salir</span></button><button type="button" data-gx-call="chat"><span class="gx-ctl-icon">▤</span><span>Chat</span></button><button type="button" data-gx-call="reactions"><span class="gx-ctl-icon">☺</span><span>Reacciones</span></button><button type="button" data-gx-call="more" aria-expanded="false"><span class="gx-ctl-icon">•••</span><span>Más</span></button></nav><div class="gx-call-more-menu hidden" hidden><button type="button" data-gx-more="share">Compartir pantalla</button><button type="button" data-gx-more="participants">Participantes</button><button type="button" data-gx-more="settings">Dispositivos y ajustes</button></div></div></div></div>`;
   bind();
   const autoStart=pendingLiveTrainingAutoStart?.id===training.id;if(autoStart)pendingLiveTrainingAutoStart=null;
   $('#enterGrayxonTraining')?.addEventListener('click',async()=>{const btn=$('#enterGrayxonTraining'),wrap=$('#grayxonTrainingRoomWrap'),hero=$('.live-training-hero'),feature=$('.live-training-feature');document.body.classList.add('grayxon-live-training-call');if(btn){btn.disabled=true;btn.textContent='Entrando…';}if(hero){hero.classList.add('hidden');hero.hidden=true;hero.style.setProperty('display','none','important');}if(feature){feature.classList.add('hidden');feature.hidden=true;feature.style.setProperty('display','none','important');}if(wrap){wrap.classList.remove('hidden');wrap.hidden=false;wrap.style.setProperty('display','block','important');}window.scrollTo(0,0);await startGrayxonLiveTraining(training);});
