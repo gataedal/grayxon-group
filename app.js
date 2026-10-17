@@ -2118,27 +2118,24 @@ function startCreatorLiveDashboardWatcher(){
 
 function loadJaasIframeApi() {
   return new Promise((resolve, reject) => {
-    if (window.JitsiMeetExternalAPI) return resolve(window.JitsiMeetExternalAPI);
-
+    const expectedSrc = `https://${JAAS_DOMAIN}/${JAAS_APP_ID}/external_api.js`;
     const existing = document.querySelector('script[data-grayxon-jaas-api]');
-    if (existing) {
-      existing.addEventListener('load', () => resolve(window.JitsiMeetExternalAPI));
-      existing.addEventListener('error', () => reject(new Error('No se pudo cargar el sistema de videollamada.')));
+    if (existing && existing.dataset.loaded === 'true' && window.JitsiMeetExternalAPI) return resolve(window.JitsiMeetExternalAPI);
+    if (existing && existing.dataset.loading === 'true') {
+      existing.addEventListener('load', () => window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de videollamada no quedó disponible.')), { once:true });
+      existing.addEventListener('error', () => reject(new Error('No se pudo cargar el sistema de videollamada.')), { once:true });
       return;
     }
-
-    const script = document.createElement('script');
-    script.src = `https://${JAAS_DOMAIN}/${JAAS_APP_ID}/external_api.js`;
+    const script = existing || document.createElement('script');
+    script.src = expectedSrc;
     script.async = true;
     script.dataset.grayxonJaasApi = 'true';
-    script.onload = () => window.JitsiMeetExternalAPI
-      ? resolve(window.JitsiMeetExternalAPI)
-      : reject(new Error('La API de videollamada no quedó disponible.'));
-    script.onerror = () => reject(new Error('No se pudo cargar la API de videollamada.'));
-    document.head.appendChild(script);
+    script.dataset.loading = 'true';
+    script.onload = () => { script.dataset.loading = 'false'; script.dataset.loaded = 'true'; window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de videollamada no quedó disponible.')); };
+    script.onerror = () => { script.dataset.loading = 'false'; reject(new Error('No se pudo cargar la API de videollamada.')); };
+    if (!existing) document.head.appendChild(script);
   });
 }
-
 async function getJaasJwt(room = GRAYXON_LIVE_TRAINING_ROOM) {
   const { data: sessionData } = await sb.auth.getSession();
   const accessToken = sessionData?.session?.access_token;
@@ -2170,23 +2167,24 @@ async function getJaasJwt(room = GRAYXON_LIVE_TRAINING_ROOM) {
 
 function loadSelfHostedJitsiApi() {
   return new Promise((resolve, reject) => {
-    if (window.JitsiMeetExternalAPI) return resolve(window.JitsiMeetExternalAPI);
+    const expectedSrc = `https://${JITSI_DOMAIN}/external_api.js`;
     const existing = document.querySelector('script[data-grayxon-selfhosted-jitsi-api]');
-    if (existing) {
+    if (existing && existing.dataset.loaded === 'true' && window.JitsiMeetExternalAPI) return resolve(window.JitsiMeetExternalAPI);
+    if (existing && existing.dataset.loading === 'true') {
       existing.addEventListener('load', () => window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de Jitsi no quedó disponible.')), { once:true });
-      existing.addEventListener('error', () => reject(new Error('No se pudo cargar la API de Jitsi.')), { once:true });
+      existing.addEventListener('error', () => reject(new Error('No se pudo cargar la API de Jitsi autohospedado.')), { once:true });
       return;
     }
-    const script = document.createElement('script');
-    script.src = `https://${JITSI_DOMAIN}/external_api.js`;
+    const script = existing || document.createElement('script');
+    script.src = expectedSrc;
     script.async = true;
     script.dataset.grayxonSelfhostedJitsiApi = 'true';
-    script.onload = () => window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de Jitsi no quedó disponible.'));
-    script.onerror = () => reject(new Error('No se pudo cargar la API de Jitsi autohospedado.'));
-    document.head.appendChild(script);
+    script.dataset.loading = 'true';
+    script.onload = () => { script.dataset.loading = 'false'; script.dataset.loaded = 'true'; window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de Jitsi no quedó disponible.')); };
+    script.onerror = () => { script.dataset.loading = 'false'; reject(new Error('No se pudo cargar la API de Jitsi autohospedado.')); };
+    if (!existing) document.head.appendChild(script);
   });
 }
-
 async function getSelfHostedJitsiJwt(trainingId) {
   if (!trainingId) throw new Error('No se identificó el entrenamiento que quieres abrir.');
   const { data: sessionData } = await sb.auth.getSession();
