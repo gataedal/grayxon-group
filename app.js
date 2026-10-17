@@ -2345,6 +2345,10 @@ async function startGrayxonLiveTraining(training, options={}){
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
         filmstrip:{disableStageFilmstrip:false,disableResizable:true},
         maxFullResolutionParticipants:4,
+        // Grayxon uses its own Jitsi server. Force media through the Jitsi Videobridge
+        // while diagnosing black remote video; this avoids a broken P2P ICE path
+        // between clients. It does not affect room access or the Grayxon controls.
+        p2p:{enabled:false},
         disableDeepLinking:true,
         // Expose the hangup click so the host can end the entire training.
         buttonsWithNotifyClick:[{key:'hangup',preventExecution:true}],
