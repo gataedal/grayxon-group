@@ -1019,7 +1019,7 @@ function ensureLiveTrainingPage() {
       #profileMenu{z-index:5002!important}
       body.grayxon-live-training-active #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important} body.grayxon-live-training-active #live-training{display:block!important;visibility:visible!important}
       body.grayxon-live-training-call{overflow:hidden!important;background:#050608!important;overscroll-behavior:none!important}
-       body.grayxon-live-training-call #live-training{position:fixed!important;inset:0!important;z-index:99999!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#050608!important}
+       body.grayxon-live-training-call #live-training{position:fixed!important;inset:0!important;z-index:99999!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;margin:0!important;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)!important;overflow:hidden!important;background:#050608!important}
        body.grayxon-live-training-call #live-training .live-training-page{width:100%!important;max-width:none!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important}
        body.grayxon-live-training-call #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #live-training .live-training-hero,
@@ -2232,6 +2232,7 @@ async function startGrayxonLiveTraining(training, options={}){
       height:'650px',
       lang:'es',
       userInfo:{displayName:profile?.full_name||profile?.username||session?.user?.email?.split('@')[0]||'Participante Grayxon',email:session?.user?.email||''},
+      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608'},
       configOverwrite:{
         prejoinConfig:{enabled:false},
         // Do not request camera/mic permissions until the participant explicitly
@@ -2239,6 +2240,8 @@ async function startGrayxonLiveTraining(training, options={}){
         disableInitialGUM:true,
         startWithAudioMuted:true,
         startWithVideoMuted:true,
+        // Keep essential controls visible and leave secondary tools in "Más".
+        toolbarButtons:['microphone','camera','raisehand','hangup','chat','reactions','desktop','settings','participants-pane','overflowmenu'],
         // Expose the hangup click so the host can end the entire training.
         buttonsWithNotifyClick:[{key:'hangup',preventExecution:true}],
         // AV moderation makes participants request permission before unmuting.
