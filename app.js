@@ -1035,6 +1035,9 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call .gx-call-controls button[aria-pressed="true"]{border-color:rgba(37,244,238,.65)!important;background:rgba(37,244,238,.12)!important}
       body.grayxon-live-training-call .gx-call-controls button.gx-call-end{background:#fe2c55!important;border-color:#fe2c55!important;color:white!important}
       body.grayxon-live-training-call .gx-call-controls button:disabled{opacity:.45!important;cursor:wait!important}
+      body.grayxon-live-training-call.gx-chat-open #grayxonTrainingRoomWrap .gx-call-controls{bottom:calc(112px + env(safe-area-inset-bottom))!important;transition:bottom .2s ease!important}
+      body.grayxon-live-training-call.gx-chat-open #grayxonTrainingRoomWrap .gx-call-controls{background:rgba(8,11,16,.97)!important;box-shadow:0 12px 42px rgba(0,0,0,.55)!important}
+      @media(max-width:600px){body.grayxon-live-training-call.gx-chat-open #grayxonTrainingRoomWrap .gx-call-controls{bottom:calc(106px + env(safe-area-inset-bottom))!important;left:8px!important;right:8px!important}}
       body.grayxon-live-training-call .gx-call-more-menu{position:fixed!important;right:16px!important;bottom:calc(84px + env(safe-area-inset-bottom))!important;z-index:100004!important;display:flex!important;flex-direction:column!important;gap:5px!important;min-width:190px!important;padding:8px!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:14px!important;background:rgba(12,15,20,.98)!important;box-shadow:0 12px 40px #0008!important}
       body.grayxon-live-training-call .gx-call-more-menu[hidden],body.grayxon-live-training-call .gx-call-more-menu.hidden{display:none!important}
       body.grayxon-live-training-call .gx-call-more-menu button{padding:11px 12px!important;border:0!important;border-radius:9px!important;background:#1a2029!important;color:#fff!important;text-align:left!important;font:600 12px system-ui,sans-serif!important}
@@ -2283,6 +2286,12 @@ async function startGrayxonLiveTraining(training, options={}){
             const open=button.getAttribute('aria-expanded')==='true';
             button.setAttribute('aria-expanded',String(!open));
             if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}
+            return;
+          }
+          if(action==='chat'){
+            const chatOpen=document.body.classList.toggle('gx-chat-open');
+            button.setAttribute('aria-pressed',String(chatOpen));
+            api.executeCommand('toggleChat');
             return;
           }
           if(callCommand[action]) api.executeCommand(callCommand[action]);
