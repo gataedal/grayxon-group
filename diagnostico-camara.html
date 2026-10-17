@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Grayxon · Diagnóstico de cámara</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#08090c;color:#f5f6f8;font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh;display:grid;place-items:center;padding:20px}.card{width:min(760px,100%);background:#11141a;border:1px solid #292d35;border-radius:22px;padding:clamp(18px,4vw,30px);box-shadow:0 24px 80px #0008}.brand{color:#b9c0ca;letter-spacing:.16em;font-size:12px;font-weight:800}.mark{color:#fff;border:1px solid #747b87;border-radius:8px;padding:2px 7px;margin-right:8px}h1{font-size:clamp(25px,5vw,36px);line-height:1.1;margin:16px 0 8px}p{color:#b9c0ca}.video{background:#030405;border:1px solid #343943;border-radius:16px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;margin:20px 0;position:relative}.video video{width:100%;height:100%;object-fit:contain;display:none}.placeholder{padding:20px;text-align:center;color:#8b929d}.status{padding:12px 14px;background:#191d24;border-radius:10px;overflow-wrap:anywhere}.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button,select{font:inherit;border-radius:10px;padding:12px 15px;border:1px solid #444b57;background:#20252e;color:white}button.primary{background:#e7e9ed;color:#101216;border-color:#e7e9ed;font-weight:700}button:disabled{opacity:.5}label{display:block;font-size:13px;color:#b9c0ca;margin-top:16px}select{width:100%;margin-top:6px}.small{font-size:13px;color:#9098a5}.ok{color:#77e0a2}.bad{color:#ff9393}code{color:#dce2ec}
+</style>
+</head>
+<body><main class="card">
+<div class="brand"><span class="mark">GX</span>GRAYXON GROUP</div>
+<h1>Diagnóstico de cámara</h1>
+<p>Vamos a comprobar si el navegador puede capturar y mostrar la imagen de tu cámara <b>sin entrar a la sala Jitsi</b>.</p>
+<div class="video"><video id="preview" autoplay muted playsinline></video><div id="placeholder" class="placeholder">La vista previa aparecerá aquí.</div></div>
+<div id="status" class="status">Listo para probar. Pulsa “Probar cámara”.</div>
+<label for="devices">Cámara detectada</label><select id="devices"><option value="">Detectar al iniciar la prueba</option></select>
+<div class="controls"><button id="start" class="primary">Probar cámara</button><button id="stop" disabled>Detener cámara</button></div>
+<p class="small">La prueba ocurre en este navegador: no grabamos ni enviamos video a Grayxon. Si la imagen se ve aquí pero no en el entrenamiento, eso apunta a un problema en la sala o en la transmisión, no en la captura local.</p>
+</main>
+<script>
+const video=document.getElementById('preview'),placeholder=document.getElementById('placeholder'),statusBox=document.getElementById('status'),devices=document.getElementById('devices'),start=document.getElementById('start'),stop=document.getElementById('stop');let stream=null;
+function status(text,kind=''){statusBox.className='status '+kind;statusBox.textContent=text}
+async function listCameras(){const all=await navigator.mediaDevices.enumerateDevices();const cams=all.filter(d=>d.kind==='videoinput');const previous=devices.value;devices.innerHTML='';cams.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||'Cámara '+(i+1);devices.appendChild(o)});if(previous&&cams.some(d=>d.deviceId===previous))devices.value=previous;if(!cams.length){const o=document.createElement('option');o.textContent='No se detectaron cámaras';o.value='';devices.appendChild(o)}}
+async function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}video.srcObject=null;video.style.display='none';placeholder.style.display='block';start.disabled=false;stop.disabled=true}
+async function testCamera(){await stopCamera();try{if(!navigator.mediaDevices?.getUserMedia)throw new Error('Este navegador no permite acceder a la cámara aquí. Abre la página con HTTPS en Chrome.');status('Solicitando acceso a la cámara…');const selected=devices.value;stream=await navigator.mediaDevices.getUserMedia({audio:false,video:selected?{deviceId:{exact:selected},width:{ideal:1280},height:{ideal:720}}:{width:{ideal:1280},height:{ideal:720}}});video.srcObject=stream;video.style.display='block';placeholder.style.display='none';await video.play();const track=stream.getVideoTracks()[0];await listCameras();status('Cámara activa: '+(track.label||'dispositivo detectado')+' · '+track.getSettings().width+'×'+track.getSettings().height+' · Si ves tu imagen, la captura local funciona.','ok');start.disabled=true;stop.disabled=false}catch(e){status('No se pudo mostrar la imagen: '+(e.name||'Error')+' — '+(e.message||e),'bad');await stopCamera()}}
+start.addEventListener('click',testCamera);stop.addEventListener('click',()=>{stopCamera();status('Cámara detenida.')});devices.addEventListener('change',()=>{if(stream)testCamera()});if(!window.isSecureContext)status('Atención: esta página no está en un contexto HTTPS seguro.');if(navigator.mediaDevices?.enumerateDevices)listCameras().catch(()=>{});
+window.addEventListener('pagehide',stopCamera);
+</script></body></html>
