@@ -2281,6 +2281,15 @@ async function refreshGrayxonParticipants(api){
     const data=await api.getParticipantsInfo();const people=Array.isArray(data)?data:[];
     const local=people.find(p=>p.isLocal);
     if(local)window.__gxLocalParticipantId=local.participantId||local.id||null;
+    people.sort((a,b)=>{
+      const aid=a.participantId||a.id||'',bid=b.participantId||b.id||'';
+      const ah=grayxonRaisedHands.get(aid)?1:0,bh=grayxonRaisedHands.get(bid)?1:0;
+      if(ah!==bh)return bh-ah;
+      const as=aid===window.__grayxonDominantSpeaker?1:0,bs=bid===window.__grayxonDominantSpeaker?1:0;
+      if(as!==bs)return bs-as;
+      const av=(a.isLocal?1:0),bv=(b.isLocal?1:0);
+      return av-bv;
+    });
     const list=$('.gx-participants-list',panel);if(!list)return;
     list.innerHTML=people.map(p=>{
       const id=p.participantId||p.id||'';const name=p.displayName||p.name||'Participante';
@@ -2434,6 +2443,7 @@ async function startGrayxonLiveTraining(training, options={}){
       }
       refreshGrayxonParticipants(api);
     });
+    api.addEventListener?.('dominantSpeakerChanged',ev=>{window.__grayxonDominantSpeaker=ev?.id||null;refreshGrayxonParticipants(api);});
     api.addEventListener?.('largeVideoChanged',ev=>{window.__grayxonLargeVideoParticipant=ev?.id||null;refreshGrayxonParticipants(api);});
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
     api.addEventListener?.('chatUpdated',ev=>{document.body.classList.toggle('gx-chat-open',!!ev?.isOpen);const b=$('[data-gx-call="chat"]');if(b)b.setAttribute('aria-pressed',String(!!ev?.isOpen));});
