@@ -1026,8 +1026,8 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call #live-training .live-training-feature{display:none!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap{display:block!important;visibility:visible!important;margin:0!important;padding:0!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
-      body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-toolbar{display:none!important}
-      body.grayxon-live-training-call #grayxonJaasMeet{position:relative!important;width:100%!important;min-width:0!important;min-height:0!important;height:100vh!important;height:100dvh!important;background:#050608!important;overflow:hidden!important}
+      body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-toolbar{display:flex!important;visibility:visible!important;position:fixed!important;left:12px!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;z-index:100001!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;gap:8px!important;flex-wrap:wrap!important;background:rgba(10,12,16,.94)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:18px!important;padding:10px!important;backdrop-filter:blur(16px)!important}
+      body.grayxon-live-training-call #grayxonJaasMeet{position:relative!important;width:100%!important;min-width:0!important;min-height:0!important;height:100vh!important;height:100dvh!important;padding-bottom:90px!important;box-sizing:border-box!important;background:#050608!important;overflow:hidden!important}
       body.grayxon-live-training-call #grayxonJaasMeet iframe{display:block!important;width:100%!important;height:100%!important;min-height:0!important;border:0!important}
       body.grayxon-live-training-call .live-training-loading{display:none!important}
       .page-section[hidden], #space[hidden], #home[hidden], #benefits[hidden], #auth[hidden], #manager[hidden], #training[hidden], #live-training[hidden], #missions[hidden], #profile[hidden], #admin[hidden]{display:none!important;}
@@ -2235,10 +2235,10 @@ async function startGrayxonLiveTraining(training, options={}){
       jwt:token,
       parentNode:$('#grayxonJaasMeet'),
       width:'100%',
-      height:'650px',
+      height:'100%',
       lang:'es',
       userInfo:{displayName:profile?.full_name||profile?.username||session?.user?.email?.split('@')[0]||'Participante Grayxon',email:session?.user?.email||''},
-      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608'},
+      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,SHOW_PROMOTIONAL_CLOSE_PAGE:false,SHOW_DEEP_LINKING_IMAGE:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608',JITSI_WATERMARK_LINK:'',BRAND_WATERMARK_LINK:''},
       configOverwrite:{
         prejoinConfig:{enabled:false},
         // Do not request camera/mic permissions until the participant explicitly
