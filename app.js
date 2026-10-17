@@ -1018,15 +1018,15 @@ function ensureLiveTrainingPage() {
       .profile-menu-wrap{z-index:5001!important}
       #profileMenu{z-index:5002!important}
       body.grayxon-live-training-active #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important} body.grayxon-live-training-active #live-training{display:block!important;visibility:visible!important}
-      body.grayxon-live-training-call{overflow:hidden!important;background:#050608!important;overscroll-behavior:none!important}
-       body.grayxon-live-training-call #live-training{position:fixed!important;inset:0!important;z-index:99999!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;margin:0!important;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)!important;overflow:hidden!important;background:#050608!important}
-       body.grayxon-live-training-call #live-training .live-training-page{width:100%!important;max-width:none!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important}
+      body.grayxon-live-training-call{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;overflow:hidden!important;background:#050608!important;overscroll-behavior:none!important}
+       body.grayxon-live-training-call #live-training{position:fixed!important;inset:0!important;z-index:99999!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#050608!important;overscroll-behavior:none!important}
+       body.grayxon-live-training-call #live-training .live-training-page{position:absolute!important;inset:0!important;width:100%!important;max-width:none!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;overscroll-behavior:none!important}
        body.grayxon-live-training-call #space{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #live-training .live-training-hero,
       body.grayxon-live-training-call #live-training .live-training-feature{display:none!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap{display:block!important;visibility:visible!important;margin:0!important;padding:0!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
-      body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-brand{position:fixed!important;top:calc(14px + env(safe-area-inset-top))!important;left:18px!important;z-index:100002!important;display:flex!important;align-items:center!important;gap:10px!important;pointer-events:none!important}
+      body.grayxon-live-training-call header.top,body.grayxon-live-training-call .top{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-brand{position:fixed!important;top:calc(10px + env(safe-area-inset-top))!important;left:14px!important;z-index:100002!important;display:flex!important;align-items:center!important;gap:10px!important;pointer-events:none!important;transform:none!important;touch-action:none!important}
       body.grayxon-live-training-call .gx-call-brand img{display:block!important;width:clamp(76px,10vw,112px)!important;max-height:38px!important;object-fit:contain!important;filter:drop-shadow(0 2px 12px #000)!important}
       body.grayxon-live-training-call .gx-call-brand .gx-live-pill{font-size:10px!important;font-weight:900!important;letter-spacing:.12em!important;color:#fff!important;background:#fe2c55!important;padding:6px 9px!important;border-radius:7px!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-controls{position:fixed!important;left:50%!important;bottom:calc(14px + env(safe-area-inset-bottom))!important;transform:translateX(-50%)!important;z-index:100003!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:clamp(5px,1.2vw,12px)!important;max-width:calc(100vw - 20px)!important;padding:9px 12px!important;border-radius:22px!important;border:1px solid rgba(255,255,255,.14)!important;background:rgba(10,12,16,.94)!important;box-shadow:0 10px 42px rgba(0,0,0,.45)!important;backdrop-filter:blur(18px)!important}
@@ -2264,8 +2264,8 @@ async function startGrayxonLiveTraining(training, options={}){
         startWithAudioMuted:true,
         startWithVideoMuted:true,
         // Keep essential controls visible and leave secondary tools in "Más".
-        toolbarButtons:['microphone','camera','raisehand','hangup','chat','reactions','desktop','settings','participants-pane','overflowmenu'],
-        toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:true},
+        toolbarButtons:[],
+        toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
         disableDeepLinking:true,
         // Expose the hangup click so the host can end the entire training.
         buttonsWithNotifyClick:[{key:'hangup',preventExecution:true}],
