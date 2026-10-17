@@ -1040,6 +1040,10 @@ function ensureLiveTrainingPage() {
       @media(max-width:600px){body.grayxon-live-training-call.gx-chat-open #grayxonTrainingRoomWrap .gx-call-controls{bottom:calc(106px + env(safe-area-inset-bottom))!important;left:8px!important;right:8px!important}}
       body.grayxon-live-training-call .gx-call-more-menu{position:fixed!important;right:16px!important;bottom:calc(84px + env(safe-area-inset-bottom))!important;z-index:100004!important;display:flex!important;flex-direction:column!important;gap:5px!important;min-width:190px!important;padding:8px!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:14px!important;background:rgba(12,15,20,.98)!important;box-shadow:0 12px 40px #0008!important}
       body.grayxon-live-training-call .gx-call-more-menu[hidden],body.grayxon-live-training-call .gx-call-more-menu.hidden{display:none!important}
+      #gx-reaction-float-layer{position:fixed!important;inset:0!important;overflow:hidden!important;pointer-events:none!important;z-index:100008!important}
+      .gx-reaction-float{position:absolute!important;bottom:100px!important;display:flex!important;align-items:center!important;gap:8px!important;padding:7px 12px 7px 7px!important;border:1px solid #ffffff24!important;border-radius:999px!important;background:rgba(15,19,26,.92)!important;color:#fff!important;box-shadow:0 8px 28px #0008!important;animation:gxReactionRise 3.5s ease-out forwards!important;white-space:nowrap!important}
+      .gx-reaction-float-emoji{font-size:30px!important}.gx-reaction-float-name{font-size:12px!important;font-weight:800!important}
+      @keyframes gxReactionRise{0%{opacity:0;transform:translateY(20px) scale(.85)}12%{opacity:1;transform:translateY(0) scale(1)}75%{opacity:1}100%{opacity:0;transform:translateY(-72vh) scale(1.08)}}
       body.grayxon-live-training-call .gx-reactions-menu{position:fixed!important;left:50%!important;bottom:calc(82px + env(safe-area-inset-bottom))!important;transform:translateX(-50%)!important;z-index:100006!important;display:flex!important;align-items:center!important;gap:8px!important;padding:10px!important;border:1px solid #ffffff20!important;border-radius:18px!important;background:rgba(12,15,20,.98)!important;box-shadow:0 12px 40px #0008!important}
       body.grayxon-live-training-call .gx-reactions-menu[hidden],body.grayxon-live-training-call .gx-reactions-menu.hidden{display:none!important}body.grayxon-live-training-call .gx-reactions-menu button{min-width:40px!important;min-height:40px!important;border:0!important;border-radius:10px!important;background:#202630!important;color:#fff!important;font-size:22px!important}
       @media(max-width:600px){body.grayxon-live-training-call .gx-reactions-menu{left:8px!important;right:8px!important;transform:none!important;justify-content:space-around!important;gap:4px!important}body.grayxon-live-training-call .gx-reactions-menu button{min-width:0!important;flex:1!important}}
@@ -2236,6 +2240,12 @@ async function endLiveTrainingConference(api, trainingId) {
 }
 
 const grayxonRaisedHands = new Map();
+function showGrayxonReaction(name,emoji){
+  const layer=$('#gx-reaction-float-layer');if(!layer)return;
+  const item=document.createElement('div');item.className='gx-reaction-float';
+  item.innerHTML='<span class="gx-reaction-float-emoji">'+esc(emoji)+'</span><span class="gx-reaction-float-name">'+esc(name||'Participante')+'</span>';
+  item.style.left=(12+Math.random()*62)+'%';layer.appendChild(item);setTimeout(()=>item.remove(),3600);
+}
 function toggleGrayxonParticipantsPanel(){
   const panel=$('.gx-participants-panel');if(!panel)return;
   panel.hidden=!panel.hidden;panel.classList.toggle('hidden',panel.hidden);
@@ -2290,8 +2300,9 @@ async function startGrayxonLiveTraining(training, options={}){
       interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,SHOW_PROMOTIONAL_CLOSE_PAGE:false,SHOW_DEEP_LINKING_IMAGE:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608',JITSI_WATERMARK_LINK:'',BRAND_WATERMARK_LINK:''},
       configOverwrite:{
         prejoinConfig:{enabled:false},
-        // Do not request camera/mic permissions until the participant explicitly
-        // tries to enable them. Everyone enters muted.
+        // Prevent the browser asking for microphone/camera as soon as the room opens.
+        // Devices should be requested only after the participant taps the matching control.
+        disableInitialGUM:true,
         startWithAudioMuted:true,
         startWithVideoMuted:true,
         // Keep essential controls visible and leave secondary tools in "Más".
@@ -2305,8 +2316,12 @@ async function startGrayxonLiveTraining(training, options={}){
       }
     });
     jaasApi=api; jaasApiRoom=roomName;
+    let gxJitsiReady=false;
+    let gxAudioMuted=true;
+    let gxVideoMuted=true;
+    let gxHandRaised=false;
     const callControls=$('.gx-call-controls');
-    const callCommand={audio:'toggleAudio',video:'toggleVideo',hand:'toggleRaiseHand',chat:'toggleChat',reactions:'toggleReactionsMenu'};
+    const callCommand={audio:'toggleAudio',video:'toggleVideo',hand:'toggleRaiseHand'};
     callControls?.querySelectorAll('[data-gx-call]').forEach(button=>{
       button.addEventListener('click',()=>{
         const action=button.getAttribute('data-gx-call');
@@ -2320,6 +2335,7 @@ async function startGrayxonLiveTraining(training, options={}){
             return;
           }
           if(action==='chat'){
+            if(!gxJitsiReady){toast('La llamada todavía se está conectando…');return;}
             api.executeCommand('toggleChat');
             return;
           }
@@ -2327,11 +2343,8 @@ async function startGrayxonLiveTraining(training, options={}){
             const menu=$('.gx-reactions-menu');const open=button.getAttribute('aria-expanded')==='true';
             button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;
           }
+          if(!gxJitsiReady){toast('La llamada todavía se está conectando…');return;}
           if(callCommand[action]) api.executeCommand(callCommand[action]);
-          if(action==='audio'||action==='video'||action==='hand') {
-            const pressed=button.getAttribute('aria-pressed')==='true';
-            button.setAttribute('aria-pressed',String(!pressed));
-          }
         } catch(err) { console.warn('No se pudo ejecutar el control de llamada:',action,err); }
       });
     });
@@ -2347,24 +2360,29 @@ async function startGrayxonLiveTraining(training, options={}){
         } catch(err) { console.warn('No se pudo ejecutar la opción:',action,err); }
       });
     });
+    api.addEventListener?.('ready',()=>{gxJitsiReady=true;});
     api.addEventListener?.('audioMuteStatusChanged',ev=>{
+      gxAudioMuted=!!ev.muted;
       const b=$('[data-gx-call="audio"]'); if(!b)return;
-      b.setAttribute('aria-pressed',String(!!ev.muted));
-      const label=b.querySelector('span:last-child'); if(label)label.textContent=ev.muted?'Micrófono apagado':'Micrófono';
+      b.setAttribute('aria-pressed',String(!gxAudioMuted));
+      const label=b.querySelector('span:last-child'); if(label)label.textContent=gxAudioMuted?'Micrófono apagado':'Micrófono encendido';
     });
     api.addEventListener?.('videoMuteStatusChanged',ev=>{
+      gxVideoMuted=!!ev.muted;
       const b=$('[data-gx-call="video"]'); if(!b)return;
-      b.setAttribute('aria-pressed',String(!!ev.muted));
-      const label=b.querySelector('span:last-child'); if(label)label.textContent=ev.muted?'Cámara apagada':'Cámara';
+      b.setAttribute('aria-pressed',String(!gxVideoMuted));
+      const label=b.querySelector('span:last-child'); if(label)label.textContent=gxVideoMuted?'Cámara apagada':'Cámara encendida';
+    });
+    api.addEventListener?.('raiseHandUpdated',ev=>{
+      if(ev?.id && ev.id===session?.user?.id)gxHandRaised=!!ev.handRaised;
+      const b=$('[data-gx-call="hand"]');if(b&&ev?.id===session?.user?.id)b.setAttribute('aria-pressed',String(gxHandRaised));
     });
 
     api.addEventListener?.('videoConferenceJoined',async(ev)=>{
       // Keep the stage dynamic so the active speaker or shared screen can take focus.
       // Only the actual host enables AV moderation; admins retain JWT-granted rights.
-      if (isHost) {
-        try { api.executeCommand('toggleModeration',true,'audio'); } catch (_) {}
-        try { api.executeCommand('toggleModeration',true,'video'); } catch (_) {}
-      }
+      // Do not turn on AV moderation automatically here: it can block a manager's
+      // camera without showing a usable approval request in this custom UI.
       await recordLiveTrainingJoin(training.id);
       await refreshGrayxonParticipants(api);
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
@@ -2379,6 +2397,10 @@ async function startGrayxonLiveTraining(training, options={}){
     api.addEventListener?.('largeVideoChanged',ev=>{window.__grayxonLargeVideoParticipant=ev?.id||null;refreshGrayxonParticipants(api);});
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
     api.addEventListener?.('chatUpdated',ev=>{document.body.classList.toggle('gx-chat-open',!!ev?.isOpen);const b=$('[data-gx-call="chat"]');if(b)b.setAttribute('aria-pressed',String(!!ev?.isOpen));});
+    api.addEventListener?.('incomingMessage',ev=>{
+      const message=String(ev?.message||'');const match=message.match(/^\\[GXREACTION:(.+?)\\]$/);
+      if(match)showGrayxonReaction(ev?.nick||ev?.from||'Participante',match[1]);
+    });
     api.addEventListener?.('cameraError',ev=>toast('No se pudo activar la cámara. Revisa los permisos del navegador.'));
     api.addEventListener?.('micError',ev=>toast('No se pudo activar el micrófono. Revisa los permisos del navegador.'));
     api.addEventListener?.('errorOccurred',ev=>console.warn('Error de Jitsi:',ev?.name,ev?.message));
@@ -2389,13 +2411,6 @@ async function startGrayxonLiveTraining(training, options={}){
         await endLiveTrainingConference(api,training.id);
       }else{
         try { api.executeCommand('hangup'); } catch (_) {}
-      }
-    });
-
-    api.addEventListener?.('participantJoined',()=>{
-      if(isHost){
-        // Re-assert the host as the stage leader when a new participant arrives.
-        try { api.executeCommand('setFollowMe',true,false); } catch (_) {}
       }
     });
 
@@ -2626,11 +2641,11 @@ async function liveTrainingTpl(trainingOverride=null) {
     bind();
     return;
   }
-  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div class="gx-call-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"><span class="gx-live-pill">EN VIVO</span></div><div id="grayxonJaasMeet" class="live-training-meet"></div><nav class="gx-call-controls" aria-label="Controles de la llamada"><button type="button" data-gx-call="audio" aria-pressed="false"><span class="gx-ctl-icon">🎙</span><span>Micrófono</span></button><button type="button" data-gx-call="video" aria-pressed="false"><span class="gx-ctl-icon">▣</span><span>Cámara</span></button><button type="button" data-gx-call="hand" aria-pressed="false"><span class="gx-ctl-icon">✋</span><span>Levantar</span></button><button type="button" data-gx-call="hangup" class="gx-call-end"><span class="gx-ctl-icon">☎</span><span>Salir</span></button><button type="button" data-gx-call="chat"><span class="gx-ctl-icon">▤</span><span>Chat</span></button><button type="button" data-gx-call="reactions"><span class="gx-ctl-icon">☺</span><span>Reacciones</span></button><button type="button" data-gx-call="more" aria-expanded="false"><span class="gx-ctl-icon">•••</span><span>Más</span></button></nav><div class="gx-reactions-menu hidden" hidden aria-label="Reacciones"><button type="button" data-gx-reaction="👏">👏</button><button type="button" data-gx-reaction="❤️">❤️</button><button type="button" data-gx-reaction="😂">😂</button><button type="button" data-gx-reaction="🔥">🔥</button><button type="button" data-gx-reaction="🎉">🎉</button><button type="button" data-gx-reaction="👍">👍</button></div><div class="gx-call-more-menu hidden" hidden><button type="button" data-gx-more="share">Compartir pantalla</button><button type="button" data-gx-more="participants">Participantes</button><button type="button" data-gx-more="settings">Dispositivos y ajustes</button></div><aside class="gx-participants-panel hidden" hidden aria-label="Participantes"><div class="gx-participants-head"><div><strong>Participantes</strong><div class="gx-participants-count">Conectando…</div></div><button type="button" data-gx-close-participants>✕</button></div><div class="gx-participants-list"><p class="gx-participant-status">Cargando participantes…</p></div></aside><div class="gx-call-end-modal hidden" hidden role="dialog" aria-modal="true"><div class="gx-call-end-card"><h3>¿Qué quieres hacer?</h3><p>Elige si quieres salir de tu llamada o finalizar el entrenamiento para todos.</p><div class="gx-call-end-actions"><button type="button" data-gx-end-choice="leave">Salir de la llamada</button><button type="button" class="gx-end-all" data-gx-end-choice="end">Finalizar entrenamiento para todos</button><button type="button" class="gx-end-cancel" data-gx-end-choice="cancel">Cancelar</button></div></div></div></div></div></div>`;
+  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div class="gx-call-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"><span class="gx-live-pill">EN VIVO</span></div><div id="grayxonJaasMeet" class="live-training-meet"></div><nav class="gx-call-controls" aria-label="Controles de la llamada"><button type="button" data-gx-call="audio" aria-pressed="false"><span class="gx-ctl-icon">🎙</span><span>Micrófono</span></button><button type="button" data-gx-call="video" aria-pressed="false"><span class="gx-ctl-icon">▣</span><span>Cámara</span></button><button type="button" data-gx-call="hand" aria-pressed="false"><span class="gx-ctl-icon">✋</span><span>Levantar</span></button><button type="button" data-gx-call="hangup" class="gx-call-end"><span class="gx-ctl-icon">☎</span><span>Salir</span></button><button type="button" data-gx-call="chat"><span class="gx-ctl-icon">▤</span><span>Chat</span></button><button type="button" data-gx-call="reactions"><span class="gx-ctl-icon">☺</span><span>Reacciones</span></button><button type="button" data-gx-call="more" aria-expanded="false"><span class="gx-ctl-icon">•••</span><span>Más</span></button></nav><div id="gx-reaction-float-layer" aria-live="polite"></div><div class="gx-reactions-menu hidden" hidden aria-label="Reacciones"><button type="button" data-gx-reaction="👏">👏</button><button type="button" data-gx-reaction="❤️">❤️</button><button type="button" data-gx-reaction="😂">😂</button><button type="button" data-gx-reaction="🔥">🔥</button><button type="button" data-gx-reaction="🎉">🎉</button><button type="button" data-gx-reaction="👍">👍</button></div><div class="gx-call-more-menu hidden" hidden><button type="button" data-gx-more="share">Compartir pantalla</button><button type="button" data-gx-more="participants">Participantes</button><button type="button" data-gx-more="settings">Dispositivos y ajustes</button></div><aside class="gx-participants-panel hidden" hidden aria-label="Participantes"><div class="gx-participants-head"><div><strong>Participantes</strong><div class="gx-participants-count">Conectando…</div></div><button type="button" data-gx-close-participants>✕</button></div><div class="gx-participants-list"><p class="gx-participant-status">Cargando participantes…</p></div></aside><div class="gx-call-end-modal hidden" hidden role="dialog" aria-modal="true"><div class="gx-call-end-card"><h3>¿Qué quieres hacer?</h3><p>Elige si quieres salir de tu llamada o finalizar el entrenamiento para todos.</p><div class="gx-call-end-actions"><button type="button" data-gx-end-choice="leave">Salir de la llamada</button><button type="button" class="gx-end-all" data-gx-end-choice="end">Finalizar entrenamiento para todos</button><button type="button" class="gx-end-cancel" data-gx-end-choice="cancel">Cancelar</button></div></div></div></div></div></div>`;
   bind();
   $('[data-gx-close-participants]')?.addEventListener('click',toggleGrayxonParticipantsPanel);
   $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
-    try{jaasApi?.executeCommand('sendChatMessage',button.getAttribute('data-gx-reaction'));}catch(e){console.warn('No se pudo enviar la reacción:',e);}
+    try{const emoji=button.getAttribute('data-gx-reaction');showGrayxonReaction(profile?.full_name||profile?.username||'Tú',emoji);jaasApi?.executeCommand('sendChatMessage','[GXREACTION:'+emoji+']');}catch(e){console.warn('No se pudo enviar la reacción:',e);}
     const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
     $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
   }));
