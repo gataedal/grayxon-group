@@ -2399,7 +2399,34 @@ async function startGrayxonLiveTraining(training, options={}){
         } catch(err) { console.warn('No se pudo ejecutar la opción:',action,err); }
       };
     });
-    api.addEventListener?.('ready',()=>{gxJitsiReady=true;});
+    // Diagnóstico temporal de video Jitsi: no registra JWT ni datos sensibles.
+    window.__gxJitsiVideoDiag = {
+      startedAt: new Date().toISOString(),
+      provider,
+      roomName,
+      events: []
+    };
+    const gxLogVideoDiag = (event, data={}) => {
+      const safe = {
+        at: new Date().toISOString(),
+        event,
+        data: data && typeof data === 'object' ? {
+          participantId: data.participantId || data.id || null,
+          type: data.type || data.track?.type || null,
+          videoType: data.videoType || data.track?.videoType || null,
+          muted: typeof data.muted === 'boolean' ? data.muted : null,
+          error: data.error?.message || data.message || null
+        } : {}
+      };
+      window.__gxJitsiVideoDiag.events.push(safe);
+      if (window.__gxJitsiVideoDiag.events.length > 100) window.__gxJitsiVideoDiag.events.shift();
+      console.info('[Grayxon Jitsi video diagnostic]', safe);
+    };
+    api.addEventListener?.('ready',()=>{gxJitsiReady=true;gxLogVideoDiag('ready');});
+    api.addEventListener?.('trackAdded', ev=>gxLogVideoDiag('trackAdded', ev));
+    api.addEventListener?.('trackRemoved', ev=>gxLogVideoDiag('trackRemoved', ev));
+    api.addEventListener?.('connectionQualityChanged', ev=>gxLogVideoDiag('connectionQualityChanged', ev));
+
     api.addEventListener?.('audioMuteStatusChanged',ev=>{
       gxAudioMuted=!!ev.muted;
       const b=$('[data-gx-call="audio"]'); if(!b)return;
@@ -2407,12 +2434,15 @@ async function startGrayxonLiveTraining(training, options={}){
       const label=b.querySelector('span:last-child'); if(label)label.textContent=gxAudioMuted?'Micrófono apagado':'Micrófono encendido';
     });
     api.addEventListener?.('videoMuteStatusChanged',ev=>{
+      gxLogVideoDiag('videoMuteStatusChanged', ev);
+
       gxVideoMuted=!!ev.muted;
       const b=$('[data-gx-call="video"]'); if(!b)return;
       b.setAttribute('aria-pressed',String(!gxVideoMuted));
       const label=b.querySelector('span:last-child'); if(label)label.textContent=gxVideoMuted?'Cámara apagada':'Cámara encendida';
     });
     api.addEventListener?.('videoConferenceJoined',async(ev)=>{
+      gxLogVideoDiag('videoConferenceJoined', ev);
       gxJitsiReady=true;
       // No activar toggleModeration automáticamente: es un conmutador y al reconectar
       // podía invertir el estado, bloquear la cámara o disparar solicitudes inesperadas.
@@ -2427,8 +2457,8 @@ async function startGrayxonLiveTraining(training, options={}){
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
     });
 
-    api.addEventListener?.('participantJoined',()=>refreshGrayxonParticipants(api));
-    api.addEventListener?.('participantLeft',()=>refreshGrayxonParticipants(api));
+    api.addEventListener?.('participantJoined',ev=>{gxLogVideoDiag('participantJoined', ev);refreshGrayxonParticipants(api);});
+    api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);});
     api.addEventListener?.('raiseHandUpdated',ev=>{
       const id=ev?.id||ev?.participantId||'';
       const localId=!!ev?.id && (ev.id===window.__gxLocalParticipantId || ev.participantId===window.__gxLocalParticipantId);
@@ -2469,10 +2499,10 @@ async function startGrayxonLiveTraining(training, options={}){
       showGrayxonMessageNotification(nick,message);
       playGrayxonSound('message');
     });
-    api.addEventListener?.('cameraError',ev=>{console.warn('Error de cámara Jitsi:',ev);toast('No se pudo activar la cámara. Revisa los permisos de cámara de meet.grayxongroup.com en el navegador.');});
+    api.addEventListener?.('cameraError',ev=>{gxLogVideoDiag('cameraError', ev);console.warn('Error de cámara Jitsi:',ev);toast('No se pudo activar la cámara. Revisa los permisos de cámara de meet.grayxongroup.com en el navegador.');});
     api.addEventListener?.('micError',ev=>{console.warn('Error de micrófono Jitsi:',ev);toast('No se pudo activar el micrófono. Revisa los permisos del navegador.');});
     api.addEventListener?.('moderationStatusChanged',ev=>console.info('Estado de moderación AV:',ev));
-    api.addEventListener?.('errorOccurred',ev=>console.warn('Error de Jitsi:',ev?.name,ev?.message));
+    api.addEventListener?.('errorOccurred',ev=>{gxLogVideoDiag('errorOccurred', ev);console.warn('Error de Jitsi:',ev?.name,ev?.message);});
 
     api.addEventListener?.('toolbarButtonClicked',async(ev)=>{
       if(ev?.key!=='hangup')return;
