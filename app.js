@@ -2426,7 +2426,33 @@ async function startGrayxonLiveTraining(training, options={}){
       if (window.__gxJitsiVideoDiag.events.length > 100) window.__gxJitsiVideoDiag.events.shift();
       console.info('[Grayxon Jitsi video diagnostic]', safe);
     };
-    api.addEventListener?.('ready',()=>{gxJitsiReady=true;gxLogVideoDiag('ready');});
+    // Recalcular el tamaño del iframe tras la inicialización. En Grayxon la sala se
+    // abre dentro de una vista que cambia a pantalla completa; Jitsi puede conservar
+    // las dimensiones previas y dejar el vídeo negro aunque las pistas estén activas.
+    const resizeGrayxonJitsi = () => {
+      if (jaasApi !== api || !host.isConnected) return;
+      const rect = host.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return;
+      try {
+        if (typeof api.resize === 'function') api.resize(Math.round(rect.width), Math.round(rect.height));
+        const frame = host.querySelector('iframe');
+        if (frame) {
+          frame.style.setProperty('width', '100%', 'important');
+          frame.style.setProperty('height', '100%', 'important');
+          frame.style.setProperty('min-height', '0', 'important');
+        }
+      } catch (err) {
+        console.warn('No se pudo recalcular el tamaño de Jitsi:', err);
+      }
+    };
+    const scheduleGrayxonJitsiResize = () => {
+      [0, 250, 800, 1600].forEach(delay => setTimeout(resizeGrayxonJitsi, delay));
+    };
+    api.addEventListener?.('ready',()=>{
+      gxJitsiReady=true;
+      gxLogVideoDiag('ready');
+      scheduleGrayxonJitsiResize();
+    });
     api.addEventListener?.('trackAdded', ev=>gxLogVideoDiag('trackAdded', ev));
     api.addEventListener?.('trackRemoved', ev=>gxLogVideoDiag('trackRemoved', ev));
     api.addEventListener?.('connectionQualityChanged', ev=>gxLogVideoDiag('connectionQualityChanged', ev));
@@ -2448,6 +2474,8 @@ async function startGrayxonLiveTraining(training, options={}){
     api.addEventListener?.('videoConferenceJoined',async(ev)=>{
       gxLogVideoDiag('videoConferenceJoined', ev);
       gxJitsiReady=true;
+      // Repetir después de unirse: las dimensiones definitivas de la vista ya están aplicadas.
+      scheduleGrayxonJitsiResize();
       // No activar toggleModeration automáticamente: es un conmutador y al reconectar
       // podía invertir el estado, bloquear la cámara o disparar solicitudes inesperadas.
       // El control de permisos se gestiona desde la interfaz de Grayxon.
