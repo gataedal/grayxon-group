@@ -2625,10 +2625,19 @@ async function startGrayxonLiveTraining(training, options={}){
     api.addEventListener?.('raiseHandUpdated',ev=>gxLogVideoDiag('raiseHandUpdated',ev));
     api.addEventListener?.('dominantSpeakerChanged',ev=>{
       window.__grayxonDominantSpeaker=ev?.id||null;
+      // La detección de voz no debe quitarle el escenario al anfitrión.
+      // En cada dispositivo se vuelve a fijar localmente al anfitrión si alguien más
+      // pasa a ser el vídeo principal; fijar es local a cada cliente de Jitsi.
+      if(window.__gxHostParticipantId && String(ev?.id||'')!==String(window.__gxHostParticipantId)){
+        setTimeout(()=>{try{api.executeCommand('pinParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
+      }
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('largeVideoChanged',ev=>{
       window.__grayxonLargeVideoParticipant=ev?.id||null;
+      if(window.__gxHostParticipantId && String(ev?.id||'')!==String(window.__gxHostParticipantId)){
+        setTimeout(()=>{try{api.executeCommand('pinParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
+      }
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
