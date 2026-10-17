@@ -2393,7 +2393,7 @@ async function startGrayxonLiveTraining(training, options={}){
     const callControls=$('.gx-call-controls');
     const callCommand={audio:'toggleAudio',video:'toggleVideo'};
     callControls?.querySelectorAll('[data-gx-call]').forEach(button=>{
-      button.onclick=()=>{
+      button.onclick=async()=>{
         const action=button.getAttribute('data-gx-call');
         try {
           if(action==='hangup'){ const modal=$('.gx-call-end-modal'); if(modal){modal.hidden=false;modal.classList.remove('hidden');} return; }
