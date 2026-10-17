@@ -2248,6 +2248,8 @@ async function startGrayxonLiveTraining(training, options={}){
         startWithVideoMuted:true,
         // Keep essential controls visible and leave secondary tools in "Más".
         toolbarButtons:['microphone','camera','raisehand','hangup','chat','reactions','desktop','settings','participants-pane','overflowmenu'],
+        toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:true},
+        disableDeepLinking:true,
         // Expose the hangup click so the host can end the entire training.
         buttonsWithNotifyClick:[{key:'hangup',preventExecution:true}],
         // AV moderation makes participants request permission before unmuting.
