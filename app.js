@@ -2209,8 +2209,12 @@ async function endLiveTrainingConference(api, trainingId) {
 }
 
 async function startGrayxonLiveTraining(training, options={}){
-  const requestedJitsiTest = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
-  // El parámetro solo selecciona el proveedor de prueba; la Edge Function sigue validando acceso y permisos.
+  // Persistir el modo de prueba durante el login/navegación interna, que puede limpiar la query string.
+  const testParam = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
+  if (testParam) { try { sessionStorage.setItem('grayxonJitsiTestMode','1'); } catch (_) {} }
+  let requestedJitsiTest = testParam;
+  if (!requestedJitsiTest) { try { requestedJitsiTest = sessionStorage.getItem('grayxonJitsiTestMode') === '1'; } catch (_) {} }
+  // El parámetro solo selecciona el proveedor; la Edge Function sigue validando acceso y permisos.
   const provider = options.provider || (requestedJitsiTest ? 'jitsi' : GRAYXON_LIVE_PROVIDER);
   const host=$('#grayxonJaasMeet'); if(!host||!training?.room_name)return;
   destroyJaasMeeting();
