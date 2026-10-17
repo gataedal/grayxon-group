@@ -3672,7 +3672,7 @@ async function saveGxAppIcon() {
   if(['image/png','image/jpeg','image/webp'].indexOf(file.type)<0){if(err)err.textContent='Usa una imagen PNG, JPG o WebP.';return;}
   if(file.size>8*1024*1024){if(err)err.textContent='La imagen debe pesar menos de 8 MB.';return;}
   if(button)button.disabled=true;
-  const backups={}, uploadedNames=[];
+  const uploadedPaths=[];
   let stage='Validando sesión de administrador';
   try {
     const auth=await sb.auth.getUser();
@@ -3685,22 +3685,21 @@ async function saveGxAppIcon() {
     stage='Preparando la imagen';
     const image=await createImageBitmap(file);
     const variants=[['grayxon-app-icon-192.png',192,false],['grayxon-app-icon-512.png',512,false],['grayxon-app-icon-maskable-512.png',512,true],['apple-touch-icon.png',180,false],['favicon-32.png',32,false]];
-    stage='Comprobando archivos anteriores';
-    for(const variant of variants){
-      const old=await sb.storage.from(GX_APP_ICON_BUCKET).download('app-icons/' + variant[0]);
-      if(!old.error && old.data) backups[variant[0]]=old.data;
-    }
+    // Cada publicación usa rutas nuevas. Así Storage solo necesita autorizar INSERT:
+    // reemplazar rutas existentes con upsert exige SELECT + UPDATE y estaba fallando por RLS.
+    const release='app-icons/'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+    const urls={};
     for(const variant of variants){
       const name=variant[0], size=variant[1], padded=variant[2];
       const blob=await gxRenderIconVariant(image,size,padded);
+      const path=release+'/'+name;
       stage='Subiendo '+name+' a Supabase Storage';
       if(progress)progress.textContent='Subiendo icono ' + size + ' × ' + size + '…';
-      const upload=await sb.storage.from(GX_APP_ICON_BUCKET).upload('app-icons/' + name,blob,{upsert:true,cacheControl:'0',contentType:'image/png'});
+      const upload=await sb.storage.from(GX_APP_ICON_BUCKET).upload(path,blob,{upsert:false,cacheControl:'31536000',contentType:'image/png'});
       if(upload.error)throw new Error(stage+': '+upload.error.message);
-      uploadedNames.push(name);
+      uploadedPaths.push(path);
+      urls[name]=sb.storage.from(GX_APP_ICON_BUCKET).getPublicUrl(path).data.publicUrl;
     }
-    const urls={};
-    for(const variant of variants) urls[variant[0]]=gxAppIconPublicUrl(variant[0]);
     const content={initialized:true,updated_at:new Date().toISOString(),urls:urls};
     stage='Guardando la configuración del icono';
     const saved=await sb.from('site_content').upsert({id:'app_icon',content:content,published:true,updated_at:content.updated_at});
@@ -3709,12 +3708,12 @@ async function saveGxAppIcon() {
     const img=$('#gxAppIconCurrent');if(img)img.src=urls['grayxon-app-icon-512.png']+'?v='+Date.now();
     const selected=$('#gxAppIconSelectedPreview');if(selected){selected.innerHTML='';selected.classList.add('hidden');}
     input.value='';
-    if(progress)progress.textContent='Icono guardado. Las nuevas instalaciones usarán esta imagen cuando se publique la configuración de instalación.';
-    toast('Icono de Grayxon guardado.');
+    if(progress)progress.textContent='Icono guardado correctamente. La configuración nueva ya está publicada para el portal y las próximas instalaciones.';
+    toast('Icono de Grayxon guardado ✓');
   } catch(e) {
-    for(const name of uploadedNames){
-      if(!backups[name])continue;
-      try{await sb.storage.from(GX_APP_ICON_BUCKET).upload('app-icons/' + name,backups[name],{upsert:true,cacheControl:'0',contentType:'image/png'});}catch(_){ }
+    // Si la configuración no se guardó, intenta retirar los archivos de esta publicación incompleta.
+    if(uploadedPaths.length){
+      try{await sb.storage.from(GX_APP_ICON_BUCKET).remove(uploadedPaths);}catch(_){}
     }
     if(err)err.textContent=e && e.message ? e.message : stage+': no se pudo completar la operación.';
     if(progress)progress.textContent='No se completó la actualización.';
