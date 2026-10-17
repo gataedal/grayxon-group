@@ -1040,9 +1040,9 @@ function ensureLiveTrainingPage() {
       @media(max-width:600px){body.grayxon-live-training-call.gx-chat-open #grayxonTrainingRoomWrap .gx-call-controls{bottom:calc(106px + env(safe-area-inset-bottom))!important;left:8px!important;right:8px!important}}
       body.grayxon-live-training-call .gx-call-more-menu{position:fixed!important;right:16px!important;bottom:calc(84px + env(safe-area-inset-bottom))!important;z-index:100004!important;display:flex!important;flex-direction:column!important;gap:5px!important;min-width:190px!important;padding:8px!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:14px!important;background:rgba(12,15,20,.98)!important;box-shadow:0 12px 40px #0008!important}
       body.grayxon-live-training-call .gx-call-more-menu[hidden],body.grayxon-live-training-call .gx-call-more-menu.hidden{display:none!important}
-      body.grayxon-live-training-call .gx-chat-panel{position:fixed!important;right:14px!important;top:calc(62px + env(safe-area-inset-top))!important;bottom:calc(88px + env(safe-area-inset-bottom))!important;width:min(370px,calc(100vw - 28px))!important;z-index:100007!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;border:1px solid #ffffff20!important;border-radius:20px!important;background:rgba(10,13,18,.98)!important;color:#fff!important;box-shadow:0 20px 60px #0009!important;backdrop-filter:blur(18px)!important}
+      body.grayxon-live-training-call .gx-chat-panel{position:fixed!important;right:14px!important;top:calc(62px + env(safe-area-inset-top))!important;bottom:calc(88px + env(safe-area-inset-bottom))!important;width:min(370px,calc(100vw - 28px))!important;max-height:calc(100dvh - 170px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;z-index:100007!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;border:1px solid #ffffff20!important;border-radius:20px!important;background:rgba(10,13,18,.98)!important;color:#fff!important;box-shadow:0 20px 60px #0009!important;backdrop-filter:blur(18px)!important}
       body.grayxon-live-training-call .gx-chat-panel[hidden],body.grayxon-live-training-call .gx-chat-panel.hidden{display:none!important}.gx-chat-head{display:flex!important;justify-content:space-between!important;align-items:center!important;padding:14px 15px!important;border-bottom:1px solid #ffffff16!important}.gx-chat-head strong,.gx-chat-head small{display:block!important}.gx-chat-head small{font-size:11px!important;color:#9ba4b2!important;margin-top:3px!important}.gx-chat-head button{border:0!important;border-radius:9px!important;padding:8px 10px!important;background:#202630!important;color:#fff!important}.gx-chat-messages{flex:1!important;overflow:auto!important;padding:12px!important}.gx-chat-message{padding:9px 10px!important;margin-bottom:8px!important;border-radius:12px!important;background:#ffffff09!important;overflow-wrap:anywhere!important}.gx-chat-message strong{font-size:11px!important;color:#7de8e2!important}.gx-chat-message p{font-size:13px!important;line-height:1.45!important;margin:4px 0 0!important;white-space:pre-wrap!important}.gx-chat-empty{font-size:12px!important;color:#9ba4b2!important;text-align:center!important;padding:18px 8px!important}.gx-chat-form{display:flex!important;gap:7px!important;padding:10px!important;border-top:1px solid #ffffff16!important}.gx-chat-form input{flex:1!important;min-width:0!important;background:#171b22!important;border:1px solid #ffffff18!important;border-radius:11px!important;color:#fff!important;padding:11px!important;font-size:13px!important}.gx-chat-form button{border:0!important;border-radius:11px!important;background:#fe2c55!important;color:#fff!important;font-weight:800!important;padding:0 13px!important}
-      @media(max-width:600px){body.grayxon-live-training-call .gx-chat-panel{top:calc(54px + env(safe-area-inset-top))!important;left:10px!important;right:10px!important;bottom:calc(100px + env(safe-area-inset-bottom))!important;width:auto!important}}
+      @media(max-width:600px){body.grayxon-live-training-call .gx-chat-panel{top:auto!important;left:10px!important;right:10px!important;bottom:calc(82px + env(safe-area-inset-bottom))!important;width:auto!important;height:min(42dvh,340px)!important;max-height:42dvh!important;min-height:210px!important;border-radius:16px!important}.gx-chat-head{padding:9px 11px!important}.gx-chat-messages{padding:8px!important}.gx-chat-form{padding:8px!important}.gx-chat-form input{font-size:16px!important;min-height:40px!important}.gx-chat-form button{min-height:40px!important}}
       #gx-reaction-float-layer{position:fixed!important;inset:0!important;overflow:hidden!important;pointer-events:none!important;z-index:100008!important}
       .gx-reaction-float{position:absolute!important;bottom:100px!important;display:flex!important;align-items:center!important;gap:8px!important;padding:7px 12px 7px 7px!important;border:1px solid #ffffff24!important;border-radius:999px!important;background:rgba(15,19,26,.92)!important;color:#fff!important;box-shadow:0 8px 28px #0008!important;animation:gxReactionRise 3.5s ease-out forwards!important;white-space:nowrap!important}
       .gx-reaction-float-emoji{font-size:30px!important}.gx-reaction-float-name{font-size:12px!important;font-weight:800!important}
@@ -1061,7 +1061,7 @@ function ensureLiveTrainingPage() {
       @media(max-width:600px){body.grayxon-live-training-call .gx-call-more-menu{right:12px!important;bottom:calc(76px + env(safe-area-inset-bottom))!important;left:12px!important;min-width:0!important}}
       @media(max-width:600px){body.grayxon-live-training-call .gx-call-brand{top:calc(8px + env(safe-area-inset-top))!important;left:10px!important}body.grayxon-live-training-call .gx-call-brand img{width:70px!important;max-height:28px!important}body.grayxon-live-training-call .gx-call-brand .gx-live-pill{font-size:9px!important;padding:5px 7px!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-controls{left:8px!important;right:8px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:none!important;max-width:none!important;gap:4px!important;padding:7px 5px!important;border-radius:17px!important}body.grayxon-live-training-call .gx-call-controls button{flex:1 1 0!important;min-width:0!important;min-height:45px!important;padding:5px 2px!important;font-size:9px!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon{font-size:18px!important}}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-toolbar{display:flex!important;visibility:visible!important;position:fixed!important;left:12px!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;z-index:100001!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;gap:8px!important;flex-wrap:wrap!important;background:rgba(10,12,16,.94)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:18px!important;padding:10px!important;backdrop-filter:blur(16px)!important}
-      body.grayxon-live-training-call #grayxonJaasMeet{position:relative!important;width:100%!important;min-width:0!important;min-height:0!important;height:100vh!important;height:100dvh!important;padding-bottom:90px!important;box-sizing:border-box!important;background:#050608!important;overflow:hidden!important}
+      body.grayxon-live-training-call #grayxonJaasMeet{position:relative!important;width:100%!important;min-width:0!important;min-height:0!important;height:100vh!important;height:100dvh!important;padding-bottom:90px!important;box-sizing:border-box!important;background:#050608!important;overflow:hidden!important}body.grayxon-live-training-call #grayxonJaasMeet iframe{touch-action:pan-y!important}
       body.grayxon-live-training-call #grayxonJaasMeet iframe{display:block!important;width:100%!important;height:100%!important;min-height:0!important;border:0!important}
       body.grayxon-live-training-call .live-training-loading{display:none!important}
       .page-section[hidden], #space[hidden], #home[hidden], #benefits[hidden], #auth[hidden], #manager[hidden], #training[hidden], #live-training[hidden], #missions[hidden], #profile[hidden], #admin[hidden]{display:none!important;}
@@ -2309,14 +2309,15 @@ async function startGrayxonLiveTraining(training, options={}){
       interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,SHOW_PROMOTIONAL_CLOSE_PAGE:false,SHOW_DEEP_LINKING_IMAGE:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608',JITSI_WATERMARK_LINK:'',BRAND_WATERMARK_LINK:''},
       configOverwrite:{
         prejoinConfig:{enabled:false},
-        // Prevent the browser asking for microphone/camera as soon as the room opens.
-        // Devices should be requested only after the participant taps the matching control.
-        disableInitialGUM:true,
+        // Start with both devices muted. Do not disable initial GUM: on some mobile
+        // browsers that flag prevents the camera track from being created on demand.
         startWithAudioMuted:true,
         startWithVideoMuted:true,
-        // Keep essential controls visible and leave secondary tools in "Más".
-        toolbarButtons:['microphone','camera','desktop','chat','raisehand','reactions','participants-pane','hangup'],
+        // Grayxon owns the controls and chat; never render a second Jitsi toolbar.
+        toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
+        filmstrip:{disableStageFilmstrip:false,disableResizable:true},
+        maxFullResolutionParticipants:4,
         disableDeepLinking:true,
         // Expose the hangup click so the host can end the entire training.
         buttonsWithNotifyClick:[{key:'hangup',preventExecution:true}],
@@ -2395,6 +2396,18 @@ async function startGrayxonLiveTraining(training, options={}){
       // Only the actual host enables AV moderation; admins retain JWT-granted rights.
       // Do not turn on AV moderation automatically here: it can block a manager's
       // camera without showing a usable approval request in this custom UI.
+      // Lock participant audio/video until the host allows them. The host is granted
+      // moderator privileges by generate-jitsi-jwt; participants cannot enable AV
+      // independently once Jitsi moderation is active.
+      if(isHost || isAdmin){
+        try {
+          api.executeCommand('toggleModeration','audio');
+          api.executeCommand('toggleModeration','video');
+        } catch(moderationError) {
+          console.warn('No se pudo activar la moderación de audio/video:',moderationError);
+          toast('No se pudo activar el control de permisos de cámara y micrófono.');
+        }
+      }
       await recordLiveTrainingJoin(training.id);
       await refreshGrayxonParticipants(api);
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
@@ -2415,8 +2428,9 @@ async function startGrayxonLiveTraining(training, options={}){
       if(match){showGrayxonReaction(nick,match[1]);return;}
       appendGrayxonChatMessage(nick,message,!!ev?.isPrivate);
     });
-    api.addEventListener?.('cameraError',ev=>toast('No se pudo activar la cámara. Revisa los permisos del navegador.'));
-    api.addEventListener?.('micError',ev=>toast('No se pudo activar el micrófono. Revisa los permisos del navegador.'));
+    api.addEventListener?.('cameraError',ev=>{console.warn('Error de cámara Jitsi:',ev);toast('No se pudo activar la cámara. Revisa los permisos de cámara de meet.grayxongroup.com en el navegador.');});
+    api.addEventListener?.('micError',ev=>{console.warn('Error de micrófono Jitsi:',ev);toast('No se pudo activar el micrófono. Revisa los permisos del navegador.');});
+    api.addEventListener?.('moderationStatusChanged',ev=>console.info('Estado de moderación AV:',ev));
     api.addEventListener?.('errorOccurred',ev=>console.warn('Error de Jitsi:',ev?.name,ev?.message));
 
     api.addEventListener?.('toolbarButtonClicked',async(ev)=>{
