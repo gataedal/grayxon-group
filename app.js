@@ -1040,7 +1040,7 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call #grayxonJaasMeet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #grayxonJaasMeet iframe{display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important}
       /* Franja inferior horizontal para los participantes, como en la referencia móvil. */
-      body.grayxon-live-training-call .gx-self-camera-menu-wrap{display:none!important}
+      body.grayxon-live-training-call .gx-self-camera-menu-wrap{position:fixed!important;top:calc(16px + env(safe-area-inset-top))!important;right:14px!important;z-index:100009!important;display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:6px!important}
       body.grayxon-live-training-call .gx-self-camera-menu-trigger{width:38px!important;height:38px!important;border:1px solid #ffffff28!important;border-radius:50%!important;background:rgba(9,12,17,.78)!important;color:#fff!important;font-size:20px!important;letter-spacing:2px!important;box-shadow:0 5px 20px #0005!important;backdrop-filter:blur(12px)!important}
       body.grayxon-live-training-call .gx-self-camera-menu{display:flex!important;flex-direction:column!important;gap:4px!important;min-width:176px!important;padding:7px!important;border:1px solid #ffffff20!important;border-radius:14px!important;background:rgba(10,13,18,.97)!important;box-shadow:0 14px 40px #0008!important}
       body.grayxon-live-training-call .gx-self-camera-menu[hidden],body.grayxon-live-training-call .gx-self-camera-menu.hidden{display:none!important}
@@ -2401,6 +2401,12 @@ async function startGrayxonLiveTraining(training, options={}){
         showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));
         playGrayxonSound('reaction');
       })
+      .on('broadcast',{event:'host-camera-pin'},({payload})=>{
+        const hostParticipantId=String(payload?.participantId||'');
+        if(!hostParticipantId)return;
+        window.__gxHostParticipantId=hostParticipantId;
+        try{api.executeCommand('pinParticipant',hostParticipantId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}
+      })
       .subscribe(status=>{if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Grayxon LIVE: error en canal de sincronización',status);});
     let gxJitsiReady=false;
     let gxAudioMuted=true;
@@ -2588,15 +2594,26 @@ async function startGrayxonLiveTraining(training, options={}){
         const participants=await api.getParticipantsInfo();
         const local=Array.isArray(participants)?participants.find(p=>p.isLocal):null;
         if(local){
-          window.__gxLocalParticipantId=local.participantId||local.id||null;
-          // No fijar la vista local sobre sí misma: Jitsi ya muestra la miniatura propia
-          // con sus controles. Evita ver la misma cámara duplicada en escenario y miniatura.
+          const localId=String(local.participantId||local.id||'');
+          window.__gxLocalParticipantId=localId||null;
+          if(isHost&&localId){
+            // El anfitrión es la vista principal predeterminada. Al ocultar self-view
+            // no queda una segunda miniatura de la cámara local.
+            window.__gxHostParticipantId=localId;
+            try{api.executeCommand('pinParticipant',localId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión local',err);}
+            sendGrayxonLiveBroadcast('host-camera-pin',{participantId:localId,userId:session?.user?.id||null});
+          }else if(window.__gxHostParticipantId){
+            try{api.executeCommand('pinParticipant',String(window.__gxHostParticipantId));}catch(_){}
+          }
         }
-      }catch(_){}
+      }catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal inicial',err);}
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
     });
 
-    api.addEventListener?.('participantJoined',ev=>{gxLogVideoDiag('participantJoined', ev);refreshGrayxonParticipants(api);});
+    api.addEventListener?.('participantJoined',async ev=>{
+      gxLogVideoDiag('participantJoined',ev);refreshGrayxonParticipants(api);
+      if(isHost){try{const people=await api.getParticipantsInfo();const local=Array.isArray(people)?people.find(p=>p.isLocal):null;const id=String(local?.participantId||local?.id||'');if(id){window.__gxHostParticipantId=id;sendGrayxonLiveBroadcast('host-camera-pin',{participantId:id,userId:session?.user?.id||null});}}catch(_){}}
+    });
     api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);});
     // El estado de la mano se gestiona con el canal de Grayxon y el ID del participante,
     // evitando que eventos nativos con formatos distintos se asignen a otra persona.
