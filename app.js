@@ -1045,9 +1045,9 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call .gx-call-brand img{display:block!important;width:clamp(76px,10vw,112px)!important;max-height:38px!important;object-fit:contain!important;filter:drop-shadow(0 2px 12px #000)!important}
       body.grayxon-live-training-call .gx-call-brand .gx-live-pill{font-size:10px!important;font-weight:900!important;letter-spacing:.12em!important;color:#fff!important;background:#fe2c55!important;padding:6px 9px!important;border-radius:7px!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-controls{position:fixed!important;left:50%!important;bottom:calc(14px + env(safe-area-inset-bottom))!important;transform:translateX(-50%)!important;z-index:100003!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:clamp(5px,1.2vw,12px)!important;max-width:calc(100vw - 20px)!important;padding:9px 12px!important;border-radius:22px!important;border:1px solid rgba(255,255,255,.14)!important;background:rgba(10,12,16,.94)!important;box-shadow:0 10px 42px rgba(0,0,0,.45)!important;backdrop-filter:blur(18px)!important}
-      body.grayxon-live-training-call .gx-call-controls button{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;min-width:44px!important;min-height:46px!important;padding:5px 7px!important;border:1px solid rgba(255,255,255,.07)!important;border-radius:15px!important;background:linear-gradient(180deg,#202630,#15191f)!important;color:#f7f8fa!important;font:600 9px/1.15 system-ui,sans-serif!important;cursor:pointer!important;transition:background .18s,border-color .18s,transform .18s!important;box-shadow:inset 0 1px 0 #ffffff08!important}
+      body.grayxon-live-training-call .gx-call-controls button{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:5px!important;min-width:48px!important;min-height:52px!important;padding:5px 6px!important;border:1px solid transparent!important;border-radius:14px!important;background:transparent!important;color:#f7f8fa!important;font:600 10px/1.15 system-ui,sans-serif!important;cursor:pointer!important;transition:background .18s,border-color .18s,transform .18s!important;box-shadow:none!important}
       body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon{display:grid!important;place-items:center!important;width:24px!important;height:24px!important;font-size:20px!important;line-height:1!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon svg{display:block!important;width:22px!important;height:22px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important}
-      body.grayxon-live-training-call .gx-call-controls button[aria-pressed="true"]{border-color:rgba(37,244,238,.65)!important;background:rgba(37,244,238,.12)!important}
+      body.grayxon-live-training-call .gx-call-controls button[aria-pressed="true"]{border-color:rgba(37,244,238,.58)!important;background:rgba(37,244,238,.09)!important}
       body.grayxon-live-training-call .gx-call-controls button.gx-call-end{background:#fe2c55!important;border-color:#fe2c55!important;border-radius:50%!important;min-width:46px!important;color:white!important}
       body.grayxon-live-training-call .gx-call-controls button:disabled{opacity:.45!important;cursor:wait!important}
       body.grayxon-live-training-call.gx-chat-open #grayxonTrainingRoomWrap .gx-call-controls{bottom:calc(112px + env(safe-area-inset-bottom))!important;transition:bottom .2s ease!important}
@@ -2555,8 +2555,15 @@ async function startGrayxonLiveTraining(training, options={}){
         if(local){
           window.__gxLocalParticipantId=local.participantId||local.id||null;
           // El anfitrión queda fijado como vídeo principal al iniciar la sala.
-          if(isHost&&window.__gxLocalParticipantId&&typeof api.pinParticipant==='function'){
-            try{api.pinParticipant(window.__gxLocalParticipantId);}catch(pinError){console.info('No se pudo fijar automáticamente al anfitrión:',pinError);}
+          if(isHost&&window.__gxLocalParticipantId){
+            // Fijar al anfitrión en el vídeo principal al entrar; el método de la API
+            // es preferible al cambio automático por voz. Si el build no lo expone,
+            // intentar el comando compatible del iframe API.
+            try{
+              if(typeof api.pinParticipant==='function')api.pinParticipant(window.__gxLocalParticipantId);
+              else api.executeCommand('pinParticipant',window.__gxLocalParticipantId);
+              window.__gxHostPinnedParticipantId=window.__gxLocalParticipantId;
+            }catch(pinError){console.info('No se pudo fijar automáticamente al anfitrión:',pinError);}
           }
         }
       }catch(_){}
@@ -2568,7 +2575,25 @@ async function startGrayxonLiveTraining(training, options={}){
     // El estado de la mano se gestiona con el canal de Grayxon y el ID del participante,
     // evitando que eventos nativos con formatos distintos se asignen a otra persona.
     api.addEventListener?.('raiseHandUpdated',ev=>gxLogVideoDiag('raiseHandUpdated',ev));
-    api.addEventListener?.('dominantSpeakerChanged',ev=>{window.__grayxonDominantSpeaker=ev?.id||null;refreshGrayxonParticipants(api);});
+    api.addEventListener?.('dominantSpeakerChanged',ev=>{
+      window.__grayxonDominantSpeaker=ev?.id||null;
+      // No dejar que el cambio automático de hablante quite al anfitrión de la vista
+      // principal. Si el anfitrión fija manualmente a otra persona, se respeta esa elección.
+      const hostId=window.__gxHostPinnedParticipantId;
+      if(isHost&&hostId&&!window.__gxUserSelectedLargeVideo){
+        try{
+          if(typeof api.pinParticipant==='function')api.pinParticipant(hostId);
+          else api.executeCommand('pinParticipant',hostId);
+        }catch(_){}
+      }
+      refreshGrayxonParticipants(api);
+    });
+    api.addEventListener?.('largeVideoChanged',ev=>{
+      const nextId=String(ev?.id||'');
+      if(nextId&&nextId!==String(window.__gxHostPinnedParticipantId||''))window.__gxUserSelectedLargeVideo=true;
+      window.__grayxonLargeVideoParticipant=ev?.id||null;
+      refreshGrayxonParticipants(api);
+    });
     api.addEventListener?.('largeVideoChanged',ev=>{window.__grayxonLargeVideoParticipant=ev?.id||null;refreshGrayxonParticipants(api);});
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
     api.addEventListener?.('chatUpdated',ev=>{document.body.classList.toggle('gx-chat-open',!!ev?.isOpen);const b=$('[data-gx-call="chat"]');if(b)b.setAttribute('aria-pressed',String(!!ev?.isOpen));});
