@@ -2210,7 +2210,8 @@ async function endLiveTrainingConference(api, trainingId) {
 
 async function startGrayxonLiveTraining(training, options={}){
   const requestedJitsiTest = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
-  const provider = options.provider || ((profile?.role === 'admin' && requestedJitsiTest) ? 'jitsi' : GRAYXON_LIVE_PROVIDER);
+  // El parámetro solo selecciona el proveedor de prueba; la Edge Function sigue validando acceso y permisos.
+  const provider = options.provider || (requestedJitsiTest ? 'jitsi' : GRAYXON_LIVE_PROVIDER);
   const host=$('#grayxonJaasMeet'); if(!host||!training?.room_name)return;
   destroyJaasMeeting();
   host.innerHTML='<div id="grayxonJaasLoading" class="live-training-loading" aria-hidden="true"></div>';
