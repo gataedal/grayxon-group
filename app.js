@@ -2405,9 +2405,31 @@ async function startGrayxonLiveTraining(training, options={}){
         const hostParticipantId=String(payload?.participantId||'');
         if(!hostParticipantId)return;
         window.__gxHostParticipantId=hostParticipantId;
-        try{api.executeCommand('pinParticipant',hostParticipantId);setTimeout(()=>{try{api.executeCommand('pinParticipant',hostParticipantId);}catch(_){}},700);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}
+        // El evento puede llegar antes de que Jitsi termine de crear el escenario.
+        // Reintentar brevemente evita que el primer pin se pierda durante la entrada.
+        const pinHost=()=>{try{api.executeCommand('pinParticipant',hostParticipantId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}};
+        [0,250,700,1400].forEach(delay=>setTimeout(pinHost,delay));
       })
-      .subscribe(status=>{if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Grayxon LIVE: error en canal de sincronización',status);});
+      .on('broadcast',{event:'host-camera-pin-request'},()=>{
+        // Los broadcasts no se reproducen a los participantes que aún no estaban suscritos.
+        // Si alguien entra tarde, el anfitrión le vuelve a anunciar su ID de Jitsi.
+        if(!isHost)return;
+        const hostParticipantId=String(window.__gxLocalParticipantId||'');
+        if(hostParticipantId)sendGrayxonLiveBroadcast('host-camera-pin',{participantId:hostParticipantId,userId:session?.user?.id||null});
+      })
+      .subscribe(status=>{
+        if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Grayxon LIVE: error en canal de sincronización',status);
+        if(status==='SUBSCRIBED'){
+          const hostParticipantId=String(window.__gxLocalParticipantId||'');
+          if(isHost&&hostParticipantId){
+            [0,500,1400].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin',{participantId:hostParticipantId,userId:session?.user?.id||null}),delay));
+          }else{
+            // Solicitar el ID al anfitrión al conectar; repetir para cubrir la carrera
+            // entre la suscripción de Realtime y la entrada a la sala de Jitsi.
+            [100,700,1600].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin-request',{userId:session?.user?.id||null}),delay));
+          }
+        }
+      });
     let gxJitsiReady=false;
     let gxAudioMuted=true;
     let gxVideoMuted=true;
@@ -2608,7 +2630,11 @@ async function startGrayxonLiveTraining(training, options={}){
             try{api.executeCommand('pinParticipant',localId);setTimeout(()=>{try{api.executeCommand('pinParticipant',localId);}catch(_){}},900);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión local',err);}
             sendGrayxonLiveBroadcast('host-camera-pin',{participantId:localId,userId:session?.user?.id||null});
           }else if(window.__gxHostParticipantId){
-            try{api.executeCommand('pinParticipant',String(window.__gxHostParticipantId));}catch(_){}
+            const hostParticipantId=String(window.__gxHostParticipantId);
+            [0,300,900].forEach(delay=>setTimeout(()=>{try{api.executeCommand('pinParticipant',hostParticipantId);}catch(_){}},delay));
+          }else{
+            // El anfitrión puede haber entrado antes de que este cliente se suscribiera.
+            [0,700,1600].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin-request',{userId:session?.user?.id||null}),delay));
           }
         }
       }catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal inicial',err);}
@@ -2617,7 +2643,18 @@ async function startGrayxonLiveTraining(training, options={}){
 
     api.addEventListener?.('participantJoined',async ev=>{
       gxLogVideoDiag('participantJoined',ev);refreshGrayxonParticipants(api);
-      if(isHost){try{const people=await api.getParticipantsInfo();const local=Array.isArray(people)?people.find(p=>p.isLocal):null;const id=String(local?.participantId||local?.id||'');if(id){window.__gxHostParticipantId=id;sendGrayxonLiveBroadcast('host-camera-pin',{participantId:id,userId:session?.user?.id||null});}}catch(_){}}
+      if(isHost){
+        try{
+          const people=await api.getParticipantsInfo();
+          const local=Array.isArray(people)?people.find(p=>p.isLocal):null;
+          const id=String(local?.participantId||local?.id||'');
+          if(id){
+            window.__gxLocalParticipantId=id;
+            window.__gxHostParticipantId=id;
+            [0,350,900].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin',{participantId:id,userId:session?.user?.id||null}),delay));
+          }
+        }catch(_){}
+      }
     });
     api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);});
     // El estado de la mano se gestiona con el canal de Grayxon y el ID del participante,
