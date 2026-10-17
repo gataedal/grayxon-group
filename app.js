@@ -2424,9 +2424,24 @@ async function startGrayxonLiveTraining(training, options={}){
     api.addEventListener?.('chatUpdated',ev=>{document.body.classList.toggle('gx-chat-open',!!ev?.isOpen);const b=$('[data-gx-call="chat"]');if(b)b.setAttribute('aria-pressed',String(!!ev?.isOpen));});
     api.addEventListener?.('incomingMessage',ev=>{
       const message=String(ev?.message||'');const nick=String(ev?.nick||ev?.from||'Participante');
-      const match=message.match(/^\\[GXREACTION:(.+?)\\]$/);
-      if(match){showGrayxonReaction(nick,match[1]);return;}
+      const match=message.match(/^\[GXREACTION:(.+?)\]$/);
+      if(match){showGrayxonReaction(nick,match[1]);playGrayxonSound('reaction');return;}
+      const avRequest=message.match(/^\[GXAVREQ:(audio|video):([a-zA-Z0-9_-]{8,80})\]$/);
+      if(avRequest){if(isHost||isAdmin)showGrayxonAVRequest({kind:avRequest[1],token:avRequest[2],name:nick,api});return;}
+      const avResponse=message.match(/^\[GXAVRES:(audio|video):([a-zA-Z0-9_-]{8,80}):(yes|no)\]$/);
+      if(avResponse){
+        if(avResponse[2]===window.__gxAvRequestToken){
+          if(avResponse[3]==='yes'){
+            try{api.executeCommand(avResponse[1]==='video'?'toggleVideo':'toggleAudio');toast(avResponse[1]==='video'?'El anfitrión aprobó tu cámara ✓':'El anfitrión aprobó tu micrófono ✓');}
+            catch(_){toast('No se pudo activar el dispositivo.');}
+          }else toast('El anfitrión rechazó la solicitud de acceso.');
+          window.__gxAvPendingRequest=null;
+        }
+        return;
+      }
       appendGrayxonChatMessage(nick,message,!!ev?.isPrivate);
+      showGrayxonMessageNotification(nick,message);
+      playGrayxonSound('message');
     });
     api.addEventListener?.('cameraError',ev=>{console.warn('Error de cámara Jitsi:',ev);toast('No se pudo activar la cámara. Revisa los permisos de cámara de meet.grayxongroup.com en el navegador.');});
     api.addEventListener?.('micError',ev=>{console.warn('Error de micrófono Jitsi:',ev);toast('No se pudo activar el micrófono. Revisa los permisos del navegador.');});
@@ -2675,7 +2690,7 @@ async function liveTrainingTpl(trainingOverride=null) {
   $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');});
   $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(profile?.full_name||profile?.username||'Tú',message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
   $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
-    try{const emoji=button.getAttribute('data-gx-reaction');showGrayxonReaction(profile?.full_name||profile?.username||'Tú',emoji);jaasApi?.executeCommand('sendChatMessage','[GXREACTION:'+emoji+']');}catch(e){console.warn('No se pudo enviar la reacción:',e);}
+    try{const emoji=button.getAttribute('data-gx-reaction');showGrayxonReaction(profile?.full_name||profile?.username||'Tú',emoji);playGrayxonSound('reaction');jaasApi?.executeCommand('sendChatMessage','[GXREACTION:'+emoji+']');}catch(e){console.warn('No se pudo enviar la reacción:',e);}
     const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
     $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
   }));
