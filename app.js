@@ -336,7 +336,7 @@ let gxLiveCallRealtimeTrainingId = null;
 async function sendGrayxonLiveBroadcast(event,payload){
   const channel=gxLiveCallRealtimeChannel;
   if(!channel){console.warn('Grayxon LIVE: canal de sincronización aún no está conectado.',event);return {error:new Error('Canal de sincronización no conectado')};}
-  try{return await channel.send({type:'broadcast',event,payload});}
+  try{const status=await channel.send({type:'broadcast',event,payload});if(status!=='ok'){const error=new Error('Estado de envío: '+String(status));console.warn('Grayxon LIVE: no se pudo confirmar el evento',event,status);return {error};}return {status};}
   catch(error){console.warn('Grayxon LIVE: no se pudo enviar el evento',event,error);return {error};}
 }
 let currentLiveTraining = null;
