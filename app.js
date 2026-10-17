@@ -1039,6 +1039,14 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #grayxonJaasMeet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #grayxonJaasMeet iframe{display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important}
+      /* Franja inferior horizontal para los participantes, como en la referencia móvil. */
+      body.grayxon-live-training-call .gx-self-camera-menu-wrap{position:fixed!important;top:calc(16px + env(safe-area-inset-top))!important;right:14px!important;z-index:100009!important;display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:6px!important}
+      body.grayxon-live-training-call .gx-self-camera-menu-trigger{width:38px!important;height:38px!important;border:1px solid #ffffff28!important;border-radius:50%!important;background:rgba(9,12,17,.78)!important;color:#fff!important;font-size:20px!important;letter-spacing:2px!important;box-shadow:0 5px 20px #0005!important;backdrop-filter:blur(12px)!important}
+      body.grayxon-live-training-call .gx-self-camera-menu{display:flex!important;flex-direction:column!important;gap:4px!important;min-width:176px!important;padding:7px!important;border:1px solid #ffffff20!important;border-radius:14px!important;background:rgba(10,13,18,.97)!important;box-shadow:0 14px 40px #0008!important}
+      body.grayxon-live-training-call .gx-self-camera-menu[hidden],body.grayxon-live-training-call .gx-self-camera-menu.hidden{display:none!important}
+      body.grayxon-live-training-call .gx-self-camera-menu button{padding:10px 12px!important;text-align:left!important;border:0!important;border-radius:9px!important;background:transparent!important;color:#f5f7fa!important;font:600 12px/1.3 system-ui,sans-serif!important}
+      body.grayxon-live-training-call .gx-self-camera-menu button:hover{background:#ffffff12!important}
+      body.grayxon-live-training-call #grayxonJaasMeet iframe{--gx-filmstrip-layout:horizontal!important}
 
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
       body.grayxon-live-training-call header.top,body.grayxon-live-training-call .top{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-brand{position:fixed!important;top:calc(10px + env(safe-area-inset-top))!important;left:14px!important;z-index:100002!important;display:flex!important;align-items:center!important;gap:10px!important;pointer-events:none!important;transform:none!important;touch-action:none!important}
@@ -2350,7 +2358,7 @@ async function startGrayxonLiveTraining(training, options={}){
       height:'100%',
       lang:'es',
       userInfo:{displayName:profile?.full_name||profile?.username||session?.user?.email?.split('@')[0]||'Participante Grayxon',email:session?.user?.email||''},
-      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,SHOW_PROMOTIONAL_CLOSE_PAGE:false,SHOW_DEEP_LINKING_IMAGE:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608',JITSI_WATERMARK_LINK:'',BRAND_WATERMARK_LINK:''},
+      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,SHOW_PROMOTIONAL_CLOSE_PAGE:false,SHOW_DEEP_LINKING_IMAGE:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608',JITSI_WATERMARK_LINK:'',BRAND_WATERMARK_LINK:'',VERTICAL_FILMSTRIP:false,FILM_STRIP_MAX_HEIGHT:132,DISABLE_JOIN_LEAVE_NOTIFICATIONS:true},
       configOverwrite:{
         prejoinConfig:{enabled:false},
         // Start with both devices muted. Do not disable initial GUM: on some mobile
@@ -2361,6 +2369,8 @@ async function startGrayxonLiveTraining(training, options={}){
         toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
         filmstrip:{disableStageFilmstrip:false,disableResizable:true},
+        // Mantener la miniatura propia y sus controles; organizar participantes en franja horizontal.
+        disableSelfView:false,
         maxFullResolutionParticipants:4,
         // Grayxon uses its own Jitsi server. Force media through the Jitsi Videobridge
         // while diagnosing black remote video; this avoids a broken P2P ICE path
@@ -2438,6 +2448,30 @@ async function startGrayxonLiveTraining(training, options={}){
           if(callCommand[action]) api.executeCommand(callCommand[action]);
         } catch(err) { console.warn('No se pudo ejecutar el control de llamada:',action,err); }
       };
+    });
+    const selfCameraMenu=$('.gx-self-camera-menu');
+    const selfCameraTrigger=$('.gx-self-camera-menu-trigger');
+    selfCameraTrigger?.addEventListener('click',()=>{
+      const open=selfCameraTrigger.getAttribute('aria-expanded')==='true';
+      selfCameraTrigger.setAttribute('aria-expanded',String(!open));
+      if(selfCameraMenu){selfCameraMenu.hidden=open;selfCameraMenu.classList.toggle('hidden',open);}
+    });
+    selfCameraMenu?.querySelectorAll('[data-gx-camera-option]').forEach(button=>button.addEventListener('click',()=>{
+      const action=button.getAttribute('data-gx-camera-option');
+      try{
+        if(action==='flip')api.executeCommand('toggleCamera');
+        else if(action==='mirror')api.executeCommand('toggleCameraMirror');
+        else if(action==='background')api.executeCommand('toggleVirtualBackgroundDialog');
+        else if(action==='settings')api.executeCommand('openSettings');
+      }catch(err){console.warn('No se pudo ejecutar la opción de cámara:',action,err);toast('Esta opción no está disponible en este dispositivo.');}
+      if(selfCameraMenu){selfCameraMenu.hidden=true;selfCameraMenu.classList.add('hidden');}
+      selfCameraTrigger?.setAttribute('aria-expanded','false');
+    }));
+    document.addEventListener('click',ev=>{
+      if(!ev.target?.closest?.('.gx-self-camera-menu-wrap')&&selfCameraMenu){
+        selfCameraMenu.hidden=true;selfCameraMenu.classList.add('hidden');
+        selfCameraTrigger?.setAttribute('aria-expanded','false');
+      }
     });
     $('.gx-call-more-menu')?.querySelectorAll('[data-gx-more]').forEach(button=>{
       button.onclick=()=>{
@@ -2554,17 +2588,8 @@ async function startGrayxonLiveTraining(training, options={}){
         const local=Array.isArray(participants)?participants.find(p=>p.isLocal):null;
         if(local){
           window.__gxLocalParticipantId=local.participantId||local.id||null;
-          // El anfitrión queda fijado como vídeo principal al iniciar la sala.
-          if(isHost&&window.__gxLocalParticipantId){
-            // Fijar al anfitrión en el vídeo principal al entrar; el método de la API
-            // es preferible al cambio automático por voz. Si el build no lo expone,
-            // intentar el comando compatible del iframe API.
-            try{
-              if(typeof api.pinParticipant==='function')api.pinParticipant(window.__gxLocalParticipantId);
-              else api.executeCommand('pinParticipant',window.__gxLocalParticipantId);
-              window.__gxHostPinnedParticipantId=window.__gxLocalParticipantId;
-            }catch(pinError){console.info('No se pudo fijar automáticamente al anfitrión:',pinError);}
-          }
+          // No fijar la vista local sobre sí misma: Jitsi ya muestra la miniatura propia
+          // con sus controles. Evita ver la misma cámara duplicada en escenario y miniatura.
         }
       }catch(_){}
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
@@ -2577,24 +2602,12 @@ async function startGrayxonLiveTraining(training, options={}){
     api.addEventListener?.('raiseHandUpdated',ev=>gxLogVideoDiag('raiseHandUpdated',ev));
     api.addEventListener?.('dominantSpeakerChanged',ev=>{
       window.__grayxonDominantSpeaker=ev?.id||null;
-      // No dejar que el cambio automático de hablante quite al anfitrión de la vista
-      // principal. Si el anfitrión fija manualmente a otra persona, se respeta esa elección.
-      const hostId=window.__gxHostPinnedParticipantId;
-      if(isHost&&hostId&&!window.__gxUserSelectedLargeVideo){
-        try{
-          if(typeof api.pinParticipant==='function')api.pinParticipant(hostId);
-          else api.executeCommand('pinParticipant',hostId);
-        }catch(_){}
-      }
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('largeVideoChanged',ev=>{
-      const nextId=String(ev?.id||'');
-      if(nextId&&nextId!==String(window.__gxHostPinnedParticipantId||''))window.__gxUserSelectedLargeVideo=true;
       window.__grayxonLargeVideoParticipant=ev?.id||null;
       refreshGrayxonParticipants(api);
     });
-    api.addEventListener?.('largeVideoChanged',ev=>{window.__grayxonLargeVideoParticipant=ev?.id||null;refreshGrayxonParticipants(api);});
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
     api.addEventListener?.('chatUpdated',ev=>{document.body.classList.toggle('gx-chat-open',!!ev?.isOpen);const b=$('[data-gx-call="chat"]');if(b)b.setAttribute('aria-pressed',String(!!ev?.isOpen));});
     api.addEventListener?.('incomingMessage',ev=>{
@@ -2873,7 +2886,7 @@ async function liveTrainingTpl(trainingOverride=null) {
     bind();
     return;
   }
-  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div class="gx-call-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"><span class="gx-live-pill">EN VIVO</span><span class="gx-live-elapsed" id="gx-live-elapsed" aria-live="off">00:00</span></div><div id="grayxonJaasMeet" class="live-training-meet"></div><nav class="gx-call-controls" aria-label="Controles de la llamada"><button type="button" data-gx-call="audio" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="13" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"></path></svg></span><span>Micrófono</span></button><button type="button" data-gx-call="video" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="m16 10 5-3v10l-5-3"></path></svg></span><span>Cámara</span></button><button type="button" data-gx-call="hand" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 12V5a1.5 1.5 0 0 1 3 0v5-7a1.5 1.5 0 0 1 3 0v7-5a1.5 1.5 0 0 1 3 0v7l1-2a1.7 1.7 0 0 1 3 1l-2 7c-.7 2.4-2.3 4-5 4h-2c-2 0-3.3-1-4.5-2.5L4 14a1.8 1.8 0 0 1 2.7-2.3z"></path></svg></span><span data-gx-hand-label>Levantar la mano</span></button><button type="button" data-gx-call="hangup" class="gx-call-end"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 14c4 4 12 4 16 0l-3-4-3 2H10L7 10z"></path></svg></span><span>Salir</span></button><button type="button" data-gx-call="chat"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v13H9l-5 4z"></path><path d="M8 9h8M8 13h5"></path></svg></span><span>Chat</span></button><button type="button" data-gx-call="reactions"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 3 4 3 4-3 4-3M9 9h.01M15 9h.01"></path></svg></span><span>Reacciones</span></button><button type="button" data-gx-call="more" aria-expanded="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg></span><span>Más</span></button></nav><div id="gx-reaction-float-layer" aria-live="polite"></div><aside class="gx-chat-panel hidden" hidden aria-label="Chat de la llamada"><div class="gx-chat-head"><div><strong>Chat en vivo</strong><small>Mensajes de la sesión</small></div><button type="button" data-gx-chat-close>✕</button></div><div id="gx-chat-messages" class="gx-chat-messages" aria-live="polite"><p class="gx-chat-empty">Los mensajes aparecerán aquí.</p></div><form id="gx-chat-form" class="gx-chat-form"><input id="gx-chat-input" maxlength="1000" placeholder="Escribe un mensaje…" autocomplete="off"><button type="submit">Enviar</button></form></aside><div class="gx-reactions-menu hidden" hidden aria-label="Reacciones"><button type="button" data-gx-reaction="👏">👏</button><button type="button" data-gx-reaction="❤️">❤️</button><button type="button" data-gx-reaction="😂">😂</button><button type="button" data-gx-reaction="🔥">🔥</button><button type="button" data-gx-reaction="🎉">🎉</button><button type="button" data-gx-reaction="👍">👍</button></div><div class="gx-call-more-menu hidden" hidden><button type="button" data-gx-more="share">Compartir pantalla</button><button type="button" data-gx-more="participants">Participantes</button><button type="button" data-gx-more="settings">Dispositivos y ajustes</button></div><aside class="gx-participants-panel hidden" hidden aria-label="Participantes"><div class="gx-participants-head"><div><strong>Participantes</strong><div class="gx-participants-count">Conectando…</div></div><button type="button" data-gx-close-participants>✕</button></div><div class="gx-participants-list"><p class="gx-participant-status">Cargando participantes…</p></div></aside><div class="gx-call-end-modal hidden" hidden role="dialog" aria-modal="true"><div class="gx-call-end-card"><h3>¿Qué quieres hacer?</h3><p>Elige si quieres salir de tu llamada o finalizar el entrenamiento para todos.</p><div class="gx-call-end-actions"><button type="button" data-gx-end-choice="leave">Salir de la llamada</button><button type="button" class="gx-end-all" data-gx-end-choice="end">Finalizar entrenamiento para todos</button><button type="button" class="gx-end-cancel" data-gx-end-choice="cancel">Cancelar</button></div></div></div></div></div></div>`;
+  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':isModerator?'Moderador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div class="gx-call-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"><span class="gx-live-pill">EN VIVO</span><span class="gx-live-elapsed" id="gx-live-elapsed" aria-live="off">00:00</span></div><div id="grayxonJaasMeet" class="live-training-meet"></div><div class="gx-self-camera-menu-wrap"><button type="button" class="gx-self-camera-menu-trigger" aria-label="Opciones de mi cámara" aria-expanded="false" title="Opciones de mi cámara">•••</button><div class="gx-self-camera-menu hidden" hidden><button type="button" data-gx-camera-option="flip">Cambiar cámara</button><button type="button" data-gx-camera-option="mirror">Voltear imagen</button><button type="button" data-gx-camera-option="background">Fondo virtual</button><button type="button" data-gx-camera-option="settings">Ajustes de cámara</button></div></div><nav class="gx-call-controls" aria-label="Controles de la llamada"><button type="button" data-gx-call="audio" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="13" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"></path></svg></span><span>Micrófono</span></button><button type="button" data-gx-call="video" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="m16 10 5-3v10l-5-3"></path></svg></span><span>Cámara</span></button><button type="button" data-gx-call="hand" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 12V5a1.5 1.5 0 0 1 3 0v5-7a1.5 1.5 0 0 1 3 0v7-5a1.5 1.5 0 0 1 3 0v7l1-2a1.7 1.7 0 0 1 3 1l-2 7c-.7 2.4-2.3 4-5 4h-2c-2 0-3.3-1-4.5-2.5L4 14a1.8 1.8 0 0 1 2.7-2.3z"></path></svg></span><span data-gx-hand-label>Levantar la mano</span></button><button type="button" data-gx-call="hangup" class="gx-call-end"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 14c4 4 12 4 16 0l-3-4-3 2H10L7 10z"></path></svg></span><span>Salir</span></button><button type="button" data-gx-call="chat"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v13H9l-5 4z"></path><path d="M8 9h8M8 13h5"></path></svg></span><span>Chat</span></button><button type="button" data-gx-call="reactions"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 3 4 3 4-3 4-3M9 9h.01M15 9h.01"></path></svg></span><span>Reacciones</span></button><button type="button" data-gx-call="more" aria-expanded="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg></span><span>Más</span></button></nav><div id="gx-reaction-float-layer" aria-live="polite"></div><aside class="gx-chat-panel hidden" hidden aria-label="Chat de la llamada"><div class="gx-chat-head"><div><strong>Chat en vivo</strong><small>Mensajes de la sesión</small></div><button type="button" data-gx-chat-close>✕</button></div><div id="gx-chat-messages" class="gx-chat-messages" aria-live="polite"><p class="gx-chat-empty">Los mensajes aparecerán aquí.</p></div><form id="gx-chat-form" class="gx-chat-form"><input id="gx-chat-input" maxlength="1000" placeholder="Escribe un mensaje…" autocomplete="off"><button type="submit">Enviar</button></form></aside><div class="gx-reactions-menu hidden" hidden aria-label="Reacciones"><button type="button" data-gx-reaction="👏">👏</button><button type="button" data-gx-reaction="❤️">❤️</button><button type="button" data-gx-reaction="😂">😂</button><button type="button" data-gx-reaction="🔥">🔥</button><button type="button" data-gx-reaction="🎉">🎉</button><button type="button" data-gx-reaction="👍">👍</button></div><div class="gx-call-more-menu hidden" hidden><button type="button" data-gx-more="share">Compartir pantalla</button><button type="button" data-gx-more="participants">Participantes</button><button type="button" data-gx-more="settings">Dispositivos y ajustes</button></div><aside class="gx-participants-panel hidden" hidden aria-label="Participantes"><div class="gx-participants-head"><div><strong>Participantes</strong><div class="gx-participants-count">Conectando…</div></div><button type="button" data-gx-close-participants>✕</button></div><div class="gx-participants-list"><p class="gx-participant-status">Cargando participantes…</p></div></aside><div class="gx-call-end-modal hidden" hidden role="dialog" aria-modal="true"><div class="gx-call-end-card"><h3>¿Qué quieres hacer?</h3><p>Elige si quieres salir de tu llamada o finalizar el entrenamiento para todos.</p><div class="gx-call-end-actions"><button type="button" data-gx-end-choice="leave">Salir de la llamada</button><button type="button" class="gx-end-all" data-gx-end-choice="end">Finalizar entrenamiento para todos</button><button type="button" class="gx-end-cancel" data-gx-end-choice="cancel">Cancelar</button></div></div></div></div></div></div>`;
   bind();
   $('[data-gx-close-participants]')?.addEventListener('click',toggleGrayxonParticipantsPanel);
   $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');});
