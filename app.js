@@ -2475,9 +2475,21 @@ async function startGrayxonLiveTraining(training, options={}){
         if (typeof api.resize === 'function') api.resize(Math.round(rect.width), Math.round(rect.height));
         const frame = host.querySelector('iframe');
         if (frame) {
+          frame.style.setProperty('display', 'block', 'important');
+          frame.style.setProperty('position', 'absolute', 'important');
+          frame.style.setProperty('inset', '0', 'important');
           frame.style.setProperty('width', '100%', 'important');
           frame.style.setProperty('height', '100%', 'important');
+          frame.style.setProperty('min-width', '0', 'important');
           frame.style.setProperty('min-height', '0', 'important');
+          frame.style.setProperty('border', '0', 'important');
+          // Explicitly grant media capabilities to the cross-origin Jitsi iframe.
+          frame.setAttribute('allow', 'camera; microphone; autoplay; fullscreen; display-capture; clipboard-write');
+          frame.setAttribute('allowfullscreen', '');
+          frame.setAttribute('webkitallowfullscreen', '');
+          frame.setAttribute('mozallowfullscreen', '');
+          frame.removeAttribute('aria-hidden');
+          frame.tabIndex = 0;
         }
       } catch (err) {
         console.warn('No se pudo recalcular el tamaño de Jitsi:', err);
