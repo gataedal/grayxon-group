@@ -2322,7 +2322,7 @@ async function startGrayxonLiveTraining(training, options={}){
       // promoting another participant. Admins retain moderator controls.
       if (isHost || isAdmin) {
         try { if (isHost && ev?.id) api.executeCommand('pinParticipant',ev.id); } catch (_) {}
-        try { api.executeCommand('setLargeVideoParticipant',ev?.id); } catch (_) {}
+        try { if (isHost && ev?.id) api.executeCommand('setLargeVideoParticipant',ev.id); } catch (_) {}
         try { api.executeCommand('setFollowMe',true,false); } catch (_) {}
         try { api.executeCommand('toggleModeration',true,'audio'); } catch (_) {}
         try { api.executeCommand('toggleModeration',true,'video'); } catch (_) {}
