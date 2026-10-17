@@ -2369,9 +2369,9 @@ async function startGrayxonLiveTraining(training, options={}){
         toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
         filmstrip:{disableStageFilmstrip:false,disableResizable:true},
-        // Mantener disponible la cámara propia; la vista principal se fija por participante.
-        // El self-view se deja habilitado para que la cámara local no se convierta en avatar.
-        disableSelfView:false,
+        // Ocultar la miniatura duplicada de la cámara local; el escenario principal se fija
+        // por participante y debe seguir mostrando el vídeo del anfitrión.
+        disableSelfView:true,
         maxFullResolutionParticipants:4,
         // Grayxon uses its own Jitsi server. Force media through the Jitsi Videobridge
         // while diagnosing black remote video; this avoids a broken P2P ICE path
