@@ -326,7 +326,7 @@ const JAAS_JWT_FUNCTION = 'generate-jaas-jwt';
 // Nueva integración aislada; JaaS permanece disponible como alternativa manual.
 const JITSI_DOMAIN = 'meet.grayxongroup.com';
 const JITSI_JWT_FUNCTION = 'generate-jitsi-jwt';
-const GRAYXON_LIVE_PROVIDER = 'jaas'; // Producción conserva JaaS hasta validar una llamada real con Jitsi propio.
+const GRAYXON_LIVE_PROVIDER = 'jitsi'; // Jitsi propio queda como proveedor integrado de los entrenamientos LIVE.
 const GRAYXON_LIVE_TRAINING_ROOM = 'grayxon-live-training';
 // v14: training audiences are controlled by live_training_audience + RLS.
 let jaasApi = null;
@@ -2238,7 +2238,7 @@ async function startGrayxonLiveTraining(training, options={}){
       height:'650px',
       lang:'es',
       userInfo:{displayName:profile?.full_name||profile?.username||session?.user?.email?.split('@')[0]||'Participante Grayxon',email:session?.user?.email||''},
-      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608'},
+      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608'},
       configOverwrite:{
         prejoinConfig:{enabled:false},
         // Do not request camera/mic permissions until the participant explicitly
