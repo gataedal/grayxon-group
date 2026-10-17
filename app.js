@@ -1040,7 +1040,7 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call #grayxonJaasMeet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
       body.grayxon-live-training-call #grayxonJaasMeet iframe{display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important}
       /* Franja inferior horizontal para los participantes, como en la referencia móvil. */
-      body.grayxon-live-training-call .gx-self-camera-menu-wrap{position:fixed!important;top:calc(16px + env(safe-area-inset-top))!important;right:14px!important;z-index:100009!important;display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:6px!important}
+      body.grayxon-live-training-call .gx-self-camera-menu-wrap{display:none!important}
       body.grayxon-live-training-call .gx-self-camera-menu-trigger{width:38px!important;height:38px!important;border:1px solid #ffffff28!important;border-radius:50%!important;background:rgba(9,12,17,.78)!important;color:#fff!important;font-size:20px!important;letter-spacing:2px!important;box-shadow:0 5px 20px #0005!important;backdrop-filter:blur(12px)!important}
       body.grayxon-live-training-call .gx-self-camera-menu{display:flex!important;flex-direction:column!important;gap:4px!important;min-width:176px!important;padding:7px!important;border:1px solid #ffffff20!important;border-radius:14px!important;background:rgba(10,13,18,.97)!important;box-shadow:0 14px 40px #0008!important}
       body.grayxon-live-training-call .gx-self-camera-menu[hidden],body.grayxon-live-training-call .gx-self-camera-menu.hidden{display:none!important}
@@ -2369,8 +2369,9 @@ async function startGrayxonLiveTraining(training, options={}){
         toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
         filmstrip:{disableStageFilmstrip:false,disableResizable:true},
-        // Mantener la miniatura propia y sus controles; organizar participantes en franja horizontal.
-        disableSelfView:false,
+        // La cámara propia debe ocupar la vista principal sin duplicarse en una miniatura.
+        // Jitsi podrá mostrar el contenido compartido como vista principal cuando se comparta pantalla.
+        disableSelfView:true,
         maxFullResolutionParticipants:4,
         // Grayxon uses its own Jitsi server. Force media through the Jitsi Videobridge
         // while diagnosing black remote video; this avoids a broken P2P ICE path
