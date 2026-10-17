@@ -2360,7 +2360,7 @@ async function startGrayxonLiveTraining(training, options={}){
     const callControls=$('.gx-call-controls');
     const callCommand={audio:'toggleAudio',video:'toggleVideo',hand:'toggleRaiseHand'};
     callControls?.querySelectorAll('[data-gx-call]').forEach(button=>{
-      button.addEventListener('click',()=>{
+      button.onclick=()=>{
         const action=button.getAttribute('data-gx-call');
         try {
           if(action==='hangup'){ const modal=$('.gx-call-end-modal'); if(modal){modal.hidden=false;modal.classList.remove('hidden');} return; }
@@ -2385,10 +2385,10 @@ async function startGrayxonLiveTraining(training, options={}){
           if(!gxJitsiReady){toast('La llamada todavía se está conectando…');return;}
           if(callCommand[action]) api.executeCommand(callCommand[action]);
         } catch(err) { console.warn('No se pudo ejecutar el control de llamada:',action,err); }
-      });
+      };
     });
     $('.gx-call-more-menu')?.querySelectorAll('[data-gx-more]').forEach(button=>{
-      button.addEventListener('click',()=>{
+      button.onclick=()=>{
         const action=button.getAttribute('data-gx-more');
         try {
           if(action==='share') api.executeCommand('toggleShareScreen');
@@ -2397,7 +2397,7 @@ async function startGrayxonLiveTraining(training, options={}){
           const menu=$('.gx-call-more-menu'); if(menu){menu.hidden=true;menu.classList.add('hidden');}
           $('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');
         } catch(err) { console.warn('No se pudo ejecutar la opción:',action,err); }
-      });
+      };
     });
     api.addEventListener?.('ready',()=>{gxJitsiReady=true;});
     api.addEventListener?.('audioMuteStatusChanged',ev=>{
