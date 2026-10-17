@@ -2390,6 +2390,7 @@ async function startGrayxonLiveTraining(training, options={}){
     });
 
     api.addEventListener?.('videoConferenceJoined',async(ev)=>{
+      gxJitsiReady=true;
       // Keep the stage dynamic so the active speaker or shared screen can take focus.
       // Only the actual host enables AV moderation; admins retain JWT-granted rights.
       // Do not turn on AV moderation automatically here: it can block a manager's
