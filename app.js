@@ -2279,6 +2279,8 @@ async function refreshGrayxonParticipants(api){
   const panel=$('.gx-participants-panel');if(!panel||!api)return;
   try{
     const data=await api.getParticipantsInfo();const people=Array.isArray(data)?data:[];
+    const local=people.find(p=>p.isLocal);
+    if(local)window.__gxLocalParticipantId=local.participantId||local.id||null;
     const list=$('.gx-participants-list',panel);if(!list)return;
     list.innerHTML=people.map(p=>{
       const id=p.participantId||p.id||'';const name=p.displayName||p.name||'Participante';
@@ -2400,11 +2402,6 @@ async function startGrayxonLiveTraining(training, options={}){
       b.setAttribute('aria-pressed',String(!gxVideoMuted));
       const label=b.querySelector('span:last-child'); if(label)label.textContent=gxVideoMuted?'Cámara apagada':'Cámara encendida';
     });
-    api.addEventListener?.('raiseHandUpdated',ev=>{
-      if(ev?.id && ev.id===session?.user?.id)gxHandRaised=!!ev.handRaised;
-      const b=$('[data-gx-call="hand"]');if(b&&ev?.id===session?.user?.id)b.setAttribute('aria-pressed',String(gxHandRaised));
-    });
-
     api.addEventListener?.('videoConferenceJoined',async(ev)=>{
       gxJitsiReady=true;
       // No activar toggleModeration automáticamente: es un conmutador y al reconectar
@@ -2416,6 +2413,7 @@ async function startGrayxonLiveTraining(training, options={}){
       startGrayxonWakeLock();
       await recordLiveTrainingJoin(training.id);
       await refreshGrayxonParticipants(api);
+      try{const participants=await api.getParticipantsInfo();const local=Array.isArray(participants)?participants.find(p=>p.isLocal):null;if(local)window.__gxLocalParticipantId=local.participantId||local.id||null;}catch(_){}
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
     });
 
@@ -2423,7 +2421,7 @@ async function startGrayxonLiveTraining(training, options={}){
     api.addEventListener?.('participantLeft',()=>refreshGrayxonParticipants(api));
     api.addEventListener?.('raiseHandUpdated',ev=>{
       const id=ev?.id||ev?.participantId||'';
-      const localId=ev?.id===session?.user?.id;
+      const localId=!!ev?.id && (ev.id===window.__gxLocalParticipantId || ev.participantId===window.__gxLocalParticipantId);
       if(id)grayxonRaisedHands.set(id,!!ev.handRaised);
       if(localId){
         gxHandRaised=!!ev.handRaised;
