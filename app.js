@@ -2297,7 +2297,8 @@ async function refreshGrayxonParticipants(api){
       const main=window.__grayxonLargeVideoParticipant===id;
       const status=[p.isLocal?'Tú':(p.role==='moderator'?'Moderador':'Participante'),hand?'Solicitó la palabra':'',sharing?'Compartiendo pantalla':(main?'En pantalla principal':'')].filter(Boolean).join(' · ');
       const initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
-      const avatar=p.avatarURL||p.avatarUrl||p.avatar||'';\n      return '<div class="gx-participant-row"><div class="gx-participant-avatar">'+(avatar?'<img src="'+esc(avatar)+'" alt="" loading="lazy">':esc(initials||'G'))+'</div><div class="gx-participant-info"><div class="gx-participant-name">'+esc(name)+(p.isLocal?' (tú)':'')+'</div><div class="gx-participant-status">'+esc(status||'Conectado')+'</div></div>'+(hand?'<span class="gx-participant-hand">✋</span>':'')+'</div>';
+      const avatar=p.avatarURL||p.avatarUrl||p.avatar||'';
+      return '<div class="gx-participant-row"><div class="gx-participant-avatar">'+(avatar?'<img src="'+esc(avatar)+'" alt="" loading="lazy">':esc(initials||'G'))+'</div><div class="gx-participant-info"><div class="gx-participant-name">'+esc(name)+(p.isLocal?' (tú)':'')+'</div><div class="gx-participant-status">'+esc(status||'Conectado')+'</div></div>'+(hand?'<span class="gx-participant-hand">✋</span>':'')+'</div>';
     }).join('')||'<p class="gx-participant-status">Esperando participantes…</p>';
     const count=$('.gx-participants-count',panel);if(count)count.textContent=people.length+' conectado'+(people.length===1?'':'s');
   }catch(e){console.warn('No se pudo actualizar participantes',e);}
