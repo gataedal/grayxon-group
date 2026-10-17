@@ -326,7 +326,7 @@ const JAAS_JWT_FUNCTION = 'generate-jaas-jwt';
 // Nueva integración aislada; JaaS permanece disponible como alternativa manual.
 const JITSI_DOMAIN = 'meet.grayxongroup.com';
 const JITSI_JWT_FUNCTION = 'generate-jitsi-jwt';
-const GRAYXON_LIVE_PROVIDER = 'jitsi';
+const GRAYXON_LIVE_PROVIDER = 'jaas'; // Producción conserva JaaS hasta validar una llamada real con Jitsi propio.
 const GRAYXON_LIVE_TRAINING_ROOM = 'grayxon-live-training';
 // v14: training audiences are controlled by live_training_audience + RLS.
 let jaasApi = null;
@@ -2209,7 +2209,8 @@ async function endLiveTrainingConference(api, trainingId) {
 }
 
 async function startGrayxonLiveTraining(training, options={}){
-  const provider = options.provider || GRAYXON_LIVE_PROVIDER;
+  const requestedJitsiTest = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
+  const provider = options.provider || ((profile?.role === 'admin' && requestedJitsiTest) ? 'jitsi' : GRAYXON_LIVE_PROVIDER);
   const host=$('#grayxonJaasMeet'); if(!host||!training?.room_name)return;
   destroyJaasMeeting();
   host.innerHTML='<div id="grayxonJaasLoading" class="live-training-loading" aria-hidden="true"></div>';
