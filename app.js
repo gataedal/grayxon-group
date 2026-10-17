@@ -1033,6 +1033,13 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call #live-training .live-training-hero,
       body.grayxon-live-training-call #live-training .live-training-feature{display:none!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap{display:block!important;visibility:visible!important;margin:0!important;padding:0!important}
+      /* La sala y el host de Jitsi deben compartir exactamente el viewport en modo llamada. */
+      body.grayxon-live-training-call #live-training .live-training-page{height:100dvh!important;min-height:100dvh!important}
+      body.grayxon-live-training-call #grayxonTrainingRoomWrap{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;z-index:99990!important}
+      body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+      body.grayxon-live-training-call #grayxonJaasMeet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+      body.grayxon-live-training-call #grayxonJaasMeet iframe{display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important}
+
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
       body.grayxon-live-training-call header.top,body.grayxon-live-training-call .top{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-brand{position:fixed!important;top:calc(10px + env(safe-area-inset-top))!important;left:14px!important;z-index:100002!important;display:flex!important;align-items:center!important;gap:10px!important;pointer-events:none!important;transform:none!important;touch-action:none!important}
       body.grayxon-live-training-call .gx-call-brand img{display:block!important;width:clamp(76px,10vw,112px)!important;max-height:38px!important;object-fit:contain!important;filter:drop-shadow(0 2px 12px #000)!important}
