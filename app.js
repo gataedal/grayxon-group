@@ -316,13 +316,11 @@ async function enableGrayxonPushFromAccount() {
   else toast('No se pudo activar las notificaciones. Revisa la consola del navegador.');
 }
 
-// GRAYXON BUILD V32
-// Grayxon live trainings use Jitsi as a Service (JaaS).
-// The App ID is public; the private signing key stays exclusively in the
-// Supabase Edge Function `generate-jaas-jwt`.
-const JAAS_APP_ID = 'vpaas-magic-cookie-7db4f66a87d64b5696c9aa9ac4b08b7e';
-const JAAS_DOMAIN = '8x8.vc';
-const JAAS_JWT_FUNCTION = 'generate-jaas-jwt';
+// GRAYXON LIVE TRAININGS — self-hosted Jitsi.
+// The signing secret remains exclusively in Supabase/VPS environment settings.
+const JITSI_DOMAIN = 'meet.grayxongroup.com';
+const JAAS_DOMAIN = JITSI_DOMAIN; // Keep the existing internal name to minimize unrelated changes.
+const JAAS_JWT_FUNCTION = 'generate-jitsi-jwt';
 const GRAYXON_LIVE_TRAINING_ROOM = 'grayxon-live-training';
 // v14: training audiences are controlled by live_training_audience + RLS.
 let jaasApi = null;
@@ -2079,7 +2077,7 @@ function loadJaasIframeApi() {
     }
 
     const script = document.createElement('script');
-    script.src = `https://${JAAS_DOMAIN}/${JAAS_APP_ID}/external_api.js`;
+    script.src = `https://${JITSI_DOMAIN}/external_api.js`;
     script.async = true;
     script.dataset.grayxonJaasApi = 'true';
     script.onload = () => window.JitsiMeetExternalAPI
@@ -2090,7 +2088,7 @@ function loadJaasIframeApi() {
   });
 }
 
-async function getJaasJwt(room = GRAYXON_LIVE_TRAINING_ROOM) {
+async function getJaasJwt(trainingId) {
   const { data: sessionData } = await sb.auth.getSession();
   const accessToken = sessionData?.session?.access_token;
   if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible. Vuelve a iniciar sesión.');
@@ -2102,7 +2100,7 @@ async function getJaasJwt(room = GRAYXON_LIVE_TRAINING_ROOM) {
       'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
       'Authorization': `Bearer ${accessToken}`
     },
-    body: JSON.stringify({ room })
+    body: JSON.stringify({ trainingId })
   });
 
   let data = null;
@@ -2175,9 +2173,9 @@ async function startGrayxonLiveTraining(training, options={}){
   const isHost = !!session?.user?.id && training.created_by === session.user.id;
   const isAdmin = profile?.role === 'admin';
   try{
-    const [{token,roomName},JitsiMeetExternalAPI]=await Promise.all([getJaasJwt(training.room_name),loadJaasIframeApi()]);
+    const [{token,roomName},JitsiMeetExternalAPI]=await Promise.all([getJaasJwt(training.id),loadJaasIframeApi()]);
     if(!$('#grayxonJaasMeet'))return;
-    const api=new JitsiMeetExternalAPI(JAAS_DOMAIN,{
+    const api=new JitsiMeetExternalAPI(JITSI_DOMAIN,{
       roomName,
       jwt:token,
       parentNode:$('#grayxonJaasMeet'),
@@ -3104,15 +3102,14 @@ async function createLiveTrainingModal(){
       sb.from('profiles').select('id,username,full_name,active,team_id,manager_id').eq('role','creator').eq('active',true).order('full_name')
     ]);
     audienceHtml=`<div class="field"><label>¿Quién puede asistir?</label><select id="ltAudienceType">
-      <option value="all_users">TODOS los usuarios (creadores y managers)</option>
+      <option value="all_users">Todos los usuarios (creadores y managers)</option>
+      <option value="all_managers">Managers</option>
       <option value="all_creators">Todos los creadores</option>
-      <option value="all_managers">Todos los managers</option>
-      <option value="teams">Uno o varios equipos</option>
-      <option value="managers">Managers específicos</option>
-      <option value="creators">Creadores específicos</option>
+      <option value="teams">Equipo específico</option>
+      <option value="people">Personas específicas (una o varias)</option>
     </select></div>
     <div id="ltAudiencePicker" class="field live-training-audience-picker"></div>
-    <div class="muted small live-training-audience-help">Como administrador puedes invitar equipos, managers o creadores concretos. Esto no cambia su manager ni su equipo; solo define quién puede entrar a este entrenamiento.</div>`;
+    <div class="muted small live-training-audience-help">Busca por nombre o usuario y selecciona una o varias personas. Asignar un entrenamiento no cambia el equipo ni el manager de nadie.</div>`;
     setTimeout(()=>{
       const picker=$('#ltAudiencePicker'),type=$('#ltAudienceType');
       const renderPicker=()=>{
@@ -3120,10 +3117,27 @@ async function createLiveTrainingModal(){
         const v=type.value;
         if(v==='all_users') {picker.innerHTML='<div class="item">👥 Todos los creadores y 👨‍💼 todos los managers activos de Grayxon podrán asistir.</div>';return;}
         if(v==='all_creators') {picker.innerHTML='<div class="item">👥 Todos los creadores de Grayxon podrán asistir.</div>';return;}
-        if(v==='all_managers') {picker.innerHTML='<div class="item">👨‍💼 Todos los managers de Grayxon podrán asistir.</div>';return;}
-        if(v==='teams') picker.innerHTML=`<div class="live-training-check-grid">${(teams||[]).map(t=>`<label class="live-training-check"><input type="checkbox" value="${t.id}" data-lt-team><span>${esc(t.name)}</span></label>`).join('')||'<div class="item">No hay equipos disponibles.</div>'}</div>`;
-        if(v==='managers') picker.innerHTML=`<div class="live-training-check-grid">${(managers||[]).map(m=>`<label class="live-training-check"><input type="checkbox" value="${m.id}" data-lt-manager><span>${esc(m.name)} <small>@${esc(m.username||'')}</small></span></label>`).join('')||'<div class="item">No hay managers disponibles.</div>'}</div>`;
-        if(v==='creators') picker.innerHTML=`<div class="live-training-check-grid live-training-check-grid-creators">${(creators||[]).map(c=>`<label class="live-training-check"><input type="checkbox" value="${c.id}" data-lt-creator><span>${esc(c.full_name||c.username)} <small>@${esc(c.username||'')}</small></span></label>`).join('')||'<div class="item">No hay creadores disponibles.</div>'}</div>`;
+        if(v==='all_managers') {picker.innerHTML='<div class="item">👨‍💼 Todos los managers activos de Grayxon podrán asistir.</div>';return;}
+        if(v==='teams') {
+          picker.innerHTML=`<input id="ltAudienceSearch" type="search" class="input" placeholder="Buscar equipo..." autocomplete="off"><div class="live-training-check-grid">${(teams||[]).map(t=>`<label class="live-training-check" data-lt-search-item><input type="checkbox" value="${t.id}" data-lt-team><span>${esc(t.name)}</span></label>`).join('')||'<div class="item">No hay equipos disponibles.</div>'}</div>`;
+        }
+        if(v==='people') {
+          const managerItems=(managers||[]).map(m=>`<label class="live-training-check" data-lt-search-item><input type="checkbox" value="${m.id}" data-lt-person-manager><span>👨‍💼 ${esc(m.name)} <small>@${esc(m.username||'')} · Manager</small></span></label>`).join('');
+          const creatorItems=(creators||[]).map(c=>`<label class="live-training-check" data-lt-search-item><input type="checkbox" value="${c.id}" data-lt-person-creator><span>👤 ${esc(c.full_name||c.username)} <small>@${esc(c.username||'')} · Creador</small></span></label>`).join('');
+          picker.innerHTML=`<input id="ltAudienceSearch" type="search" class="input" placeholder="Buscar por nombre o usuario..." autocomplete="off"><div class="live-training-check-grid live-training-check-grid-creators">${managerItems}${creatorItems}${(!managerItems&&!creatorItems)?'<div class="item">No hay personas disponibles.</div>':''}</div><div class="muted small" id="ltAudienceSelectedCount" style="margin-top:8px">0 personas seleccionadas</div>`;
+        }
+        const search=$('#ltAudienceSearch');
+        search?.addEventListener('input',()=>{
+          const q=search.value.trim().toLocaleLowerCase();
+          picker.querySelectorAll('[data-lt-search-item]').forEach(item=>{
+            item.hidden=!item.textContent.toLocaleLowerCase().includes(q);
+          });
+        });
+        picker.querySelectorAll('input[type="checkbox"]').forEach(box=>box.addEventListener('change',()=>{
+          const count=picker.querySelectorAll('[data-lt-person-manager]:checked,[data-lt-person-creator]:checked').length;
+          const counter=$('#ltAudienceSelectedCount');
+          if(counter)counter.textContent=`${count} persona${count===1?'':'s'} seleccionada${count===1?'':'s'}`;
+        }));
       };
       type?.addEventListener('change',renderPicker);renderPicker();
     },0);
@@ -3148,6 +3162,10 @@ async function createLiveTrainingModal(){
         ];
         if(type==='all_creators'||type==='all_managers') rows=[{training_id:created.id,target_type:type,target_id:null}];
         if(type==='teams') rows=[...document.querySelectorAll('[data-lt-team]:checked')].map(x=>({training_id:created.id,target_type:'team',target_id:x.value}));
+        if(type==='people') rows=[
+          ...document.querySelectorAll('[data-lt-person-manager]:checked')].map(x=>({training_id:created.id,target_type:'manager',target_id:x.value})).concat(
+          [...document.querySelectorAll('[data-lt-person-creator]:checked')].map(x=>({training_id:created.id,target_type:'creator',target_id:x.value}))
+        );
         if(type==='managers') rows=[...document.querySelectorAll('[data-lt-manager]:checked')].map(x=>({training_id:created.id,target_type:'manager',target_id:x.value}));
         if(type==='creators') rows=[...document.querySelectorAll('[data-lt-creator]:checked')].map(x=>({training_id:created.id,target_type:'creator',target_id:x.value}));
         if(!rows.length)throw new Error('Selecciona al menos un equipo, manager o creador para este entrenamiento.');
