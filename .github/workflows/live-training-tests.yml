@@ -25,5 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Check app JavaScript syntax
+        run: node --check app.js
       - name: Run LIVE policy and source-contract tests
         run: node --test live-training-v2/permissions.test.js live-training-v2/source-contract.test.js
