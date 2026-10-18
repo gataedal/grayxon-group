@@ -8,6 +8,6 @@
   "dependencies": {
     "express": "^4.21.2",
     "socket.io": "^4.8.1",
-    "tiktok-live-connector": "^2.1.0"
+    "tiktok-live-connector": "^2.5.0"
   }
 }
