@@ -2478,9 +2478,10 @@ async function startGrayxonLiveTraining(training, options={}){
   window.__grayxonLargeVideoParticipant = null;
   const isHost = !!session?.user?.id && training.created_by === session.user.id;
   const isAdmin = profile?.role === 'admin';
-  // Meeting host and Grayxon administrator are separate capabilities.
-  // The creator remains the visual host; admins can also manage the meeting.
-  const canManageMeeting = isHost || isAdmin;
+  // Solo un administrador de Grayxon puede moderar la sala desde los controles
+  // propios del portal. Ser creador/manager del registro no concede privilegios
+  // de moderación; los permisos efectivos de Jitsi siguen validándose en el servidor.
+  const canManageMeeting = isAdmin;
   window.__gxCanManageMeeting = canManageMeeting;
   try{
     const [connection,JitsiMeetExternalAPI]=await Promise.all([
