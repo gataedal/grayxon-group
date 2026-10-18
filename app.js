@@ -4049,26 +4049,53 @@ async function cancelLiveTraining(id){
 }
 async function startLiveTraining(id){
   if(!id)return;
-  const {data:t}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();
+  const {data:t,error:lookupError}=await sb.from('live_trainings')
+    .select('id,title,status,created_by').eq('id',id).maybeSingle();
+  if(lookupError)return toast('No se pudo consultar el entrenamiento: '+lookupError.message);
   if(!t||t.status!=='scheduled')return toast('Este entrenamiento ya no está programado.');
-  const can=profile?.role==='admin'||(profile?.role==='manager'&&t.created_by===session?.user?.id);
-  if(!can)return toast('Solo el instructor o un administrador puede iniciar este entrenamiento.');
-
-  // Before going LIVE, repair any legacy training that has no audience rows.
+  const can=profile?.role==='admin'||t.created_by===session?.user?.id;
+  if(!can)return toast('Solo el anfitrión o un administrador puede iniciar este entrenamiento.');
   const {error:audienceError}=await ensureLiveTrainingAudience(t);
-  if(audienceError){toast(audienceError.message||'Este entrenamiento no tiene una audiencia válida.');return;}
-
-  const {data,error}=await sb.from('live_trainings').update({status:'live',started_at:new Date().toISOString(),ended_at:null}).eq('id',id).eq('status','scheduled').select('id,title,description,room_name,created_by,instructor_name,scheduled_at,status,started_at').single();
-  if(error){toast(error.code==='23505'?'Ya hay otro entrenamiento EN VIVO. Finalízalo antes de iniciar uno nuevo.':error.message);return;}
-  currentLiveTraining=data;
-  pendingLiveTrainingAutoStart=data;
-  // Create the in-app notifications only after the database confirms LIVE.
-  const notificationResult = await notifyLiveTrainingAudience(data);
-  if(notificationResult?.ok) toast('Entrenamiento EN VIVO + aviso enviado ✓');
-  else if(notificationResult?.stage) toast('Entrenamiento EN VIVO. Revisa el diagnóstico.');
-  nav('live-training');
+  if(audienceError)return toast(audienceError.message||'Este entrenamiento no tiene una audiencia válida.');
+  try{
+    const {data:authData}=await sb.auth.getSession();
+    const accessToken=authData?.session?.access_token;
+    if(!accessToken)throw new Error('Tu sesión de Grayxon no está disponible. Vuelve a iniciar sesión.');
+    const response=await fetch(`${CFG.SUPABASE_URL}/functions/v1/start-live-training`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':CFG.SUPABASE_PUBLISHABLE_KEY,'Authorization':`Bearer ${accessToken}`},
+      body:JSON.stringify({trainingId:id})
+    });
+    let result=null;try{result=await response.json();}catch(_){}
+    if(!response.ok||result?.error||!result?.training)throw new Error(result?.error||'El servidor no confirmó el inicio del entrenamiento.');
+    currentLiveTraining=result.training;
+    pendingLiveTrainingAutoStart=result.training;
+    const notificationResult=await notifyLiveTrainingAudience(result.training);
+    if(notificationResult?.ok)toast('Entrenamiento EN VIVO + aviso enviado ✓');
+    else if(notificationResult?.stage)toast('Entrenamiento EN VIVO. Revisa el diagnóstico.');
+    nav('live-training');
+  }catch(error){
+    console.error('No se pudo iniciar el entrenamiento desde el servidor:',error);
+    toast(error?.message||'No se pudo iniciar el entrenamiento.');
+  }
 }
-async function finishLiveTraining(id){if(!id)return;const {data:t}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();if(!t||t.status!=='live')return toast('Este entrenamiento no está EN VIVO.');const can=profile?.role==='admin'||(profile?.role==='manager'&&t.created_by===session?.user?.id);if(!can)return toast('No tienes permiso para finalizar este entrenamiento.');if(!confirm('¿Finalizar este entrenamiento?'))return;const endedAt=new Date().toISOString();const {data,error}=await sb.from('live_trainings').update({status:'finished',ended_at:endedAt}).eq('id',id).eq('status','live').select('id,title').single();if(error){toast(error.message);return;}await sb.from('live_training_participants').update({left_at:endedAt}).eq('training_id',id).is('left_at',null);toast(`“${data?.title||'Entrenamiento'}” finalizado ✓`);render();}
+async function finishLiveTraining(id){
+  if(!id)return;
+  const {data:t,error}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();
+  if(error)return toast('No se pudo consultar el entrenamiento: '+error.message);
+  if(!t||t.status!=='live')return toast('Este entrenamiento no está EN VIVO.');
+  const can=profile?.role==='admin'||t.created_by===session?.user?.id;
+  if(!can)return toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
+  // Nunca marcar una sesión como finalizada desde el panel sin que Jitsi confirme
+  // el cierre global. El cierre autorizado se ejecuta desde la sala activa.
+  if(jaasApi&&currentLiveTraining?.id===id){
+    if(!confirm('¿Finalizar el entrenamiento para todos?'))return;
+    const ok=await endLiveTrainingConference(jaasApi,id,true);
+    if(ok)render();
+    return;
+  }
+  toast('Para finalizar sin dejar la sala activa, entra al entrenamiento y usa “Finalizar entrenamiento para todos”.');
+}
 async function deleteLiveTraining(id){
   if(profile?.role!=='admin'){toast('Solo un administrador puede eliminar el historial de entrenamientos.');return;}
   if(!confirm('¿Eliminar este entrenamiento? Esta acción no se puede deshacer.'))return;
