@@ -2833,7 +2833,7 @@ async function startGrayxonLiveTraining(training, options={}){
 
     api.addEventListener?.('toolbarButtonClicked',async(ev)=>{
       if(ev?.key!=='hangup')return;
-      if(isHost || isAdmin){
+      if(canManageMeeting){
         await endLiveTrainingConference(api,training.id,canManageMeeting);
       }else{
         try { api.executeCommand('hangup'); } catch (_) {}
