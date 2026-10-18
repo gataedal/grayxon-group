@@ -2274,7 +2274,7 @@ function resolveGrayxonLiveTrainingCapabilities({ userId, globalRole, training }
   });
 }
 
-async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
+async function endLiveTrainingConference(api, trainingId, canEndAll = null) {
   const capabilities = resolveGrayxonLiveTrainingCapabilities({
     userId: session?.user?.id,
     globalRole: profile?.role,
@@ -2282,7 +2282,7 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
       ? currentLiveTraining
       : { id: trainingId, created_by: liveTrainingHostUserId }
   });
-  if (!canEndAll || !capabilities.canEndForAll) {
+  if (canEndAll === false || !capabilities.canEndForAll) {
     toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
     return false;
   }
@@ -2831,8 +2831,8 @@ async function startGrayxonLiveTraining(training, options={}){
 
     api.addEventListener?.('toolbarButtonClicked',async(ev)=>{
       if(ev?.key!=='hangup')return;
-      if(isHost){
-        await endLiveTrainingConference(api,training.id);
+      if(canManageMeeting){
+        await endLiveTrainingConference(api,training.id,true);
       }else{
         try { api.executeCommand('hangup'); } catch (_) {}
       }
@@ -3102,7 +3102,7 @@ async function liveTrainingTpl(trainingOverride=null) {
     if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
     if(choice==='end'){
       if(!(isHost||profile?.role==='admin')){toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');return;}
-      if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id);
+      if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id,true);
     }
   }));
   if(!(isHost||profile?.role==='admin'))$('.gx-end-all')?.setAttribute('hidden','');
