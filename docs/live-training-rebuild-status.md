@@ -10,7 +10,7 @@ Esta rama es una zona de trabajo aislada. No se ha desplegado ninguna Edge Funct
 - La Edge Function valida la identidad autenticada, que el perfil esté activo, que el usuario sea administrador o el anfitrión persistido, que la sesión siga programada, que el nombre de sala sea válido y que exista una audiencia configurada.
 - La política de permisos backend está centralizada en `supabase/functions/_shared/live-training-policy.ts` y se reutiliza en la generación del JWT, el inicio y la finalización.
 - Los managers invitados y los creadores que no sean anfitriones no reciben privilegios de moderador por pertenecer a un equipo o a la audiencia.
-- La selección de vídeo principal se reorganizó para resolver al anfitrión mediante el `userContext.id` de Jitsi y usar `getRoomsInfo`, `pinParticipant` y `setLargeVideoParticipant`, sin depender de broadcasts de ID del anfitrión ni de reintentos temporizados repetidos.
+- La selección de vídeo principal se reorganizó para resolver al anfitrión mediante el `userContext.id` de Jitsi y usar `getRoomsInfo`, `pinParticipant` y `setLargeVideoParticipant`, sin depender de broadcasts de ID del anfitrión ni de reintentos temporizados repetidos. La lectura de metadatos ahora acepta las dos formas de respuesta de `getRoomsInfo` (array directo o `{ rooms }`) y el identificador `id` o `participantId`.
 - El cierre desde el panel ya no marca directamente una sesión como finalizada. Si la sala no está conectada, se debe finalizar desde los controles de la llamada para esperar la confirmación de Jitsi.
 - La asistencia reutiliza un registro abierto tras reconexión y se incluye una migración opcional, protegida contra duplicados previos, para evitar dos registros abiertos de la misma persona y sesión.
 
@@ -37,14 +37,14 @@ La autorización de entrada por audiencia es distinta de la autorización de mod
 
 ## Verificaciones y pendientes
 
-- Revisión de código y esquema: realizada mediante lectura del repositorio y consultas de solo lectura a los dos proyectos Supabase conectados.
-- Pruebas automatizadas: GitHub Actions ejecutó y aprobó las pruebas de política y los chequeos de tipos en un commit anterior; la última refactorización de la vista principal debe pasar el nuevo ciclo CI antes de considerarse verificada.
+- Revisión de código y esquema: realizada mediante lectura del repositorio y consultas de solo lectura a los dos proyectos Supabase conectados. El portal en `config.js` apunta a `Grayxon Academy` (`vxyakhelhuikutepdjyn`); `grayxon-beta` (`wnflvxbxgrupggtzlblh`) tiene un esquema parecido pero con columnas más permisivas y actualmente no tiene Edge Functions. No se debe desplegar en uno u otro por suposiciones: el entorno de pruebas debe configurarse de forma explícita.
+- Pruebas automatizadas: GitHub Actions aprobó `node --check app.js`, las ocho pruebas de política y los chequeos Deno de las Edge Functions en el commit `332b67c`. Se añadió después un ajuste de compatibilidad para `getRoomsInfo`; la última revisión debe pasar un ciclo CI actualizado antes de considerarse verificada.
 - Integración real de las Edge Functions de inicio/finalización: pendiente de despliegue controlado en un entorno de pruebas.
 - Migración de asistencia: pendiente; no aplicada a ningún proyecto.
 - Jitsi real con administrador, anfitrión, manager invitado y participante: pendiente.
 - Verificación de cámara, micrófono, vista principal, expulsión y cierre global: pendiente en navegador real.
 - Verificación del comportamiento real del servidor Jitsi: pendiente de acceso a configuración y logs de Jicofo/Prosody.
-- El backend aún no consulta de forma independiente el estado real de Jitsi al finalizar; la interfaz espera el evento `readyToClose`, pero la confirmación del cliente no sustituye una comprobación autoritativa de servidor. No declarar esta parte completamente segura hasta integrar esa verificación.
+- El backend aún no consulta de forma independiente el estado real de Jitsi al finalizar: la acción `finalize` comprueba permisos y estado de la sesión, pero no prueba por sí misma que la sala haya cerrado. La interfaz espera `readyToClose`, pero un cliente autenticado podría llamar a `finalize` directamente. No desplegar esta versión hasta añadir una comprobación autoritativa de servidor o un mecanismo de cierre firmado desde Jitsi.
 - Regresión de todas las demás secciones del portal: pendiente de ejecutar pruebas de navegador.
 
 ## Pruebas
