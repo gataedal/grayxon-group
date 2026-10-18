@@ -36,3 +36,9 @@ test('end-for-all checks the server-authorized host/admin before persisting fini
   assert.match(end, /if \(action === "authorize"\) return response\(\{ ok: true, authorized: true, action \}\);/);
   assert.match(end, /\.update\(\{ status: "finished", ended_at: endedAt \}\)/);
 });
+
+test('host camera pin retries after slow room setup and participant joins', () => {
+  assert.match(app, /\[0,250,700,1400,2500,4000\]\.forEach\(delay=>setTimeout\(pinHost,delay\)\)/);
+  assert.match(app, /addEventListener\?\.\('participantJoined'/);
+  assert.match(app, /\[150,600,1300\]\.forEach\(delay=>setTimeout\(/);
+});
