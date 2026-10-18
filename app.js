@@ -1076,7 +1076,7 @@ function ensureLiveTrainingPage() {
 
       body.grayxon-live-training-call .gx-participants-panel{position:fixed!important;top:0!important;right:0!important;bottom:0!important;z-index:100005!important;width:min(360px,88vw)!important;padding:calc(68px + env(safe-area-inset-top)) 14px calc(84px + env(safe-area-inset-bottom))!important;box-sizing:border-box!important;background:rgba(10,13,18,.97)!important;border-left:1px solid rgba(255,255,255,.13)!important;box-shadow:-18px 0 50px #0007!important;backdrop-filter:blur(20px)!important;color:#fff!important;overflow:auto!important}
       body.grayxon-live-training-call .gx-participants-panel[hidden],body.grayxon-live-training-call .gx-call-end-modal[hidden]{display:none!important}
-      .gx-participants-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}.gx-participants-head strong{font-size:17px}.gx-participants-count{font-size:11px;color:#9ba4b2;margin-top:4px}.gx-participants-head button{border:0;border-radius:10px;background:#202630;color:#fff;padding:8px 10px}.gx-participant-row{display:flex;align-items:center;gap:10px;padding:11px 8px;border-bottom:1px solid #ffffff12}.gx-participant-avatar{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(135deg,#202833,#354252);font-weight:800;color:#fff}.gx-participant-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.gx-live-elapsed{font-variant-numeric:tabular-nums;font-size:12px;font-weight:700;color:#d5d9e0;padding:5px 8px;border:1px solid #ffffff20;border-radius:7px;background:#11151b}.gx-participant-info{min-width:0;flex:1}.gx-participant-name{font-size:13px;font-weight:700;overflow-wrap:anywhere}.gx-participant-status{font-size:11px;color:#9ba4b2;margin-top:3px}.gx-participant-hand{color:#facc15;font-size:17px}.gx-promote-participant{flex:0 0 auto;border:1px solid #25f4ee55;border-radius:8px;background:#102329;color:#b8fbff;padding:7px 9px;font-size:11px;font-weight:700;cursor:pointer}.gx-promote-participant:disabled{opacity:.55;cursor:wait}
+      .gx-participants-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}.gx-participants-head strong{font-size:17px}.gx-participants-count{font-size:11px;color:#9ba4b2;margin-top:4px}.gx-participants-head button{border:0;border-radius:10px;background:#202630;color:#fff;padding:8px 10px}.gx-participant-row{display:flex;align-items:center;gap:10px;padding:11px 8px;border-bottom:1px solid #ffffff12}.gx-participant-avatar{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(135deg,#202833,#354252);font-weight:800;color:#fff}.gx-participant-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.gx-live-elapsed{font-variant-numeric:tabular-nums;font-size:12px;font-weight:700;color:#d5d9e0;padding:5px 8px;border:1px solid #ffffff20;border-radius:7px;background:#11151b}.gx-participant-info{min-width:0;flex:1}.gx-participant-name{font-size:13px;font-weight:700;overflow-wrap:anywhere}.gx-participant-status{font-size:11px;color:#9ba4b2;margin-top:3px}.gx-participant-hand{color:#facc15;font-size:17px}.gx-promote-participant{flex:0 0 auto;border:1px solid #25f4ee55;border-radius:8px;background:#102329;color:#b8fbff;padding:7px 9px;font-size:11px;font-weight:700;cursor:pointer}.gx-promote-participant:disabled{opacity:.55;cursor:wait}.gx-participant-row{flex-wrap:wrap}.gx-participant-actions{display:flex;flex-wrap:wrap;gap:5px;width:calc(100% - 46px);margin-left:46px}.gx-participant-actions .gx-promote-participant{font-size:10px;padding:6px 7px}.gx-participant-role{font-size:10px;color:#b8fbff;padding:6px 7px}.gx-participant-kick{border-color:#fe2c5555;background:#2a151b;color:#ff9aaa}
       body.grayxon-live-training-call .gx-call-end-modal{position:fixed!important;inset:0!important;z-index:100010!important;display:grid!important;place-items:center!important;padding:20px!important;background:rgba(0,0,0,.68)!important;backdrop-filter:blur(10px)!important}
       body.grayxon-live-training-call .gx-call-end-modal.hidden{display:none!important}body.grayxon-live-training-call .gx-call-end-card{width:min(420px,100%)!important;padding:24px!important;border:1px solid #ffffff20!important;border-radius:22px!important;background:#11151c!important;color:#fff!important;box-shadow:0 25px 80px #0009!important}body.grayxon-live-training-call .gx-call-end-card h3{margin:0 0 8px!important;font-size:21px!important}body.grayxon-live-training-call .gx-call-end-card p{color:#a9b0bc!important;font-size:13px!important;line-height:1.5!important}body.grayxon-live-training-call .gx-call-end-actions{display:flex!important;flex-direction:column!important;gap:9px!important;margin-top:18px!important}body.grayxon-live-training-call .gx-call-end-actions button{min-height:44px!important;border:1px solid #ffffff18!important;border-radius:12px!important;background:#202630!important;color:#fff!important;font-weight:800!important}body.grayxon-live-training-call .gx-call-end-actions .gx-end-all{background:#fe2c55!important;border-color:#fe2c55!important}body.grayxon-live-training-call .gx-call-end-actions .gx-end-cancel{background:transparent!important}
 
@@ -2324,9 +2324,9 @@ async function refreshGrayxonParticipants(api){
       const status=[p.isLocal?'Tú':(p.role==='moderator'?'Moderador':'Participante'),hand?'Solicitó la palabra':'',sharing?'Compartiendo pantalla':(main?'En pantalla principal':'')].filter(Boolean).join(' · ');
       const initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
       const avatar=p.avatarURL||p.avatarUrl||p.avatar||'';
-      const canPromote=!!window.__gxCanManageMeeting&&!p.isLocal&&p.role!=='moderator';
-      const manageAction=canPromote?'<button type="button" class="gx-promote-participant" data-gx-promote="'+esc(String(id))+'">Hacer moderador</button>':'';
-      return '<div class="gx-participant-row"><div class="gx-participant-avatar">'+(avatar?'<img src="'+esc(avatar)+'" alt="" loading="lazy">':esc(initials||'G'))+'</div><div class="gx-participant-info"><div class="gx-participant-name">'+esc(name)+(p.isLocal?' (tú)':'')+'</div><div class="gx-participant-status">'+esc(status||'Conectado')+'</div></div>'+manageAction+(hand?'<span class="gx-participant-hand">✋</span>':'')+'</div>';
+      const canManage=!!window.__gxCanManageMeeting&&!p.isLocal;
+      const manageAction=canManage?'<div class="gx-participant-actions">'+(p.role!=='moderator'?'<button type="button" class="gx-promote-participant" data-gx-participant-action="promote" data-gx-participant-id="'+esc(String(id))+'">Hacer moderador</button>':'<span class="gx-participant-role">Moderador</span>')+'<button type="button" class="gx-promote-participant" data-gx-participant-action="mute-audio" data-gx-participant-id="'+esc(String(id))+'">Silenciar</button><button type="button" class="gx-promote-participant" data-gx-participant-action="mute-video" data-gx-participant-id="'+esc(String(id))+'">Apagar cámara</button><button type="button" class="gx-promote-participant gx-participant-kick" data-gx-participant-action="kick" data-gx-participant-id="'+esc(String(id))+'">Expulsar</button></div>':'';
+      return '<div class="gx-participant-row"><div class="gx-participant-avatar">'+(avatar?'<img src="'+esc(avatar)+'" alt="" loading="lazy">':esc(initials||'G'))+'</div><div class="gx-participant-info"><div class="gx-participant-name">'+esc(name)+(p.isLocal?' (tú)':'')+'</div><div class="gx-participant-status">'+esc(status||'Conectado')+'</div></div>'+(hand?'<span class="gx-participant-hand">✋</span>':'')+manageAction+'</div>';
     }).join('')||'<p class="gx-participant-status">Esperando participantes…</p>';
     const count=$('.gx-participants-count',panel);if(count)count.textContent=people.length+' conectado'+(people.length===1?'':'s');
   }catch(e){console.warn('No se pudo actualizar participantes',e);}
@@ -2415,7 +2415,7 @@ async function startGrayxonLiveTraining(training, options={}){
         window.__gxHostParticipantId=hostParticipantId;
         // El evento puede llegar antes de que Jitsi termine de crear el escenario.
         // Reintentar brevemente evita que el primer pin se pierda durante la entrada.
-        const pinHost=()=>{try{api.executeCommand('pinParticipant',hostParticipantId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}};
+        const pinHost=()=>{try{api.executeCommand('setLargeVideoParticipant',hostParticipantId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}};
         [0,250,700,1400].forEach(delay=>setTimeout(pinHost,delay));
       })
       .on('broadcast',{event:'host-camera-pin-request'},()=>{
@@ -2635,11 +2635,11 @@ async function startGrayxonLiveTraining(training, options={}){
             // El anfitrión es la vista principal predeterminada. Al ocultar self-view
             // no queda una segunda miniatura de la cámara local.
             window.__gxHostParticipantId=localId;
-            try{api.executeCommand('pinParticipant',localId);setTimeout(()=>{try{api.executeCommand('pinParticipant',localId);}catch(_){}},900);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión local',err);}
+            try{api.executeCommand('setLargeVideoParticipant',localId);setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',localId);}catch(_){}},900);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión local',err);}
             sendGrayxonLiveBroadcast('host-camera-pin',{participantId:localId,userId:session?.user?.id||null});
           }else if(window.__gxHostParticipantId){
             const hostParticipantId=String(window.__gxHostParticipantId);
-            [0,300,900].forEach(delay=>setTimeout(()=>{try{api.executeCommand('pinParticipant',hostParticipantId);}catch(_){}},delay));
+            [0,300,900].forEach(delay=>setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',hostParticipantId);}catch(_){}},delay));
           }else{
             // El anfitrión puede haber entrado antes de que este cliente se suscribiera.
             [0,700,1600].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin-request',{userId:session?.user?.id||null}),delay));
@@ -2675,14 +2675,14 @@ async function startGrayxonLiveTraining(training, options={}){
       // En cada dispositivo se vuelve a fijar localmente al anfitrión si alguien más
       // pasa a ser el vídeo principal; fijar es local a cada cliente de Jitsi.
       if(window.__gxHostParticipantId && String(ev?.id||'')!==String(window.__gxHostParticipantId)){
-        setTimeout(()=>{try{api.executeCommand('pinParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
+        setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
       }
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('largeVideoChanged',ev=>{
       window.__grayxonLargeVideoParticipant=ev?.id||null;
       if(window.__gxHostParticipantId && String(ev?.id||'')!==String(window.__gxHostParticipantId)){
-        setTimeout(()=>{try{api.executeCommand('pinParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
+        setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
       }
       refreshGrayxonParticipants(api);
     });
@@ -2968,12 +2968,17 @@ async function liveTrainingTpl(trainingOverride=null) {
   bind();
   $('[data-gx-close-participants]')?.addEventListener('click',toggleGrayxonParticipantsPanel);
   $('.gx-participants-list')?.addEventListener('click',ev=>{
-    const button=ev.target?.closest?.('[data-gx-promote]');if(!button)return;
+    const button=ev.target?.closest?.('[data-gx-participant-action]');if(!button)return;
     if(!window.__gxCanManageMeeting){toast('No tienes permisos para administrar participantes.');return;}
-    const participantId=button.getAttribute('data-gx-promote');if(!participantId||!jaasApi)return;
+    const participantId=button.getAttribute('data-gx-participant-id');const action=button.getAttribute('data-gx-participant-action');if(!participantId||!jaasApi)return;
+    if(action==='kick'&&!window.confirm('¿Expulsar a esta persona del entrenamiento?'))return;
     button.disabled=true;
-    try{jaasApi.executeCommand('grantModerator',participantId);toast('Solicitud para asignar moderador enviada.');}
-    catch(error){console.warn('No se pudo solicitar el cambio de moderador:',error);toast('No se pudo asignar el moderador.');button.disabled=false;}
+    try{
+      if(action==='promote'){jaasApi.executeCommand('grantModerator',participantId);toast('Solicitud para asignar moderador enviada.');}
+      else if(action==='mute-audio'){jaasApi.executeCommand('muteRemoteParticipant',participantId);toast('Solicitud para silenciar enviada.');}
+      else if(action==='mute-video'){jaasApi.executeCommand('muteRemoteParticipant',participantId,'video');toast('Solicitud para apagar la cámara enviada.');}
+      else if(action==='kick'){jaasApi.executeCommand('kickParticipant',participantId);toast('Solicitud para expulsar enviada.');}
+    }catch(error){console.warn('No se pudo ejecutar la acción de moderación:',action,error);toast('No se pudo completar la acción.');button.disabled=false;}
   });
   $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');});
   $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(profile?.full_name||profile?.username||'Tú',message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
