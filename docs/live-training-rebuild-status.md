@@ -2,7 +2,7 @@
 
 ## Alcance de esta rama
 
-Esta rama es una zona de trabajo aislada. No se ha desplegado ninguna Edge Function ni se ha cambiado la configuración de Jitsi/Prosody/Jicofo. La migración `202610180002_jitsi_authoritative_close_events.sql` se aplicó únicamente a `grayxon-beta` para validar la estructura; no se aplicó a `Grayxon Academy`. La migración de idempotencia de asistencia sigue sin aplicarse.
+Esta rama es una zona de trabajo aislada. La función `jitsi-event-sync` se desplegó únicamente en `grayxon-beta` con verificación JWT de gateway desactivada y autenticación propia por Bearer secret; el secreto aún no está configurado, por lo que responde sin procesar eventos. No se ha cambiado la configuración de Jitsi/Prosody/Jicofo ni se han desplegado las otras Edge Functions. La migración `202610180002_jitsi_authoritative_close_events.sql` se aplicó únicamente a `grayxon-beta` para validar la estructura; no se aplicó a `Grayxon Academy`. La migración de idempotencia de asistencia sigue sin aplicarse.
 
 ## Cambios implementados hasta ahora
 
@@ -41,13 +41,13 @@ La autorización de entrada por audiencia es distinta de la autorización de mod
 
 - Revisión de código y esquema: realizada mediante lectura del repositorio y consultas de solo lectura a los dos proyectos Supabase conectados. El portal en `config.js` apunta a `Grayxon Academy` (`vxyakhelhuikutepdjyn`); `grayxon-beta` (`wnflvxbxgrupggtzlblh`) tiene un esquema parecido pero con columnas más permisivas y actualmente no tiene Edge Functions. No se debe desplegar en uno u otro por suposiciones: el entorno de pruebas debe configurarse de forma explícita.
 - Pruebas automatizadas: GitHub Actions aprobó `node --check app.js`, las ocho pruebas de política y los chequeos Deno de las Edge Functions, incluido `jitsi-event-sync`, en el commit `74a1704` (run 38).
-- Integración real de las Edge Functions `start-live-training`, `end-live-training`, `generate-jitsi-jwt` y `jitsi-event-sync`: pendiente de despliegue controlado en `grayxon-beta`. Para `jitsi-event-sync`, el gateway debe permitir el acceso sin JWT de Supabase porque la función valida su propio Bearer secret (`verify_jwt=false`).
+- Integración real de `jitsi-event-sync`: desplegada en `grayxon-beta`, pero pendiente de configurar el secreto y Prosody. Las Edge Functions `start-live-training`, `end-live-training` y `generate-jitsi-jwt` siguen pendientes de despliegue controlado en `grayxon-beta`. Para `jitsi-event-sync`, el gateway permite acceso sin JWT de Supabase porque la función valida su propio Bearer secret (`verify_jwt=false`).
 - Migración de idempotencia de asistencia: pendiente; no aplicada a ningún proyecto.
 - Migración de cierre autoritativo: aplicada únicamente a `grayxon-beta`; no aplicada a `Grayxon Academy`.
 - Jitsi real con administrador, anfitrión, manager invitado y participante: pendiente.
 - Verificación de cámara, micrófono, vista principal, expulsión y cierre global: pendiente en navegador real.
 - Verificación del comportamiento real del servidor Jitsi: pendiente de configurar y probar el plugin Prosody `event_sync_component`, su URL de eventos y el header `Authorization: Bearer ...`; falta acceso a configuración y logs de Jicofo/Prosody.
-- Se añadió la vía de verificación autoritativa en código: el receptor solo acepta el evento `muc-room-destroyed` con un secreto compartido y la RPC registra el evento y finaliza el entrenamiento/asistencia en una transacción. La tabla y la RPC se aplicaron en `grayxon-beta` y se verificaron con consultas de solo lectura; la integración todavía no está operativa porque la Edge Function no se ha desplegado y Prosody aún no está configurado.
+- Se añadió la vía de verificación autoritativa en código: el receptor solo acepta el evento `muc-room-destroyed` con un secreto compartido y la RPC registra el evento y finaliza el entrenamiento/asistencia en una transacción. La tabla y la RPC se aplicaron en `grayxon-beta`; el receptor está desplegado allí, pero la integración aún no está operativa porque falta configurar el secreto y Prosody.
 - Regresión de todas las demás secciones del portal: pendiente de ejecutar pruebas de navegador.
 
 ## Pruebas
