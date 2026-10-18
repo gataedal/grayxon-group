@@ -49,6 +49,10 @@ test('ending a meeting authorizes on the server and never mass-kicks participant
   assert.ok(endStart >= 0 && endFinish > endStart);
   const endBlock = app.slice(endStart, endFinish);
   assert.ok(endBlock.indexOf("callEndTraining('authorize')") < endBlock.indexOf("api.executeCommand('endConference')"));
+  assert.ok(endBlock.indexOf("api.executeCommand('endConference')") < endBlock.indexOf("await conferenceClosed"));
+  assert.ok(endBlock.indexOf("await conferenceClosed") < endBlock.indexOf("callEndTraining('finalize')"));
+  assert.match(endBlock, /addEventListener\('readyToClose'/);
+  assert.match(endBlock, /Jitsi no confirmó el cierre de la sala/);
   assert.doesNotMatch(endBlock, /kickParticipant|executeCommand\(['"]kick/);
   assert.match(endBlock, /callEndTraining\('finalize'\)/);
 });
