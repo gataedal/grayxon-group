@@ -73,3 +73,18 @@ Si devuelve filas, reconciliar manualmente esos registros antes de aplicar la mi
 ## Seguridad del despliegue
 
 No desplegar `start-live-training` hasta confirmar que el proyecto Supabase de destino contiene las mismas tablas, columnas, políticas y función `withSupabase` compatibles. Configurar `JITSI_EVENT_SYNC_TOKEN` como secreto de la función y usar exactamente el mismo valor en `api_headers` del componente Prosody; nunca guardar el secreto en Git ni en el frontend. No desplegar funciones ni aplicar migraciones a `Grayxon Academy` como parte de este trabajo. La Edge Function de inicio y el cliente deben desplegarse juntos; de lo contrario, la interfaz nueva recibirá un 404.
+
+### Configuración pendiente de Prosody para pruebas
+
+Después de desplegar `jitsi-event-sync` en `grayxon-beta` y configurar el secreto `JITSI_EVENT_SYNC_TOKEN` en Supabase, el componente oficial de eventos de Prosody debe enviar el mismo Bearer token. El bloque es orientativo; confirmar el nombre exacto del componente MUC en la configuración actual del servidor antes de reiniciar servicios:
+
+```lua
+Component "esync.meet.grayxongroup.com" "event_sync_component"
+    muc_component = "<MUC_COMPONENT_ACTUAL>"
+    api_prefix = "https://wnflvxbxgrupggtzlblh.supabase.co/functions/v1/jitsi-event-sync"
+    api_headers = {
+        ["Authorization"] = "Bearer <JITSI_EVENT_SYNC_TOKEN>";
+    }
+```
+
+El componente agrega rutas como `/events/room/destroyed` al `api_prefix`; la función está preparada para recibirlas. No instalar ni reiniciar Prosody hasta validar el nombre real del componente MUC y disponer de acceso de administración al servidor.
