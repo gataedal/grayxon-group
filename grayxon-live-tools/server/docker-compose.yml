@@ -1,0 +1,15 @@
+services:
+  grayxon-live-tools:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    container_name: grayxon-live-tools-pilot
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:3017:3000"
+    init: true
+    security_opt:
+      - no-new-privileges:true
