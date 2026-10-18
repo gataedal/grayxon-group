@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "jsr:@supabase/server@^1";
+import { resolveLiveTrainingCapabilities } from "../_shared/live-training-policy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,8 +54,8 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
 
     // Admins may start any training; otherwise only the recorded host may start it.
     // Team membership or audience membership is never sufficient for this action.
-    const authorized = profile.role === "admin" || training.created_by === userId;
-    if (!authorized) return response({ error: "Solo el anfitrión o un administrador puede iniciar el entrenamiento." }, 403);
+    const capabilities = resolveLiveTrainingCapabilities(userId, profile.role, profile.active, training.created_by);
+    if (!capabilities.canStart) return response({ error: "Solo el anfitrión o un administrador puede iniciar el entrenamiento." }, 403);
     if (training.status !== "scheduled") {
       return response({ error: "El entrenamiento ya no está programado.", status: training.status }, 409);
     }
