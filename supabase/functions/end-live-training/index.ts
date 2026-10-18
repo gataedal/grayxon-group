@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "jsr:@supabase/server@^1";
+import { resolveLiveTrainingCapabilities } from "../_shared/live-training-policy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,8 +55,8 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     }
     if (!training) return response({ error: "Entrenamiento no encontrado." }, 404);
 
-    const authorized = profile.role === "admin" || training.created_by === userId;
-    if (!authorized) return response({ error: "Solo el anfitrión o un administrador puede finalizar el entrenamiento." }, 403);
+    const capabilities = resolveLiveTrainingCapabilities(userId, profile.role, profile.active, training.created_by);
+    if (!capabilities.canEndForAll) return response({ error: "Solo el anfitrión o un administrador puede finalizar el entrenamiento." }, 403);
 
     const status = String(training.status ?? "").toLowerCase();
     if (["finished", "cancelled", "canceled"].includes(status)) {
