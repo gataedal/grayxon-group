@@ -2,7 +2,7 @@
 
 ## Alcance de esta rama
 
-Esta rama es una zona de trabajo aislada. La función `jitsi-event-sync` se desplegó únicamente en `grayxon-beta` con verificación JWT de gateway desactivada y autenticación propia por Bearer secret; el secreto aún no está configurado, por lo que responde sin procesar eventos. No se ha cambiado la configuración de Jitsi/Prosody/Jicofo ni se han desplegado las otras Edge Functions. La migración `202610180002_jitsi_authoritative_close_events.sql` se aplicó únicamente a `grayxon-beta` para validar la estructura; no se aplicó a `Grayxon Academy`. La migración de idempotencia de asistencia sigue sin aplicarse.
+Esta rama sigue aislada del branch principal. `main/config.js` apunta a `Grayxon Academy` (`vxyakhelhuikutepdjyn`), no a `grayxon-beta` (`wnflvxbxgrupggtzlblh`). El 18 de octubre de 2026 se aplicaron las dos migraciones de Entrenamientos en vivo a producción después de comprobar en solo lectura que no había asistencias abiertas ni sesiones activas. Producción ya tiene el índice de idempotencia, la tabla `jitsi_conference_events` y la RPC de cierre confiable. Las cuatro Edge Functions `start-live-training`, `end-live-training`, `generate-jitsi-jwt` (v10) y `jitsi-event-sync` están desplegadas en producción. El receptor de eventos Jitsi aún no puede procesar cierres hasta configurar `JITSI_EVENT_SYNC_TOKEN` en Supabase y el componente de eventos de Prosody en el servidor Jitsi. El frontend de esta rama no se ha fusionado en `main`, para no activar el nuevo cierre antes de que Prosody envíe eventos confiables.
 
 ## Cambios implementados hasta ahora
 
@@ -41,13 +41,13 @@ La autorización de entrada por audiencia es distinta de la autorización de mod
 
 - Revisión de código y esquema: realizada mediante lectura del repositorio y consultas de solo lectura a los dos proyectos Supabase conectados. El portal en `config.js` apunta a `Grayxon Academy` (`vxyakhelhuikutepdjyn`); `grayxon-beta` (`wnflvxbxgrupggtzlblh`) tiene un esquema parecido pero con columnas más permisivas y actualmente no tiene Edge Functions. No se debe desplegar en uno u otro por suposiciones: el entorno de pruebas debe configurarse de forma explícita.
 - Pruebas automatizadas: GitHub Actions aprobó `node --check app.js`, las ocho pruebas de política y los chequeos Deno de las Edge Functions, incluido `jitsi-event-sync`, en el commit `74a1704` (run 38).
-- Integración real de `jitsi-event-sync`: desplegada en `grayxon-beta`, pero pendiente de configurar el secreto y Prosody. Las Edge Functions `start-live-training`, `end-live-training` y `generate-jitsi-jwt` siguen pendientes de despliegue controlado en `grayxon-beta`. Para `jitsi-event-sync`, el gateway permite acceso sin JWT de Supabase porque la función valida su propio Bearer secret (`verify_jwt=false`).
-- Migración de idempotencia de asistencia: pendiente; no aplicada a ningún proyecto.
-- Migración de cierre autoritativo: aplicada únicamente a `grayxon-beta`; no aplicada a `Grayxon Academy`.
+- Integración real de `jitsi-event-sync`: desplegada en `Grayxon Academy` con `verify_jwt=false`; la función valida su propio Bearer secret. Falta configurar el secreto y Prosody aún no envía eventos. `start-live-training` y `end-live-training` están activas en producción con `verify_jwt=true`; `generate-jitsi-jwt` quedó actualizada a versión 10. El frontend sigue sin fusionarse hasta completar y validar la ruta de eventos Jitsi.
+- Migración de idempotencia de asistencia: aplicada a producción. La consulta previa encontró cero asistencias abiertas, así que se pudo crear el índice único parcial sin modificar registros existentes.
+- Migración de cierre autoritativo: aplicada a producción. La verificación de solo lectura confirma que existen la tabla de eventos y la RPC; por ahora no hay eventos Jitsi registrados.
 - Jitsi real con administrador, anfitrión, manager invitado y participante: pendiente.
 - Verificación de cámara, micrófono, vista principal, expulsión y cierre global: pendiente en navegador real.
 - Verificación del comportamiento real del servidor Jitsi: pendiente de configurar y probar el plugin Prosody `event_sync_component`, su URL de eventos y el header `Authorization: Bearer ...`; falta acceso a configuración y logs de Jicofo/Prosody.
-- Se añadió la vía de verificación autoritativa en código: el receptor solo acepta el evento `muc-room-destroyed` con un secreto compartido y la RPC registra el evento y finaliza el entrenamiento/asistencia en una transacción. La tabla y la RPC se aplicaron en `grayxon-beta`; el receptor está desplegado allí, pero la integración aún no está operativa porque falta configurar el secreto y Prosody.
+- La vía de cierre autoritativo ya está instalada en producción: el receptor solo acepta `muc-room-destroyed` con un secreto compartido y la RPC registra el evento y finaliza entrenamiento/asistencia transaccionalmente. Falta configurar `JITSI_EVENT_SYNC_TOKEN` y el componente `event_sync_component` de Prosody.
 - Regresión de todas las demás secciones del portal: pendiente de ejecutar pruebas de navegador.
 
 ## Pruebas
@@ -72,11 +72,11 @@ Si devuelve filas, reconciliar manualmente esos registros antes de aplicar la mi
 
 ## Seguridad del despliegue
 
-No desplegar `start-live-training` hasta confirmar que el proyecto Supabase de destino contiene las mismas tablas, columnas, políticas y función `withSupabase` compatibles. Configurar `JITSI_EVENT_SYNC_TOKEN` como secreto de la función y usar exactamente el mismo valor en `api_headers` del componente Prosody; nunca guardar el secreto en Git ni en el frontend. No desplegar funciones ni aplicar migraciones a `Grayxon Academy` como parte de este trabajo. La Edge Function de inicio y el cliente deben desplegarse juntos; de lo contrario, la interfaz nueva recibirá un 404.
+Las migraciones y Edge Functions de backend ya están instaladas en producción. No fusionar el frontend hasta que la ruta de eventos Jitsi esté configurada y validada: la nueva interfaz no marcará una sesión como finalizada sin un evento confiable del servidor. Configurar `JITSI_EVENT_SYNC_TOKEN` como secreto de la Edge Function y usar el mismo valor en `api_headers` de Prosody; nunca guardar el secreto en Git ni exponerlo en el frontend. El frontend y el backend deben mantenerse alineados.
 
 ### Configuración pendiente de Prosody para pruebas
 
-Después de desplegar `jitsi-event-sync` en `grayxon-beta` y configurar el secreto `JITSI_EVENT_SYNC_TOKEN` en Supabase, el componente oficial de eventos de Prosody debe enviar el mismo Bearer token. El bloque es orientativo; confirmar el nombre exacto del componente MUC en la configuración actual del servidor antes de reiniciar servicios:
+Después de configurar `JITSI_EVENT_SYNC_TOKEN` en Supabase de producción, el componente oficial de eventos de Prosody debe enviar el mismo Bearer token. Los nombres de MUC observados anteriormente son `muc.meet.jitsi` y `breakout.meet.jitsi`; verificar la configuración efectiva antes de reiniciar servicios:
 
 ```lua
 Component "esync.meet.grayxongroup.com" "event_sync_component"
