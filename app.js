@@ -2253,9 +2253,21 @@ async function recordLiveTrainingJoin(trainingId){
   currentLiveParticipantRow=data;return data;
 }
 async function recordLiveTrainingLeave(){
-  const row=currentLiveParticipantRow; currentLiveParticipantRow=null; if(!row?.id)return;
-  const {error}=await sb.from('live_training_participants').update({left_at:new Date().toISOString()}).eq('id',row.id).eq('user_id',session?.user?.id||'');
-  if(error)console.warn('No se pudo registrar la salida:',error.message);
+  const row=currentLiveParticipantRow;
+  if(!row?.id)return;
+  const leftAt=new Date().toISOString();
+  const joinedMs=Date.parse(row.joined_at||'');
+  const durationSeconds=Number.isFinite(joinedMs)?Math.max(0,Math.floor((Date.now()-joinedMs)/1000)):0;
+  const {error}=await sb.from('live_training_participants')
+    .update({left_at:leftAt,duration_seconds:durationSeconds})
+    .eq('id',row.id).eq('user_id',session?.user?.id||'').is('left_at',null);
+  if(error){
+    // Keep the row in memory so the caller can retry reconciliation rather than
+    // silently losing the only handle to an open attendance record.
+    console.warn('No se pudo registrar la salida:',error.message);
+    return;
+  }
+  currentLiveParticipantRow=null;
 }
 /**
  * Política de permisos del módulo LIVE v2.
