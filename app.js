@@ -2497,6 +2497,7 @@ async function startGrayxonLiveTraining(training, options={}){
     // Sincronización de controles propios de Grayxon por entrenamiento; no depende del chat de Jitsi.
     if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
     gxLiveCallRealtimeTrainingId=training.id;
+    gxLiveCallRealtimeTrainingId=training.id;
     gxLiveCallRealtimeChannel=sb.channel(`grayxon-live-call-${training.id}`,{config:{broadcast:{self:false}}})
       .on('broadcast',{event:'hand'},({payload})=>{
         if(!payload||payload.userId===session?.user?.id)return;
@@ -2510,35 +2511,44 @@ async function startGrayxonLiveTraining(training, options={}){
         showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));
         playGrayxonSound('reaction');
       })
-      .on('broadcast',{event:'host-camera-pin'},({payload})=>{
-        const hostParticipantId=String(payload?.participantId||'');
-        if(!hostParticipantId)return;
-        window.__gxHostParticipantId=hostParticipantId;
-        // El evento puede llegar antes de que Jitsi termine de crear el escenario.
-        // Reintentar brevemente evita que el primer pin se pierda durante la entrada.
-        const pinHost=()=>{try{api.executeCommand('setLargeVideoParticipant',hostParticipantId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}};
-        [0,250,700,1400].forEach(delay=>setTimeout(pinHost,delay));
-      })
-      .on('broadcast',{event:'host-camera-pin-request'},()=>{
-        // Los broadcasts no se reproducen a los participantes que aún no estaban suscritos.
-        // Si alguien entra tarde, el anfitrión le vuelve a anunciar su ID de Jitsi.
-        if(!isHost)return;
-        const hostParticipantId=String(window.__gxLocalParticipantId||'');
-        if(hostParticipantId)sendGrayxonLiveBroadcast('host-camera-pin',{participantId:hostParticipantId,userId:session?.user?.id||null});
-      })
       .subscribe(status=>{
         if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Grayxon LIVE: error en canal de sincronización',status);
-        if(status==='SUBSCRIBED'){
-          const hostParticipantId=String(window.__gxLocalParticipantId||'');
-          if(isHost&&hostParticipantId){
-            [0,500,1400].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin',{participantId:hostParticipantId,userId:session?.user?.id||null}),delay));
-          }else{
-            // Solicitar el ID al anfitrión al conectar; repetir para cubrir la carrera
-            // entre la suscripción de Realtime y la entrada a la sala de Jitsi.
-            [100,700,1600].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin-request',{userId:session?.user?.id||null}),delay));
-          }
-        }
       });
+
+    // La identidad del anfitrión se resuelve desde la identidad de Jitsi asociada
+    // al usuario autenticado, no mediante broadcasts ni el orden de llegada.
+    let gxHostStageSyncInFlight=false;
+    let gxHostStageSyncAgain=false;
+    const syncGrayxonHostStage=async()=>{
+      if(!training?.created_by||jaasApi!==api)return;
+      if(gxHostStageSyncInFlight){gxHostStageSyncAgain=true;return;}
+      gxHostStageSyncInFlight=true;
+      try{
+        const roomInfo=await api.getRoomsInfo?.();
+        const rooms=Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[];
+        const mainRooms=rooms.filter(room=>room?.isMainRoom);
+        const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
+        const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by));
+        if(!hostParticipant?.id)return;
+        const hostId=String(hostParticipant.id);
+        window.__gxHostParticipantId=hostId;
+        // pinParticipant preserves video subscription; setLargeVideoParticipant
+        // chooses the visible stage. Both are local view controls in each client.
+        try{api.pinParticipant?.(hostId,'camera');}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la pista del anfitrión',err);}
+        if(String(window.__grayxonLargeVideoParticipant||'')!==hostId){
+          try{api.executeCommand('setLargeVideoParticipant',hostId,'camera');}
+          catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal del anfitrión',err);}
+        }
+      }catch(err){
+        console.warn('Grayxon LIVE: no se pudo resolver la identidad del anfitrión en Jitsi',err);
+      }finally{
+        gxHostStageSyncInFlight=false;
+        if(gxHostStageSyncAgain){
+          gxHostStageSyncAgain=false;
+          setTimeout(()=>syncGrayxonHostStage(),0);
+        }
+      }
+    };
     let gxJitsiReady=false;
     let gxAudioMuted=true;
     let gxVideoMuted=true;
@@ -2694,7 +2704,7 @@ async function startGrayxonLiveTraining(training, options={}){
       gxLogVideoDiag('ready');
       scheduleGrayxonJitsiResize();
     });
-    api.addEventListener?.('trackAdded', ev=>gxLogVideoDiag('trackAdded', ev));
+    api.addEventListener?.('trackAdded', ev=>{gxLogVideoDiag('trackAdded', ev);if(ev?.type==='video'||ev?.track?.type==='video')syncGrayxonHostStage();});
     api.addEventListener?.('trackRemoved', ev=>gxLogVideoDiag('trackRemoved', ev));
     api.addEventListener?.('connectionQualityChanged', ev=>gxLogVideoDiag('connectionQualityChanged', ev));
 
@@ -2727,43 +2737,18 @@ async function startGrayxonLiveTraining(training, options={}){
       await recordLiveTrainingJoin(training.id);
       await refreshGrayxonParticipants(api);
       try{
-        const participants=await api.getParticipantsInfo();
-        const local=Array.isArray(participants)?participants.find(p=>p.isLocal):null;
-        if(local){
-          const localId=String(local.participantId||local.id||'');
-          window.__gxLocalParticipantId=localId||null;
-          if(isHost&&localId){
-            // El anfitrión es la vista principal predeterminada. Al ocultar self-view
-            // no queda una segunda miniatura de la cámara local.
-            window.__gxHostParticipantId=localId;
-            try{api.executeCommand('setLargeVideoParticipant',localId);setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',localId);}catch(_){}},900);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión local',err);}
-            sendGrayxonLiveBroadcast('host-camera-pin',{participantId:localId,userId:session?.user?.id||null});
-          }else if(window.__gxHostParticipantId){
-            const hostParticipantId=String(window.__gxHostParticipantId);
-            [0,300,900].forEach(delay=>setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',hostParticipantId);}catch(_){}},delay));
-          }else{
-            // El anfitrión puede haber entrado antes de que este cliente se suscribiera.
-            [0,700,1600].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin-request',{userId:session?.user?.id||null}),delay));
-          }
-        }
+        const roomInfo=await api.getRoomsInfo?.();
+        const rooms=Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[];
+        const participants=rooms.flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
+        const local=participants.find(person=>String(person?.userContext?.id||'')===String(session?.user?.id||''));
+        if(local?.id)window.__gxLocalParticipantId=String(local.id);
+        await syncGrayxonHostStage();
       }catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal inicial',err);}
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
     });
 
-    api.addEventListener?.('participantJoined',async ev=>{
-      gxLogVideoDiag('participantJoined',ev);refreshGrayxonParticipants(api);
-      if(isHost){
-        try{
-          const people=await api.getParticipantsInfo();
-          const local=Array.isArray(people)?people.find(p=>p.isLocal):null;
-          const id=String(local?.participantId||local?.id||'');
-          if(id){
-            window.__gxLocalParticipantId=id;
-            window.__gxHostParticipantId=id;
-            [0,350,900].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin',{participantId:id,userId:session?.user?.id||null}),delay));
-          }
-        }catch(_){}
-      }
+    api.addEventListener?.('participantJoined',ev=>{
+      gxLogVideoDiag('participantJoined',ev);refreshGrayxonParticipants(api);syncGrayxonHostStage();
     });
     api.addEventListener?.('participantRoleChanged',()=>refreshGrayxonParticipants(api));
     api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);});
@@ -2772,19 +2757,12 @@ async function startGrayxonLiveTraining(training, options={}){
     api.addEventListener?.('raiseHandUpdated',ev=>gxLogVideoDiag('raiseHandUpdated',ev));
     api.addEventListener?.('dominantSpeakerChanged',ev=>{
       window.__grayxonDominantSpeaker=ev?.id||null;
-      // La detección de voz no debe quitarle el escenario al anfitrión.
-      // En cada dispositivo se vuelve a fijar localmente al anfitrión si alguien más
-      // pasa a ser el vídeo principal; fijar es local a cada cliente de Jitsi.
-      if(window.__gxHostParticipantId && String(ev?.id||'')!==String(window.__gxHostParticipantId)){
-        setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
-      }
+      if(window.__gxHostParticipantId&&String(ev?.id||'')!==String(window.__gxHostParticipantId))syncGrayxonHostStage();
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('largeVideoChanged',ev=>{
       window.__grayxonLargeVideoParticipant=ev?.id||null;
-      if(window.__gxHostParticipantId && String(ev?.id||'')!==String(window.__gxHostParticipantId)){
-        setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
-      }
+      if(window.__gxHostParticipantId&&String(ev?.id||'')!==String(window.__gxHostParticipantId))syncGrayxonHostStage();
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
