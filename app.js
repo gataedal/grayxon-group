@@ -2279,11 +2279,27 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
   liveTrainingEnding = true;
   try {
     api.executeCommand('endConference');
+    // Mantener sincronizado el estado del portal. RLS debe seguir siendo la
+    // autoridad final para aceptar o rechazar esta actualización.
+    const endedAt = new Date().toISOString();
+    const { error } = await sb.from('live_trainings')
+      .update({ status: 'finished', ended_at: endedAt })
+      .eq('id', trainingId)
+      .eq('status', 'live');
+    if (error) {
+      console.warn('No se pudo actualizar el estado del entrenamiento:', error.message);
+      toast('La reunión se cerró, pero no se pudo actualizar su estado en Grayxon.');
+      return false;
+    }
+    await sb.from('live_training_participants')
+      .update({ left_at: endedAt })
+      .eq('training_id', trainingId)
+      .is('left_at', null);
     return true;
   } catch (error) {
     liveTrainingEnding = false;
-    console.warn('Jitsi no confirmó la finalización del entrenamiento:', error);
-    toast('Jitsi no permitió finalizar la reunión. El entrenamiento sigue abierto.');
+    console.warn('No se pudo finalizar el entrenamiento:', error);
+    toast('No se pudo confirmar la finalización del entrenamiento.');
     return false;
   }
 }
