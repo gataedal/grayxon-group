@@ -2,7 +2,7 @@
 
 ## Alcance de esta rama
 
-Esta rama es una zona de trabajo aislada. No se ha desplegado ninguna Edge Function ni se ha aplicado ninguna migración a Supabase. No se ha cambiado la configuración de Jitsi/Prosody/Jicofo.
+Esta rama es una zona de trabajo aislada. No se ha desplegado ninguna Edge Function ni se ha cambiado la configuración de Jitsi/Prosody/Jicofo. La migración `202610180002_jitsi_authoritative_close_events.sql` se aplicó únicamente a `grayxon-beta` para validar la estructura; no se aplicó a `Grayxon Academy`. La migración de idempotencia de asistencia sigue sin aplicarse.
 
 ## Cambios implementados hasta ahora
 
@@ -41,12 +41,13 @@ La autorización de entrada por audiencia es distinta de la autorización de mod
 
 - Revisión de código y esquema: realizada mediante lectura del repositorio y consultas de solo lectura a los dos proyectos Supabase conectados. El portal en `config.js` apunta a `Grayxon Academy` (`vxyakhelhuikutepdjyn`); `grayxon-beta` (`wnflvxbxgrupggtzlblh`) tiene un esquema parecido pero con columnas más permisivas y actualmente no tiene Edge Functions. No se debe desplegar en uno u otro por suposiciones: el entorno de pruebas debe configurarse de forma explícita.
 - Pruebas automatizadas: GitHub Actions aprobó `node --check app.js`, las ocho pruebas de política y los chequeos Deno de las Edge Functions en el commit `332b67c`. Se añadió después un ajuste de compatibilidad para `getRoomsInfo`; la última revisión debe pasar un ciclo CI actualizado antes de considerarse verificada.
-- Integración real de las Edge Functions `start-live-training`, `end-live-training`, `generate-jitsi-jwt` y `jitsi-event-sync`: pendiente de despliegue controlado en un entorno de pruebas. Para `jitsi-event-sync`, el gateway debe permitir el acceso sin JWT de Supabase porque la función valida su propio Bearer secret (`verify_jwt=false`).
-- Migración de asistencia: pendiente; no aplicada a ningún proyecto.
+- Integración real de las Edge Functions `start-live-training`, `end-live-training`, `generate-jitsi-jwt` y `jitsi-event-sync`: pendiente de despliegue controlado en `grayxon-beta`. Para `jitsi-event-sync`, el gateway debe permitir el acceso sin JWT de Supabase porque la función valida su propio Bearer secret (`verify_jwt=false`).
+- Migración de idempotencia de asistencia: pendiente; no aplicada a ningún proyecto.
+- Migración de cierre autoritativo: aplicada únicamente a `grayxon-beta`; no aplicada a `Grayxon Academy`.
 - Jitsi real con administrador, anfitrión, manager invitado y participante: pendiente.
 - Verificación de cámara, micrófono, vista principal, expulsión y cierre global: pendiente en navegador real.
 - Verificación del comportamiento real del servidor Jitsi: pendiente de configurar y probar el plugin Prosody `event_sync_component`, su URL de eventos y el header `Authorization: Bearer ...`; falta acceso a configuración y logs de Jicofo/Prosody.
-- Se añadió la vía de verificación autoritativa en código: el receptor solo acepta el evento `muc-room-destroyed` con un secreto compartido y la RPC registra el evento y finaliza el entrenamiento/ asistencia en una transacción. Esto aún no está operativo hasta desplegar la función, aplicar la migración en un entorno de pruebas y configurar el módulo `event_sync_component` de Prosody con el mismo secreto.
+- Se añadió la vía de verificación autoritativa en código: el receptor solo acepta el evento `muc-room-destroyed` con un secreto compartido y la RPC registra el evento y finaliza el entrenamiento/asistencia en una transacción. La tabla y la RPC se aplicaron en `grayxon-beta` y se verificaron con consultas de solo lectura; la integración todavía no está operativa porque la Edge Function no se ha desplegado y Prosody aún no está configurado.
 - Regresión de todas las demás secciones del portal: pendiente de ejecutar pruebas de navegador.
 
 ## Pruebas
@@ -71,4 +72,4 @@ Si devuelve filas, reconciliar manualmente esos registros antes de aplicar la mi
 
 ## Seguridad del despliegue
 
-No desplegar `start-live-training` hasta confirmar que el proyecto Supabase de destino contiene las mismas tablas, columnas, políticas y función `withSupabase` compatibles. Configurar `JITSI_EVENT_SYNC_TOKEN` como secreto de la función y usar exactamente el mismo valor en `api_headers` del componente Prosody; nunca guardar el secreto en Git ni en el frontend. No desplegar ni aplicar migraciones a producción como parte de este trabajo. La Edge Function de inicio y el cliente deben desplegarse juntos; de lo contrario, la interfaz nueva recibirá un 404.
+No desplegar `start-live-training` hasta confirmar que el proyecto Supabase de destino contiene las mismas tablas, columnas, políticas y función `withSupabase` compatibles. Configurar `JITSI_EVENT_SYNC_TOKEN` como secreto de la función y usar exactamente el mismo valor en `api_headers` del componente Prosody; nunca guardar el secreto en Git ni en el frontend. No desplegar funciones ni aplicar migraciones a `Grayxon Academy` como parte de este trabajo. La Edge Function de inicio y el cliente deben desplegarse juntos; de lo contrario, la interfaz nueva recibirá un 404.
