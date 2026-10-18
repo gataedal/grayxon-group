@@ -45,7 +45,7 @@ const escx=v=>typeof esc==='function'?esc(String(v??'')):String(v??'').replace(/
 const dt=v=>{const d=new Date(v);return Number.isFinite(d.getTime())?d:null};
 const day=v=>{const d=dt(v);return d?d.toLocaleString('es-CO',{timeZone:'America/Bogota',weekday:'short',day:'2-digit',month:'short'}):'Fecha por confirmar'};
 const clock=v=>{const d=dt(v);return d?d.toLocaleString('es-CO',{timeZone:'America/Bogota',hour:'2-digit',minute:'2-digit',hour12:true}):''};
-const isCreator=()=>!!session&&(profile?.role==='creator'||document.body.classList.contains('grayxon-creator-session'));
+const isCreator=()=>!!session?.user?.id&&profile?.role==='creator';
 const go=p=>{if(typeof nav==='function')nav(p)};
 function bottomNav(){
  if(!isCreator()||document.body.classList.contains('grayxon-live-training-call')){document.getElementById('gxch-bottom-nav')?.remove();return}
