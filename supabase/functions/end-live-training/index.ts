@@ -111,7 +111,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       console.error("End LIVE: status recheck failed", refreshError);
       return response({ error: "El cierre de Jitsi se recibió, pero no se pudo confirmar el estado del entrenamiento." }, 500);
     }
-    if (String(refreshed?.status ?? "").toLowerCase() !== "finished") {
+    if (!refreshed || String(refreshed.status ?? "").toLowerCase() !== "finished") {
       return response({
         error: "Jitsi informó el cierre, pero el entrenamiento aún no pudo reconciliarse. Vuelve a comprobarlo.",
         code: "LIVE_TRAINING_RECONCILIATION_PENDING",
