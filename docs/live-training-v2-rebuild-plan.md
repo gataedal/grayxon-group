@@ -74,3 +74,18 @@ En el flujo de `toolbarButtonClicked`, la acción de finalizar conferencia se ej
 - Mantener la acción “salir” separada de “finalizar para todos”.
 - Validar la capacidad al comienzo de la función de finalización y, además, en servidor/DB.
 - No tocar el flujo de JaaS de prueba ni otros módulos durante la reconstrucción del proveedor activo.
+
+## Avance de implementación aislada (sin despliegue)
+
+- Se añadió `live-training-v2/permissions.js` con un contrato explícito de capacidades y `permissions.test.js` con seis escenarios.
+- La política se integró en `app.js`: anfitrión y admin tienen capacidades de moderación; participantes invitados no reciben controles de moderación ni finalización.
+- Se eliminó la expulsión masiva de participantes desde el navegador al finalizar. La acción ya no intenta cerrar la reunión expulsando a cada persona.
+- Se añadió `supabase/functions/end-live-training/index.ts`. La función valida sesión, perfil activo y que el usuario sea administrador o creador del entrenamiento antes de cambiar el estado.
+- El frontend llama a esa función antes de emitir `endConference`; no confía únicamente en el estado de los botones.
+- Verificación local del contenido: `app.js` pasa comprobación de sintaxis JavaScript y la política pasa seis aserciones.
+
+### Bloqueos antes de activar
+- La nueva Edge Function está en la rama del repositorio, pero **no está desplegada** en Supabase. El frontend de esta rama no debe publicarse hasta desplegar y verificar esa función en un entorno de prueba.
+- Aún falta verificar el comportamiento real de roles en Jitsi con cuentas separadas. El helper del frontend no sustituye la autorización de Prosody/Jicofo ni demuestra por sí solo que el JWT se esté aplicando como se espera.
+- Aún falta probar cámara/audio, anfitrión fijo, permisos de moderación, salida individual y finalización completa en una sala de prueba.
+- No se ha publicado a producción ni se ha modificado el servidor Jitsi.
