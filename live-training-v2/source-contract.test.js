@@ -42,3 +42,13 @@ test('host camera pin retries after slow room setup and participant joins', () =
   assert.match(app, /addEventListener\?\.\('participantJoined'/);
   assert.match(app, /\[150,600,1300\]\.forEach\(delay=>setTimeout\(/);
 });
+
+test('ending a meeting authorizes on the server and never mass-kicks participants', () => {
+  const endStart = app.indexOf('async function endLiveTrainingConference(');
+  const endFinish = app.indexOf('\nconst grayxonRaisedHands', endStart);
+  assert.ok(endStart >= 0 && endFinish > endStart);
+  const endBlock = app.slice(endStart, endFinish);
+  assert.ok(endBlock.indexOf("callEndTraining('authorize')") < endBlock.indexOf("api.executeCommand('endConference')"));
+  assert.doesNotMatch(endBlock, /kickParticipant|executeCommand\(['"]kick/);
+  assert.match(endBlock, /callEndTraining\('finalize'\)/);
+});
