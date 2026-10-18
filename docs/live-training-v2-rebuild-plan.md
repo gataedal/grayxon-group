@@ -45,3 +45,22 @@ El administrador Grayxon no debe perder privilegios al entrar a una reunión cre
 - Verificar el JWT real de un participante normal sin exponer secretos ni tokens completos.
 - Confirmar qué proveedor, sala y token usa realmente el navegador en una reunión creada por un manager.
 - Verificar si las órdenes de moderación que funcionaron procedían del rol de Jitsi o de permisos configurados por el servidor.
+
+
+## Auditoría del código (revisión aislada, sin despliegue)
+
+### Hallazgo crítico: finalizar para todos
+En `app.js`, `endLiveTrainingConference(api, trainingId)` ejecuta `endConference`, intenta expulsar a todos los participantes remotos y después marca el entrenamiento como finalizado en Supabase. La función no comprueba por sí misma el rol antes de iniciar esas acciones. Aunque la interfaz oculte el botón a ciertos usuarios, eso no es una autorización suficiente. Antes de aceptar el módulo, la acción debe estar protegida tanto en el cliente como en una operación de servidor/DB que valide al usuario y al entrenamiento.
+
+### Roles de JWT y causa probable del privilegio indebido
+La función activa `generate-jitsi-jwt` v9 asigna `moderator=true` y `affiliation=owner` únicamente si el usuario es admin Grayxon o coincide con `live_trainings.created_by`. Los demás usuarios autorizados reciben `moderator=false` y `affiliation=member`. La lógica de roles de la función coincide con la matriz objetivo en el nivel de aplicación; el hecho observado de que un participante normal pueda expulsar a otros apunta a que el servidor Jitsi no está aplicando de forma efectiva esa distinción, o a que el navegador está entrando por otra ruta/token. No se puede concluir cuál de las dos sin verificar la configuración efectiva de Jicofo/Prosody y la respuesta de conexión de una sesión real.
+
+### Cámara principal
+El código intenta fijar al anfitrión mediante `setLargeVideoParticipant` y sincroniza su ID por Supabase Realtime. También vuelve a fijarlo al detectar cambios de hablante o de vídeo grande. Esta lógica puede competir con eventos del propio Jitsi y depende de que el ID local se obtenga a tiempo. No se considera resuelto hasta probar anfitrión entrando primero, invitado entrando después, reconexión y dispositivo móvil.
+
+### Siguiente secuencia obligatoria
+1. Verificar configuración efectiva de Jicofo/Prosody y confirmar si `ENABLE_MODERATOR_CHECKS` está realmente aplicado, sin reiniciar servicios.
+2. Confirmar qué proveedor y sala usa el flujo real y contrastar la respuesta de la Edge Function para anfitrión, admin y participante normal sin guardar ni mostrar JWT completos.
+3. Añadir protección verificable a la acción de finalizar para todos; separar claramente “salir” de “finalizar reunión”.
+4. Corregir la autorización del servidor Jitsi si se confirma que acepta acciones de moderación de usuarios `member`.
+5. Probar la matriz completa con cuentas separadas antes de publicar cualquier cambio.
