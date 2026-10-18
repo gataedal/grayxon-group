@@ -2402,10 +2402,38 @@ function toggleGrayxonParticipantsPanel(){
   panel.hidden=!panel.hidden;panel.classList.toggle('hidden',panel.hidden);
   if(jaasApi&&!panel.hidden)refreshGrayxonParticipants(jaasApi);
 }
+async function getGrayxonJitsiParticipants(api){
+  if(!api)return [];
+  try{
+    if(typeof api.getRoomsInfo==='function'){
+      const roomInfo=await api.getRoomsInfo();
+      const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:null);
+      if(rooms){
+        const participants=rooms.flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
+        return participants.map(person=>({
+          ...person,
+          participantId:person.participantId||person.id||'',
+          isLocal:String(person?.userContext?.id||'')===String(session?.user?.id||''),
+          avatarURL:person.avatarURL||person.avatarUrl||person.avatar||''
+        }));
+      }
+    }
+  }catch(error){
+    console.warn('Grayxon LIVE: getRoomsInfo no está disponible; se intentará el método compatible anterior.',error);
+  }
+  try{
+    const legacy=await api.getParticipantsInfo?.();
+    return Array.isArray(legacy)?legacy.map(person=>({...person,participantId:person.participantId||person.id||''})):[];
+  }catch(error){
+    console.warn('Grayxon LIVE: no se pudieron consultar los participantes.',error);
+    return [];
+  }
+}
+
 async function refreshGrayxonParticipants(api){
   const panel=$('.gx-participants-panel');if(!panel||!api)return;
   try{
-    const data=await api.getParticipantsInfo();const people=Array.isArray(data)?data:[];
+    const people=await getGrayxonJitsiParticipants(api);
     const local=people.find(p=>p.isLocal);
     if(local)window.__gxLocalParticipantId=local.participantId||local.id||null;
     people.sort((a,b)=>{
@@ -2587,7 +2615,7 @@ async function startGrayxonLiveTraining(training, options={}){
             const handButton=$('[data-gx-call="hand"]');
             if(handButton){handButton.setAttribute('aria-pressed',String(gxHandRaised));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=gxHandRaised?'Bajar la mano':'Levantar la mano';}
             let localId=window.__gxLocalParticipantId;
-            if(!localId){try{const ps=await api.getParticipantsInfo();const lp=Array.isArray(ps)?ps.find(p=>p.isLocal):null;localId=lp?.participantId||lp?.id||null;window.__gxLocalParticipantId=localId;}catch(_){}}
+            if(!localId){try{const ps=await getGrayxonJitsiParticipants(api);const lp=ps.find(p=>p.isLocal);localId=lp?.participantId||lp?.id||null;window.__gxLocalParticipantId=localId;}catch(_){}}
             if(localId)grayxonRaisedHands.set(localId,gxHandRaised);
             refreshGrayxonParticipants(api);
             const handName=profile?.full_name||profile?.username||'Participante';
@@ -2778,8 +2806,8 @@ async function startGrayxonLiveTraining(training, options={}){
       if(handMessage){
         (async()=>{
           try{
-            const people=await api.getParticipantsInfo();
-            const person=(Array.isArray(people)?people:[]).find(p=>String(p.displayName||p.name||'')===nick&&!p.isLocal);
+            const people=await getGrayxonJitsiParticipants(api);
+            const person=people.find(p=>String(p.displayName||p.name||'')===nick&&!p.isLocal);
             const pid=person?.participantId||person?.id;
             if(pid)grayxonRaisedHands.set(String(pid),handMessage[1]==='up');
             refreshGrayxonParticipants(api);
