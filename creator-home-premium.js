@@ -44,6 +44,7 @@ function patchNav(){
  document.body.classList.toggle('grayxon-creator-session',isCreator());
  if(typeof updateCreatorTopNav==='function'&&!updateCreatorTopNav.__gxch){const orig=updateCreatorTopNav;const w=function(){const r=orig.apply(this,arguments);document.body.classList.toggle('grayxon-creator-session',isCreator());bottomNav();const f=document.getElementById('grayxonCreatorSpaceFloat');if(f&&isCreator())f.style.setProperty('display','none','important');return r};w.__gxch=true;updateCreatorTopNav=w}
  if(typeof updateCreatorSpaceFloat==='function'&&!updateCreatorSpaceFloat.__gxch){const orig=updateCreatorSpaceFloat;const w=function(){const r=orig.apply(this,arguments);document.body.classList.toggle('grayxon-creator-session',isCreator());bottomNav();const f=document.getElementById('grayxonCreatorSpaceFloat');if(f&&isCreator())f.style.setProperty('display','none','important');return r};w.__gxch=true;updateCreatorSpaceFloat=w}
+ if(typeof gxRefreshAnnouncementUnreadCount==='function'&&!gxRefreshAnnouncementUnreadCount.__gxch){const orig=gxRefreshAnnouncementUnreadCount;const w=async function(){const r=await orig.apply(this,arguments);bottomNav();return r};w.__gxch=true;gxRefreshAnnouncementUnreadCount=w}
  bottomNav();
 }
 function avatarHTML(){const src=profileDetails?.avatar_url;if(src)return '<img src="'+escx(src)+'" alt="Foto de perfil">';const i=typeof profileInitial==='function'?profileInitial():String(profile?.full_name||profile?.username||'G').charAt(0).toUpperCase();return escx(i||'G')}
