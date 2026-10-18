@@ -2278,28 +2278,34 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
   // Jitsi debe validar el rol del token antes de aceptar endConference.
   liveTrainingEnding = true;
   try {
-    api.executeCommand('endConference');
-    // Mantener sincronizado el estado del portal. RLS debe seguir siendo la
-    // autoridad final para aceptar o rechazar esta actualización.
-    const endedAt = new Date().toISOString();
-    const { error } = await sb.from('live_trainings')
-      .update({ status: 'finished', ended_at: endedAt })
-      .eq('id', trainingId)
-      .eq('status', 'live');
-    if (error) {
-      console.warn('No se pudo actualizar el estado del entrenamiento:', error.message);
-      toast('La reunión se cerró, pero no se pudo actualizar su estado en Grayxon.');
-      return false;
+    // La Edge Function valida identidad, rol global y autoría en servidor.
+    // No confiar en la capacidad calculada por el navegador como autorización.
+    const { data: sessionData } = await sb.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible.');
+
+    const response = await fetch(`${CFG.SUPABASE_URL}/functions/v1/end-live-training`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ trainingId })
+    });
+    let result = null;
+    try { result = await response.json(); } catch (_) {}
+    if (!response.ok || result?.error || result?.ok !== true) {
+      throw new Error(result?.error || 'El servidor no autorizó finalizar el entrenamiento.');
     }
-    await sb.from('live_training_participants')
-      .update({ left_at: endedAt })
-      .eq('training_id', trainingId)
-      .is('left_at', null);
+
+    // Solo enviar el comando de sala después de recibir autorización del servidor.
+    api.executeCommand('endConference');
     return true;
   } catch (error) {
     liveTrainingEnding = false;
     console.warn('No se pudo finalizar el entrenamiento:', error);
-    toast('No se pudo confirmar la finalización del entrenamiento.');
+    toast(error?.message || 'No se pudo confirmar la finalización del entrenamiento.');
     return false;
   }
 }
