@@ -2529,7 +2529,6 @@ async function startGrayxonLiveTraining(training, options={}){
     // Sincronización de controles propios de Grayxon por entrenamiento; no depende del chat de Jitsi.
     if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
     gxLiveCallRealtimeTrainingId=training.id;
-    gxLiveCallRealtimeTrainingId=training.id;
     gxLiveCallRealtimeChannel=sb.channel(`grayxon-live-call-${training.id}`,{config:{broadcast:{self:false}}})
       .on('broadcast',{event:'hand'},({payload})=>{
         if(!payload||payload.userId===session?.user?.id)return;
@@ -2772,8 +2771,9 @@ async function startGrayxonLiveTraining(training, options={}){
       await refreshGrayxonParticipants(api);
       try{
         const roomInfo=await api.getRoomsInfo?.();
-        const rooms=Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[];
-        const participants=rooms.flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
+        const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[]);
+        const mainRooms=rooms.filter(room=>room?.isMainRoom);
+        const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
         const local=participants.find(person=>String(person?.userContext?.id||'')===String(session?.user?.id||''));
         if(local?.id)window.__gxLocalParticipantId=String(local.id);
         await syncGrayxonHostStage();
