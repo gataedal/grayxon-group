@@ -19,10 +19,18 @@ ALTER TABLE public.jitsi_conference_events ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.jitsi_conference_events FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT ON TABLE public.jitsi_conference_events TO service_role;
 
--- The trusted webhook calls this transaction after storing the authenticated
--- Prosody event. Only service_role may invoke it.
+-- The trusted webhook calls this transaction after authenticating Prosody's
+-- event. Event insertion, session finalization, and attendance reconciliation
+-- commit atomically so the browser cannot forge a successful close.
+
+DROP FUNCTION IF EXISTS public.finalize_live_training_from_jitsi_event(text, timestamptz);
+
 CREATE OR REPLACE FUNCTION public.finalize_live_training_from_jitsi_event(
+  p_event_key text,
+  p_event_name text,
   p_room_name text,
+  p_room_jid text,
+  p_meeting_id text,
   p_destroyed_at timestamptz
 )
 RETURNS TABLE (training_id uuid, finalized boolean)
@@ -33,6 +41,19 @@ AS $$
 DECLARE
   v_training public.live_trainings%ROWTYPE;
 BEGIN
+  IF p_event_name <> 'muc-room-destroyed'
+     OR p_event_key IS NULL OR length(p_event_key) <> 64
+     OR p_room_name IS NULL OR p_room_jid IS NULL
+     OR p_destroyed_at IS NULL THEN
+    RAISE EXCEPTION 'Invalid trusted Jitsi closure event';
+  END IF;
+
+  INSERT INTO public.jitsi_conference_events (
+    event_key, event_name, room_name, room_jid, meeting_id, destroyed_at
+  ) VALUES (
+    p_event_key, p_event_name, p_room_name, p_room_jid, p_meeting_id, p_destroyed_at
+  ) ON CONFLICT (event_key) DO NOTHING;
+
   SELECT *
     INTO v_training
     FROM public.live_trainings
@@ -67,7 +88,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.finalize_live_training_from_jitsi_event(text, timestamptz)
+REVOKE ALL ON FUNCTION public.finalize_live_training_from_jitsi_event(text, text, text, text, text, timestamptz)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.finalize_live_training_from_jitsi_event(text, timestamptz)
+GRANT EXECUTE ON FUNCTION public.finalize_live_training_from_jitsi_event(text, text, text, text, text, timestamptz)
   TO service_role;
