@@ -2559,7 +2559,7 @@ async function startGrayxonLiveTraining(training, options={}){
         const rooms=Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[];
         const mainRooms=rooms.filter(room=>room?.isMainRoom);
         const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
-        const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by));
+        const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by))||(isHost?participants.find(person=>String(person?.id||'')===String(window.__gxLocalParticipantId||'')):null);
         if(!hostParticipant?.id){window.__gxHostParticipantId=null;return;}
         const hostId=String(hostParticipant.id);
         window.__gxHostParticipantId=hostId;
