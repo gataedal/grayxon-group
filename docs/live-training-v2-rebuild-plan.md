@@ -81,8 +81,8 @@ En el flujo de `toolbarButtonClicked`, la acción de finalizar conferencia se ej
 - La política se integró en `app.js`: anfitrión y admin tienen capacidades de moderación; participantes invitados no reciben controles de moderación ni finalización.
 - Se eliminó la expulsión masiva de participantes desde el navegador al finalizar. La acción ya no intenta cerrar la reunión expulsando a cada persona.
 - Se añadió `supabase/functions/end-live-training/index.ts`. La función valida sesión, perfil activo y que el usuario sea administrador o creador del entrenamiento antes de cambiar el estado.
-- El frontend llama a esa función antes de emitir `endConference`; no confía únicamente en el estado de los botones.
-- Verificación local del contenido: `app.js` pasa comprobación de sintaxis JavaScript y la política pasa seis aserciones.
+- El endpoint usa dos fases: `authorize` valida identidad/rol/estado sin mutar datos; después de emitir `endConference`, `finalize` actualiza el estado. La persistencia exige que la fila haya cambiado realmente de `live` a `finished`.
+- Verificación estática en la rama: `app.js` pasa comprobación de sintaxis JavaScript; se confirmó el orden autorización de servidor → `endConference` → persistencia, que la ruta de cierre no expulsa participantes desde el cliente y que el endpoint valida que la fila se haya actualizado. Esto no sustituye las pruebas de integración de Supabase/Jitsi.
 
 ### Bloqueos antes de activar
 - La nueva Edge Function está en la rama del repositorio, pero **no está desplegada** en Supabase. El frontend de esta rama no debe publicarse hasta desplegar y verificar esa función en un entorno de prueba.
