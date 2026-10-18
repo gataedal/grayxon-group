@@ -14,16 +14,22 @@ function response(data: unknown, status = 200) {
   });
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
   try {
     const userId = ctx.userClaims?.id;
     if (!userId) return response({ error: "Usuario no autenticado." }, 401);
 
-    let body: { trainingId?: string } = {};
+    let body: { trainingId?: string; action?: string } = {};
     try { body = await req.json(); } catch { /* invalid body */ }
     const trainingId = body.trainingId?.trim();
-    if (!trainingId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trainingId)) {
+    const action = body.action ?? "authorize";
+    if (!trainingId || !UUID_RE.test(trainingId)) {
       return response({ error: "Debes indicar un trainingId válido." }, 400);
+    }
+    if (action !== "authorize" && action !== "finalize") {
+      return response({ error: "Acción no válida." }, 400);
     }
 
     const { data: profile, error: profileError } = await ctx.supabaseAdmin
@@ -51,19 +57,32 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     const authorized = profile.role === "admin" || training.created_by === userId;
     if (!authorized) return response({ error: "Solo el anfitrión o un administrador puede finalizar el entrenamiento." }, 403);
 
-    if (["finished", "cancelled", "canceled"].includes(String(training.status).toLowerCase())) {
-      return response({ ok: true, alreadyFinished: true });
+    const status = String(training.status ?? "").toLowerCase();
+    if (["finished", "cancelled", "canceled"].includes(status)) {
+      return response({ ok: true, alreadyFinished: true, action });
+    }
+    if (status !== "live") {
+      return response({ error: "El entrenamiento no está marcado como EN VIVO; no se modificó su estado.", status }, 409);
     }
 
+    // The first request only checks authorization. The client issues endConference
+    // after this succeeds, then sends "finalize" to persist the result.
+    if (action === "authorize") return response({ ok: true, authorized: true, action });
+
     const endedAt = new Date().toISOString();
-    const { error: updateError } = await ctx.supabaseAdmin
+    const { data: updatedTraining, error: updateError } = await ctx.supabaseAdmin
       .from("live_trainings")
       .update({ status: "finished", ended_at: endedAt })
       .eq("id", trainingId)
-      .eq("status", "live");
+      .eq("status", "live")
+      .select("id")
+      .maybeSingle();
     if (updateError) {
       console.error("End LIVE: status update failed", updateError);
-      return response({ error: "No se pudo guardar el cierre del entrenamiento." }, 500);
+      return response({ error: "La reunión se cerró, pero no se pudo guardar el estado. Actualiza el panel y vuelve a comprobarlo." }, 500);
+    }
+    if (!updatedTraining) {
+      return response({ error: "El estado cambió mientras se cerraba la reunión. Actualiza el panel para confirmar el resultado." }, 409);
     }
 
     const { error: participantsError } = await ctx.supabaseAdmin
@@ -72,12 +91,11 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       .eq("training_id", trainingId)
       .is("left_at", null);
     if (participantsError) {
-      // The training status is already finalized; attendance reconciliation can
-      // be retried separately and must not undo the successful close.
+      // Status has been finalized; attendance reconciliation can be retried separately.
       console.error("End LIVE: participant reconciliation failed", participantsError);
     }
 
-    return response({ ok: true, endedAt });
+    return response({ ok: true, endedAt, action });
   } catch (error) {
     console.error("end-live-training error", error);
     return response({ error: "Error interno al finalizar el entrenamiento." }, 500);
