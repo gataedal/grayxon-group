@@ -2556,12 +2556,14 @@ async function startGrayxonLiveTraining(training, options={}){
       gxHostStageSyncInFlight=true;
       try{
         const roomInfo=await api.getRoomsInfo?.();
-        const rooms=Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[];
+        // Jitsi SDK deployments may return either a room array or { rooms }.
+        const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[]);
         const mainRooms=rooms.filter(room=>room?.isMainRoom);
         const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
-        const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by))||(isHost?participants.find(person=>String(person?.id||'')===String(window.__gxLocalParticipantId||'')):null);
-        if(!hostParticipant?.id){window.__gxHostParticipantId=null;return;}
-        const hostId=String(hostParticipant.id);
+        const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by))||(isHost?participants.find(person=>String(person?.id||person?.participantId||'')===String(window.__gxLocalParticipantId||'')):null);
+        const hostIdValue=hostParticipant?.id||hostParticipant?.participantId;
+        if(!hostIdValue){window.__gxHostParticipantId=null;return;}
+        const hostId=String(hostIdValue);
         window.__gxHostParticipantId=hostId;
         // pinParticipant preserves video subscription; setLargeVideoParticipant
         // chooses the visible stage. Both are local view controls in each client.
