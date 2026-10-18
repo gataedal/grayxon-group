@@ -2445,6 +2445,9 @@ async function startGrayxonLiveTraining(training, options={}){
   host.innerHTML='<div id="grayxonJaasLoading" class="live-training-loading" aria-hidden="true"></div>';
   liveTrainingHostUserId = training.created_by || null;
   liveTrainingEnding = false;
+  window.__gxHostParticipantId = null;
+  window.__gxLocalParticipantId = null;
+  window.__grayxonLargeVideoParticipant = null;
   const isHost = !!session?.user?.id && training.created_by === session.user.id;
   const isAdmin = profile?.role === 'admin';
   // Meeting host and Grayxon administrator are separate capabilities.
@@ -2529,7 +2532,7 @@ async function startGrayxonLiveTraining(training, options={}){
         const mainRooms=rooms.filter(room=>room?.isMainRoom);
         const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
         const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by));
-        if(!hostParticipant?.id)return;
+        if(!hostParticipant?.id){window.__gxHostParticipantId=null;return;}
         const hostId=String(hostParticipant.id);
         window.__gxHostParticipantId=hostId;
         // pinParticipant preserves video subscription; setLargeVideoParticipant
@@ -2705,7 +2708,7 @@ async function startGrayxonLiveTraining(training, options={}){
       scheduleGrayxonJitsiResize();
     });
     api.addEventListener?.('trackAdded', ev=>{gxLogVideoDiag('trackAdded', ev);if(ev?.type==='video'||ev?.track?.type==='video')syncGrayxonHostStage();});
-    api.addEventListener?.('trackRemoved', ev=>gxLogVideoDiag('trackRemoved', ev));
+    api.addEventListener?.('trackRemoved', ev=>{gxLogVideoDiag('trackRemoved', ev);if(ev?.type==='video'||ev?.track?.type==='video')syncGrayxonHostStage();});
     api.addEventListener?.('connectionQualityChanged', ev=>gxLogVideoDiag('connectionQualityChanged', ev));
 
     api.addEventListener?.('audioMuteStatusChanged',ev=>{
@@ -2751,7 +2754,7 @@ async function startGrayxonLiveTraining(training, options={}){
       gxLogVideoDiag('participantJoined',ev);refreshGrayxonParticipants(api);syncGrayxonHostStage();
     });
     api.addEventListener?.('participantRoleChanged',()=>refreshGrayxonParticipants(api));
-    api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);});
+    api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);syncGrayxonHostStage();});
     // El estado de la mano se gestiona con el canal de Grayxon y el ID del participante,
     // evitando que eventos nativos con formatos distintos se asignen a otra persona.
     api.addEventListener?.('raiseHandUpdated',ev=>gxLogVideoDiag('raiseHandUpdated',ev));
