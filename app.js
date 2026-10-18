@@ -2300,10 +2300,38 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
     // Phase 1: server validates role and training ownership without changing data.
     await callEndTraining('authorize');
 
-    // The meeting is ended only after the server authorizes this user.
-    api.executeCommand('endConference');
+    // Wait for Jitsi to confirm the conference is closed before marking the
+    // training finished in Supabase. Issuing endConference alone is not proof
+    // that the room actually closed.
+    const conferenceClosed = new Promise((resolve, reject) => {
+      let settled = false;
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        api.removeEventListener?.('readyToClose', onReadyToClose);
+      };
+      const onReadyToClose = () => {
+        cleanup();
+        resolve(true);
+      };
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error('Jitsi no confirmó el cierre de la sala. El estado no se marcará como finalizado.'));
+      }, 15000);
+      api.addEventListener('readyToClose', onReadyToClose);
+    });
 
-    // Phase 2: persist the closed state after issuing the Jitsi command.
+    // The meeting is ended only after the server authorizes this user.
+    try {
+      api.executeCommand('endConference');
+    } catch (commandError) {
+      // Avoid leaving a stale listener if the command cannot be issued.
+      throw commandError;
+    }
+    await conferenceClosed;
+
+    // Phase 2: persist only after Jitsi confirms that the conference closed.
     try {
       await callEndTraining('finalize');
     } catch (persistError) {
