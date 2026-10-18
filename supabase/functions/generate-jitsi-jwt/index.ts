@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "jsr:@supabase/server@^1";
+import { resolveLiveTrainingCapabilities } from "../_shared/live-training-policy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,8 +73,10 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       return response({ error: "La sala del entrenamiento no es válida." }, 500);
     }
 
-    let allowed = profile.role === "admin" || training.created_by === userId;
-    const moderator = profile.role === "admin" || training.created_by === userId; // El creador es anfitrión y los administradores de Grayxon tienen control total.
+    const capabilities = resolveLiveTrainingCapabilities(userId, profile.role, profile.active, training.created_by);
+    let allowed = capabilities.canModerate;
+    // Audience membership grants entry only. It must never grant Jitsi owner/moderator privileges.
+    const moderator = capabilities.canModerate;
 
     const { data: audience, error: ae } = await ctx.supabaseAdmin.from("live_training_audience")
       .select("target_type, target_id").eq("training_id", training.id);
