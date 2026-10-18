@@ -46,7 +46,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
 
     const { data: training, error: trainingError } = await ctx.supabaseAdmin
       .from("live_trainings")
-      .select("id, created_by, status")
+      .select("id, created_by, status, room_name, started_at")
       .eq("id", trainingId)
       .maybeSingle();
     if (trainingError) {
@@ -70,33 +70,55 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     // after this succeeds, then sends "finalize" to persist the result.
     if (action === "authorize") return response({ ok: true, authorized: true, action });
 
-    const endedAt = new Date().toISOString();
-    const { data: updatedTraining, error: updateError } = await ctx.supabaseAdmin
-      .from("live_trainings")
-      .update({ status: "finished", ended_at: endedAt })
-      .eq("id", trainingId)
-      .eq("status", "live")
-      .select("id")
+    // Only a trusted Prosody room-destroyed webhook can finalize the database
+    // state. The browser's readyToClose event is useful UX, not server proof.
+    if (!training.started_at || !training.room_name) {
+      return response({ error: "No existe una hora de inicio válida para verificar el cierre.", status }, 409);
+    }
+
+    const { data: closeEvent, error: closeEventError } = await ctx.supabaseAdmin
+      .from("jitsi_conference_events")
+      .select("id, destroyed_at")
+      .eq("room_name", training.room_name)
+      .eq("event_name", "muc-room-destroyed")
+      .gte("destroyed_at", training.started_at)
+      .order("destroyed_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
-    if (updateError) {
-      console.error("End LIVE: status update failed", updateError);
-      return response({ error: "La reunión se cerró, pero no se pudo guardar el estado. Actualiza el panel y vuelve a comprobarlo." }, 500);
+    if (closeEventError) {
+      console.error("End LIVE: authoritative Jitsi close lookup failed", {
+        code: closeEventError.code,
+        message: closeEventError.message,
+      });
+      return response({ error: "No se pudo verificar el cierre real de Jitsi." }, 500);
     }
-    if (!updatedTraining) {
-      return response({ error: "El estado cambió mientras se cerraba la reunión. Actualiza el panel para confirmar el resultado." }, 409);
-    }
-
-    const { error: participantsError } = await ctx.supabaseAdmin
-      .from("live_training_participants")
-      .update({ left_at: endedAt })
-      .eq("training_id", trainingId)
-      .is("left_at", null);
-    if (participantsError) {
-      // Status has been finalized; attendance reconciliation can be retried separately.
-      console.error("End LIVE: participant reconciliation failed", participantsError);
+    if (!closeEvent) {
+      return response({
+        error: "Jitsi todavía no ha confirmado el cierre en el servidor. El entrenamiento sigue sin finalizar en el panel.",
+        code: "JITSI_CLOSE_NOT_CONFIRMED",
+      }, 409);
     }
 
-    return response({ ok: true, endedAt, action });
+    // The trusted event handler atomically changes the training state and
+    // reconciles attendance. Re-read to handle the event arriving between
+    // the first status read and this verification.
+    const { data: refreshed, error: refreshError } = await ctx.supabaseAdmin
+      .from("live_trainings")
+      .select("status, ended_at")
+      .eq("id", trainingId)
+      .maybeSingle();
+    if (refreshError) {
+      console.error("End LIVE: status recheck failed", refreshError);
+      return response({ error: "El cierre de Jitsi se recibió, pero no se pudo confirmar el estado del entrenamiento." }, 500);
+    }
+    if (String(refreshed?.status ?? "").toLowerCase() !== "finished") {
+      return response({
+        error: "Jitsi informó el cierre, pero el entrenamiento aún no pudo reconciliarse. Vuelve a comprobarlo.",
+        code: "LIVE_TRAINING_RECONCILIATION_PENDING",
+      }, 409);
+    }
+
+    return response({ ok: true, endedAt: refreshed.ended_at, action, verifiedBy: "jitsi-server-event" });
   } catch (error) {
     console.error("end-live-training error", error);
     return response({ error: "Error interno al finalizar el entrenamiento." }, 500);
