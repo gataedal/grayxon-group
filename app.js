@@ -2235,8 +2235,14 @@ async function recordLiveTrainingLeave(){
   const {error}=await sb.from('live_training_participants').update({left_at:new Date().toISOString()}).eq('id',row.id).eq('user_id',session?.user?.id||'');
   if(error)console.warn('No se pudo registrar la salida:',error.message);
 }
-async function endLiveTrainingConference(api, trainingId) {
-  if (!api) return;
+async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
+  // UI visibility is not authorization: every caller must explicitly pass the
+  // capability derived from the authenticated Grayxon role and training owner.
+  if (!canEndAll) {
+    toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
+    return false;
+  }
+  if (!api) return false;
   liveTrainingEnding = true;
   try {
     // Prefer the native moderator command when the deployment supports it.
@@ -2730,8 +2736,8 @@ async function startGrayxonLiveTraining(training, options={}){
 
     api.addEventListener?.('toolbarButtonClicked',async(ev)=>{
       if(ev?.key!=='hangup')return;
-      if(isHost){
-        await endLiveTrainingConference(api,training.id);
+      if(isHost || isAdmin){
+        await endLiveTrainingConference(api,training.id,canManageMeeting);
       }else{
         try { api.executeCommand('hangup'); } catch (_) {}
       }
@@ -3000,8 +3006,9 @@ async function liveTrainingTpl(trainingOverride=null) {
     if(choice==='cancel'){if(modal){modal.hidden=true;modal.classList.add('hidden');}return;}
     if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
     if(choice==='end'){
-      if(!(isHost||profile?.role==='admin')){toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');return;}
-      if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id);
+      const canEndAll = isHost || profile?.role==='admin';
+      if(!canEndAll){toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');return;}
+      if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id,canEndAll);
     }
   }));
   if(!(isHost||profile?.role==='admin'))$('.gx-end-all')?.setAttribute('hidden','');
