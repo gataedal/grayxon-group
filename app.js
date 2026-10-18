@@ -2471,7 +2471,9 @@ async function startGrayxonLiveTraining(training, options={}){
         // El evento puede llegar antes de que Jitsi termine de crear el escenario.
         // Reintentar brevemente evita que el primer pin se pierda durante la entrada.
         const pinHost=()=>{try{api.executeCommand('setLargeVideoParticipant',hostParticipantId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}};
-        [0,250,700,1400].forEach(delay=>setTimeout(pinHost,delay));
+        // La sala puede tardar varios segundos en registrar el participante remoto.
+        // Mantener reintentos escalonados cubre la entrada lenta sin tocar otros módulos.
+        [0,250,700,1400,2500,4000].forEach(delay=>setTimeout(pinHost,delay));
       })
       .on('broadcast',{event:'host-camera-pin-request'},()=>{
         // Los broadcasts no se reproducen a los participantes que aún no estaban suscritos.
@@ -2720,6 +2722,19 @@ async function startGrayxonLiveTraining(training, options={}){
       }
     });
     api.addEventListener?.('participantRoleChanged',()=>refreshGrayxonParticipants(api));
+    api.addEventListener?.('participantJoined',ev=>{
+      gxLogVideoDiag('participantJoined',ev);
+      // Cuando entra alguien, Jitsi puede recalcular el vídeo principal. Restaurar
+      // el anfitrión conocido después de que el nuevo participante se registre.
+      const hostParticipantId=String(window.__gxHostParticipantId||'');
+      if(hostParticipantId){
+        [150,600,1300].forEach(delay=>setTimeout(()=>{
+          try{api.executeCommand('setLargeVideoParticipant',hostParticipantId);}
+          catch(err){console.warn('Grayxon LIVE: no se pudo mantener el anfitrión en pantalla',err);}
+        },delay));
+      }
+      refreshGrayxonParticipants(api);
+    });
     api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);});
     // El estado de la mano se gestiona con el canal de Grayxon y el ID del participante,
     // evitando que eventos nativos con formatos distintos se asignen a otra persona.
