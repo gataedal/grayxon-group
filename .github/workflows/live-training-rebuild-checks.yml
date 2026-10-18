@@ -20,6 +20,11 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Parse portal JavaScript without running it
+        run: node --check app.js
       - name: Run authorization regression tests
         run: deno test supabase/tests/live-training-policy.test.ts
       - name: Type-check live-training Edge Functions
