@@ -1,0 +1,30 @@
+name: Live training rebuild checks
+
+on:
+  push:
+    branches:
+      - rebuild-live-training-v3-20261018
+  pull_request:
+    paths:
+      - "app.js"
+      - "supabase/functions/**"
+      - "supabase/tests/**"
+      - "supabase/migrations/**"
+      - "docs/live-training-rebuild-status.md"
+
+jobs:
+  live-training-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run authorization regression tests
+        run: deno test supabase/tests/live-training-policy.test.ts
+      - name: Type-check live-training Edge Functions
+        run: |
+          deno check supabase/functions/_shared/live-training-policy.ts
+          deno check supabase/functions/start-live-training/index.ts
+          deno check supabase/functions/generate-jitsi-jwt/index.ts
+          deno check supabase/functions/end-live-training/index.ts
