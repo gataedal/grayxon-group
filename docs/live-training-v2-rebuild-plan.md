@@ -64,3 +64,13 @@ El código intenta fijar al anfitrión mediante `setLargeVideoParticipant` y sin
 3. Añadir protección verificable a la acción de finalizar para todos; separar claramente “salir” de “finalizar reunión”.
 4. Corregir la autorización del servidor Jitsi si se confirma que acepta acciones de moderación de usuarios `member`.
 5. Probar la matriz completa con cuentas separadas antes de publicar cualquier cambio.
+
+
+### Hallazgo adicional: controles de anfitrión y administrador no son consistentes
+En el flujo de `toolbarButtonClicked`, la acción de finalizar conferencia se ejecuta solo cuando `isHost` es verdadero. Si el usuario es administrador Grayxon pero no es el creador, ese evento termina ejecutando `hangup` local en vez de finalizar para todos. En cambio, el modal de finalización sí permite `isHost || profile.role === 'admin'`. La autorización está duplicada y difiere según el camino de interfaz; debe centralizarse en una única comprobación de capacidad para evitar comportamientos distintos.
+
+### Alcance de la siguiente corrección
+- Unificar la condición de anfitrión/admin en los controles de finalización.
+- Mantener la acción “salir” separada de “finalizar para todos”.
+- Validar la capacidad al comienzo de la función de finalización y, además, en servidor/DB.
+- No tocar el flujo de JaaS de prueba ni otros módulos durante la reconstrucción del proveedor activo.
