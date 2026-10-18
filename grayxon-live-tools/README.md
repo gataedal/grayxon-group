@@ -8,28 +8,41 @@ Esta carpeta es una prueba independiente. No modifica el portal oficial ni su ba
 - Lectura de comentarios con Speech Synthesis del navegador.
 - Sonidos de prueba y reglas locales para asignar sonidos por nombre de regalo.
 - Servicio Node.js independiente que intenta recibir eventos públicos de TikTok LIVE.
+- Docker Compose aislado que liga el servicio solo a localhost, sin tocar puertos ni proxy de Jitsi.
+- Túnel HTTPS temporal gratuito opcional para probar desde otro dispositivo sin comprar dominio ni cambiar DNS.
 
-## Ejecutar localmente
-Requiere Node.js 20 o superior.
+## Despliegue aislado en el VPS existente
+Requiere Docker y Docker Compose. En el servidor, ejecutar:
 
 ```sh
-cd grayxon-live-tools/server
-npm install
-npm start
-``
+cd /opt
+git clone --single-branch --branch pilot/grayxon-live-tools https://github.com/gataedal/grayxon-group.git grayxon-pilot
+cd /opt/grayxon-pilot/grayxon-live-tools
+bash deploy-vps.sh
+```
 
-Abrir `http://localhost:3000`. Para usarlo en otro dispositivo, el servidor debe estar publicado en un host accesible por HTTPS; en ese caso, configurar también el cliente Socket.IO para usar el host del servicio, ya que el piloto local actualmente espera que página y servicio compartan origen.
+Esto crea únicamente el contenedor `grayxon-live-tools-pilot` y publica su puerto internamente en `127.0.0.1:3017`. No modifica Jitsi, Nginx, firewall, DNS, portal ni Supabase.
+
+## Probar desde otro dispositivo sin pagar
+Después de que el despliegue local pase la comprobación de salud, abre una segunda sesión SSH al VPS y ejecuta:
+
+```sh
+cd /opt/grayxon-pilot/grayxon-live-tools
+bash start-demo-tunnel.sh
+```
+
+El comando mostrará una URL HTTPS temporal `https://....trycloudflare.com`. Abre esa URL en el segundo dispositivo. Mantén el comando activo durante la prueba; el enlace deja de funcionar al detenerlo. El túnel lo presta Cloudflare, no requiere modificar DNS ni añadir un pago.
 
 ## Pruebas
-1. Abrir la página y pulsar **Probar demo**.
-2. Probar voz y sonido por separado.
-3. Añadir reglas de regalos y comprobar los dos tonos.
-4. Con el servidor en ejecución, introducir el usuario público de una cuenta que esté transmitiendo y pulsar **Conectar LIVE**.
+1. Abre la página y pulsa **Probar demo**.
+2. Prueba voz y sonido por separado.
+3. Añade reglas de regalos y comprueba los tonos.
+4. Con el servidor activo, introduce el usuario público de una cuenta que esté transmitiendo y pulsa **Conectar LIVE**.
 
 ## Limitaciones importantes
-- TikTok-Live-Connector es un proyecto comunitario de ingeniería inversa, no una API oficial de TikTok. La conexión puede fallar o romperse cuando TikTok cambie sus sistemas.
+- TikTok-Live-Connector es un proyecto comunitario de ingeniería inversa, no una API oficial de TikTok. Puede fallar o romperse si TikTok cambia sus sistemas.
 - No introducir contraseñas, cookies, session IDs ni secretos de TikTok.
-- La demo no requiere servidor ni conexión a TikTok.
-- Esta carpeta no integra Supabase, no guarda reglas en una cuenta y no se ha desplegado como servicio público.
-- La prueba real requiere instalar dependencias y ejecutar el servidor en un entorno Node.js. GitHub Pages por sí solo no puede ejecutar este backend.
-- Los sonidos personalizados subidos por usuarios y la persistencia en Supabase quedan para la siguiente fase, una vez validada la conexión real.
+- La demo no requiere conexión a TikTok.
+- El servicio real requiere Node.js y acceso a Internet desde el VPS.
+- Los sonidos personalizados y la persistencia en Supabase quedan para una fase posterior, una vez validada la conexión real.
+- El túnel gratuito es temporal y no es adecuado como despliegue permanente.
