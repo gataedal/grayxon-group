@@ -2259,7 +2259,6 @@ function resolveGrayxonLiveTrainingCapabilities({ userId, globalRole, training }
 }
 
 async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
-  // Fallar de forma segura: salir de la llamada no equivale a finalizarla para todos.
   const capabilities = resolveGrayxonLiveTrainingCapabilities({
     userId: session?.user?.id,
     globalRole: profile?.role,
@@ -2273,17 +2272,9 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
   }
   if (!api || !trainingId) return false;
 
-  // No expulsar a cada participante desde el navegador: esa práctica es frágil
-  // y puede dejar una sala activa o expulsar usuarios por una lista incompleta.
-  // Jitsi debe validar el rol del token antes de aceptar endConference.
   liveTrainingEnding = true;
-  try {
-    // La Edge Function valida identidad, rol global y autoría en servidor.
-    // No confiar en la capacidad calculada por el navegador como autorización.
-    const { data: sessionData } = await sb.auth.getSession();
-    const accessToken = sessionData?.session?.access_token;
-    if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible.');
-
+  let accessToken = null;
+  const callEndTraining = async (action) => {
     const response = await fetch(`${CFG.SUPABASE_URL}/functions/v1/end-live-training`, {
       method: 'POST',
       headers: {
@@ -2291,16 +2282,34 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
         'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
         'Authorization': `Bearer ${accessToken}`
       },
-      body: JSON.stringify({ trainingId })
+      body: JSON.stringify({ trainingId, action })
     });
     let result = null;
     try { result = await response.json(); } catch (_) {}
     if (!response.ok || result?.error || result?.ok !== true) {
       throw new Error(result?.error || 'El servidor no autorizó finalizar el entrenamiento.');
     }
+    return result;
+  };
 
-    // Solo enviar el comando de sala después de recibir autorización del servidor.
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    accessToken = sessionData?.session?.access_token;
+    if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible.');
+
+    // Phase 1: server validates role and training ownership without changing data.
+    await callEndTraining('authorize');
+
+    // The meeting is ended only after the server authorizes this user.
     api.executeCommand('endConference');
+
+    // Phase 2: persist the closed state after issuing the Jitsi command.
+    try {
+      await callEndTraining('finalize');
+    } catch (persistError) {
+      console.error('La sala se cerró, pero falló la actualización del estado:', persistError);
+      toast('La sala se cerró. No se pudo actualizar el estado del entrenamiento; actualiza el panel.');
+    }
     return true;
   } catch (error) {
     liveTrainingEnding = false;
