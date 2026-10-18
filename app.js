@@ -2791,12 +2791,13 @@ async function startGrayxonLiveTraining(training, options={}){
     api.addEventListener?.('raiseHandUpdated',ev=>gxLogVideoDiag('raiseHandUpdated',ev));
     api.addEventListener?.('dominantSpeakerChanged',ev=>{
       window.__grayxonDominantSpeaker=ev?.id||null;
-      if(window.__gxHostParticipantId&&String(ev?.id||'')!==String(window.__gxHostParticipantId))syncGrayxonHostStage();
+      // Este evento solo actualiza el indicador de hablante; no volver a fijar
+      // el escenario desde aquí para evitar un ciclo de cambios de cámara.
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('largeVideoChanged',ev=>{
       window.__grayxonLargeVideoParticipant=ev?.id||null;
-      if(window.__gxHostParticipantId&&String(ev?.id||'')!==String(window.__gxHostParticipantId))syncGrayxonHostStage();
+      // Este evento informa del vídeo visible; no debe volver a cambiarlo aquí.
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
