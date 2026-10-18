@@ -40,7 +40,7 @@ La autorización de entrada por audiencia es distinta de la autorización de mod
 ## Verificaciones y pendientes
 
 - Revisión de código y esquema: realizada mediante lectura del repositorio y consultas de solo lectura a los dos proyectos Supabase conectados. El portal en `config.js` apunta a `Grayxon Academy` (`vxyakhelhuikutepdjyn`); `grayxon-beta` (`wnflvxbxgrupggtzlblh`) tiene un esquema parecido pero con columnas más permisivas y actualmente no tiene Edge Functions. No se debe desplegar en uno u otro por suposiciones: el entorno de pruebas debe configurarse de forma explícita.
-- Pruebas automatizadas: GitHub Actions aprobó `node --check app.js`, las ocho pruebas de política y los chequeos Deno de las Edge Functions en el commit `332b67c`. Se añadió después un ajuste de compatibilidad para `getRoomsInfo`; la última revisión debe pasar un ciclo CI actualizado antes de considerarse verificada.
+- Pruebas automatizadas: GitHub Actions aprobó `node --check app.js`, las ocho pruebas de política y los chequeos Deno de las Edge Functions, incluido `jitsi-event-sync`, en el commit `74a1704` (run 38).
 - Integración real de las Edge Functions `start-live-training`, `end-live-training`, `generate-jitsi-jwt` y `jitsi-event-sync`: pendiente de despliegue controlado en `grayxon-beta`. Para `jitsi-event-sync`, el gateway debe permitir el acceso sin JWT de Supabase porque la función valida su propio Bearer secret (`verify_jwt=false`).
 - Migración de idempotencia de asistencia: pendiente; no aplicada a ningún proyecto.
 - Migración de cierre autoritativo: aplicada únicamente a `grayxon-beta`; no aplicada a `Grayxon Academy`.
