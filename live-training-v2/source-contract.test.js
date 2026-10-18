@@ -43,6 +43,15 @@ test('host camera pin retries after slow room setup and participant joins', () =
   assert.match(app, /\[150,600,1300\]\.forEach\(delay=>setTimeout\(/);
 });
 
+test('Jitsi hangup uses the same centralized capability as Grayxon controls', () => {
+  const start = app.indexOf("api.addEventListener?.('toolbarButtonClicked'");
+  const finish = app.indexOf("api.addEventListener?.('readyToClose'", start);
+  assert.ok(start >= 0 && finish > start);
+  const handler = app.slice(start, finish);
+  assert.match(handler, /if\(canManageMeeting\)\{/);
+  assert.doesNotMatch(handler, /if\(isHost\s*\|\|\s*isAdmin\)\{/);
+});
+
 test('ending a meeting authorizes on the server and never mass-kicks participants', () => {
   const endStart = app.indexOf('async function endLiveTrainingConference(');
   const endFinish = app.indexOf('\nconst grayxonRaisedHands', endStart);
