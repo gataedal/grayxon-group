@@ -2235,42 +2235,56 @@ async function recordLiveTrainingLeave(){
   const {error}=await sb.from('live_training_participants').update({left_at:new Date().toISOString()}).eq('id',row.id).eq('user_id',session?.user?.id||'');
   if(error)console.warn('No se pudo registrar la salida:',error.message);
 }
+/**
+ * Política de permisos del módulo LIVE v2.
+ * Esta comprobación controla la interfaz; las operaciones sensibles también
+ * deben validarse en el servidor antes de publicar el módulo.
+ */
+function resolveGrayxonLiveTrainingCapabilities({ userId, globalRole, training } = {}) {
+  const authenticated = typeof userId === 'string' && userId.length > 0;
+  const hostUserId = typeof training?.created_by === 'string' ? training.created_by : null;
+  const isAdmin = authenticated && globalRole === 'admin';
+  const isHost = authenticated && !!hostUserId && userId === hostUserId;
+  const canEnter = authenticated && !!training?.id;
+  return Object.freeze({
+    canEnter: !!canEnter,
+    isAdmin: !!isAdmin,
+    isHost: !!isHost,
+    hostUserId,
+    canModerate: !!(canEnter && (isAdmin || isHost)),
+    canPromoteParticipants: !!(canEnter && (isAdmin || isHost)),
+    canEndForAll: !!(canEnter && (isAdmin || isHost)),
+    shouldPinHost: !!hostUserId
+  });
+}
+
 async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
-  // UI visibility is not authorization: every caller must explicitly pass the
-  // capability derived from the authenticated Grayxon role and training owner.
-  if (!canEndAll) {
+  // Fallar de forma segura: salir de la llamada no equivale a finalizarla para todos.
+  const capabilities = resolveGrayxonLiveTrainingCapabilities({
+    userId: session?.user?.id,
+    globalRole: profile?.role,
+    training: currentLiveTraining?.id === trainingId
+      ? currentLiveTraining
+      : { id: trainingId, created_by: liveTrainingHostUserId }
+  });
+  if (!canEndAll || !capabilities.canEndForAll) {
     toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
     return false;
   }
-  if (!api) return false;
+  if (!api || !trainingId) return false;
+
+  // No expulsar a cada participante desde el navegador: esa práctica es frágil
+  // y puede dejar una sala activa o expulsar usuarios por una lista incompleta.
+  // Jitsi debe validar el rol del token antes de aceptar endConference.
   liveTrainingEnding = true;
   try {
-    // Prefer the native moderator command when the deployment supports it.
-    try { api.executeCommand('endConference'); } catch (_) {}
-    // Also explicitly kick remote participants so the training is closed even
-    // if End Conference is not enabled for the deployment.
-    try {
-      const rooms = await api.getRoomsInfo?.();
-      const participants = (rooms?.rooms || []).flatMap(r => r.participants || []);
-      const localId = participants.find(p => p.userContext?.id === session?.user?.id)?.id;
-      for (const p of participants) {
-        if (p.id && p.id !== localId) {
-          try { api.executeCommand('kickParticipant', p.id); } catch (_) {}
-        }
-      }
-    } catch (_) {}
-    try { api.executeCommand('hangup'); } catch (_) {}
-  } finally {
-    // The database state is the source of truth for the Grayxon EN VIVO badge.
-    if (trainingId) {
-      const endedAt = new Date().toISOString();
-      const { error } = await sb.from('live_trainings')
-        .update({ status:'finished', ended_at:endedAt })
-        .eq('id',trainingId).eq('status','live');
-      if (error) console.warn('No se pudo finalizar el entrenamiento:',error.message);
-      await sb.from('live_training_participants').update({left_at:endedAt})
-        .eq('training_id',trainingId).is('left_at',null);
-    }
+    api.executeCommand('endConference');
+    return true;
+  } catch (error) {
+    liveTrainingEnding = false;
+    console.warn('Jitsi no confirmó la finalización del entrenamiento:', error);
+    toast('Jitsi no permitió finalizar la reunión. El entrenamiento sigue abierto.');
+    return false;
   }
 }
 
@@ -2350,11 +2364,15 @@ async function startGrayxonLiveTraining(training, options={}){
   host.innerHTML='<div id="grayxonJaasLoading" class="live-training-loading" aria-hidden="true"></div>';
   liveTrainingHostUserId = training.created_by || null;
   liveTrainingEnding = false;
-  const isHost = !!session?.user?.id && training.created_by === session.user.id;
-  const isAdmin = profile?.role === 'admin';
-  // Meeting host and Grayxon administrator are separate capabilities.
-  // The creator remains the visual host; admins can also manage the meeting.
-  const canManageMeeting = isHost || isAdmin;
+  const liveCapabilities = resolveGrayxonLiveTrainingCapabilities({
+    userId: session?.user?.id,
+    globalRole: profile?.role,
+    training
+  });
+  const isHost = liveCapabilities.isHost;
+  const isAdmin = liveCapabilities.isAdmin;
+  const canManageMeeting = liveCapabilities.canModerate;
+  window.__gxLiveTrainingCapabilities = liveCapabilities;
   window.__gxCanManageMeeting = canManageMeeting;
   try{
     const [connection,JitsiMeetExternalAPI]=await Promise.all([
@@ -2975,7 +2993,8 @@ async function liveTrainingTpl(trainingOverride=null) {
   $('[data-gx-close-participants]')?.addEventListener('click',toggleGrayxonParticipantsPanel);
   $('.gx-participants-list')?.addEventListener('click',ev=>{
     const button=ev.target?.closest?.('[data-gx-participant-action]');if(!button)return;
-    if(!window.__gxCanManageMeeting){toast('No tienes permisos para administrar participantes.');return;}
+    const capabilities = window.__gxLiveTrainingCapabilities;
+    if(!capabilities?.canModerate || !capabilities?.canPromoteParticipants){toast('No tienes permisos para administrar participantes.');return;}
     const participantId=button.getAttribute('data-gx-participant-id');const action=button.getAttribute('data-gx-participant-action');if(!participantId||!jaasApi)return;
     if(action==='kick'&&!window.confirm('¿Expulsar a esta persona del entrenamiento?'))return;
     button.disabled=true;
@@ -3006,7 +3025,7 @@ async function liveTrainingTpl(trainingOverride=null) {
     if(choice==='cancel'){if(modal){modal.hidden=true;modal.classList.add('hidden');}return;}
     if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
     if(choice==='end'){
-      const canEndAll = isHost || profile?.role==='admin';
+      const canEndAll = !!window.__gxLiveTrainingCapabilities?.canEndForAll;
       if(!canEndAll){toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');return;}
       if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id,canEndAll);
     }
