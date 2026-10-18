@@ -3770,7 +3770,7 @@ async function createLiveTrainingModal(){
     try{
       const title=$('#ltTitle').value.trim(),description=$('#ltDescription').value.trim()||null,scheduled=$('#ltScheduledAt').value?new Date($('#ltScheduledAt').value).toISOString():null;
       if(!title){$('#ltErr').textContent='Escribe el nombre del entrenamiento.';btn.disabled=false;return;}
-      const {data:created,error}=await sb.from('live_trainings').insert({title,description,scheduled_at:scheduled}).select('id').single();
+      const {data:created,error}=await sb.from('live_trainings').insert({title,description,scheduled_at:scheduled,created_by:session.user.id}).select('id').single();
       if(error)throw error;
       if(isAdmin){
         const type=$('#ltAudienceType')?.value||'all_creators';let rows=[];
