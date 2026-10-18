@@ -2227,8 +2227,30 @@ function destroyJaasMeeting() {
 }
 async function recordLiveTrainingJoin(trainingId){
   if(!trainingId||!session?.user?.id)return null;
-  const {data,error}=await sb.from('live_training_participants').insert({training_id:trainingId,user_id:session.user.id}).select('id,training_id,user_id,joined_at').single();
-  if(error){console.warn('No se pudo registrar la entrada:',error.message);return null;} currentLiveParticipantRow=data; return data;
+  const userId=session.user.id;
+  // Reuse the open attendance row after a Jitsi reconnect instead of creating
+  // a second attendance record for the same participant and session.
+  const {data:openRows,error:lookupError}=await sb.from('live_training_participants')
+    .select('id,training_id,user_id,joined_at')
+    .eq('training_id',trainingId).eq('user_id',userId).is('left_at',null)
+    .order('joined_at',{ascending:false}).limit(1);
+  if(lookupError)console.warn('No se pudo consultar la asistencia abierta:',lookupError.message);
+  const existing=Array.isArray(openRows)?openRows[0]:null;
+  if(existing){currentLiveParticipantRow=existing;return existing;}
+  const {data,error}=await sb.from('live_training_participants')
+    .insert({training_id:trainingId,user_id:userId})
+    .select('id,training_id,user_id,joined_at').single();
+  if(error){
+    // If another reconnect won the insert race, recover its open row.
+    if(error.code==='23505'){
+      const retry=await sb.from('live_training_participants').select('id,training_id,user_id,joined_at')
+        .eq('training_id',trainingId).eq('user_id',userId).is('left_at',null)
+        .order('joined_at',{ascending:false}).limit(1);
+      if(!retry.error&&retry.data?.[0]){currentLiveParticipantRow=retry.data[0];return retry.data[0];}
+    }
+    console.warn('No se pudo registrar la entrada:',error.message);return null;
+  }
+  currentLiveParticipantRow=data;return data;
 }
 async function recordLiveTrainingLeave(){
   const row=currentLiveParticipantRow; currentLiveParticipantRow=null; if(!row?.id)return;
@@ -2341,7 +2363,8 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = false) {
       await callEndTraining('finalize');
     } catch (persistError) {
       console.error('La sala se cerró, pero falló la actualización del estado:', persistError);
-      toast('La sala se cerró. No se pudo actualizar el estado del entrenamiento; actualiza el panel.');
+      toast('La sala se cerró, pero el estado no se pudo guardar. Actualiza el panel y solicita reconciliación.');
+      return false;
     }
     return true;
   } catch (error) {
