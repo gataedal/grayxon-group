@@ -2797,7 +2797,11 @@ async function startGrayxonLiveTraining(training, options={}){
     });
     api.addEventListener?.('largeVideoChanged',ev=>{
       window.__grayxonLargeVideoParticipant=ev?.id||null;
-      // Este evento informa del vídeo visible; no debe volver a cambiarlo aquí.
+      // Si Jitsi cambia el escenario a un invitado, volver a priorizar al anfitrión.
+      // Cuando el propio anfitrión ya está visible, no se genera otra llamada ni un ciclo.
+      const visibleId=String(ev?.id||'');
+      const hostId=String(window.__gxHostParticipantId||'');
+      if(visibleId && hostId && visibleId!==hostId) syncGrayxonHostStage();
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
