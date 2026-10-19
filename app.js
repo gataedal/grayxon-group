@@ -5353,7 +5353,32 @@ function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classLi
 
 
 
+function updateGrayxonRoleHeader(){
+  let badge=document.getElementById('grayxonRoleHeaderBadge');
+  if(!badge){
+    const header=document.querySelector('header.top');
+    const brand=document.getElementById('homeBrand');
+    if(!header||!brand)return;
+    badge=document.createElement('div');
+    badge.id='grayxonRoleHeaderBadge';
+    badge.className='grayxon-role-header-badge';
+    badge.innerHTML='<span class="grayxon-role-crown" aria-hidden="true">♛</span><span class="grayxon-role-header-label"></span>';
+    header.insertBefore(badge,header.querySelector('.header-actions'));
+    if(!document.getElementById('grayxon-role-header-styles')){
+      const style=document.createElement('style');
+      style.id='grayxon-role-header-styles';
+      style.textContent='.grayxon-role-header-badge{display:none;align-items:center;gap:9px;margin-left:auto;margin-right:18px;padding:9px 16px;border:1px solid transparent;border-radius:999px;background:linear-gradient(#08090b,#08090b) padding-box,linear-gradient(110deg,#25f4ee,#9c83ff,#fe2c55) border-box;color:#f7f8fb;font-size:14px;font-weight:800;white-space:nowrap}.grayxon-role-crown{font-size:20px;line-height:1;background:linear-gradient(115deg,#25f4ee,#b4a0ff 52%,#fe2c55);color:transparent;background-clip:text;-webkit-background-clip:text}header.top .grayxon-role-header-badge.is-visible{display:inline-flex}@media(max-width:600px){.grayxon-role-header-badge{font-size:11px;padding:7px 10px;gap:6px;margin-right:8px}.grayxon-role-crown{font-size:16px}header.top .brand b{font-size:clamp(15px,4vw,22px);letter-spacing:.14em}}';
+      document.head.appendChild(style);
+    }
+  }
+  const role=profile?.role==='admin'?'Administrador':profile?.role==='manager'?'Manager':'Creador';
+  badge.querySelector('.grayxon-role-header-label').textContent=role;
+  badge.classList.toggle('is-visible',!!session);
+  badge.setAttribute('aria-hidden',session?'false':'true');
+}
+
 function updateHeaderAccessUI(){
+  updateGrayxonRoleHeader();
   if(typeof window.syncGrayxonBottomNavigation==='function') window.syncGrayxonBottomNavigation(!!session);
   window.grayxonDashboardPage = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
   updateCreatorTopNav();
