@@ -3877,13 +3877,15 @@ function ensureFormationRedesignStyles(){
   style.id='grayxon-formation-library-v2';
   style.textContent=`
     #training .library-eyebrow{display:block;color:#7bdedb;font-size:9px;font-weight:800;letter-spacing:.16em}
-    #training .library-subtitle{margin:5px 0 0;color:#9ca3af;font-size:12px;line-height:1.5}
-    #training .library-progress-summary{display:grid;grid-template-columns:auto minmax(70px,1fr);align-items:center;gap:18px;margin:0 0 20px;padding:13px 16px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:linear-gradient(110deg,#14171b,#0e1013)}
+    #training .library-subtitle{display:none}
+    #training .library-page-heading{min-height:8px;margin:0 0 14px}
+    #training .library-eyebrow{display:none}
+    #training .library-progress-summary{display:none; grid-template-columns:auto minmax(70px,1fr);grid-template-columns:auto minmax(70px,1fr);align-items:center;gap:18px;margin:0 0 20px;padding:13px 16px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:linear-gradient(110deg,#14171b,#0e1013)}
     #training .library-progress-summary>div:first-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:3px 8px}
     #training .library-progress-summary span:first-child{grid-column:1/-1;color:#929aa5;font-size:9px;font-weight:800;letter-spacing:.13em}
     #training .library-progress-summary strong{font-size:22px;letter-spacing:-.04em}
     #training .library-progress-summary small{color:#969eaa;font-size:10px}
-    #training .library-continue{display:grid;grid-template-columns:120px minmax(0,1fr);overflow:hidden;min-height:160px;margin:0 0 28px;border:1px solid rgba(37,244,238,.17);border-radius:18px;background:linear-gradient(120deg,#171b20,#0d0f12)}
+    #training .library-continue{display:grid;grid-template-columns:120px minmax(0,1fr);overflow:hidden;min-height:160px;margin:0 0 22px;border:1px solid rgba(37,244,238,.17);border-radius:18px;background:linear-gradient(120deg,#171b20,#0d0f12)}
     #training .library-continue-art{display:grid;place-items:center;position:relative;background:radial-gradient(ellipse at 35% 45%,rgba(37,244,238,.24),transparent 55%),linear-gradient(135deg,#19272b,#11151a)}
     #training .library-continue-art:after{content:'';position:absolute;width:110px;height:110px;border:1px solid rgba(255,255,255,.1);border-radius:50%;transform:scaleX(1.4)}
     #training .library-continue-art span{z-index:1;display:grid;place-items:center;width:44px;height:44px;border:1px solid rgba(255,255,255,.22);border-radius:50%;background:#101619;color:#b9fffc}
@@ -3891,7 +3893,30 @@ function ensureFormationRedesignStyles(){
     #training .library-continue-copy h2{margin:6px 0;font-size:clamp(17px,2.5vw,24px);line-height:1.2;letter-spacing:-.03em}
     #training .library-continue-copy p{margin:0 0 12px;color:#a0a7b1;font-size:11px;line-height:1.5}
     #training .library-continue-button{display:inline-flex;align-items:center;gap:15px;padding:9px 13px;border:0;border-radius:9px;background:#dffdfb;color:#101719;font-size:11px;font-weight:800}
+    #training .library-collection-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;padding:17px 16px;border:1px solid rgba(37,244,238,.18);border-radius:15px;background:linear-gradient(110deg,#171d21,#101216);color:#f4f7f8;text-align:left}
+    #training .library-collection-toggle strong{display:block;font-size:15px;letter-spacing:-.02em}
+    #training .library-collection-toggle small{display:block;margin-top:4px;color:#929aa5;font-size:10px}
+    #training .library-collection-toggle>b{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(37,244,238,.08);color:#7bdedb;font-size:18px;transition:transform .2s ease}
+    #training .library-collection-toggle[aria-expanded=true]>b{transform:rotate(180deg)}
+    #training .library-collection-body{padding-top:18px}
+    #training .library-collection-body[hidden]{display:none}
     #training .library-section{display:grid;gap:12px;margin-bottom:25px}
+    #training .library-section-heading{padding-left:11px;border-left:3px solid #25f4ee}
+    #training [data-formation-section="completed"] .library-section-heading{border-left-color:#a78bfa}
+    #training .library-module-card{border-color:rgba(255,255,255,.1);box-shadow:0 8px 22px rgba(0,0,0,.12)}
+    #training .library-module-card:nth-child(4n+2){border-top:2px solid rgba(180,195,210,.65)}
+    #training .library-module-card:nth-child(4n+3){border-top:2px solid rgba(167,139,250,.7)}
+    #training .library-module-card:nth-child(4n+4){border-top:2px solid rgba(254,44,85,.65)}
+    #training .library-module-cover{min-height:128px}
+    #training .library-module-body .library-toggle{margin-top:5px;padding:11px 12px;border:1px solid rgba(37,244,238,.22);border-radius:10px;background:rgba(37,244,238,.07);color:#c7fffc;font-size:11px}
+    #training .library-module-body .library-toggle b{font-size:17px}
+    #training .library-module-body .library-toggle[aria-expanded=true]{background:rgba(37,244,238,.12)}
+    #training .lesson-view.lesson-focus-active{position:fixed!important;z-index:99990!important;inset:0!important;display:block!important;overflow-y:auto!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;margin:0!important;padding:calc(env(safe-area-inset-top,0px) + 18px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 30px) max(16px,env(safe-area-inset-left,0px))!important;background:#080a0c!important;box-sizing:border-box!important;border:0!important;border-radius:0!important}
+    #training .lesson-view.lesson-focus-active .lesson-header{margin-bottom:18px}
+    #training .lesson-view.lesson-focus-active .video-wrap{width:100%;max-width:1100px;margin:0 auto}
+    #training .lesson-view.lesson-focus-active video{display:block;width:100%;max-height:calc(100dvh - 190px);object-fit:contain;background:#000;border-radius:12px}
+    #training .lesson-view.lesson-focus-active .lesson-focus-close{position:sticky;top:0;z-index:2;display:flex;justify-content:flex-end;margin:0 0 10px}
+    #training .lesson-view.lesson-focus-active .lesson-focus-close button{padding:9px 13px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:#171b20;color:#f2f5f6;font-weight:700}
     #training .library-section-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
     #training .library-section-heading h2{margin:0;font-size:16px;font-weight:800;letter-spacing:-.02em}
     #training .library-section-heading>span{color:#8e96a2;font-size:10px}
@@ -3982,8 +4007,8 @@ async function trainingTpl(options = {}) {
     const isNext = ml.some(l => l.id === nextPending?.id);
     return `<article class="library-module-card ${complete ? 'is-complete' : ''} ${isNext ? 'is-next-module' : ''}" data-formation-module-card="${m.id}">
       <div class="library-module-cover cover-${mi % 4}"><span class="library-cover-number">${String(mi+1).padStart(2,'0')}</span><span class="library-cover-symbol">${complete ? '✓' : isNext ? '▶' : '◈'}</span><span class="library-cover-tag">${complete ? 'COMPLETADO' : isNext ? 'EN CURSO' : 'MÓDULO'}</span></div>
-      <div class="library-module-body"><div class="library-module-meta"><span>${ml.length} ${ml.length===1?'contenido':'contenidos'}</span><span>${md}/${ml.length}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="true"><span>Ver contenidos</span><b>⌄</b></button></div>
-      <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
+      <div class="library-module-body"><div class="library-module-meta"><span>${ml.length} ${ml.length===1?'contenido':'contenidos'}</span><span>${md}/${ml.length}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="false"><span>Ver de nuevo</span><b>⌄</b></button></div>
+      <div class="library-module-lessons" data-library-lessons="${m.id}" hidden>${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
     </article>`;
   };
 
@@ -3991,14 +4016,16 @@ async function trainingTpl(options = {}) {
 
   $('#training').innerHTML = `<div class="formation-page library-page">
     <div class="library-page-heading">
-      <div><span class="library-eyebrow">TU ESPACIO DE APRENDIZAJE</span><h1>Biblioteca</h1><p class="library-subtitle">Todo lo que necesitas para seguir creciendo, en un solo lugar.</p></div>
+      <div class="library-page-heading-copy"><span class="library-eyebrow">GRAYXON · CONTENIDOS</span></div>
       ${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Mi espacio</button>'}
     </div>
-    <div class="library-progress-summary"><div><span>TU PROGRESO</span><strong>${totalPct}%</strong><small>${totalDone} de ${totalLessons} contenidos completados</small></div><div class="library-progress-track"><span style="width:${totalPct}%"></span></div></div>
     ${nextPending ? `<section class="library-continue"><div class="library-continue-art"><span>▶</span></div><div class="library-continue-copy"><span class="library-eyebrow">CONTINÚA APRENDIENDO</span><h2>${esc(nextPending.title)}</h2><p>${esc(nextPending.description || (modules || []).find(m => m.id === nextPending.module_id)?.title || 'Tu siguiente contenido')}</p><button type="button" class="library-continue-button" data-lesson="${nextPending.id}">Continuar <b>→</b></button></div></section>` : `<section class="library-all-done"><strong>¡Has completado tu biblioteca!</strong><p>Terminaste todos los contenidos disponibles.</p></section>`}
     <div class="library-collections">
-      ${sectionHtml('Explora los módulos',pendingModules,'No tienes contenidos pendientes.','pending')}
-      ${completedModules.length ? sectionHtml('Tu biblioteca completada',completedModules,'','completed') : ''}
+      <button type="button" class="library-collection-toggle" data-library-collection-toggle aria-expanded="false"><span><strong>Biblioteca de contenido</strong><small>${moduleData.length} módulos disponibles</small></span><b>⌄</b></button>
+      <div class="library-collection-body" data-library-collection-body hidden>
+        ${pendingModules.length ? sectionHtml('En aprendizaje',pendingModules,'','pending') : ''}
+        ${completedModules.length ? sectionHtml('Completados',completedModules,'','completed') : ''}
+      </div>
     </div>
     <div class="lesson-view hidden" id="lessonView"></div>
   </div>`;
@@ -4011,6 +4038,8 @@ async function trainingTpl(options = {}) {
   if (!totalLessons) { const view = $('#lessonView'); view?.classList.remove('hidden'); if(view) view.innerHTML = '<div class="library-empty-group">Todavía no hay contenidos publicados.</div>'; }
   $('#training').querySelectorAll('[data-lesson]').forEach(button => { if(button.dataset.libraryBound) return; button.dataset.libraryBound='1'; });
   $('#training').querySelectorAll('[data-library-toggle]').forEach(button => { button.addEventListener('click', () => { const id=button.getAttribute('data-library-toggle'); const list=$('#training').querySelector(`[data-library-lessons="${CSS.escape(id)}"]`); const expanded=button.getAttribute('aria-expanded')==='true'; button.setAttribute('aria-expanded',String(!expanded)); if(list) list.hidden=expanded; }); });
+  const collectionToggle=$('#training [data-library-collection-toggle]');
+  collectionToggle?.addEventListener('click',()=>{const body=$('#training [data-library-collection-body]');const expanded=collectionToggle.getAttribute('aria-expanded')==='true';collectionToggle.setAttribute('aria-expanded',String(!expanded));if(body)body.hidden=expanded;});
 }
 
 function renderFormationCompletedState(){
@@ -4235,7 +4264,7 @@ async function renderSelectedLesson(l) {
   const alreadyDone = window._done.has(l.id);
   const actionLabel = 'Continuar';
   $('#lessonView').classList.remove('hidden');
-  $('#lessonView').innerHTML = `<div class="eyebrow">LECCIÓN</div><div class="lesson-header"><div><h2>${esc(l.title)}</h2><p class="muted">${esc(l.description || '')}</p></div><span class="lesson-state ${alreadyDone ? 'completed' : ''}">${alreadyDone ? '✓ COMPLETADA' : isVideo ? 'EN CURSO' : 'PENDIENTE'}</span></div>${media}${l.content ? `<div class="section">${esc(l.content).replace(/\n/g, '<br>')}</div>` : ''}${!isVideo ? `<button class="primary" id="completeLesson">${actionLabel}</button>` : ''}`;
+  $('#lessonView').innerHTML = `<div class="lesson-focus-close"><button type="button" data-close-lesson>← Biblioteca</button></div><div class="eyebrow">LECCIÓN</div><div class="lesson-header"><div><h2>${esc(l.title)}</h2><p class="muted">${esc(l.description || '')}</p></div><span class="lesson-state ${alreadyDone ? 'completed' : ''}">${alreadyDone ? '✓ COMPLETADA' : isVideo ? 'EN CURSO' : 'PENDIENTE'}</span></div>${media}${l.content ? `<div class="section">${esc(l.content).replace(/\n/g, '<br>')}</div>` : ''}${!isVideo ? `<button class="primary" id="completeLesson">${actionLabel}</button>` : ''}`;
 
   if (isVideo) {
     const video = $('#lessonVideo');
@@ -4255,7 +4284,7 @@ async function renderSelectedLesson(l) {
   const formationPage = $('#training .formation-page');
   formationPage?.classList.add('lesson-focus-mode');
   $('#lessonView')?.classList.add('lesson-focus-active');
-  requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  $('#training').querySelector('[data-close-lesson]')?.addEventListener('click',()=>{ $('#lessonView')?.classList.remove('lesson-focus-active'); $('#lessonView')?.classList.add('hidden'); formationPage?.classList.remove('lesson-focus-mode'); window.scrollTo({top:0,behavior:'smooth'}); });
 }
 
 async function openLesson(id, options = {}) {
@@ -6231,7 +6260,7 @@ function bind() {
   $('#adminLogout')?.addEventListener('click', logout);
   $$('[data-formation-module-toggle]').forEach(b => b.onclick = () => { const panel=$('#'+b.dataset.formationModuleToggle); if(!panel)return; const open=panel.classList.contains('hidden'); panel.classList.toggle('hidden',!open); b.classList.toggle('is-open',open); b.setAttribute('aria-expanded',open?'true':'false'); });
   $$('[data-formation-group-toggle]').forEach(b => b.onclick = () => { const panel=$('#'+b.dataset.formationGroupToggle); if(!panel)return; const open=panel.classList.contains('hidden'); panel.classList.toggle('hidden',!open); b.setAttribute('aria-expanded',open?'true':'false'); b.closest('.formation-group')?.classList.toggle('is-open',open); });
-  $$('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
+  $('[data-lesson]').forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
   $$('[data-complete-mission]').forEach(b => b.onclick = () => completeMission(b.dataset.completeMission));
   $$('[data-save-mission]').forEach(b => b.onclick = () => saveMissionProgress(b.dataset.saveMission));
   $$('[data-mission-week]').forEach(b => b.onclick = () => { const id = b.dataset.missionWeek; const panel = $('#details-' + id); if (panel) panel.classList.toggle('hidden'); b.classList.toggle('open'); });
