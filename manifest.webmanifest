@@ -2,7 +2,7 @@
   "name": "Grayxon Group",
   "short_name": "Grayxon",
   "description": "Portal oficial de Grayxon Group.",
-  "start_url": "./portal.html",
+  "start_url": "./app-start.html?v=20261020",
   "scope": "./",
   "display": "standalone",
   "background_color": "#050609",
