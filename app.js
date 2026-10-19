@@ -7306,6 +7306,13 @@ window.addEventListener('hashchange', async () => {
     #training .formation-page.lesson-focus-mode>.row,
     #training .formation-page.lesson-focus-mode>.formation-progress-card,
     #training .formation-page.lesson-focus-mode>.formation-groups{display:none!important}
+    /* La biblioteca nueva usa estos contenedores; ocultarlos deja la lección como vista principal. */
+    #training .formation-page.library-page.lesson-focus-mode>.library-page-heading,
+    #training .formation-page.library-page.lesson-focus-mode>.library-progress-summary,
+    #training .formation-page.library-page.lesson-focus-mode>.library-continue,
+    #training .formation-page.library-page.lesson-focus-mode>.library-collections{display:none!important}
+    #training .formation-page.library-page.lesson-focus-mode{display:block!important;width:100%!important;max-width:none!important;min-height:100vh!important;margin:0!important;padding:0!important}
+    #training .formation-page.library-page.lesson-focus-mode>#lessonView.lesson-focus-active{display:block!important;position:relative!important;width:100%!important;max-width:none!important;min-height:100vh!important;margin:0!important;padding:clamp(18px,4vw,42px)!important;box-sizing:border-box!important;background:#08090c!important;border:0!important;border-radius:0!important}
     #training .formation-page.lesson-focus-mode>#lessonView.lesson-focus-active{display:block!important;visibility:visible!important;position:relative!important;margin:0!important;padding:clamp(18px,4vw,42px)!important;min-height:calc(100vh - 40px)!important;width:100%!important;box-sizing:border-box!important;border:0!important;border-radius:0!important;background:#08090c!important}
     #training .lesson-focus-active .lesson-header{max-width:1000px!important;margin:0 auto 24px!important}
     #training .lesson-focus-active .video-wrap{width:min(1100px,100%)!important;margin:0 auto!important}
