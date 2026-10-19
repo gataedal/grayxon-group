@@ -4104,7 +4104,18 @@ function syncFormationLessonListState(){
     if(status) status.textContent = isComplete ? '✓ Completado' : moduleLessons.some(l => l.id === nextPending?.id) ? 'SIGUIENTE' : 'PENDIENTE';
 
     const targetKey = isComplete ? 'completed' : 'pending';
-    const targetSection = document.querySelector(`#training [data-formation-section="${targetKey}"] .formation-group-list`);
+    let targetSection = document.querySelector(`#training [data-formation-section="${targetKey}"] .formation-group-list`);
+    if(!targetSection && targetKey === 'completed'){
+      const groups = document.querySelector('#training .formation-groups');
+      if(groups){
+        const section = document.createElement('section');
+        section.className = 'formation-section';
+        section.dataset.formationSection = 'completed';
+        section.innerHTML = '<h2 class="formation-section-title">Completados</h2><div class="formation-group-list"></div>';
+        groups.appendChild(section);
+        targetSection = section.querySelector('.formation-group-list');
+      }
+    }
     if(targetSection && card.parentElement !== targetSection) targetSection.appendChild(card);
   }
 
