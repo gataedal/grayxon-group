@@ -1741,7 +1741,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const formationPct=lessonTotal?Math.round(lessonCompleted/lessonTotal*100):0;
   const team=assignment?.team; const manager=assignment?.manager;
   const managerContact=manager?.phone?'<a class="creator-contact-btn" href="'+esc(managerWhatsapp(manager.phone))+'" target="_blank" rel="noopener noreferrer">Contactar ↗</a>':'';
-  const assignmentHTML=team?'<div class="creator-space-team"><span class="creator-space-team-label">EQUIPO Y MANAGER</span><strong>'+esc(manager?.name||'Sin manager')+'</strong><small>'+esc(team.name)+'</small>'+managerContact+'</div>':'<div class="creator-space-team"><span class="creator-space-team-label">EQUIPO Y MANAGER</span><strong>Sin manager</strong><small>No tienes un manager asignado actualmente.</small></div>';
+  const assignmentHTML=team?'<div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>'+esc(manager?.name||'Sin manager asignado')+'</strong><small>Equipo · '+esc(team.name)+'</small>'+managerContact+'</div>':'<div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>Sin manager asignado</strong><small>Aún no tienes un equipo asignado.</small></div>';
   const pendingMissions=visibleMissions.filter(m=>missionPct(m)<100);
   const hasPendingTraining=lessonTotal>lessonCompleted;
   const performanceCards=[];
