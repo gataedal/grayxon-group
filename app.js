@@ -1309,7 +1309,7 @@ function nav(p, push = true) {
   if (p === 'space' && isCreatorSession()) {
     // Nunca bloqueamos la navegación esperando datos remotos. El dashboard ya está visible;
     // la actualización se ejecuta en segundo plano y solo pinta si seguimos en Mi espacio.
-    creatorDashboardTpl(thisNav).then(()=>refreshMyPendingPaymentsBadge()).catch(e => console.warn('Creator dashboard:', e));
+    spaceTpl(thisNav).then(()=>refreshMyPendingPaymentsBadge()).catch(e => console.warn('Creator dashboard:', e));
   } else {
     Promise.resolve(render()).then(()=>refreshMyPendingPaymentsBadge()).catch(e => console.warn('Render:', e));
   }
@@ -2429,11 +2429,12 @@ function renderCreatorSpaceImmediate(){
   loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
 }
 
-async function spaceTpl(){
+async function spaceTpl(expectedNav = navGeneration){
   if(!session){$('#space').innerHTML=authTpl();return;}
   if(profile?.role==='creator'){
-    renderCreatorSpaceImmediate();
-    await creatorDashboardTpl();
+    // Un solo camino de renderizado para el dashboard del creador.
+    // Evita que el shell provisional sobrescriba la hidratación del dashboard al abrir la app.
+    await creatorDashboardTpl(expectedNav);
     return;
   }
   return renderSpaceShell();
