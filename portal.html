@@ -1126,6 +1126,68 @@ body{min-height:100dvh!important}
 @media(max-width:540px){.manager-dashboard-grid{grid-template-columns:1fr}.manager-dashboard-grid>:not(.grayxon-manager-accordion-panel){min-height:96px!important}.manager-dashboard-grid .manager-upcoming-training{min-height:96px!important;padding:14px}.manager-dashboard-grid .grayxon-manager-accordion-toggle,.manager-dashboard-grid .manager-creators-toggle{min-height:96px!important;padding:14px}.dashboard-announcement-card.gx-ann-dashboard-card{min-height:96px!important;padding:14px}}
 
 </style>
+
+<style id="gx-premium-toast">
+/* Notificaciones breves: arriba de la interfaz, sin competir con la navegación inferior. */
+#toast.toast{
+  position:fixed!important;
+  top:calc(env(safe-area-inset-top,0px) + 18px)!important;
+  bottom:auto!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translate(-50%,-10px);
+  width:max-content;
+  max-width:min(520px,calc(100vw - 28px));
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:14px 18px 14px 15px!important;
+  overflow-wrap:anywhere;
+  border:1px solid rgba(192,202,218,.28);
+  border-radius:15px!important;
+  background:linear-gradient(135deg,rgba(24,26,32,.97),rgba(10,11,14,.97))!important;
+  color:#f5f7fb!important;
+  font-size:13px;
+  line-height:1.45;
+  font-weight:650;
+  letter-spacing:.01em;
+  box-shadow:0 16px 44px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.055),0 0 24px rgba(37,244,238,.07)!important;
+  -webkit-backdrop-filter:blur(18px);
+  backdrop-filter:blur(18px);
+  z-index:20000!important;
+}
+#toast.toast::before{
+  content:"✦";
+  flex:0 0 27px;
+  width:27px;
+  height:27px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(37,244,238,.34);
+  border-radius:9px;
+  background:linear-gradient(145deg,rgba(37,244,238,.13),rgba(254,44,85,.10));
+  color:#25f4ee;
+  font-size:14px;
+  box-shadow:inset 0 0 12px rgba(37,244,238,.06);
+}
+#toast.toast:not(.hidden){animation:gxToastArrive .28s cubic-bezier(.2,.8,.2,1) both}
+@keyframes gxToastArrive{
+  from{opacity:0;transform:translate(-50%,-10px) scale(.98)}
+  to{opacity:1;transform:translate(-50%,0) scale(1)}
+}
+@media(max-width:540px){
+  #toast.toast{
+    top:calc(env(safe-area-inset-top,0px) + 10px)!important;
+    max-width:calc(100vw - 24px);
+    padding:12px 14px 12px 12px!important;
+    border-radius:13px!important;
+    font-size:12.5px;
+  }
+  #toast.toast::before{flex-basis:25px;width:25px;height:25px}
+}
+@media(prefers-reduced-motion:reduce){#toast.toast:not(.hidden){animation:none}}
+</style>
 <style id="gx-safe-area-layout">
 /* Mantiene el encabezado debajo de la barra de estado cuando el viewport cubre la pantalla completa. */
 header.top{height:calc(68px + env(safe-area-inset-top,0px))!important;padding-top:env(safe-area-inset-top,0px)!important;box-sizing:border-box!important}
