@@ -1564,8 +1564,13 @@ async function loadCreatorAssignment(){
       if(pe || !pr?.team_id) return fallback;
       const {data:team,error:te} = await sb.from('teams').select('id,name,manager_id').eq('id',pr.team_id).maybeSingle();
       if(te || !team) return fallback;
-      const {data:manager} = team.manager_id ? await sb.from('managers').select('id,name,phone,email').eq('id',team.manager_id).maybeSingle() : {data:null};
-      return {team,manager:manager||null};
+      const {data:manager} = team.manager_id ? await sb.from('managers').select('*').eq('id',team.manager_id).maybeSingle() : {data:null};
+      let managerProfilePhoto='';
+      if(manager?.user_id){
+        const {data:managerDetails}=await sb.from('profile_details').select('avatar_url').eq('user_id',manager.user_id).maybeSingle();
+        managerProfilePhoto=managerDetails?.avatar_url||'';
+      }
+      return {team,manager:manager?{...manager,avatar_url:manager.avatar_url||manager.photo_url||manager.profile_photo_url||manager.image_url||managerProfilePhoto}:null};
     })();
     return await Promise.race([
       work,
@@ -1585,7 +1590,14 @@ function ensureCreatorDashboardStyles(){
   style.textContent=`
     /* Perfil premium: saludo y avatar a la izquierda; manager y equipo a la derecha. */
     .creator-dashboard-hero.creator-profile-hero{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto;align-items:center;column-gap:22px;min-height:174px;padding:24px 24px 22px}
-    .creator-profile-left{grid-column:1;grid-row:1;display:flex;align-items:center;gap:17px;min-width:0;padding-right:12px}
+    .creator-profile-left{grid-column:1;grid-row:1;display:flex;align-items:center;gap:17px;min-width:0;width:100%;padding-right:12px}
+    .creator-profile-left .creator-dashboard-identity{flex:1 1 auto;width:0;min-width:0}
+    .creator-profile-left .creator-dashboard-identity h1{white-space:normal;overflow-wrap:anywhere}
+    .creator-manager-profile{display:flex;align-items:center;gap:14px;min-width:0;width:100%}
+    .creator-manager-avatar{width:66px;height:66px;flex:0 0 66px;border-radius:50%;object-fit:cover;border:2px solid #25f4ee;box-shadow:0 0 18px rgba(37,244,238,.1)}
+    .creator-manager-avatar-fallback{display:grid;place-items:center;color:#e5e7eb;font-size:25px;background:linear-gradient(135deg,#25f4ee,#9b75ff,#fe2c55)}
+    .creator-manager-profile .creator-space-team{flex:1 1 auto;min-width:0}
+
     .creator-profile-hero .creator-dashboard-avatar{flex:0 0 88px!important;width:88px!important;height:88px!important}
     .creator-profile-hero .creator-dashboard-identity{padding:18px 0 0;min-width:0}
     .creator-profile-greeting{font-size:12px;font-weight:750;color:#a2aab6;letter-spacing:.04em;margin-bottom:3px}
@@ -1608,7 +1620,7 @@ function ensureCreatorDashboardStyles(){
       .creator-profile-hero .creator-dashboard-identity{padding:10px 0 0}
       .creator-profile-hero .creator-dashboard-role{top:10px;right:12px}
       .creator-profile-hero .creator-dashboard-role .role-pill{font-size:10px!important;padding:5px 9px!important}
-      .creator-profile-hero .creator-space-team-wrap{grid-column:1;grid-row:2;border-left:0;border-top:0;padding:0;min-height:0;margin:0}
+      .creator-profile-hero .creator-space-team-wrap{grid-column:1;grid-row:2;border-left:0;border-top:0;padding:0;min-height:0;margin:0}.creator-manager-avatar{width:54px;height:54px;flex-basis:54px}
       .creator-profile-hero .creator-space-team{grid-template-columns:minmax(0,1fr) auto;gap:5px 8px}
       .creator-profile-hero .creator-space-team strong{font-size:15px}
       .creator-profile-hero .creator-space-team .creator-contact-btn{grid-column:2;grid-row:2/4;padding:0 11px}
@@ -1769,8 +1781,8 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const lessonTotal=(lessons||[]).length; const lessonCompleted=(lessons||[]).filter(x=>lessonDone.has(x.id)).length;
   const formationPct=lessonTotal?Math.round(lessonCompleted/lessonTotal*100):0;
   const team=assignment?.team; const manager=assignment?.manager;
-  const managerContact=manager?.phone?'<a class="creator-contact-btn" href="'+esc(managerWhatsapp(manager.phone))+'" target="_blank" rel="noopener noreferrer">Contactar ↗</a>':'';
-  const assignmentHTML=team?'<div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>'+esc(manager?.name||'Sin manager asignado')+'</strong><small>Equipo · '+esc(team.name)+'</small>'+managerContact+'</div>':'<div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>Sin manager asignado</strong><small>Aún no tienes un equipo asignado.</small></div>';
+  const managerContact=manager?.phone?'<a class="creator-contact-btn" href="'+esc(managerWhatsapp(manager.phone))+'" target="_blank" rel="noopener noreferrer">Contactar ↗</a>':''; const managerAvatar=manager?.avatar_url?'<img class="creator-manager-avatar" src="'+esc(manager.avatar_url)+'" alt="Foto del manager">':'<span class="creator-manager-avatar creator-manager-avatar-fallback">♙</span>';
+  const assignmentHTML=team?'<div class="creator-manager-profile">'+managerAvatar+'<div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>'+esc(manager?.name||'Sin manager asignado')+'</strong><small>Equipo · '+esc(team.name)+'</small>'+managerContact+'</div></div>':'<div class="creator-manager-profile">'+managerAvatar+'<div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>Sin manager asignado</strong><small>Aún no tienes un equipo asignado.</small></div></div>';
   const pendingMissions=visibleMissions.filter(m=>missionPct(m)<100);
   const hasPendingTraining=lessonTotal>lessonCompleted;
   const performanceCards=[];
