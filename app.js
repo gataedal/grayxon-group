@@ -1327,7 +1327,7 @@ async function render(){
   if(current==='training')await trainingTpl();
   if(current==='live-training')await liveTrainingTpl();
   if(current==='missions')await missionsTpl();
-  if(current==='profile')$('#profile').innerHTML=await profileTpl();
+  if(current==='profile'){ $('#profile').innerHTML=await profileTpl(); if(profile?.role==='creator') loadCreatorProfileManager(); }
   bind(); updateHeaderAccessUI(); updateProfileBadge(); updateNotificationsUI(); updateCreatorSpaceFloat(); updateCreatorTopNav();
   if(session && ['space','manager','admin'].includes(current)) gxRefreshAnnouncementUnreadCount();
   $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===current || (b.dataset.page==='space' && current==='manager')));
@@ -1469,6 +1469,7 @@ function profileTpl(){
   const banks=(bankSeed[bankCountry]||[]).map(b=>`<option value="${esc(b)}" ${pm.bank_name===b?'selected':''}>${esc(b)}</option>`).join('');
   return `<div class="profile-page">
     <div class="profile-head card"><div class="profile-avatar-wrap profile-avatar-editable">${avatar}<button type="button" class="avatar-edit-fab" id="profilePhotoEdit" aria-label="Cambiar foto">✎</button><button type="button" class="avatar-delete-fab ${d.avatar_url ? '' : 'hidden'}" id="deleteProfileAvatar" aria-label="Eliminar foto">🗑</button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div><div class="eyebrow">MI PERFIL</div><h1>${esc(profile.full_name||profile.username)}</h1><p class="muted">@${esc(profile.username)} · ${profile.role==='admin'?'Administrador':profile.role==='manager'?'Manager':'Creador'}</p><div id="profileAvatarStatus" class="muted small" style="margin-top:8px"></div></div></div>
+    ${profile.role==='creator' ? '<section class="card creator-profile-manager-card" id="creatorProfileManagerCard"><h2><span aria-hidden="true" style="color:#25F4EE">♙</span> Tu manager</h2><div class="creator-profile-manager-row"><div class="creator-profile-manager-avatar creator-profile-manager-fallback">♙</div><div class="creator-profile-manager-info"><strong>Consultando tu equipo…</strong><small>Un momento</small></div></div></section>' : ''}
     <div class="card"><h2>Información personal</h2>${field('pEmail','Correo electrónico',d.email||'')}${field('pPhone','Número de teléfono',d.phone||'')}
       <label class="field"><span>País</span><select id="pCountry">${countries}</select></label>${field('pState','Estado / Departamento / Provincia',d.state_region||'')}${field('pCity','Ciudad',d.city||'')}${field('pAddress','Dirección',d.address||'',true)}
     </div>
@@ -1480,6 +1481,26 @@ function profileTpl(){
     <div class="profile-save-wrap"><button class="primary profile-save-btn" id="saveProfile">Guardar</button></div><div id="profileErr" class="error"></div>
   </div>`;
 }
+async function loadCreatorProfileManager(){
+  if(current!=='profile'||profile?.role!=='creator'||!session?.user?.id)return;
+  const uid=session.user.id;
+  if(!document.getElementById('creatorProfileManagerCard'))return;
+  const {team,manager}=await loadCreatorAssignment();
+  if(current!=='profile'||session?.user?.id!==uid)return;
+  const target=document.getElementById('creatorProfileManagerCard');
+  if(!target)return;
+  const avatarUrl=manager?.avatar_url||manager?.photo_url||manager?.profile_photo_url||manager?.image_url||'';
+  const avatar=avatarUrl
+    ? '<div class="creator-profile-manager-avatar"><img src="'+esc(avatarUrl)+'" alt="Foto del manager"></div>'
+    : '<div class="creator-profile-manager-avatar creator-profile-manager-fallback">♙</div>';
+  const managerName=manager?.name||'Sin manager asignado';
+  const teamName=team?.name||'No tienes un equipo asignado';
+  const contact=manager?.phone
+    ? '<a class="creator-profile-manager-contact" href="'+esc(managerWhatsapp(manager.phone))+'" target="_blank" rel="noopener noreferrer">☏ Contactar a mi manager ↗</a>'
+    : '';
+  target.innerHTML='<h2><span aria-hidden="true" style="color:#25F4EE">♙</span> Tu manager</h2><div class="creator-profile-manager-row">'+avatar+'<div class="creator-profile-manager-info"><strong>'+esc(managerName)+'</strong><small>Manager asignado</small><small>Equipo · '+esc(teamName)+'</small></div></div>'+contact;
+}
+
 function forcePasswordTpl(){
   const who=esc(profile?.username||'creador');
   return `<div class="login card" style="max-width:560px;margin:34px auto"><div class="eyebrow">GRAYXON · SEGURIDAD</div><h2 style="margin-top:8px">Crea tu contraseña personal</h2><p class="muted">Hola, @${who}. Este es tu primer ingreso. Por seguridad, debes cambiar la contraseña temporal antes de continuar.</p><div class="field"><label>Nueva contraseña</label><input id="firstPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres"></div><div class="field"><label>Repite la contraseña</label><input id="firstPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Confirma tu contraseña"></div><div id="firstPasswordError" class="error"></div><button class="primary" id="saveFirstPassword">Guardar y continuar</button><p class="muted small" style="margin-top:12px">No compartas tu contraseña con nadie. Grayxon no puede mostrarte una contraseña después de guardarla.</p></div>`;
