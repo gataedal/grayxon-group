@@ -2305,10 +2305,7 @@ async function loadCreatorDashboardTrainingHighlight(expectedNav=navGeneration){
     const btn=host.querySelector('[data-gx-training-target]');
     btn?.addEventListener('click',()=>{
       if(!isLive){toast('Este entrenamiento aún no ha comenzado. Podrás entrar cuando esté EN VIVO.');return;}
-      currentLiveTraining=training;
-      pendingLiveTrainingAutoStart={id:training.id};
-      window.location.hash='live-training/'+training.id;
-      nav('live-training',false);
+      enterCreatorLiveTraining(training);
     });
   }catch(error){console.warn('Grayxon dashboard training highlight:',error?.message||error);hide();}
 }
