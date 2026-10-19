@@ -2010,7 +2010,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   if(spaceEl && !spaceEl.querySelector('.creator-dashboard')){
     spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
       <section class="creator-dashboard-hero creator-profile-hero">
-        <div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${cachedAvatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>
+        <div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${cachedAvatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>
         <div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div>
       </section>
       <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid">
@@ -2086,7 +2086,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const paymentsCard=`<button type="button" class="creator-dashboard-card gx-payments-dashboard-card" data-page="payments"><span class="creator-dashboard-card-icon">💸</span><span class="creator-dashboard-card-meta">Historial</span><strong>Mis pagos</strong><p>Consulta tus pagos, liquidaciones y comprobantes.</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${creatorDashboardAvatar()}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section>
+    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${creatorDashboardAvatar()}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section>
     ${performanceHTML}
     <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}${paymentsCard}${gxAnnouncementDashboardCard(true)}</div>${profileIncomplete}
   </div>`;
@@ -2103,7 +2103,7 @@ function renderCreatorSpaceImmediate(){
   const name=profile?.full_name||profile?.username||'Grayxon';
   const user=profile?.username||'creador';
   const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
-  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${avatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
+  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${avatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
   bind();
 }
 
@@ -4619,7 +4619,7 @@ function adminHome(h) {
 
 function adminBenefits(b) {
   const preview = b.image_url ? `<div class="media-preview"><img src="${esc(b.image_url)}" alt="Imagen actual"><div class="muted small">Imagen actual. Selecciona otra para reemplazarla.</div></div>` : `<div class="media-empty">No hay imagen destacada configurada.</div>`;
-  return `<div class="card"><h2>Beneficios y requisitos</h2><p class="muted small">Aquí puedes editar el contenido público y agregar una imagen destacada que aparecerá en esta sección.</p>${field('bTitle','Título',b.title || 'Beneficios y requisitos')}${field('bIntro','Introducción',b.intro,true)}<div class="field"><label>Imagen destacada</label><input id="bImage" type="file" accept="image/png,image/jpeg,image/webp"><div id="bImagePreview" style="margin-top:10px">${preview}</div><div class="muted small" style="margin-top:7px">Recomendado: JPG, PNG o WebP. Idealmente 1600 px de ancho o menos.</div></div>${field('bBenefits','Beneficios (uno por línea)',(b.benefits || []).join('\n'),true)}${field('bReq','Requisitos (uno por línea)',(b.requirements || []).join('\n'),true)}<button class="primary" id="saveBenefits">Guardar cambios</button><div id="benefitsProgress" class="muted small" style="margin-top:10px"></div><div id="benefitsErr" class="error"></div></div>`;
+  return `<div class="card"><h2>Beneficios y requisitos</h2><p class="muted small">Aquí puedes editar el contenido público y agregar una imagen destacada que aparecerá en esta sección.</p>${field('bTitle','Título',b.title || 'Beneficios y requisitos')}${field('bIntro','Introducción',b.intro,true)}<div class="field"><label>Imagen destacada</label><input id="bImage" type="file" accept="image/*"><div id="bImagePreview" style="margin-top:10px">${preview}</div><div class="muted small" style="margin-top:7px">Recomendado: JPG, PNG o WebP. Idealmente 1600 px de ancho o menos.</div></div>${field('bBenefits','Beneficios (uno por línea)',(b.benefits || []).join('\n'),true)}${field('bReq','Requisitos (uno por línea)',(b.requirements || []).join('\n'),true)}<button class="primary" id="saveBenefits">Guardar cambios</button><div id="benefitsProgress" class="muted small" style="margin-top:10px"></div><div id="benefitsErr" class="error"></div></div>`;
 }
 
 
@@ -4676,7 +4676,7 @@ async function adminAppIdentity() {
   return '<div class="card gx-app-icon-admin"><div class="eyebrow">GRAYXON GROUP · IDENTIDAD</div>' +
     '<h2>Icono de la app</h2><p class="muted">Sube una imagen cuadrada para cambiar el icono que identifica a Grayxon cuando se instala en el celular o computador. Generaremos automáticamente los tamaños para Android, iPhone, navegador y el icono adaptable de Android.</p>' +
     '<div class="gx-app-icon-preview"><img id="gxAppIconCurrent" src="' + esc(preview) + '?v=' + Date.now() + '" alt="Icono actual de Grayxon"><div><b>Vista previa</b><div class="muted small">Recomendado: PNG cuadrado, con el símbolo centrado y margen suficiente alrededor.</div></div></div>' +
-    '<div class="field"><label for="gxAppIconFile">Nuevo icono</label><input id="gxAppIconFile" type="file" accept="image/png,image/jpeg,image/webp"></div>' +
+    '<div class="field"><label for="gxAppIconFile">Nuevo icono</label><input id="gxAppIconFile" type="file" accept="image/*"></div>' +
     '<div id="gxAppIconSelectedPreview" class="gx-app-icon-selected hidden"></div><p class="muted small">Máximo 8 MB. Se conservará el icono actual si la carga no termina correctamente.</p>' +
     '<div class="inline"><button class="primary" id="gxSaveAppIcon" ' + (loadError ? 'disabled' : '') + '>Guardar nuevo icono</button></div>' +
     '<div id="gxAppIconProgress" class="muted small" style="margin-top:10px">' + esc(loadError || (content ? 'Iconos preparados correctamente.' : '')) + '</div><div id="gxAppIconError" class="error"></div>' +
@@ -5879,27 +5879,61 @@ function populateBanks(){
   sel.innerHTML='<option value="">Selecciona tu banco</option>'+banks.map(b=>`<option value="${esc(b)}" ${canKeepCurrent && current===b?'selected':''}>${esc(b)}</option>`).join('');
   if(!canKeepCurrent) sel.value='';
 }
+async function compressProfileAvatar(file){
+  // Reducir las fotos del móvil antes de enviarlas a Storage evita errores de red
+  // con fotos de cámara de gran resolución.
+  const loadImage=async()=>{
+    if(typeof createImageBitmap==='function'){
+      try{return await createImageBitmap(file,{imageOrientation:'from-image'});}catch(e){}
+    }
+    return await new Promise((resolve,reject)=>{
+      const image=new Image();
+      const objectUrl=URL.createObjectURL(file);
+      image.onload=()=>{URL.revokeObjectURL(objectUrl);resolve(image);};
+      image.onerror=()=>{URL.revokeObjectURL(objectUrl);reject(new Error('El celular no pudo leer esta imagen. Prueba guardándola como JPG.'));};
+      image.src=objectUrl;
+    });
+  };
+  const image=await loadImage();
+  const width=image.width||image.naturalWidth;
+  const height=image.height||image.naturalHeight;
+  if(!width||!height) throw new Error('No se pudo leer la imagen. Prueba con una foto JPG o PNG.');
+  const scale=Math.min(1,1200/Math.max(width,height));
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(width*scale));
+  canvas.height=Math.max(1,Math.round(height*scale));
+  const context=canvas.getContext('2d');
+  if(!context) throw new Error('No se pudo preparar la foto en este dispositivo.');
+  context.fillStyle='#ffffff';
+  context.fillRect(0,0,canvas.width,canvas.height);
+  context.drawImage(image,0,0,canvas.width,canvas.height);
+  if(typeof image.close==='function') image.close();
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.82));
+  if(!blob) throw new Error('No se pudo comprimir la foto. Prueba con otra imagen.');
+  return new File([blob],'grayxon-profile.jpg',{type:'image/jpeg',lastModified:Date.now()});
+}
+
 async function uploadProfileAvatar(){
   const input=$('#profileAvatar');
-  const file=input?.files?.[0];
-  if(!file||!session) return;
-  const status=$('#profileAvatarStatus');
+  const originalFile=input?.files?.[0];
+  if(!originalFile||!session) return;
   const showStatus=(message)=>{const el=$('#profileAvatarStatus');if(el)el.textContent=message;};
-  if(!/^image\/(png|jpeg|webp)$/i.test(file.type)){showStatus('Usa una imagen JPG, PNG o WebP.');if(input)input.value='';return;}
-  if(file.size>5*1024*1024){showStatus('La foto debe pesar menos de 5 MB.');if(input)input.value='';return;}
-  const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
-  const path=`${session.user.id}/${Date.now()}.${ext}`;
-  showStatus('Subiendo foto…');
+  if(originalFile.size>20*1024*1024){showStatus('La foto original debe pesar menos de 20 MB.');if(input)input.value='';return;}
+  showStatus('Preparando foto…');
+  let path=null;
   try{
-    const {error:uploadErr}=await sb.storage.from('profile-avatars').upload(path,file,{upsert:false,contentType:file.type||'image/jpeg',cacheControl:'0'});
+    const file=await compressProfileAvatar(originalFile);
+    const uid=session.user.id;
+    path=`${uid}/${Date.now()}.jpg`;
+    showStatus('Subiendo foto optimizada…');
+    const {error:uploadErr}=await sb.storage.from('profile-avatars').upload(path,file,{upsert:false,contentType:'image/jpeg',cacheControl:'0'});
     if(uploadErr) throw new Error('No se pudo subir la foto: '+uploadErr.message);
     const publicUrl=sb.storage.from('profile-avatars').getPublicUrl(path).data.publicUrl;
     const url=publicUrl+(publicUrl.includes('?')?'&':'?')+'v='+Date.now();
-    const {error:saveErr}=await sb.from('profile_details').upsert({user_id:session.user.id,avatar_path:path,avatar_url:url,updated_at:new Date().toISOString()},{onConflict:'user_id'});
-    if(saveErr) throw new Error('La foto se subió, pero no se pudo guardar en el perfil: '+saveErr.message);
+    const {error:saveErr}=await sb.from('profile_details').upsert({user_id:uid,avatar_path:path,avatar_url:url,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    if(saveErr) throw new Error('La imagen se subió, pero no se pudo guardar el perfil: '+saveErr.message);
     profileDetails={...(profileDetails||{}),avatar_path:path,avatar_url:url};
     updateProfileBadge();
-    // Actualizar la foto directamente también en móvil, sin depender de que el render termine.
     const avatar=$('#space .creator-dashboard-avatar-editable');
     if(avatar){
       let image=avatar.querySelector('img');
@@ -5912,6 +5946,7 @@ async function uploadProfileAvatar(){
     await render();
   }catch(error){
     showStatus(error?.message||'No se pudo actualizar la foto. Inténtalo de nuevo.');
+    if(input) input.value='';
   }
 }
 
