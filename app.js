@@ -1189,12 +1189,8 @@ function nav(p, push = true) {
   if (p === 'events' && typeof ensureEventsPage === 'function') ensureEventsPage();
   if (p === 'force-password' && !session) p = 'auth';
   if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
-  // "Inicio" siempre abre la portada pública oficial, incluso para cuentas autenticadas.
-  // Los accesos privados se mantienen explícitos en "Admin", "Manager" o "Tu espacio".
-  if (p === 'home') {
-    window.location.href = './index.html';
-    return;
-  }
+  // Inicio vuelve a pintar la portada que vive dentro de portal.html.
+  // No redirigir a index.html: en este despliegue ese archivo está vacío.
   if (session && p === 'space' && profile?.role === 'manager') p = 'manager';
   if (p === 'manager') managerView = 'dashboard';
   if (p === 'live-training') ensureLiveTrainingPage();
