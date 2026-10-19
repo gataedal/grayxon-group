@@ -7375,8 +7375,9 @@ async function gxLoadAnnouncementTeams(){
 }
 async function announcementsTpl(){
   const el=$('#announcements'); if(!el)return;
-  if(!session){el.innerHTML=`<div class="gx-ann-wrap"><div class="gx-ann-hero"><span class="eyebrow">GRAYXON · COMUNIDAD</span><h1>Centro de comunicados</h1><p>Inicia sesión para consultar los avisos de tu agencia.</p><button class="btn primary" data-page="auth">Iniciar sesión</button></div></div>`;return;}
-  el.innerHTML=`<div class="gx-ann-wrap"><div class="gx-ann-topbar"></div><div class="gx-ann-hero"><div><span class="eyebrow">GRAYXON · COMUNIDAD</span><h1>Centro de comunicados</h1><p>Información importante, novedades y recursos de tu equipo, en un solo lugar.</p></div><span class="gx-ann-mark">📣</span></div><div id="gxAnnComposerMount"></div><div class="gx-polls-section"><div class="gx-ann-feed-head"><div><h2>Encuestas</h2><p>Participa en las consultas de tu agencia o equipo.</p></div><button class="gx-ann-refresh" id="gxPollRefresh">↻ Actualizar</button></div><div id="gxPollFeed" class="gx-ann-feed"><div class="gx-ann-empty">Cargando encuestas…</div></div></div><div class="gx-ann-feed-head"><div><h2>Comunicados recientes</h2><p>Los avisos que corresponden a tu perfil y equipo.</p></div><button class="gx-ann-refresh" id="gxAnnRefresh">↻ Actualizar</button></div><div id="gxAnnFeed" class="gx-ann-feed"><div class="gx-ann-empty">Cargando comunicados…</div></div></div>`;
+  if(!session){el.innerHTML=`<div class="gx-ann-wrap"><p>Inicia sesión para consultar los avisos de tu agencia.</p><button class="btn primary" data-page="auth">Iniciar sesión</button></div>`;return;}
+  el.innerHTML=`<div class="gx-ann-wrap gx-ann-clean-feed"><div id="gxAnnComposerMount"></div><div id="gxAnnFeed" class="gx-ann-feed"><div class="gx-ann-empty">Cargando el último comunicado…</div></div></div>`;
+  gxCleanAnnouncementFeedStyles();
   const teams=await gxLoadAnnouncementTeams();
   if(gxAnnouncementCanPublish()){
     const admin=profile.role==='admin';
@@ -7386,9 +7387,38 @@ async function announcementsTpl(){
     $('#gxComposeFiles')?.addEventListener('change',e=>{gxUnifiedFiles=Array.from(e.target.files||[]);$('#gxComposeFileNames').textContent=gxUnifiedFiles.length?gxUnifiedFiles.map(f=>`${f.name} (${(f.size/1048576).toFixed(1)} MB)`).join(' · '):'Disponible tanto para comunicados como para encuestas: imágenes, video, audio y PDF. Máximo 50 MB por archivo.';});
     $('#gxUnifiedComposer')?.addEventListener('submit',gxPublishUnified);
   }
-  $('#gxAnnRefresh')?.addEventListener('click',gxLoadAnnouncements);
-  $('#gxPollRefresh')?.addEventListener('click',gxLoadPolls);
-  await Promise.all([gxLoadAnnouncements(),gxLoadPolls()]);
+  await gxLoadAnnouncements();
+  gxStartAnnouncementAutoRefresh();
+}
+function gxCleanAnnouncementFeedStyles(){
+  if(document.getElementById('gx-ann-clean-feed-styles'))return;
+  const style=document.createElement('style');style.id='gx-ann-clean-feed-styles';
+  style.textContent=`
+  .gx-ann-clean-feed{max-width:900px;margin:0 auto;padding-top:10px}
+  .gx-ann-clean-feed #gxAnnFeed{display:grid;gap:16px}
+  .gx-ann-clean-feed .gx-ann-card{position:relative;overflow:hidden;border:1px solid rgba(37,244,238,.18);border-radius:19px;background:radial-gradient(ellipse at 100% 0%,rgba(37,244,238,.075),transparent 40%),linear-gradient(145deg,#10141b 0%,#090b10 72%);box-shadow:0 12px 36px rgba(0,0,0,.2)}
+  .gx-ann-clean-feed .gx-ann-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#25F4EE,#FE2C55,#8b5cf6)}
+  .gx-ann-clean-feed .gx-ann-card-top{padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .gx-ann-clean-feed .gx-ann-avatar{width:43px;height:43px;min-width:43px;border-radius:14px;overflow:hidden;border:1px solid rgba(37,244,238,.32);background:linear-gradient(145deg,#202734,#101219);color:#f7f9fb;display:flex;align-items:center;justify-content:center;font-weight:800}
+  .gx-ann-clean-feed .gx-ann-avatar img{width:100%;height:100%;object-fit:cover}
+  .gx-ann-clean-feed .gx-ann-byline strong{color:#f8fafc}
+  .gx-ann-clean-feed .gx-ann-byline small{color:#a6afbd}
+  .gx-ann-clean-feed .gx-ann-card h3{color:#fff;line-height:1.3}
+  .gx-ann-clean-feed .gx-ann-body{color:#d5d9e0;line-height:1.65;overflow-wrap:anywhere}
+  .gx-ann-clean-feed .gx-ann-reaction.is-active{border-color:#FE2C55;background:rgba(254,44,85,.12)}
+  .gx-ann-clean-feed .gx-ann-media-grid{gap:10px}
+  @media(max-width:600px){.gx-ann-clean-feed{padding-top:4px}.gx-ann-clean-feed .gx-ann-card{border-radius:16px}.gx-ann-clean-feed .gx-ann-card-top{gap:10px}.gx-ann-clean-feed .gx-ann-body{font-size:15px}}
+  `;
+  document.head.appendChild(style);
+}
+let gxAnnouncementRefreshTimer=null,gxAnnouncementRefreshBusy=false;
+function gxStartAnnouncementAutoRefresh(){
+  if(gxAnnouncementRefreshTimer)clearInterval(gxAnnouncementRefreshTimer);
+  gxAnnouncementRefreshTimer=setInterval(async()=>{
+    if(document.hidden||current!=='announcements'||!document.getElementById('gxAnnFeed')||gxAnnouncementRefreshBusy)return;
+    gxAnnouncementRefreshBusy=true;
+    try{await gxLoadAnnouncements({silent:true});}catch(error){console.warn('Autoactualización de comunicados:',error);}finally{gxAnnouncementRefreshBusy=false;}
+  },10000);
 }
 
 /* Encuestas y publicaciones: requieren migración de encuestas y adjuntos v1.3. */
@@ -7573,19 +7603,22 @@ async function gxEditPoll(id){
 }
 
 async function gxDeletePoll(id){if(!confirm('¿Eliminar esta encuesta y sus votos? Esta acción no se puede deshacer.'))return;const {data:existingVotes,error:voteCheckError}=await sb.from('gx_poll_votes').select('id').eq('poll_id',id).limit(1);if(voteCheckError){toast(`No se pudo verificar la encuesta: ${voteCheckError.message}`);return;}if(existingVotes?.length&&profile?.role!=='admin'){toast('Solo un administrador activo puede eliminar una encuesta que ya tiene votos.');return;}const {data:files}=await sb.from('gx_poll_attachments').select('storage_path').eq('poll_id',id);if(files?.length){const {error:storageError}=await sb.storage.from(GX_POLL_BUCKET).remove(files.map(f=>f.storage_path));if(storageError){toast(`No se pudieron eliminar los adjuntos: ${storageError.message}`);return;}}const {error}=await sb.from('gx_polls').delete().eq('id',id);if(error){toast(`No se pudo eliminar: ${error.message}`);return;}toast('Encuesta eliminada ✓');await gxLoadPolls();await gxRefreshAnnouncementUnreadCount();}
-async function gxLoadAnnouncements(){
+async function gxLoadAnnouncements({silent=false}={}){
   const feed=$('#gxAnnFeed'); if(!feed||!session)return;
-  feed.innerHTML='<div class="gx-ann-empty">Actualizando comunicados…</div>';
+  const priorScroll=window.scrollY;
+  if(!silent)feed.innerHTML='<div class="gx-ann-empty">Cargando el último comunicado…</div>';
   const {data,error}=await sb.from('announcements').select('id,author_id,title,body,target_type,created_at,author:profiles!announcements_author_id_fkey(full_name,username,role),announcement_teams(team_id,team:teams(name)),announcement_attachments(id,file_name,mime_type,file_size,storage_path)').order('created_at',{ascending:false}).limit(60);
   if(error){feed.innerHTML=`<div class="gx-ann-empty"><strong>No se pudieron cargar los comunicados.</strong><span>${gxAnnouncementEsc(error.message)}<br>Si es la primera instalación, ejecuta primero el SQL incluido en el paquete.</span></div>`;return;}
   const items=data||[]; if(!items.length){feed.innerHTML='<div class="gx-ann-empty"><strong>Aún no hay comunicados.</strong><span>Cuando se publique uno para tu audiencia, aparecerá aquí.</span></div>';await gxRefreshAnnouncementUnreadCount();return;}
   const ids=items.map(x=>x.id);
-  const [{data:reads},{data:reactions},{data:mineReads},{data:mineReactions}]=await Promise.all([
+  const [{data:reads},{data:reactions},{data:mineReads},{data:mineReactions},{data:authorDetails}]=await Promise.all([
     profile?.role==='admin'?sb.rpc('grayxon_announcement_read_status',{p_announcement_ids:ids}):Promise.resolve({data:[]}),
     sb.from('announcement_reactions').select('announcement_id,emoji,user_id').in('announcement_id',ids),
     sb.from('announcement_reads').select('announcement_id').eq('user_id',session.user.id).in('announcement_id',ids),
-    sb.from('announcement_reactions').select('announcement_id,emoji').eq('user_id',session.user.id).in('announcement_id',ids)
+    sb.from('announcement_reactions').select('announcement_id,emoji').eq('user_id',session.user.id).in('announcement_id',ids),
+    sb.from('profile_details').select('user_id,avatar_url').in('user_id',[...new Set(items.map(x=>x.author_id).filter(Boolean))])
   ]);
+  const avatarByUser=new Map((authorDetails||[]).map(x=>[x.user_id,x.avatar_url]));
   const readSet=new Set((mineReads||[]).map(x=>x.announcement_id)); const myReactions=new Set((mineReactions||[]).map(x=>`${x.announcement_id}:${x.emoji}`));
   feed.innerHTML=items.map(a=>{
     const author=a.author?.full_name||a.author?.username||'Grayxon';
@@ -7594,11 +7627,13 @@ async function gxLoadAnnouncements(){
     const rx=(reactions||[]).filter(r=>r.announcement_id===a.id);const emojiCounts=['👍','❤️','👏','🔥','😂'].map(e=>{const count=rx.filter(r=>r.emoji===e).length;return `<button class="gx-ann-reaction ${myReactions.has(`${a.id}:${e}`)?'is-active':''}" data-ann-react="${a.id}" data-ann-emoji="${e}" aria-label="Reaccionar ${e}">${e}<small>${count||''}</small></button>`}).join('');
     const own=a.author_id===session.user.id; const canDelete=profile?.role==='admin'||(profile?.role==='manager'&&own);
     const readRows=(reads||[]).filter(r=>r.announcement_id===a.id);const readCount=readRows.filter(r=>r.has_read).length;const adminReads=profile?.role==='admin'?`<details class="gx-ann-reads"><summary>Lecturas · ${readCount}/${readRows.length} leyeron</summary><div class="gx-ann-read-list">${readRows.length?readRows.map(r=>`<span>${r.has_read?'✓':'○'} ${gxAnnouncementEsc(r.full_name||r.username||'Usuario')} <small>${r.has_read?`Leído ${new Date(r.read_at).toLocaleString('es-CO')}`:'Pendiente de lectura'}</small></span>`).join(''):'No hay destinatarios activos para este comunicado.'}</div></details>`:'';
-    return `<article class="gx-ann-card" data-ann-card="${a.id}"><div class="gx-ann-card-top"><div class="gx-ann-avatar">${gxAnnouncementEsc(author.trim().charAt(0).toUpperCase()||'G')}</div><div class="gx-ann-byline"><strong>${gxAnnouncementEsc(author)}</strong><small>${new Date(a.created_at).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})} · ${gxAnnouncementEsc(aud)}</small></div>${canDelete?`<button class="gx-ann-delete" data-ann-delete="${a.id}" title="Eliminar comunicado">Eliminar</button>`:''}</div><h3>${gxAnnouncementEsc(a.title)}</h3><div class="gx-ann-body">${gxAnnouncementEsc(a.body||'').replace(/\n/g,'<br>')}</div>${media?`<div class="gx-ann-media-grid">${media}</div>`:''}<div class="gx-ann-reactions">${emojiCounts}</div>${adminReads}</article>`;
+    const avatar=avatarByUser.get(a.author_id); const avatarMarkup=avatar?`<img src="${gxAnnouncementEsc(avatar)}" alt="" loading="lazy">`:gxAnnouncementEsc(author.trim().charAt(0).toUpperCase()||'G');
+    return `<article class="gx-ann-card" data-ann-card="${a.id}"><div class="gx-ann-card-top"><div class="gx-ann-avatar">${avatarMarkup}</div><div class="gx-ann-byline"><strong>${gxAnnouncementEsc(author)}</strong><small>${new Date(a.created_at).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})} · ${gxAnnouncementEsc(aud)}</small></div>${canDelete?`<button class="gx-ann-delete" data-ann-delete="${a.id}" title="Eliminar comunicado">Eliminar</button>`:''}</div><h3>${gxAnnouncementEsc(a.title)}</h3><div class="gx-ann-body">${gxAnnouncementEsc(a.body||'').replace(/\n/g,'<br>')}</div>${media?`<div class="gx-ann-media-grid">${media}</div>`:''}<div class="gx-ann-reactions">${emojiCounts}</div>${adminReads}</article>`;
   }).join('');
   // Record the read after rendering. The unique key makes repeat visits safe.
   const unread=ids.filter(id=>!readSet.has(id)); if(unread.length) await sb.from('announcement_reads').upsert(unread.map(announcement_id=>({announcement_id,user_id:session.user.id})),{onConflict:'announcement_id,user_id',ignoreDuplicates:true});
   await gxRefreshAnnouncementUnreadCount();
+  if(silent)window.scrollTo({top:priorScroll,behavior:'instant'});
   for(const node of feed.querySelectorAll('[data-ann-inline-path]')){const path=node.dataset.annInlinePath;const mime=node.dataset.annInlineMime;const name=node.dataset.annInlineName;const {data:d}=await sb.storage.from(GX_ANNOUNCEMENT_BUCKET).createSignedUrl(path,300,{download:false});if(!d?.signedUrl){node.innerHTML='<span class="gx-ann-preview-error">No se pudo cargar la vista previa.</span>';continue;}if(mime?.startsWith('image/')){node.innerHTML=`<button type="button" class="gx-ann-image-open" aria-label="Ampliar imagen"><img src="${d.signedUrl}" alt="${gxAnnouncementEsc(name)}" loading="lazy" draggable="false" oncontextmenu="return false"><span>Ampliar imagen ⤢</span></button>`;node.querySelector('button')?.addEventListener('click',()=>gxOpenAnnouncementPreview(d.signedUrl,'image',name));}else if(mime?.startsWith('video/'))node.innerHTML=`<video controls controlsList="nodownload noremoteplayback" disablepictureinpicture playsinline preload="metadata" oncontextmenu="return false" src="${d.signedUrl}"></video>`;else if(mime?.startsWith('audio/'))node.innerHTML=`<audio controls controlsList="nodownload noremoteplayback" preload="metadata" oncontextmenu="return false" src="${d.signedUrl}"></audio>`;else if(mime==='application/pdf')node.innerHTML=`<div class="gx-ann-pdf-wrap"><div class="gx-ann-pdf-label">📄 ${gxAnnouncementEsc(name)} · Vista previa</div><iframe title="Vista previa de ${gxAnnouncementEsc(name)}" src="${d.signedUrl}#toolbar=0&navpanes=0&scrollbar=0" loading="lazy" oncontextmenu="return false"></iframe></div>`;else node.innerHTML=`<div class="gx-ann-preview-error">${gxAnnouncementEsc(name)} · Este formato no admite vista previa integrada. Adjunta una imagen, video, audio o PDF para que el contenido se vea aquí sin un botón de descarga.</div>`;}
   feed.querySelectorAll('[data-ann-react]').forEach(b=>b.onclick=()=>gxToggleAnnouncementReaction(b.dataset.annReact,b.dataset.annEmoji));
   feed.querySelectorAll('[data-ann-delete]').forEach(b=>b.onclick=()=>gxDeleteAnnouncement(b.dataset.annDelete));
