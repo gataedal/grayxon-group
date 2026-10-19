@@ -415,6 +415,7 @@ async function updateAdminUserAccess(userId, username, password) {
 
 let current = 'home';
 let navGeneration = 0;
+let creatorDashboardRenderToken = 0;
 let session = null;
 let profile = null;
 let adminView = 'dashboard';
@@ -2113,6 +2114,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   ensureCreatorDashboardStyles();
   if(!session){ $('#space').innerHTML=authTpl(); return; }
   const uid=session.user.id;
+  const renderToken=++creatorDashboardRenderToken;
   const spaceEl=$('#space');
 
   // Pintamos inmediatamente un dashboard real, usando el contexto ya disponible.
@@ -2121,7 +2123,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const cachedName=profile?.full_name||profile?.username||'Grayxon';
   const cachedUser=profile?.username||'creador';
   const cachedAvatar=profileDetails?.avatar_url ? `<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
-  if(spaceEl && !spaceEl.querySelector('.creator-dashboard')){
+  if(spaceEl && (!spaceEl.querySelector('.gx-progress-section') || !spaceEl.querySelector('#gxCreatorTrainingHighlight'))){
     spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
       <section class="creator-dashboard-hero creator-profile-hero">
         <div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${cachedAvatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>
@@ -2142,15 +2144,16 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
       </div>
     </div>`;
     bind();
-    loadCreatorDashboardEventHighlights(expectedNav).catch(()=>{});
-    loadCreatorDashboardTrainingHighlight(expectedNav).catch(()=>{});
+    loadCreatorDashboardEventHighlights(expectedNav).catch(error=>console.warn('Creator dashboard highlight failed:',error));
+    loadCreatorDashboardTrainingHighlight(expectedNav).catch(error=>console.warn('Creator dashboard highlight failed:',error));
   }
 
   const safe=async(promise,fallback,ms=2200)=>{
     try{
       const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve({data:fallback,error:true}),ms))]);
-      return r?.error?fallback:(r?.data??fallback);
-    }catch{return fallback;}
+      if(r?.error){console.warn('Creator dashboard query failed:',r.error);return fallback;}
+      return r?.data??fallback;
+    }catch(error){console.warn('Creator dashboard query threw an error:',error);return fallback;}
   };
 
   const [profileRow, details, payment, lessons, lessonProgress, missions, missionProgress] = await Promise.all([
@@ -2164,7 +2167,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   ]);
 
   // Si el usuario ya navegó a otra pantalla, este render atrasado no debe tocarla.
-  if(expectedNav!==navGeneration || current!=='space' || !session?.user?.id || session.user.id!==uid) return;
+  if(renderToken!==creatorDashboardRenderToken || expectedNav!==navGeneration || current!=='space' || !session?.user?.id || session.user.id!==uid) return;
 
   if(profileRow) profile=profileRow;
   if(details!==undefined) profileDetails=details;
@@ -2217,8 +2220,8 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     <div class="creator-dashboard-grid">${trainingCard}${paymentsCard}${gxAnnouncementDashboardCard(true)}</div>${profileIncomplete}
   </div>`;
   bind();
-  loadCreatorDashboardEventHighlights(expectedNav).catch(()=>{});
-  loadCreatorDashboardTrainingHighlight(expectedNav).catch(()=>{});
+  loadCreatorDashboardEventHighlights(expectedNav).catch(error=>console.warn('Creator dashboard highlight failed:',error));
+  loadCreatorDashboardTrainingHighlight(expectedNav).catch(error=>console.warn('Creator dashboard highlight failed:',error));
   refreshLiveTrainingCard();
   setTimeout(()=>{ if(current==='space' && isCreatorSession()) refreshLiveTrainingCard(); },300);
   setTimeout(()=>{ if(current==='space' && isCreatorSession()) refreshLiveTrainingCard(); },1500);
@@ -2277,17 +2280,17 @@ function ensureCreatorDashboardTrainingRealtime(){
   try{
     host._gxTrainingChannel=sb.channel('gx-creator-training-dashboard')
       .on('postgres_changes',{event:'*',schema:'public',table:'live_trainings'},()=>{
-        if(current==='space')loadCreatorDashboardTrainingHighlight().catch(()=>{});
+        if(current==='space')loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
       })
       .on('postgres_changes',{event:'*',schema:'public',table:'live_training_audience'},()=>{
-        if(current==='space')loadCreatorDashboardTrainingHighlight().catch(()=>{});
+        if(current==='space')loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
       })
       .subscribe();
   }catch(error){console.warn('Training realtime subscription:',error?.message||error);}
   if(!host._gxTrainingPollTimer){
     host._gxTrainingPollTimer=setInterval(()=>{
       if(current==='space'&&session?.user?.id&&profile?.role==='creator')
-        loadCreatorDashboardTrainingHighlight().catch(()=>{});
+        loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
     },10000);
   }
 }
@@ -2374,7 +2377,9 @@ async function loadCreatorDashboardEventHighlights(expectedNav=navGeneration){
     // query gx_event_audience_targets directly: that table is intentionally admin-only.
     const visible=candidates.filter(e=>{
       const participant=participants.find(p=>p.event_id===e.id&&['registered','confirmed'].includes(p.status));
-      if(isLive(e))return e.registration_open===true||!!participant;
+      // La consulta de eventos ya está filtrada por las políticas de visibilidad (RLS).
+      // Un evento activo debe seguir visible aunque la inscripción haya cerrado.
+      if(isLive(e))return true;
       return isUpcoming(e);
     }).sort((a,b)=>startOf(a)-startOf(b));
     if(!visible.length){hide();return;}
@@ -2425,8 +2430,8 @@ function renderCreatorSpaceImmediate(){
   const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
   el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${avatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
   bind();
-  loadCreatorDashboardEventHighlights().catch(()=>{});
-  loadCreatorDashboardTrainingHighlight().catch(()=>{});
+  loadCreatorDashboardEventHighlights().catch(error=>console.warn('Creator dashboard highlight failed:',error));
+  loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
 }
 
 async function spaceTpl(){
@@ -6095,8 +6100,8 @@ function ensureFormationMobileV34Styles(){
 function bind() {
 
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'space' && session) nav(profile?.role === 'manager' ? 'manager' : 'space'); else if (target === 'auth' && session) nav(profile?.role === 'manager' ? 'manager' : profile?.role === 'creator' ? 'space' : 'admin'); else nav(target); });
-  $('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
-  $('[data-gx-progress-action]').forEach(b => b.onclick = () => {
+  $$('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
+  $$('[data-gx-progress-action]').forEach(b => b.onclick = () => {
     const action=b.dataset.gxProgressAction;
     if(action==='missions'){
       const hasPending=b.dataset.gxHasPending==='true';
