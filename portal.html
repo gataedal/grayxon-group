@@ -398,24 +398,24 @@ const profileMenu=document.getElementById('profileMenu'),notificationsPanel=docu
 if(profileMenu){profileMenu.classList.add('gx-bottom-popover');document.body.appendChild(profileMenu)}
 if(notificationsPanel){notificationsPanel.classList.add('gx-bottom-popover');document.body.appendChild(notificationsPanel)}
 const homeBtn=nav.querySelector('[data-gx-bottom="home"]');
-function syncActive(){nav.querySelectorAll('button').forEach(b=>b.classList.remove('active'))}
+function syncActive(){nav.querySelectorAll('button').forEach(b=>{b.classList.remove('active');b.style.setProperty('color','#c3c8d1','important');b.style.setProperty('background','transparent','important');b.style.setProperty('filter','none','important');b.querySelectorAll('.gx-nav-icon,svg').forEach(icon=>{icon.style.setProperty('color','#c3c8d1','important');icon.style.setProperty('filter','none','important')})})}
 window.refreshGrayxonBottomActive=syncActive;
 function scrollCurrentSectionToTop(){
- const page=[...document.querySelectorAll('main .page')].find(el=>!el.classList.contains('hidden'));
+ const main=document.querySelector('main');
+ const page=main?.querySelector(':scope > .page:not(.hidden)');
  const scrolling=[];
  const add=(el,top)=>{if(el&&top>2&&!scrolling.some(x=>x.el===el))scrolling.push({el,top})};
  add(window,window.scrollY||document.documentElement.scrollTop||document.body.scrollTop||0);
  if(page){
   add(page,page.scrollTop||0);
-  page.querySelectorAll('*').forEach(el=>{if((el.scrollTop||0)>2)add(el,el.scrollTop)});
+  page.querySelectorAll('*').forEach(el=>{
+   if((el.scrollTop||0)<=2||!el.getClientRects().length)return;
+   const style=getComputedStyle(el);
+   if((style.overflowY==='auto'||style.overflowY==='scroll')&&el.scrollHeight>el.clientHeight+4)add(el,el.scrollTop);
+  });
  }
- document.querySelectorAll('body *').forEach(el=>{
-  if(el===page||page?.contains(el))return;
-  const top=el.scrollTop||0;
-  if(top>2){const style=getComputedStyle(el);if(style.overflowY==='auto'||style.overflowY==='scroll'||el.scrollHeight>el.clientHeight+4)add(el,top)}
- });
  if(!scrolling.length)return false;
- scrolling.forEach(({el})=>{if(el===window)window.scrollTo({top:0,behavior:'smooth'});else if(typeof el.scrollTo==='function')el.scrollTo({top:0,behavior:'smooth'});else el.scrollTop=0});
+ scrolling.forEach(({el})=>{if(el===window)window.scrollTo({top:0,behavior:'smooth'});else el.scrollTo({top:0,behavior:'smooth'})});
  return true;
 }
 nav.addEventListener('click',function(e){
@@ -466,7 +466,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 </script>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=187"></script>
+<script src="app.js?v=188"></script>
 <script src="event-battle-scheduler.js?v=3"></script>
 <style id="grayxon-bottom-nav-final-overrides">
 /* Última prioridad: el script principal inyecta estilos de navegación después del primer bloque. */
