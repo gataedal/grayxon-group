@@ -5242,6 +5242,7 @@ function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classLi
 
 
 function updateHeaderAccessUI(){
+  if(typeof window.syncGrayxonBottomNavigation==='function') window.syncGrayxonBottomNavigation(!!session);
   updateCreatorTopNav();
   ensureCreatorNotificationMenuAction();
   const isManagerSession = !!(session && profile?.role === 'manager');
