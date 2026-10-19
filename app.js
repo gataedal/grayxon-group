@@ -1902,7 +1902,46 @@ function ensureCreatorDashboardStyles(){
     @media(max-width:800px){
       .creator-dashboard{gap:11px}.creator-dashboard-hero{grid-template-columns:auto minmax(0,1fr);gap:12px;padding:15px 16px;border-radius:17px}.creator-space-team-wrap{grid-column:1/-1;border-left:0;border-top:1px solid rgba(255,255,255,.1);padding:12px 0 0;height:auto}.creator-space-team{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px}.creator-space-team-label,.creator-space-team strong,.creator-space-team small{grid-column:1}.creator-space-team .creator-contact-btn{grid-column:2;grid-row:2/4;align-self:center;margin:0}.creator-dashboard-role{grid-column:1/-1;justify-self:start;text-align:left;margin-top:8px}.creator-dashboard-avatar{width:58px;height:58px;flex-basis:58px;font-size:20px}.creator-dashboard-identity h1{font-size:20px}.creator-dashboard-role{grid-column:1/-1;justify-self:stretch;text-align:left}.creator-dashboard-role .role-pill{padding:6px 9px}.creator-dashboard-role small{display:inline;margin-left:7px}.creator-assignment-card{grid-template-columns:1fr;gap:11px;padding:14px}.creator-contact-btn{width:100%}.creator-performance{padding:14px}.creator-performance-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.creator-metric{padding:11px}.creator-dashboard-grid{grid-template-columns:1fr 1fr;gap:9px}.creator-dashboard-card{height:100%;min-height:160px;padding:14px}.creator-profile-incomplete{align-items:flex-start;flex-direction:column}.creator-profile-incomplete .primary{width:100%}
     }
-  `;
+
+    /* Compact welcome and manager details in Profile. */
+    #space .creator-dashboard-hero.creator-profile-hero{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;min-height:0!important;height:auto!important;padding:20px 22px!important;border-radius:22px!important;background:linear-gradient(115deg,#0b1417,#0b0d11 58%,#160b12)!important;border:1px solid rgba(255,255,255,.12)!important;box-sizing:border-box!important}
+    #space .creator-dashboard-hero.creator-profile-hero:before{display:none!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-profile-left{display:flex!important;align-items:center!important;gap:13px!important;flex:1 1 auto!important;min-width:0!important;width:auto!important;padding:0!important;margin:0!important;border:0!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-avatar{flex:0 0 70px!important;width:70px!important;height:70px!important;min-width:70px!important;max-width:70px!important;padding:2px!important;border:0!important;border-radius:50%!important;background:linear-gradient(135deg,#25f4ee,#9b75ff 52%,#fe2c55)!important;overflow:hidden!important;box-sizing:border-box!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-avatar img{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;border:0!important;border-radius:50%!important;background:#0b0d11!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-identity{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;flex:1 1 auto!important;min-width:0!important;width:auto!important;padding:0!important;margin:0!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-profile-greeting{font-size:13px!important;margin:0 0 4px!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-identity h1{font-size:clamp(19px,2.4vw,27px)!important;line-height:1.15!important;margin:0 0 4px!important;white-space:normal!important;overflow-wrap:anywhere!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-identity .creator-username{font-size:12px!important;line-height:1.35!important;white-space:normal!important;overflow-wrap:anywhere!important}
+    #space .creator-dashboard-hero.creator-profile-hero .install-grayxon-dashboard{display:none!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-role{display:flex!important;position:static!important;flex:0 0 auto!important;align-items:center!important;justify-content:center!important;align-self:center!important;margin:0!important;padding:0!important;max-width:42%!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-role .role-pill{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;padding:8px 11px!important;border:1px solid transparent!important;border-radius:999px!important;background:linear-gradient(#0a0c10,#0a0c10) padding-box,linear-gradient(110deg,#25f4ee,#9b75ff,#fe2c55) border-box!important;color:#f7f8fb!important;font-size:12px!important;font-weight:800!important;letter-spacing:0!important;text-transform:none!important;white-space:nowrap!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-role .role-pill:before{content:"♛";font-size:14px;background:linear-gradient(110deg,#25f4ee,#b4a0ff,#fe2c55);color:transparent;background-clip:text;-webkit-background-clip:text}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-space-team-wrap{display:none!important}
+    .profile-page .creator-profile-manager-card{margin:0 0 14px;padding:15px;border:1px solid rgba(255,255,255,.1);border-radius:17px;background:linear-gradient(115deg,rgba(37,244,238,.04),rgba(12,14,18,.96) 48%,rgba(254,44,85,.04))}
+    .profile-page .creator-profile-manager-card h2{display:flex;align-items:center;gap:8px;font-size:16px;margin:0 0 12px}
+    .profile-page .creator-profile-manager-row{display:flex;align-items:center;gap:11px;min-width:0}
+    .profile-page .creator-profile-manager-avatar{width:50px;height:50px;flex:0 0 50px;padding:2px;border-radius:50%;background:linear-gradient(135deg,#25f4ee,#9b75ff 52%,#fe2c55);box-sizing:border-box;overflow:hidden}
+    .profile-page .creator-profile-manager-avatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%;background:#101318}
+    .profile-page .creator-profile-manager-fallback{display:grid;place-items:center;background:linear-gradient(#101318,#101318) padding-box,linear-gradient(135deg,#25f4ee,#9b75ff,#fe2c55) border-box;color:#e7eaf0;font-size:19px}
+    .profile-page .creator-profile-manager-info{flex:1 1 auto;min-width:0}
+    .profile-page .creator-profile-manager-info strong{display:block;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
+    .profile-page .creator-profile-manager-info small{display:block;color:#9da5b2;font-size:12px;line-height:1.4;margin-top:3px}
+    .profile-page .creator-profile-manager-contact{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:12px;min-height:39px;padding:0 13px;border:1px solid transparent;border-radius:11px;background:linear-gradient(#0d1115,#0d1115) padding-box,linear-gradient(110deg,#25f4ee,#9b75ff,#fe2c55) border-box;color:#f7f8fb;text-decoration:none;font-weight:750;font-size:13px}
+    @media(max-width:600px){
+      #space .creator-dashboard-hero.creator-profile-hero{padding:14px 11px!important;gap:7px!important;border-radius:18px!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-profile-left{gap:8px!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-avatar{width:54px!important;height:54px!important;min-width:54px!important;max-width:54px!important;flex-basis:54px!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-profile-greeting{font-size:12px!important;margin-bottom:3px!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-identity h1{font-size:clamp(16px,4.4vw,20px)!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-identity .creator-username{font-size:10px!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-role{max-width:none!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-role .role-pill{gap:4px!important;padding:7px 7px!important;font-size:10px!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-role .role-pill:before{font-size:11px}
+      .profile-page .creator-profile-manager-card{padding:13px}
+      .profile-page .creator-profile-manager-contact{width:100%;box-sizing:border-box}
+    }
+`;
   document.head.appendChild(style);
 }
 
