@@ -397,11 +397,31 @@ const profileMenu=document.getElementById('profileMenu'),notificationsPanel=docu
 if(profileMenu){profileMenu.classList.add('gx-bottom-popover');document.body.appendChild(profileMenu)}
 if(notificationsPanel){notificationsPanel.classList.add('gx-bottom-popover');document.body.appendChild(notificationsPanel)}
 const homeBtn=nav.querySelector('[data-gx-bottom="home"]');
-function syncActive(){const page=[...document.querySelectorAll('main .page')].find(el=>!el.classList.contains('hidden'));nav.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===homeBtn&&!!page&&page.id==='home'))}
-nav.addEventListener('click',function(e){const button=e.target.closest('button[data-gx-bottom]');if(!button)return;const action=button.dataset.gxBottom;
-if(action==='home'){const atTop=(window.scrollY||document.documentElement.scrollTop||0)<=8;if(!atTop){window.scrollTo({top:0,behavior:'smooth'});return}const brand=document.getElementById('homeBrand');if(brand)brand.click();else{const home=document.querySelector('.nav [data-page="home"]');if(home)home.click()}setTimeout(syncActive,100);return}
-if(action==='profile'){if(profileMenu&&!profileMenu.classList.contains('hidden'))profileMenu.classList.add('hidden');else{if(notificationsPanel)notificationsPanel.classList.add('hidden');const b=document.getElementById('mobileProfile');if(b)b.click()}return}
-if(action==='notifications'){if(notificationsPanel&&!notificationsPanel.classList.contains('hidden'))notificationsPanel.classList.add('hidden');else{if(profileMenu)profileMenu.classList.add('hidden');const b=document.getElementById('notificationsBtn');if(b)b.click()}}
+function syncActive(){
+ const page=[...document.querySelectorAll('main .page')].find(el=>!el.classList.contains('hidden'));
+ const destination=window.grayxonDashboardPage || '';
+ nav.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===homeBtn&&!!page&&page.id===destination));
+}
+nav.addEventListener('click',function(e){
+ const button=e.target.closest('button[data-gx-bottom]');if(!button)return;
+ e.preventDefault();e.stopPropagation();
+ const action=button.dataset.gxBottom;
+ if(action==='home'){
+  const atTop=(window.scrollY||document.documentElement.scrollTop||0)<=8;
+  if(!atTop){window.scrollTo({top:0,behavior:'smooth'});return}
+  if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
+  else {const fallback=document.getElementById('openMySpace');if(fallback)fallback.click();}
+  setTimeout(syncActive,180);return;
+ }
+ if(action==='profile'){
+  if(typeof window.grayxonToggleProfileMenu==='function')window.grayxonToggleProfileMenu();
+  else if(profileMenu)profileMenu.classList.toggle('hidden');
+  return;
+ }
+ if(action==='notifications'){
+  if(typeof window.grayxonToggleNotifications==='function')window.grayxonToggleNotifications();
+  else if(notificationsPanel)notificationsPanel.classList.toggle('hidden');
+ }
 });
 function updateBadge(){const source=document.getElementById('notificationsBadge'),target=document.getElementById('gxBottomNotificationsBadge');if(!source||!target)return;target.textContent=source.textContent;target.classList.toggle('hidden',source.classList.contains('hidden'))}
 const sourceBadge=document.getElementById('notificationsBadge');if(sourceBadge)new MutationObserver(updateBadge).observe(sourceBadge,{attributes:true,childList:true,characterData:true,subtree:true});
@@ -411,7 +431,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 </script>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=183"></script>
+<script src="app.js?v=184"></script>
 <script src="event-battle-scheduler.js?v=3"></script>
 <style>
 /* v11 final home refinements */
