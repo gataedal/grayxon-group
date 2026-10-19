@@ -3989,6 +3989,19 @@ async function trainingTpl(options = {}) {
 
   const sectionHtml = (title, items, emptyText, sectionKey) => `<section class="formation-section library-section" data-formation-section="${sectionKey}"><div class="library-section-heading"><h2>${title}</h2><span>${items.length} ${items.length===1?'módulo':'módulos'}</span></div><div class="formation-group-list library-module-grid">${items.length ? items.map(moduleCard).join('') : `<div class="library-empty-group">${emptyText}</div>`}</div></section>`;
 
+  $('#training').innerHTML = `<div class="formation-page library-page">
+    <div class="library-page-heading">
+      <div><span class="library-eyebrow">TU ESPACIO DE APRENDIZAJE</span><h1>Biblioteca</h1><p class="library-subtitle">Todo lo que necesitas para seguir creciendo, en un solo lugar.</p></div>
+      ${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Mi espacio</button>'}
+    </div>
+    <div class="library-progress-summary"><div><span>TU PROGRESO</span><strong>${totalPct}%</strong><small>${totalDone} de ${totalLessons} contenidos completados</small></div><div class="library-progress-track"><span style="width:${totalPct}%"></span></div></div>
+    ${nextPending ? `<section class="library-continue"><div class="library-continue-art"><span>▶</span></div><div class="library-continue-copy"><span class="library-eyebrow">CONTINÚA APRENDIENDO</span><h2>${esc(nextPending.title)}</h2><p>${esc(nextPending.description || (modules || []).find(m => m.id === nextPending.module_id)?.title || 'Tu siguiente contenido')}</p><button type="button" class="library-continue-button" data-lesson="${nextPending.id}">Continuar <b>→</b></button></div></section>` : `<section class="library-all-done"><strong>¡Has completado tu biblioteca!</strong><p>Terminaste todos los contenidos disponibles.</p></section>`}
+    <div class="library-collections">
+      ${sectionHtml('Explora los módulos',pendingModules,'No tienes contenidos pendientes.','pending')}
+      ${completedModules.length ? sectionHtml('Tu biblioteca completada',completedModules,'','completed') : ''}
+    </div>
+    <div class="lesson-view hidden" id="lessonView"></div>
+  </div>`;
   window._lessons = orderedLessons;
   window._modules = modules || [];
   window._done = done;
@@ -4007,8 +4020,7 @@ function renderFormationCompletedState(){
   view.classList.add('lesson-focus-active');
   view.innerHTML = `<div class="formation-complete-state">
     <div class="formation-complete-icon">✓</div>
-    <div class="eyebrow">GRAYXON ACADEMY</div>
-    <h2>¡Has completado la formación disponible!</h2>
+    <h2>¡Has completado tu biblioteca!</h2>
     <p>Terminaste todas las lecciones publicadas a las que tienes acceso. Puedes volver a consultar cualquier contenido desde la lista.</p>
   </div>`;
 }
