@@ -3895,6 +3895,10 @@ function ensureFormationRedesignStyles(){
     #training .library-section-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
     #training .library-section-heading h2{margin:0;font-size:16px;font-weight:800;letter-spacing:-.02em}
     #training .library-section-heading>span{color:#8e96a2;font-size:10px}
+    #training .library-page-heading,
+    #training .library-progress-summary{display:none!important}
+    #training [data-formation-section="pending"] .library-section-heading{display:none!important}
+    #training [data-formation-section="pending"]:has(.library-empty-group){display:none!important}
     #training .library-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
     #training .library-module-card{min-width:0;overflow:hidden;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:#101216}
     #training .library-module-card.is-next-module{border-color:rgba(37,244,238,.27)}
