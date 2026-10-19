@@ -424,9 +424,29 @@ nav.addEventListener('click',function(e){
  const action=button.dataset.gxBottom;
  if(action==='home'){
   if(scrollCurrentSectionToTop())return;
+  /* Salir explícitamente de Eventos antes de volver al panel: puede conservar un modo fullscreen. */
+  if(typeof window.gxEventsExitFullscreen==='function'){try{window.gxEventsExitFullscreen()}catch(err){console.warn('No se pudo cerrar el modo ampliado de Eventos',err)}}
+  const destination=document.querySelector('body.grayxon-admin-session')?'admin':document.querySelector('body.grayxon-manager-session')?'manager':(document.querySelector('body.grayxon-creator-session')?'space':null);
   if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
   else {const fallback=document.getElementById('openMySpace');if(fallback)fallback.click();}
-  setTimeout(syncActive,180);return;
+  /* Reconciliar la vista con el destino de rol tras el render principal. */
+  const forceDashboardView=()=>{
+    const targetId=destination||((location.hash||'').slice(1))||'space';
+    const target=document.getElementById(targetId);
+    if(!target||!['admin','manager','space'].includes(targetId))return;
+    ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','force-password','events','payments'].forEach(id=>{
+      const el=document.getElementById(id);if(!el)return;
+      const active=id===targetId;
+      el.classList.toggle('hidden',!active);el.hidden=!active;
+      if(active){el.removeAttribute('aria-hidden');el.style.removeProperty('display')}
+      else el.setAttribute('aria-hidden','true');
+    });
+    history.replaceState({...history.state,page:targetId},'',location.pathname+location.search+'#'+targetId);
+    window.scrollTo({top:0,behavior:'auto'});
+  };
+  setTimeout(forceDashboardView,80);
+  setTimeout(forceDashboardView,350);
+  setTimeout(syncActive,400);return;
  }
  if(action==='profile'){
   if(typeof window.grayxonToggleProfileMenu==='function')window.grayxonToggleProfileMenu();
@@ -446,8 +466,22 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 </script>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=186"></script>
+<script src="app.js?v=187"></script>
 <script src="event-battle-scheduler.js?v=3"></script>
+<style id="grayxon-bottom-nav-final-overrides">
+/* Última prioridad: el script principal inyecta estilos de navegación después del primer bloque. */
+body.gx-bottom-nav-authenticated #grayxonBottomNav button,
+body.gx-bottom-nav-authenticated #grayxonBottomNav button.active,
+body.gx-bottom-nav-authenticated #grayxonBottomNav button:focus,
+body.gx-bottom-nav-authenticated #grayxonBottomNav button:hover,
+body.gx-bottom-nav-authenticated #grayxonBottomNav button .gx-nav-icon,
+body.gx-bottom-nav-authenticated #grayxonBottomNav button.active .gx-nav-icon {
+  color:#c3c8d1!important;
+  background:transparent!important;
+  filter:none!important;
+}
+body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display:none!important}
+</style>
 <style>
 /* v11 final home refinements */
 .modern-title-block{gap:10px!important}
