@@ -1513,6 +1513,7 @@ function ensureProfileSettingsStyles(){
   if(document.getElementById('gx-profile-settings-v1'))return;
   const style=document.createElement('style');style.id='gx-profile-settings-v1';
   style.textContent='.gx-profile-settings{display:grid;gap:16px;max-width:900px;margin:0 auto}.gx-profile-settings-heading h2{margin:0;color:#f7f9fb;font-size:24px}.gx-profile-settings-heading p{margin:6px 0 0;color:#9da8b5;font-size:13px}.gx-profile-setting-row{display:flex;align-items:center;gap:13px;width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.025);color:#f7f9fb;text-align:left;cursor:pointer}.gx-profile-setting-row:hover,.gx-profile-setting-row[aria-expanded=true]{border-color:rgba(37,244,238,.4);background:rgba(37,244,238,.04)}.gx-profile-setting-icon{width:45px;height:45px;flex:0 0 45px;display:grid;place-items:center;border-radius:13px;background:rgba(37,244,238,.09);color:#25F4EE}.gx-profile-setting-icon svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.gx-profile-setting-icon.security{background:rgba(232,121,249,.09);color:#e879f9}.gx-profile-setting-copy{flex:1;min-width:0}.gx-profile-setting-copy strong{display:block;font-size:15px}.gx-profile-setting-copy small{display:block;margin-top:4px;color:#9da8b5;font-size:12px;line-height:1.4}.gx-profile-setting-chevron{font-size:25px;color:#cbd5e1;transition:transform .18s}.gx-profile-setting-row[aria-expanded=true] .gx-profile-setting-chevron{transform:rotate(90deg);color:#25F4EE}.gx-profile-editor{display:grid;gap:12px;margin-top:10px;padding:17px;border:1px solid rgba(37,244,238,.18);border-radius:15px;background:rgba(5,12,15,.5)}.gx-profile-editor h3{margin:0;color:#fff;font-size:17px}.gx-profile-editor .field{min-width:0}.gx-profile-editor input,.gx-profile-editor select{max-width:100%;box-sizing:border-box}.gx-profile-editor-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:4px}.gx-profile-editor-actions .primary{min-width:145px}.gx-profile-security-action{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid rgba(255,255,255,.08);border-radius:12px}.gx-profile-security-action strong{display:block;color:#fff}.gx-profile-security-action small{display:block;margin-top:4px;color:#9da8b5;font-size:12px;line-height:1.4}.gx-profile-password-panel[hidden]{display:none!important}.gx-profile-password-panel{display:grid;gap:10px;padding:13px;border:1px solid rgba(232,121,249,.2);border-radius:12px}.gx-profile-actions-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:8px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06)}.gx-profile-settings .gx-profile-action-btn{appearance:none!important;-webkit-appearance:none!important;box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:9px!important;flex:0 1 auto!important;width:auto!important;min-width:168px!important;min-height:44px!important;height:auto!important;margin:0!important;padding:11px 17px!important;border-radius:12px!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;text-transform:none!important;text-align:center!important;white-space:normal!important;opacity:1!important;filter:none!important;box-shadow:none!important;cursor:pointer!important;transition:background .18s,border-color .18s,transform .18s!important}.gx-profile-settings .gx-profile-notifications-btn{background:rgba(37,244,238,.08)!important;color:#7dfaf5!important;border:1px solid rgba(37,244,238,.35)!important}.gx-profile-settings .gx-profile-notifications-btn:hover{background:rgba(37,244,238,.14)!important;border-color:#25F4EE!important}.gx-profile-settings .gx-profile-notifications-btn:disabled{opacity:.55!important;cursor:not-allowed!important}.gx-profile-settings .gx-profile-logout{background:rgba(255,86,105,.055)!important;color:#ff9ba7!important;border:1px solid rgba(255,110,125,.28)!important}.gx-profile-settings .gx-profile-logout:hover{background:rgba(255,86,105,.12)!important;border-color:rgba(255,110,125,.5)!important}.gx-profile-settings .gx-profile-action-btn:focus-visible{outline:2px solid rgba(37,244,238,.65)!important;outline-offset:3px!important}.gx-profile-settings .gx-profile-password-panel .field input{width:100%;min-height:44px;padding:11px 13px;border:1px solid #343c45;border-radius:11px;background:#0b0f13;color:#f7f9fb;font:inherit;box-sizing:border-box}.gx-profile-settings .gx-profile-password-panel .field input:focus{outline:2px solid rgba(37,244,238,.3);border-color:#25F4EE}@media(max-width:600px){.gx-profile-setting-row{gap:10px;padding:12px}.gx-profile-setting-icon{width:42px;height:42px;flex-basis:42px}.gx-profile-setting-copy strong{font-size:14px}.gx-profile-editor{padding:13px}.gx-profile-editor-actions{flex-direction:column-reverse}.gx-profile-editor-actions button{width:100%}.gx-profile-security-action{align-items:flex-start;flex-direction:column}.gx-profile-security-action button{width:100%}.gx-profile-actions-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;align-items:stretch}.gx-profile-settings .gx-profile-action-btn{width:100%!important;min-width:0!important;min-height:46px!important;padding:10px 8px!important;font-size:12px!important}.gx-profile-settings .gx-profile-logout{width:100%!important}}';
+  style.textContent += ".gx-profile-settings .gx-profile-editor-actions{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-end!important;gap:10px!important;width:100%!important;margin-top:8px!important}.gx-profile-settings .gx-profile-editor-actions button{appearance:none!important;-webkit-appearance:none!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;flex:0 1 auto!important;width:auto!important;min-width:120px!important;max-width:220px!important;min-height:44px!important;height:auto!important;margin:0!important;padding:11px 16px!important;border-radius:11px!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:1.2!important;white-space:normal!important;text-align:center!important;box-shadow:none!important;opacity:1!important}.gx-profile-settings .gx-profile-editor-actions .primary{background:linear-gradient(135deg,#25F4EE,#78fff7)!important;border:1px solid #25F4EE!important;color:#061012!important}.gx-profile-settings .gx-profile-editor-actions .secondary{background:#11161b!important;border:1px solid #343c45!important;color:#e7edf2!important}.gx-profile-settings .gx-profile-editor-actions .secondary:hover{border-color:rgba(37,244,238,.55)!important;color:#25F4EE!important}.gx-profile-settings .gx-profile-security-action button{appearance:none!important;-webkit-appearance:none!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:150px!important;max-width:220px!important;min-height:44px!important;padding:11px 15px!important;border-radius:11px!important;background:#11161b!important;border:1px solid #343c45!important;color:#e7edf2!important;font-size:13px!important;font-weight:700!important;box-shadow:none!important;opacity:1!important}.gx-profile-settings .gx-profile-security-action button:hover{border-color:rgba(37,244,238,.55)!important;color:#25F4EE!important}@media(max-width:600px){.gx-profile-settings .gx-profile-editor-actions{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;flex-direction:unset!important;justify-content:stretch!important;gap:9px!important}.gx-profile-settings .gx-profile-editor-actions button{width:100%!important;min-width:0!important;max-width:none!important;min-height:44px!important;padding:10px 8px!important;font-size:12px!important}.gx-profile-settings .gx-profile-security-action{align-items:stretch!important;flex-direction:column!important}.gx-profile-settings .gx-profile-security-action button{width:100%!important;min-width:0!important;max-width:none!important}}";
   document.head.appendChild(style);
 }
 function profileTpl(){
@@ -5725,30 +5726,69 @@ function ensureCreatorNotificationMenuAction(){
   }
   const standalone=isGrayxonStandalone();
   const hasSupport=('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
-  const denied=hasSupport && Notification.permission==='denied';
-  btn.innerHTML=denied ? '<span aria-hidden="true">🔕</span><span>Notificaciones bloqueadas</span>' : '<span aria-hidden="true">🔔</span><span>Activar notificaciones</span>';
-  btn.disabled=denied;
+  const setState=(state)=>{
+    if(!btn.isConnected)return;
+    if(state==='active'){
+      btn.dataset.gxPushActive='1';
+      btn.disabled=true;
+      btn.innerHTML='<span aria-hidden="true">✓</span><span>Notificaciones activadas</span>';
+      btn.setAttribute('aria-label','Notificaciones activadas en este dispositivo');
+      btn.title='Las notificaciones ya están activadas en este dispositivo';
+    }else if(state==='denied'){
+      btn.disabled=true;
+      btn.innerHTML='<span aria-hidden="true">🔕</span><span>Notificaciones bloqueadas</span>';
+      btn.setAttribute('aria-label','Notificaciones bloqueadas en este dispositivo');
+      btn.title='Activa los permisos de notificaciones en la configuración del dispositivo';
+    }else{
+      delete btn.dataset.gxPushActive;
+      btn.disabled=false;
+      btn.innerHTML='<span aria-hidden="true">🔔</span><span>Activar notificaciones</span>';
+      btn.setAttribute('aria-label','Activar notificaciones en este dispositivo');
+      btn.removeAttribute('title');
+    }
+  };
+  if(btn.dataset.gxPushActive==='1')return;
+  if(!hasSupport){setState('ready');btn.onclick=()=>toast('Este dispositivo/navegador no permite notificaciones web.');return;}
+  if(Notification.permission==='denied'){setState('denied');return;}
+  setState('ready');
+  if(btn.dataset.gxPushChecking!=='1'){
+    btn.dataset.gxPushChecking='1';
+    (async()=>{
+      try{
+        if(Notification.permission==='granted'){
+          const registration=await navigator.serviceWorker.register('./sw.js?v=49',{scope:'./',updateViaCache:'none'});
+          const existing=await registration.pushManager.getSubscription();
+          if(existing && Notification.permission==='granted'){setState('active');return;}
+        }
+      }catch(e){console.warn('No se pudo consultar el estado de las notificaciones de Grayxon:',e);}
+      finally{delete btn.dataset.gxPushChecking;}
+    })();
+  }
   btn.onclick=async(e)=>{
-    e.preventDefault(); e.stopPropagation();
-    if(!hasSupport){ toast('Este dispositivo/navegador no permite notificaciones web.'); return; }
+    e.preventDefault();e.stopPropagation();
+    if(btn.dataset.gxPushActive==='1')return;
+    if(!hasSupport){toast('Este dispositivo/navegador no permite notificaciones web.');return;}
     if(/iPhone|iPad|iPod/i.test(navigator.userAgent) && !standalone){
       showGrayxonInstallHelp();
       toast('En iPhone primero debes abrir Grayxon como app instalada.');
       return;
     }
+    btn.disabled=true;
+    btn.innerHTML='<span aria-hidden="true">…</span><span>Activando…</span>';
     const subscription=await registerGrayxonPush({requestPermission:true});
     if(subscription){
+      setState('active');
       toast('Notificaciones activadas ✓');
-      btn.innerHTML='<span aria-hidden="true">✓</span><span>Notificaciones activadas</span>';
       closeProfileMenu();
     }else if(Notification.permission==='denied'){
+      setState('denied');
       toast('Las notificaciones están bloqueadas. Actívalas en los permisos de Grayxon.');
     }else{
+      setState('ready');
       toast('No se pudieron activar las notificaciones.');
     }
   };
 }
-
 function toggleProfileMenu(){
   const menu=$('#profileMenu'); if(!menu) return;
   const willOpen=menu.classList.contains('hidden');
