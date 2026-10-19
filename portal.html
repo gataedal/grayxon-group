@@ -472,8 +472,10 @@ nav.addEventListener('click',function(e){
   return;
  }
  if(action==='profile'){
-  if(typeof window.grayxonToggleProfileMenu==='function')window.grayxonToggleProfileMenu();
-  else if(profileMenu)profileMenu.classList.toggle('hidden');
+  /* El acceso Perfil navega a la página de perfil; no abre el antiguo menú flotante. */
+  const directProfileButton=document.getElementById('mobileProfile');
+  if(directProfileButton){directProfileButton.click();}
+  else if(typeof window.grayxonNavigateToProfile==='function'){window.grayxonNavigateToProfile();}
   return;
  }
  if(action==='notifications'){
@@ -489,7 +491,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 </script>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=215"></script>
+<script src="app.js?v=216"></script>
 <script src="event-battle-scheduler.js?v=3"></script>
 <style id="grayxon-bottom-nav-final-overrides">
 /* Última prioridad: el script principal inyecta estilos de navegación después del primer bloque. */
