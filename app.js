@@ -7628,10 +7628,10 @@ async function gxLoadAnnouncements({silent=false}={}){
     sb.from('announcement_reactions').select('announcement_id,emoji,user_id').in('announcement_id',ids),
     sb.from('announcement_reads').select('announcement_id').eq('user_id',session.user.id).in('announcement_id',ids),
     sb.from('announcement_reactions').select('announcement_id,emoji').eq('user_id',session.user.id).in('announcement_id',ids),
-    sb.from('profile_details').select('user_id,avatar_url,photo_url,profile_photo_url,image_url').in('user_id',authorIds),
+    sb.from('profile_details').select('user_id,avatar_url').in('user_id',authorIds),
     sb.from('profiles').select('id,full_name,username,role').in('id',authorIds)
   ]);
-  const avatarByUser=new Map((authorDetails||[]).map(x=>[x.user_id,x.avatar_url||x.photo_url||x.profile_photo_url||x.image_url||'']));
+  const avatarByUser=new Map((authorDetails||[]).map(x=>[x.user_id,x.avatar_url||'']));
   const authorByUser=new Map((authorProfiles||[]).map(x=>[x.id,x]));
   const readSet=new Set((mineReads||[]).map(x=>x.announcement_id)); const myReactions=new Set((mineReactions||[]).map(x=>`${x.announcement_id}:${x.emoji}`));
   feed.innerHTML=items.map(a=>{
