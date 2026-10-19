@@ -2566,8 +2566,8 @@ async function startGrayxonLiveTraining(training, options={}){
         const hostId=String(hostIdValue);
         window.__gxHostParticipantId=hostId;
         // Fijar al anfitrión y seleccionar su vídeo en la vista principal.
-        // setLargeVideoParticipant es un método de la API externa, no un comando
-        // de executeCommand. Se mantiene el pin como respaldo de la prioridad visual.
+        // La API externa documenta setLargeVideoParticipant como método directo;
+        // pinParticipant mantiene además la prioridad de recepción del vídeo.
         try{api.pinParticipant?.(hostId,'camera');}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la pista del anfitrión',err);}
         if(String(window.__grayxonLargeVideoParticipant||'')!==hostId){
           try{
