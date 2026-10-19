@@ -1498,10 +1498,12 @@ async function saveFirstPassword(){
 
 function authTpl() {
   return `<style>
+    html.grayxon-auth-active{height:100%!important;overflow:hidden!important;overscroll-behavior:none!important}
+    body.grayxon-auth-active{position:fixed!important;top:0!important;left:0!important;right:0!important;width:100%!important;height:100dvh!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;overscroll-behavior:none!important}
     body.grayxon-auth-active main.wrap{box-sizing:border-box;width:100%!important;max-width:none!important;height:calc(100dvh - 68px - env(safe-area-inset-top,0px))!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important}
     body.grayxon-auth-active header.top .header-actions .profile-menu-wrap{display:none!important}
     body.grayxon-auth-active #auth{box-sizing:border-box;height:100%!important;min-height:0!important;max-height:100%!important;display:grid;place-items:stretch center;overflow:hidden!important;padding:0!important;background:#030405!important;isolation:isolate}
-    body.grayxon-auth-active #auth .gx-login-shell{box-sizing:border-box;position:relative;isolation:isolate;overflow:hidden;width:min(100%,680px);height:100%!important;min-height:0!important;max-height:100%!important;display:flex;flex-direction:column;justify-content:center;margin:0 auto;padding:clamp(24px,4vh,44px) clamp(22px,4vw,48px);border:1px solid rgba(210,220,235,.2);border-radius:26px;background:radial-gradient(ellipse at 50% 0%,rgba(90,104,125,.14),transparent 45%);background:linear-gradient(145deg,#090b0f,#030405 70%);box-shadow:0 24px 80px rgba(0,0,0,.45)}
+    body.grayxon-auth-active #auth .gx-login-shell{box-sizing:border-box;position:relative;isolation:isolate;overflow:hidden;width:min(100%,680px);height:100%!important;min-height:0!important;max-height:100%!important;display:flex;flex-direction:column;justify-content:center;margin:0 auto;padding:clamp(24px,4vh,44px) clamp(22px,4vw,48px);border:1px solid rgba(210,220,235,.2);border-radius:26px;background:radial-gradient(ellipse at 50% 0%,rgba(90,104,125,.14),transparent 45%),linear-gradient(145deg,#090b0f,#030405 70%);box-shadow:0 24px 80px rgba(0,0,0,.45)}
     #auth .gx-login-shell:before{content:"";position:absolute;z-index:-1;inset:0;border-radius:inherit;background:linear-gradient(130deg,transparent 20%,rgba(230,237,255,.035) 48%,transparent 70%);pointer-events:none}
     #auth .gx-login-brand{display:flex;justify-content:center;align-items:center;margin:0 auto 30px;width:min(100%,270px);height:88px}
     #auth .gx-login-brand img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
