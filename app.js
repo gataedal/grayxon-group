@@ -1269,6 +1269,9 @@ window.grayxonNavigateToDashboard = function(){
   if(!session){ nav('auth'); return; }
   const destination = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
   window.grayxonDashboardPage = destination;
+  /* Restablecer el subapartado interno antes de renderizar el panel principal. */
+  if(destination === 'admin') adminView = 'dashboard';
+  if(destination === 'manager') managerView = 'dashboard';
   nav(destination);
 };
 window.grayxonToggleProfileMenu = function(){
