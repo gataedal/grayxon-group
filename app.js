@@ -1583,6 +1583,36 @@ function ensureCreatorDashboardStyles(){
   const style=document.createElement('style');
   style.id='grayxon-creator-dashboard-styles';
   style.textContent=`
+    /* Perfil premium: saludo y avatar a la izquierda; manager y equipo a la derecha. */
+    .creator-dashboard-hero.creator-profile-hero{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto;align-items:center;column-gap:22px;min-height:174px;padding:24px 24px 22px}
+    .creator-profile-left{grid-column:1;grid-row:1;display:flex;align-items:center;gap:17px;min-width:0;padding-right:12px}
+    .creator-profile-hero .creator-dashboard-avatar{flex:0 0 88px!important;width:88px!important;height:88px!important}
+    .creator-profile-hero .creator-dashboard-identity{padding:18px 0 0;min-width:0}
+    .creator-profile-greeting{font-size:12px;font-weight:750;color:#a2aab6;letter-spacing:.04em;margin-bottom:3px}
+    .creator-profile-hero .creator-dashboard-identity:before{display:none!important}
+    .creator-profile-hero .creator-dashboard-identity h1{overflow-wrap:anywhere;font-size:clamp(18px,2vw,25px)!important;margin:0 0 4px!important}
+    .creator-profile-hero .creator-dashboard-identity .creator-username{color:#8e97a4;font-size:12px!important}
+    .creator-profile-hero .creator-dashboard-role{position:absolute;top:14px;right:18px;z-index:2;grid-column:auto;grid-row:auto}
+    .creator-profile-hero .creator-dashboard-role .role-pill{text-transform:none;letter-spacing:.02em;font-size:11px!important;padding:6px 11px!important}
+    .creator-profile-hero .creator-space-team-wrap{grid-column:2;grid-row:1;align-self:stretch;min-height:104px;height:auto;margin:0;padding:30px 0 4px 22px;border-left:1px solid rgba(255,255,255,.12);display:flex;align-items:center;min-width:0}
+    .creator-profile-hero .creator-space-team{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px 12px;min-width:0}
+    .creator-profile-hero .creator-space-team-label{grid-column:1/-1;font-size:10px;letter-spacing:1.7px;color:#25f4ee}
+    .creator-profile-hero .creator-space-team strong{grid-column:1;font-size:16px;overflow-wrap:anywhere}
+    .creator-profile-hero .creator-space-team small{grid-column:1;font-size:12px;overflow-wrap:anywhere}
+    .creator-profile-hero .creator-space-team .creator-contact-btn{grid-column:2;grid-row:2/4;align-self:center;margin:0;white-space:nowrap;min-height:38px;padding:0 13px;border-color:rgba(37,244,238,.32);background:linear-gradient(120deg,rgba(37,244,238,.1),rgba(254,44,85,.07));font-size:12px}
+    .creator-profile-hero .install-grayxon-dashboard{margin-top:10px;min-height:30px;padding:0 11px;font-size:11px}
+    @media(max-width:680px){
+      .creator-dashboard-hero.creator-profile-hero{grid-template-columns:minmax(0,1fr);gap:14px;padding:20px 16px 16px}
+      .creator-profile-left{grid-column:1;grid-row:1;gap:13px;padding:12px 0 14px;border-bottom:1px solid rgba(255,255,255,.1)}
+      .creator-profile-hero .creator-dashboard-avatar{flex-basis:68px!important;width:68px!important;height:68px!important}
+      .creator-profile-hero .creator-dashboard-identity{padding:10px 0 0}
+      .creator-profile-hero .creator-dashboard-role{top:10px;right:12px}
+      .creator-profile-hero .creator-dashboard-role .role-pill{font-size:10px!important;padding:5px 9px!important}
+      .creator-profile-hero .creator-space-team-wrap{grid-column:1;grid-row:2;border-left:0;border-top:0;padding:0;min-height:0;margin:0}
+      .creator-profile-hero .creator-space-team{grid-template-columns:minmax(0,1fr) auto;gap:5px 8px}
+      .creator-profile-hero .creator-space-team strong{font-size:15px}
+      .creator-profile-hero .creator-space-team .creator-contact-btn{grid-column:2;grid-row:2/4;padding:0 11px}
+    }
     .creator-dashboard{max-width:980px;margin:0 auto;display:grid;gap:14px}
     .creator-dashboard-loading-card{min-height:120px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.08);border-radius:18px;background:rgba(15,16,20,.96);color:#8f96a2;font-size:14px}
     .creator-dashboard-hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:0;padding:18px 20px;border:1px solid rgba(255,255,255,.1);border-radius:22px;background:radial-gradient(ellipse at 0% 0%,rgba(37,244,238,.07),transparent 48%),radial-gradient(ellipse at 100% 100%,rgba(254,44,85,.07),transparent 48%),linear-gradient(145deg,#101318,#080a0d);box-shadow:0 18px 50px rgba(0,0,0,.22)}
@@ -1674,12 +1704,11 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const cachedAvatar=profileDetails?.avatar_url ? `<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
   if(spaceEl && !spaceEl.querySelector('.creator-dashboard')){
     spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
-      <section class="creator-dashboard-hero">
-        <div class="creator-dashboard-avatar">${cachedAvatar}</div>
-        <div class="creator-dashboard-identity"><h1>${esc(cachedName)}</h1><span class="creator-username">@${esc(cachedUser)}</span></div>
-        <div class="creator-dashboard-role"><span class="role-pill">CREADOR GRAYXON</span><button type="button" class="primary small install-grayxon-dashboard" id="installGrayxonDashboard" style="white-space:nowrap">📲 Instalar</button></div>
+      <section class="creator-dashboard-hero creator-profile-hero">
+        <div class="creator-profile-left"><div class="creator-dashboard-avatar">${cachedAvatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí</span><button type="button" class="primary small install-grayxon-dashboard" id="installGrayxonDashboard">📲 Instalar Grayxon</button></div></div>
+        <div class="creator-dashboard-role"><span class="role-pill">Creador</span></div>
+        <div class="creator-space-team-wrap"><div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>Buscando manager…</strong><small>Actualizando tu equipo</small></div></div>
       </section>
-      <div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando tu información…</small></div></div></div>
       <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid">
         <div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando tus misiones…</small></div>
         <div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando tu formación…</small></div>
@@ -1757,7 +1786,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const paymentsCard=`<button type="button" class="creator-dashboard-card gx-payments-dashboard-card" data-page="payments"><span class="creator-dashboard-card-icon">💸</span><span class="creator-dashboard-card-meta">Historial</span><strong>Mis pagos</strong><p>Consulta tus pagos, liquidaciones y comprobantes.</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><h1>${esc(profile?.full_name||profile?.username||'Grayxon')}</h1><span class="creator-username">@${esc(profile?.username||'creador')}</span><button type="button" class="primary small install-grayxon-dashboard" id="installGrayxonDashboard">📲 Instalar Grayxon</button></div><div class="creator-dashboard-role"><span class="role-pill">CREADOR GRAYXON</span></div><div class="creator-space-team-wrap">${assignmentHTML}</div></section>
+    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí</span><button type="button" class="primary small install-grayxon-dashboard" id="installGrayxonDashboard">📲 Instalar Grayxon</button></div></div><div class="creator-dashboard-role"><span class="role-pill">Creador</span></div><div class="creator-space-team-wrap">${assignmentHTML}</div></section>
     ${performanceHTML}
     <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}${paymentsCard}${gxAnnouncementDashboardCard(true)}</div>${profileIncomplete}
   </div>`;
@@ -1774,7 +1803,7 @@ function renderCreatorSpaceImmediate(){
   const name=profile?.full_name||profile?.username||'Grayxon';
   const user=profile?.username||'creador';
   const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
-  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><h1>${esc(name)}</h1><span class="creator-username">@${esc(user)}</span><button type="button" class="primary small install-grayxon-dashboard" id="installGrayxonDashboard">📲 Instalar Grayxon</button></div><div class="creator-dashboard-role"><span class="role-pill">CREADOR GRAYXON</span></div></section><div class="creator-assignment-card"><div class="creator-assignment-main"><span class="creator-assignment-icon">👥</span><div><strong>Tu equipo y manager</strong><small>Actualizando…</small></div></div></div><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
+  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí</span><button type="button" class="primary small install-grayxon-dashboard" id="installGrayxonDashboard">📲 Instalar Grayxon</button></div></div><div class="creator-dashboard-role"><span class="role-pill">Creador</span></div><div class="creator-space-team-wrap"><div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>Actualizando…</strong><small>Buscando tu equipo</small></div></div></section><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
   bind();
 }
 
