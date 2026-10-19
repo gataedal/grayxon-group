@@ -5874,7 +5874,7 @@ async function uploadProfileAvatar(){
   if(!file||!session) return;
   const status=$('#profileAvatarStatus');
   const showStatus=(message)=>{const el=$('#profileAvatarStatus');if(el)el.textContent=message;};
-  if(!/^image\\/(png|jpeg|webp)$/i.test(file.type)){showStatus('Usa una imagen JPG, PNG o WebP.');if(input)input.value='';return;}
+  if(!/^image\/(png|jpeg|webp)$/i.test(file.type)){showStatus('Usa una imagen JPG, PNG o WebP.');if(input)input.value='';return;}
   if(file.size>5*1024*1024){showStatus('La foto debe pesar menos de 5 MB.');if(input)input.value='';return;}
   const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
   const path=`${session.user.id}/${Date.now()}.${ext}`;
