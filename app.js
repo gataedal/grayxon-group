@@ -2243,9 +2243,10 @@ async function loadCreatorDashboardEventHighlights(expectedNav=navGeneration){
   const uid=session.user.id;
   const hide=()=>{if(host.isConnected){host.innerHTML='';host.hidden=true;}};
   try{
-    const [eventResult,profileResult,participantResult]=await Promise.all([
+    const [eventResult,participantResult]=await Promise.all([
+      // RLS uses gx_event_can_view(id), which already checks whether this creator
+      // belongs to the event audience (including selected accounts and teams).
       sb.from('gx_events').select('id,title,description,event_type,status,audience,registration_open,starts_at,ends_at').in('status',['published','in_progress','scheduled','upcoming']).order('starts_at',{ascending:true,nullsFirst:false}),
-      sb.from('profiles').select('id,team_id,role').eq('id',uid).maybeSingle(),
       sb.from('gx_event_participants').select('event_id,status').eq('user_id',uid)
     ]);
     if(expectedNav!==navGeneration||current!=='space'||session?.user?.id!==uid||!host.isConnected)return;
@@ -2256,25 +2257,14 @@ async function loadCreatorDashboardEventHighlights(expectedNav=navGeneration){
     const isPast=e=>['finished','cancelled','completed'].includes(e.status)||(e.ends_at&&endOf(e)<now);
     const isLive=e=>!isPast(e)&&((e.status==='in_progress')||(startOf(e)<=now&&endOf(e)>=now&&['published','in_progress'].includes(e.status)));
     const isUpcoming=e=>!isPast(e)&&!isLive(e)&&['published','scheduled','upcoming'].includes(e.status)&&startOf(e)>now;
-    const candidates=(eventResult.data||[]).filter(e=>isLive(e)||isUpcoming(e));
+    const candidates=(eventResult.data||[]).filter(e=>(isLive(e)||isUpcoming(e))&&(!e.audience||['all','creators','selected'].includes(e.audience)));
     if(!candidates.length){hide();return;}
-    const selectedIds=candidates.filter(e=>(e.audience||'all')==='selected').map(e=>e.id);
-    const [targetsResult,mediaResult]=await Promise.all([
-      selectedIds.length?sb.from('gx_event_audience_targets').select('event_id,target_type,target_id').in('event_id',selectedIds):Promise.resolve({data:[],error:null}),
-      sb.from('gx_event_media').select('event_id,file_url,mime_type,is_cover,sort_order').in('event_id',candidates.map(e=>e.id)).order('sort_order')
-    ]);
+    const mediaResult=await sb.from('gx_event_media').select('event_id,file_url,mime_type,is_cover,sort_order').in('event_id',candidates.map(e=>e.id)).order('sort_order');
     if(expectedNav!==navGeneration||current!=='space'||session?.user?.id!==uid||!host.isConnected)return;
-    const profileRow=profileResult.data||profile||{};
     const participants=participantResult.data||[];
-    const targets=targetsResult.error?[]:(targetsResult.data||[]);
-    const eligible=e=>{
-      const audience=e.audience||'all';
-      if(audience==='all'||audience==='creators')return profileRow.role==='creator';
-      if(audience!=='selected'||targetsResult.error)return false;
-      return targets.some(t=>t.event_id===e.id&&((t.target_type==='user'&&t.target_id===uid)||(t.target_type==='team'&&profileRow.team_id&&t.target_id===profileRow.team_id)));
-    };
+    // The events query is already audience-filtered by the database policy. Do not
+    // query gx_event_audience_targets directly: that table is intentionally admin-only.
     const visible=candidates.filter(e=>{
-      if(!eligible(e))return false;
       const participant=participants.find(p=>p.event_id===e.id&&['registered','confirmed'].includes(p.status));
       if(isLive(e))return e.registration_open===true||!!participant;
       return isUpcoming(e);
