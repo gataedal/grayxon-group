@@ -6257,21 +6257,13 @@ async function init() {
   if (profileBtn) profileBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!session) {
-      nav('auth');
-      return;
-    }
-    toggleProfileMenu();
+    if (!session) { nav('auth'); return; }
+    closeProfileMenu();
+    nav('profile');
   });
   if (profileMenu) profileMenu.addEventListener('click', (e) => e.stopPropagation());
-  if (openMyProfile) openMyProfile.addEventListener('click', () => {
-    closeProfileMenu();
-    if (session) nav('profile'); else nav('auth');
-  });
-  if (menuLogout) menuLogout.addEventListener('click', () => {
-    closeProfileMenu();
-    logout();
-  });
+  
+  
   document.addEventListener('click', () => { closeProfileMenu(); $('#notificationsPanel')?.classList.add('hidden'); });
 
   const { data } = await sb.auth.getSession();
