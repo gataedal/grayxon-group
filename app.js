@@ -2257,10 +2257,33 @@ function ensureCreatorTrainingHighlight(){
   style.textContent='';
   document.head.appendChild(style);
 }
+function ensureCreatorDashboardTrainingRealtime(){
+  const host=document.getElementById('gxCreatorTrainingHighlight');
+  if(!host||host.dataset.gxRealtimeReady==='1')return;
+  host.dataset.gxRealtimeReady='1';
+  // Realtime is the primary update path; a light polling fallback covers missed events.
+  try{
+    host._gxTrainingChannel=sb.channel('gx-creator-training-dashboard')
+      .on('postgres_changes',{event:'*',schema:'public',table:'live_trainings'},()=>{
+        if(current==='space')loadCreatorDashboardTrainingHighlight().catch(()=>{});
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'live_training_audience'},()=>{
+        if(current==='space')loadCreatorDashboardTrainingHighlight().catch(()=>{});
+      })
+      .subscribe();
+  }catch(error){console.warn('Training realtime subscription:',error?.message||error);}
+  if(!host._gxTrainingPollTimer){
+    host._gxTrainingPollTimer=setInterval(()=>{
+      if(current==='space'&&session?.user?.id&&profile?.role==='creator')
+        loadCreatorDashboardTrainingHighlight().catch(()=>{});
+    },10000);
+  }
+}
 async function loadCreatorDashboardTrainingHighlight(expectedNav=navGeneration){
   const host=document.getElementById('gxCreatorTrainingHighlight');
   if(!host||!session?.user?.id||profile?.role!=='creator'||current!=='space')return;
   const uid=session.user.id;
+  ensureCreatorDashboardTrainingRealtime();
   const hide=()=>{if(host.isConnected){host.innerHTML='';host.hidden=true;}};
   try{
     const {data:rows,error}=await sb.from('live_trainings')
