@@ -507,8 +507,7 @@ async function loadNotifications() {
     .select('id,type,title,message,link_page,link_target,related_week_start,related_week_end,read_at,created_at')
     .eq('user_id', session.user.id)
     .or(`created_at.gte.${sevenDaysAgo},read_at.is.null`)
-    .order('created_at', { ascending: false })
-    .limit(100);
+    .order('created_at', { ascending: false });
   if (error) { notifications = []; updateNotificationsUI(); return; }
   notifications = data || [];
   updateNotificationsUI();
