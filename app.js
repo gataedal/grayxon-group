@@ -1502,7 +1502,7 @@ function authTpl() {
     #auth .gx-login-subtitle{text-align:center!important;margin:9px 0 28px!important;color:#aab2c0!important;font-size:14px;line-height:1.6}
     #auth .gx-login-shell .field{margin:0 0 14px!important}
     #auth .gx-login-shell .field label{display:block;margin:0 0 8px!important;color:#c4cbd5!important;font-size:12px;font-weight:650;letter-spacing:.025em}
-    #auth .gx-login-shell .field input,#auth #resetEmail{box-sizing:border-box;width:100%;min-height:56px;padding:0 16px!important;border:1px solid #343a46!important;border-radius:14px!important;background:linear-gradient(145deg,#11141a,#090b0f)!important;color:#f7f8fb!important;font-size:15px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)!important;outline:none}
+    #auth .gx-login-shell .field input,#auth #resetEmail{box-sizing:border-box;width:100%;min-height:56px;padding:0 16px!important;border:1px solid #343a46!important;border-radius:14px!important;background:linear-gradient(145deg,#11141a,#090b0f)!important;color:#f7f8fb!important;font-size:16px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)!important;outline:none}
     #auth .gx-login-shell .field input:focus,#auth #resetEmail:focus{border-color:#8f9aaa!important;box-shadow:0 0 0 3px rgba(175,190,210,.09)!important}
     #auth .gx-login-options{display:flex;align-items:center;justify-content:flex-end;margin:2px 0 22px}
     #auth #forgotPasswordBtn{margin:0!important;padding:5px 0!important;border:0!important;background:transparent!important;color:#c5ccd7!important;font-size:12px!important;text-decoration:underline;text-underline-offset:3px;box-shadow:none!important}
@@ -1513,7 +1513,7 @@ function authTpl() {
     #auth .gx-login-contact{display:flex;justify-content:center;align-items:center;gap:5px;margin:24px 0 0!important;color:#aeb6c4!important;font-size:13px}
     #auth .gx-login-contact a{color:#f4f6fa!important;font-weight:700;text-decoration:underline;text-underline-offset:4px}
     #auth .gx-login-contact a:focus-visible,#auth #forgotPasswordBtn:focus-visible,#auth #loginBtn:focus-visible{outline:2px solid #9deeff;outline-offset:4px}
-    #auth #resetBox{margin-top:18px!important;padding:16px;border:1px solid rgba(210,220,235,.13);border-radius:16px;background:rgba(255,255,255,.025)}
+    #auth #resetBox{margin:0!important;padding:0!important;border:0!important;background:transparent!important}#auth .gx-reset-screen .gx-reset-icon{width:58px;height:58px;margin:0 auto 20px;display:grid;place-items:center;border:1px solid #3b424e;border-radius:18px;background:linear-gradient(145deg,#171b22,#090b0f);font-size:25px;color:#dce4ef}#auth .gx-reset-screen .gx-reset-back{width:100%;margin-top:12px;min-height:46px;border-radius:13px!important}#auth .gx-reset-screen .gx-reset-submit{width:100%;margin-top:12px;min-height:54px;border-radius:14px!important}
     #auth #sendResetBtn{width:100%;min-height:44px;border-radius:12px!important}
     #auth .gx-login-footer{margin-top:24px;text-align:center;color:#717987;font-size:10px;letter-spacing:.16em}
     @media(max-width:520px){#auth{min-height:calc(100dvh - 90px);padding:18px 12px!important;align-items:start}#auth .gx-login-shell{padding:26px 20px 24px;border-radius:22px}#auth .gx-login-brand{height:72px;margin-bottom:25px}#auth .gx-login-subtitle{margin-bottom:24px!important}#auth .gx-login-shell .field input{min-height:54px}#auth #loginBtn{min-height:57px}}
@@ -1528,7 +1528,7 @@ function authTpl() {
     <div class="gx-login-options"><button type="button" class="secondary small" id="forgotPasswordBtn">¿Olvidaste tu contraseña?</button></div>
     <div id="loginErr" class="error" role="alert" aria-live="polite"></div>
     <button type="button" class="primary" id="loginBtn">Iniciar sesión</button>
-    <div id="resetBox" class="hidden"><div class="muted small" style="margin-bottom:10px">Escribe tu correo para recibir un enlace de recuperación.</div><input id="resetEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com" aria-label="Correo para recuperar contraseña"><button class="secondary small" id="sendResetBtn" style="margin-top:10px">Enviar enlace</button><div id="resetErr" class="error" style="margin-top:8px" role="alert"></div></div>
+    
     <p class="gx-login-contact">¿No tienes cuenta? <a href="https://wa.me/573126283007?text=Hola%20Grayxon%2C%20quiero%20informaci%C3%B3n%20para%20acceder%20al%20portal." target="_blank" rel="noopener noreferrer">Contáctanos</a></p>
     <div class="gx-login-footer">GRAYXON GROUP · LIVE</div>
   </section>`;
@@ -5364,7 +5364,18 @@ function bind() {
   $('#mobileAdminOpen')?.addEventListener('click', () => { if(session) nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space'); else nav('auth'); });
   $$('#mobileNav [data-page]').forEach(b => b.addEventListener('click', () => $('#mobileNav')?.classList.remove('open')));
   $('#loginBtn')?.addEventListener('click', login);
-  $('#forgotPasswordBtn')?.addEventListener('click',()=>$('#resetBox')?.classList.toggle('hidden'));
+  $('#forgotPasswordBtn')?.addEventListener('click',()=>{const host=$('#auth');if(!host)return;host.innerHTML=`<style>
+#auth{min-height:calc(100dvh - 120px);display:grid;place-items:center;padding:clamp(16px,4vw,48px) 16px!important;background:#030405!important}
+#auth .gx-login-shell{width:min(100%,520px);margin:auto;padding:clamp(24px,5vw,48px);border:1px solid rgba(210,220,235,.2);border-radius:26px;background:radial-gradient(ellipse at 50% 0%,rgba(90,104,125,.14),transparent 45%),linear-gradient(145deg,#090b0f,#030405 70%);box-shadow:0 24px 80px #0007}
+#auth .gx-login-brand{display:flex;justify-content:center;height:76px;margin:0 auto 28px}#auth .gx-login-brand img{max-width:100%;max-height:100%;object-fit:contain}
+#auth .gx-login-title{text-align:center;font-size:30px;color:#f7f8fb;margin:0}#auth .gx-login-subtitle{text-align:center;color:#aab2c0;margin:10px 0 26px;font-size:14px;line-height:1.6}
+#auth .gx-reset-icon{width:58px;height:58px;margin:0 auto 20px;display:grid;place-items:center;border:1px solid #3b424e;border-radius:18px;background:linear-gradient(145deg,#171b22,#090b0f);font-size:25px;color:#dce4ef}
+#auth #resetEmail{box-sizing:border-box;width:100%;min-height:56px;padding:0 16px;border:1px solid #343a46;border-radius:14px;background:#101319;color:#fff;font-size:16px}
+#auth .gx-reset-submit{width:100%;margin-top:14px;min-height:56px;border:1.5px solid transparent;border-radius:15px;background:linear-gradient(#080b10,#080b10) padding-box,linear-gradient(105deg,#00eaff,#9ca7ff,#ff168f) border-box;color:#fff;font-size:15px;font-weight:800}
+#auth .gx-reset-back{width:100%;margin-top:10px;min-height:46px;border-radius:13px;background:transparent;border:1px solid #343a46;color:#c6ced9}
+#auth .gx-login-footer{margin-top:24px;text-align:center;color:#717987;font-size:10px;letter-spacing:.16em}
+@media(max-width:520px){#auth{min-height:calc(100dvh - 90px);padding:18px 12px!important;align-items:start}#auth .gx-login-shell{padding:26px 20px 24px;border-radius:22px}}
+</style><section class="gx-login-shell gx-reset-screen"><div class="gx-login-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"></div><div class="gx-reset-icon" aria-hidden="true">↻</div><h1 class="gx-login-title">Recuperar contraseña</h1><p class="gx-login-subtitle">Te enviaremos un enlace para que puedas volver a entrar a tu espacio en Grayxon.</p><label for="resetEmail" class="muted small">Correo electrónico</label><input id="resetEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com" aria-label="Correo para recuperar contraseña"><div id="resetErr" class="error" style="margin-top:10px" role="alert" aria-live="polite"></div><button type="button" class="gx-reset-submit" id="sendResetBtn">Enviar enlace</button><button type="button" class="gx-reset-back" id="resetBackBtn">Volver a iniciar sesión</button><div class="gx-login-footer">GRAYXON GROUP · LIVE</div></section>`;$('#sendResetBtn')?.addEventListener('click',sendPasswordReset);$('#resetBackBtn')?.addEventListener('click',()=>{const host=$('#auth');if(host)host.innerHTML=authTpl();bind();});});
   $('#sendResetBtn')?.addEventListener('click',sendPasswordReset);
   $('#adminLogout')?.addEventListener('click', logout);
   $$('[data-formation-module-toggle]').forEach(b => b.onclick = () => { const panel=$('#'+b.dataset.formationModuleToggle); if(!panel)return; const open=panel.classList.contains('hidden'); panel.classList.toggle('hidden',!open); b.classList.toggle('is-open',open); b.setAttribute('aria-expanded',open?'true':'false'); });
