@@ -1928,6 +1928,11 @@ function ensureCreatorDashboardStyles(){
     #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-avatar.creator-dashboard-avatar-editable{overflow:visible!important}
     #space .creator-dashboard-avatar-editable .creator-avatar-edit{position:absolute!important;right:-8px!important;bottom:-7px!important;z-index:20!important;display:grid!important;place-items:center!important;width:38px!important;height:38px!important;min-width:38px!important;padding:0!important;border:2px solid #25f4ee!important;border-radius:50%!important;background:#101519!important;color:#25f4ee!important;box-shadow:0 3px 12px rgba(0,0,0,.55)!important;cursor:pointer!important;opacity:1!important;visibility:visible!important}
     #space .creator-dashboard-avatar-editable .creator-avatar-edit svg{display:block!important;width:21px!important;height:21px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important}
+    @media(max-width:700px){
+      #space .creator-dashboard-avatar-editable .creator-avatar-edit{right:-5px!important;bottom:-4px!important;width:27px!important;height:27px!important;min-width:27px!important;border-width:1.5px!important}
+      #space .creator-dashboard-avatar-editable .creator-avatar-edit svg{width:15px!important;height:15px!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-avatar.creator-dashboard-avatar-editable{overflow:visible!important}
+    }
     #space #profileAvatarStatus{display:block;min-height:0;margin-top:5px;font-size:11px;color:#a5aab5}
     /* Compact welcome and manager details in Profile. */
     #space .creator-dashboard-hero.creator-profile-hero{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;min-height:0!important;height:auto!important;padding:20px 22px!important;border-radius:22px!important;background:linear-gradient(115deg,#0b1417,#0b0d11 58%,#160b12)!important;border:1px solid rgba(255,255,255,.12)!important;box-sizing:border-box!important}
@@ -5823,6 +5828,12 @@ function bind() {
     avatarRoot.addEventListener('change',event=>{
       if(event.target?.id==='profileAvatar') uploadProfileAvatar();
     });
+    avatarRoot.addEventListener('error',event=>{
+      if(event.target?.matches?.('.creator-dashboard-avatar-editable img')){
+        const status=$('#profileAvatarStatus');
+        if(status)status.textContent='No se pudo cargar la foto guardada. Intenta subirla nuevamente.';
+      }
+    },true);
   }
   $('#saveHome')?.addEventListener('click', saveHome);
   $('#saveBenefits')?.addEventListener('click', saveBenefits);
@@ -5888,6 +5899,14 @@ async function uploadProfileAvatar(){
     if(saveErr) throw new Error('La foto se subió, pero no se pudo guardar en el perfil: '+saveErr.message);
     profileDetails={...(profileDetails||{}),avatar_path:path,avatar_url:url};
     updateProfileBadge();
+    // Actualizar la foto directamente también en móvil, sin depender de que el render termine.
+    const avatar=$('#space .creator-dashboard-avatar-editable');
+    if(avatar){
+      let image=avatar.querySelector('img');
+      if(!image){image=document.createElement('img');image.alt='Foto de perfil';avatar.insertBefore(image,avatar.querySelector('#profilePhotoEdit')||avatar.firstChild);}
+      image.src=url;
+      image.alt='Foto de perfil';
+    }
     showStatus('Foto actualizada ✓');
     if(input) input.value='';
     await render();
