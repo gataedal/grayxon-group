@@ -501,7 +501,14 @@ function restoreLiveNotificationDiagnostic() {
 
 async function loadNotifications() {
   if (!session?.user?.id) { notifications = []; updateNotificationsUI(); return; }
-  const { data, error } = await sb.from('notifications').select('id,type,title,message,link_page,link_target,related_week_start,related_week_end,read_at,created_at').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(30);
+  // Mostrar todo lo de los últimos 7 días y conservar también pendientes más antiguas.
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await sb.from('notifications')
+    .select('id,type,title,message,link_page,link_target,related_week_start,related_week_end,read_at,created_at')
+    .eq('user_id', session.user.id)
+    .or(`created_at.gte.${sevenDaysAgo},read_at.is.null`)
+    .order('created_at', { ascending: false })
+    .limit(100);
   if (error) { notifications = []; updateNotificationsUI(); return; }
   notifications = data || [];
   updateNotificationsUI();
@@ -514,6 +521,35 @@ function ensureHeaderNotificationsLayout(){
   const style=document.createElement('style');
   style.id='grayxon-header-notifications-layout';
   style.textContent=`
+    /* Panel de notificaciones: pestañas, jerarquía visual y adaptación a móvil/escritorio. */
+    #notificationsPanel{width:min(390px,calc(100vw - 24px))!important;max-height:min(72vh,620px)!important;padding:12px!important;border:1px solid #2b303b!important;border-radius:20px!important;background:rgba(9,11,16,.98)!important;box-shadow:0 24px 70px #000b!important;color:#f3f4f6!important;overscroll-behavior:contain}
+    #notificationsPanel .notification-panel-head{padding:5px 4px 12px!important;border-bottom:1px solid #252a35!important}
+    #notificationsPanel .notification-heading-copy{display:grid;gap:4px;min-width:0}
+    #notificationsPanel .notification-panel-head strong{font-size:16px!important;font-weight:750;letter-spacing:-.02em}
+    #notificationsPanel .notification-panel-head span{font-size:11px!important;color:#9ca8bb!important}
+    #notificationsPanel .notification-mark-all{display:grid;place-items:center;width:32px;height:32px;padding:0!important;border:1px solid #303746!important;border-radius:10px;background:#171b26!important;color:#aeb9cb!important;font-size:14px!important}
+    #notificationsPanel .notification-mark-all:disabled{opacity:.35;cursor:default}
+    #notificationsPanel .notification-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:12px 0 8px}
+    #notificationsPanel .notification-tab{display:flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 12px;border:1px solid transparent;border-radius:999px;background:#171b26;color:#c3cada;font-size:12px;font-weight:650;white-space:nowrap}
+    #notificationsPanel .notification-tab.active{background:#25f4ee;color:#071113;border-color:#25f4ee;box-shadow:0 4px 14px #25f4ee16}
+    #notificationsPanel .notification-tab span{font-size:10px;opacity:.78}
+    #notificationsPanel .notification-list{gap:0!important;padding-top:2px!important}
+    #notificationsPanel .notification-item{grid-template-columns:42px minmax(0,1fr) 7px;gap:12px;padding:13px 2px!important;border:0!important;border-bottom:1px solid #252a35!important;border-radius:0!important;background:transparent!important;min-width:0}
+    #notificationsPanel .notification-item:last-child{border-bottom:0!important}
+    #notificationsPanel .notification-item:hover{background:#ffffff06!important}
+    #notificationsPanel .notification-item.unread .notification-copy strong{color:#fff}
+    #notificationsPanel .notification-item.read{opacity:.76}
+    #notificationsPanel .notification-icon{width:42px;height:42px;border:1px solid #2b3040;border-radius:12px;background:#1b2030;font-size:17px}
+    #notificationsPanel .notification-copy{gap:4px}
+    #notificationsPanel .notification-copy strong{font-size:13px!important;line-height:1.35;overflow-wrap:anywhere}
+    #notificationsPanel .notification-copy>span{font-size:12px!important;line-height:1.5;color:#c0c9da!important;overflow-wrap:anywhere}
+    #notificationsPanel .notification-copy small{font-size:10px!important;color:#8491a8!important}
+    #notificationsPanel .notification-dot{background:#25f4ee!important;box-shadow:0 0 0 3px #25f4ee14!important}
+    #notificationsPanel .notification-empty{padding:30px 12px!important}
+    #notificationsPanel .notification-empty strong{font-size:13px}
+    #notificationsPanel .notification-empty span{font-size:11px}
+    @media(max-width:800px){#notificationsPanel{width:min(420px,calc(100vw - 24px))!important;max-height:min(68dvh,560px)!important;padding:12px!important}#notificationsPanel .notification-item{padding:12px 1px!important}#notificationsPanel .notification-copy strong{font-size:13px!important}#notificationsPanel .notification-copy>span{font-size:12px!important}}
+    @media(max-width:360px){#notificationsPanel{padding:10px!important}#notificationsPanel .notification-icon{width:36px;height:36px}#notificationsPanel .notification-item{grid-template-columns:36px minmax(0,1fr) 6px;gap:9px}#notificationsPanel .notification-tab{font-size:11px;padding-inline:8px}}
     /* Header: campana independiente, al lado del avatar y nunca superpuesta. */
     .header-actions #adminOpen.grayxon-manager-header-hidden,
     body.grayxon-manager-session .header-actions #adminOpen{display:none!important}
@@ -585,6 +621,8 @@ function updateNotificationsUI() {
   if (panel && !panel.classList.contains('hidden')) renderNotificationsPanel();
 }
 
+let notificationView = 'unread';
+
 function renderNotificationsPanel() {
   const panel = $('#notificationsPanel');
   if (!panel) return;
@@ -592,9 +630,32 @@ function renderNotificationsPanel() {
     panel.innerHTML = `<div class="notification-empty"><strong>Inicia sesión</strong><span>Entra a tu cuenta para ver tus notificaciones.</span></div>`;
     return;
   }
-  const unread = notifications.filter(n => !n.read_at).length;
-  panel.innerHTML = `<div class="notification-panel-head"><div><strong>Notificaciones</strong><span>${unread ? `${unread} nueva${unread===1?'':'s'}` : 'Todo al día'}</span></div>${unread ? '<button type="button" id="markAllNotifications">Marcar como leídas</button>' : ''}</div><div class="notification-list">${notifications.length ? notifications.map(n => `<button type="button" class="notification-item ${n.read_at?'read':'unread'}" data-notification-id="${esc(n.id)}"><span class="notification-icon">${notificationIcon(n.type)}</span><span class="notification-copy"><strong>${esc(n.title)}</strong><span>${esc(n.message)}</span><small>${formatNotificationDate(n.created_at)}</small></span>${!n.read_at?'<i class="notification-dot"></i>':''}</button>`).join('') : '<div class="notification-empty"><strong>No tienes notificaciones.</strong><span>Cuando Grayxon te asigne algo nuevo, aparecerá aquí.</span></div>'}</div>`;
-  $('#markAllNotifications')?.addEventListener('click', async (e) => { e.stopPropagation(); await markAllNotifications(); });
+  const unreadItems = notifications.filter(n => !n.read_at);
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const recentItems = notifications.filter(n => {
+    const createdAt = new Date(n.created_at || 0).getTime();
+    return Number.isFinite(createdAt) && createdAt >= sevenDaysAgo;
+  });
+  const visibleItems = notificationView === 'unread' ? unreadItems : recentItems;
+  panel.innerHTML = `
+    <div class="notification-panel-head">
+      <div class="notification-heading-copy"><strong>Notificaciones</strong><span>${unreadItems.length ? `${unreadItems.length} sin leer` : 'Estás al día'}</span></div>
+      <button type="button" class="notification-mark-all" id="markAllNotifications" ${unreadItems.length ? '' : 'disabled'} aria-label="Marcar todas como leídas">✓✓</button>
+    </div>
+    <div class="notification-tabs" role="tablist" aria-label="Filtrar notificaciones">
+      <button type="button" role="tab" id="notificationTabUnread" class="notification-tab ${notificationView === 'unread' ? 'active' : ''}" aria-selected="${notificationView === 'unread'}">No leídas <span>${unreadItems.length}</span></button>
+      <button type="button" role="tab" id="notificationTabAll" class="notification-tab ${notificationView === 'all' ? 'active' : ''}" aria-selected="${notificationView === 'all'}">Todas</button>
+    </div>
+    <div class="notification-list">
+      ${visibleItems.length ? visibleItems.map(n => `<button type="button" class="notification-item ${n.read_at?'read':'unread'}" data-notification-id="${esc(n.id)}">
+        <span class="notification-icon">${notificationIcon(n.type)}</span>
+        <span class="notification-copy"><strong>${esc(n.title)}</strong><span>${esc(n.message)}</span><small>${formatNotificationDate(n.created_at)}</small></span>
+        ${!n.read_at?'<i class="notification-dot" aria-label="No leída"></i>':''}
+      </button>`).join('') : `<div class="notification-empty"><strong>${notificationView === 'unread' ? 'No tienes notificaciones sin leer.' : 'No hay notificaciones recientes.'}</strong><span>${notificationView === 'unread' ? 'Aquí aparecerán las novedades que aún no hayas abierto.' : 'Aquí verás las notificaciones recibidas durante los últimos 7 días.'}</span></div>`}
+    </div>`;
+  $('#notificationTabUnread')?.addEventListener('click', () => { notificationView = 'unread'; renderNotificationsPanel(); });
+  $('#notificationTabAll')?.addEventListener('click', () => { notificationView = 'all'; renderNotificationsPanel(); });
+  $('#markAllNotifications')?.addEventListener('click', async (e) => { e.stopPropagation(); if (unreadItems.length) await markAllNotifications(); });
   panel.querySelectorAll('[data-notification-id]').forEach(b => b.addEventListener('click', () => openNotification(b.dataset.notificationId)));
 }
 
