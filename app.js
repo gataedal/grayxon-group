@@ -3872,53 +3872,64 @@ async function liveTrainingTpl(trainingOverride=null) {
 
 
 function ensureFormationRedesignStyles(){
-  if(document.getElementById('grayxon-formation-redesign-v1')) return;
+  if(document.getElementById('grayxon-formation-library-v2')) return;
   const style=document.createElement('style');
-  style.id='grayxon-formation-redesign-v1';
+  style.id='grayxon-formation-library-v2';
   style.textContent=`
-    #training .formation-page{display:block!important;width:100%!important;box-sizing:border-box!important}
-    #training .formation-page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px}
-    #training .formation-page-header h1{margin:5px 0 0;font-size:clamp(24px,3vw,32px);letter-spacing:-.035em}
-    #training .formation-content-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr);gap:20px;align-items:start}
-    #training .formation-content-layout>.lesson-view{min-width:0;margin:0!important}
-    #training .formation-groups{display:grid!important;gap:22px!important;margin:0!important;min-width:0}
-    #training .formation-section{display:grid;gap:10px;min-width:0}
-    #training .formation-section-title{margin:0;font-size:16px;font-weight:750;letter-spacing:-.015em}
-    #training .formation-group-list{display:grid;gap:10px}
-    #training .formation-module-card{overflow:hidden;border:1px solid rgba(255,255,255,.09);border-radius:15px;background:#101216}
-    #training .formation-module-heading{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:10px;padding:13px}
-    #training .formation-module-number{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(37,244,238,.06);border:1px solid rgba(37,244,238,.17);color:#c6d0da;font-size:10px;font-weight:800}
-    #training .formation-module-copy{min-width:0}
-    #training .formation-module-copy strong{display:block;font-size:13px;line-height:1.35}
-    #training .formation-module-copy small{display:block;margin-top:4px;color:#9299a5;font-size:11px;line-height:1.4}
-    #training .formation-module-status{color:#9ca4af;font-size:10px;white-space:nowrap}
-    #training .formation-lessons-list{display:grid;gap:0}
-    #training .formation-lessons-list .lesson{border-top:1px solid rgba(255,255,255,.06)}
-    #training .formation-lessons-list .lesson button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;padding:11px 13px;border:0;border-radius:0;background:transparent;color:inherit;text-align:left}
-    #training .formation-lessons-list .lesson button:hover{background:rgba(255,255,255,.035)}
-    #training .formation-lessons-list .lesson-index{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:10px}
-    #training .formation-lessons-list .lesson-done .lesson-index{color:#8bd5a5;background:rgba(78,196,121,.10)}
-    #training .formation-lessons-list .lesson-text{min-width:0}
-    #training .formation-lessons-list .lesson-text strong{display:block;font-size:12px;line-height:1.35}
-    #training .formation-lessons-list .lesson-text small{display:block;margin-top:3px;color:#8d95a1;font-size:10px}
-    #training .formation-lesson-action{font-size:10px;color:#a8b0bb;white-space:nowrap}
-    #training .formation-lessons-list .lesson-next{background:rgba(37,244,238,.045)}
-    #training .formation-lessons-list .lesson-next .formation-lesson-action{color:#70e6e2}
-    #training .formation-lessons-list button.is-locked{opacity:.42;cursor:not-allowed}
-    #training .formation-lessons-list button:disabled:hover{background:transparent}
-    #training .formation-empty-group{padding:14px;border:1px dashed rgba(255,255,255,.12);border-radius:12px;color:#8e96a2;font-size:12px}
-    #training .formation-complete-state{padding:clamp(22px,4vw,38px);border:1px solid rgba(37,244,238,.15);border-radius:20px;background:linear-gradient(145deg,#15191d,#0d0f12);text-align:center}
-    #training .formation-complete-icon{width:54px;height:54px;margin:0 auto 15px;border-radius:50%;display:grid;place-items:center;background:rgba(78,196,121,.12);color:#8bd5a5;font-size:26px}
-    #training .formation-complete-state h2{margin:8px 0;font-size:clamp(20px,3vw,28px)}
-    #training .formation-complete-state p{max-width:520px;margin:0 auto;color:#a5abb5;line-height:1.6;font-size:13px}
-    @media(max-width:760px){
-      #training .formation-page-header{margin-bottom:13px}
-      #training .formation-content-layout{grid-template-columns:minmax(0,1fr);gap:22px}
-      #training .formation-groups{order:2}
-      #training .formation-content-layout>.lesson-view{order:1}
-      #training .formation-module-heading{padding:11px}
-      #training .formation-lessons-list .lesson button{padding:11px}
-    }
+    #training .library-eyebrow{display:block;color:#7bdedb;font-size:9px;font-weight:800;letter-spacing:.16em}
+    #training .library-subtitle{margin:5px 0 0;color:#9ca3af;font-size:12px;line-height:1.5}
+    #training .library-progress-summary{display:grid;grid-template-columns:auto minmax(70px,1fr);align-items:center;gap:18px;margin:0 0 20px;padding:13px 16px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:linear-gradient(110deg,#14171b,#0e1013)}
+    #training .library-progress-summary>div:first-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:3px 8px}
+    #training .library-progress-summary span:first-child{grid-column:1/-1;color:#929aa5;font-size:9px;font-weight:800;letter-spacing:.13em}
+    #training .library-progress-summary strong{font-size:22px;letter-spacing:-.04em}
+    #training .library-progress-summary small{color:#969eaa;font-size:10px}
+    #training .library-continue{display:grid;grid-template-columns:120px minmax(0,1fr);overflow:hidden;min-height:160px;margin:0 0 28px;border:1px solid rgba(37,244,238,.17);border-radius:18px;background:linear-gradient(120deg,#171b20,#0d0f12)}
+    #training .library-continue-art{display:grid;place-items:center;position:relative;background:radial-gradient(ellipse at 35% 45%,rgba(37,244,238,.24),transparent 55%),linear-gradient(135deg,#19272b,#11151a)}
+    #training .library-continue-art:after{content:'';position:absolute;width:110px;height:110px;border:1px solid rgba(255,255,255,.1);border-radius:50%;transform:scaleX(1.4)}
+    #training .library-continue-art span{z-index:1;display:grid;place-items:center;width:44px;height:44px;border:1px solid rgba(255,255,255,.22);border-radius:50%;background:#101619;color:#b9fffc}
+    #training .library-continue-copy{align-self:center;padding:17px 18px}
+    #training .library-continue-copy h2{margin:6px 0;font-size:clamp(17px,2.5vw,24px);line-height:1.2;letter-spacing:-.03em}
+    #training .library-continue-copy p{margin:0 0 12px;color:#a0a7b1;font-size:11px;line-height:1.5}
+    #training .library-continue-button{display:inline-flex;align-items:center;gap:15px;padding:9px 13px;border:0;border-radius:9px;background:#dffdfb;color:#101719;font-size:11px;font-weight:800}
+    #training .library-section{display:grid;gap:12px;margin-bottom:25px}
+    #training .library-section-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    #training .library-section-heading h2{margin:0;font-size:16px;font-weight:800;letter-spacing:-.02em}
+    #training .library-section-heading>span{color:#8e96a2;font-size:10px}
+    #training .library-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+    #training .library-module-card{min-width:0;overflow:hidden;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:#101216}
+    #training .library-module-card.is-next-module{border-color:rgba(37,244,238,.27)}
+    #training .library-module-cover{position:relative;display:grid;place-items:center;min-height:100px;overflow:hidden;background:radial-gradient(ellipse at 70% 15%,rgba(37,244,238,.2),transparent 48%),linear-gradient(125deg,#19272b,#101216)}
+    #training .library-module-cover:after{content:'';position:absolute;width:115px;height:115px;border:1px solid rgba(255,255,255,.1);border-radius:50%;transform:scaleX(1.5) rotate(-22deg)}
+    #training .library-module-cover.cover-1{background:radial-gradient(ellipse at 70% 15%,rgba(180,195,210,.2),transparent 48%),linear-gradient(125deg,#292d33,#101216)}
+    #training .library-module-cover.cover-2{background:radial-gradient(ellipse at 70% 15%,rgba(154,111,255,.22),transparent 48%),linear-gradient(125deg,#252033,#101216)}
+    #training .library-module-cover.cover-3{background:radial-gradient(ellipse at 70% 15%,rgba(254,44,85,.18),transparent 48%),linear-gradient(125deg,#2a1a22,#101216)}
+    #training .library-cover-number{position:absolute;top:10px;left:11px;color:rgba(255,255,255,.6);font-size:10px;font-weight:800}
+    #training .library-cover-symbol{z-index:1;display:grid;place-items:center;width:40px;height:40px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:rgba(0,0,0,.2);color:#e9fbfa}
+    #training .library-cover-tag{position:absolute;right:10px;bottom:9px;color:rgba(255,255,255,.58);font-size:8px;font-weight:800;letter-spacing:.1em}
+    #training .library-module-body{padding:12px}
+    #training .library-module-meta{display:flex;justify-content:space-between;gap:7px;color:#9098a3;font-size:9px}
+    #training .library-module-body h3{margin:7px 0 5px;font-size:13px;line-height:1.35}
+    #training .library-module-body p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:30px;margin:0 0 11px;color:#929aa5;font-size:10px;line-height:1.45}
+    #training .library-module-body .library-progress-track{height:3px;margin-bottom:10px}
+    #training .library-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 0 0;border:0;border-top:1px solid rgba(255,255,255,.07);background:transparent;color:#c6d0da;font-size:10px;font-weight:700;text-align:left}
+    #training .library-toggle b{color:#7bdedb;font-size:15px}
+    #training .library-toggle[aria-expanded=false] b{transform:rotate(-90deg)}
+    #training .library-module-lessons{display:grid;padding:0 10px 9px}
+    #training .library-module-lessons[hidden]{display:none}
+    #training .library-module-lessons .lesson{border-top:1px solid rgba(255,255,255,.055)}
+    #training .library-module-lessons .lesson button{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:7px;width:100%;padding:10px 1px;border:0;background:transparent;color:inherit;text-align:left}
+    #training .library-module-lessons .lesson-index{display:grid;place-items:center;width:23px;height:23px;border-radius:7px;background:rgba(255,255,255,.05);font-size:10px}
+    #training .library-module-lessons .lesson-done .lesson-index{background:rgba(78,196,121,.1);color:#8bd5a5}
+    #training .library-module-lessons .lesson-text{min-width:0}
+    #training .library-module-lessons .lesson-text strong{display:block;font-size:10px;line-height:1.35}
+    #training .library-module-lessons .lesson-text small{display:block;margin-top:3px;color:#8d95a1;font-size:9px}
+    #training .library-module-lessons .formation-lesson-action{font-size:9px;color:#a8b0bb;white-space:nowrap}
+    #training .library-module-lessons .lesson-next .formation-lesson-action{color:#70e6e2}
+    #training .library-module-lessons button.is-locked{opacity:.4;cursor:not-allowed}
+    #training .library-all-done{margin:0 0 25px;padding:17px;border:1px solid rgba(78,196,121,.18);border-radius:15px;background:rgba(78,196,121,.045)}
+    #training .library-all-done p{margin:5px 0 0;color:#9ca3af;font-size:11px}
+    @media(min-width:1000px){#training .library-module-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:520px){#training .library-module-grid{grid-template-columns:minmax(0,1fr)}#training .library-module-card{display:grid;grid-template-columns:100px minmax(0,1fr)}#training .library-module-cover{grid-column:1;grid-row:1;min-height:100%}#training .library-module-cover:after{width:85px;height:85px}#training .library-module-body{grid-column:2;grid-row:1;padding:10px}#training .library-module-body h3{font-size:12px}#training .library-module-body p{min-height:0;font-size:10px;margin-bottom:8px}#training .library-module-meta{font-size:8px}#training .library-module-lessons{grid-column:1/-1;padding:0 10px 9px}#training .library-continue{grid-template-columns:94px minmax(0,1fr);min-height:150px}#training .library-continue-copy{padding:13px 11px}#training .library-continue-copy h2{font-size:16px}#training .library-continue-copy p{font-size:10px}}
   `;
   document.head.appendChild(style);
 }
@@ -3967,47 +3978,16 @@ async function trainingTpl(options = {}) {
   const completedModules = moduleData.filter(x => x.complete);
 
   const moduleCard = (x) => {
-    const {m, mi, ml, md, complete} = x;
-    const moduleState = complete ? '✓ Completado' : ml.some(l => l.id === nextPending?.id) ? 'SIGUIENTE' : 'PENDIENTE';
-    return `<article class="formation-module-card ${complete ? 'formation-module-complete' : ''}" data-formation-module-card="${m.id}">
-      <div class="formation-module-heading">
-        <span class="formation-module-number">${String(mi + 1).padStart(2,'0')}</span>
-        <span class="formation-module-copy"><strong>${esc(m.title)}</strong>${m.description ? `<small>${esc(m.description)}</small>` : ''}</span>
-        <span class="formation-module-status">${moduleState}</span>
-      </div>
-      <div class="formation-lessons-list">
-        ${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}">
-          <button type="button" data-lesson="${l.id}" ${!done.has(l.id) && nextPending?.id !== l.id ? 'disabled aria-disabled="true" class="is-locked"' : ''}>
-            <span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span>
-            <span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}${done.has(l.id) ? ' · Completado' : ''}</small></span>
-            <span class="formation-lesson-action">${done.has(l.id) ? 'Ver de nuevo' : nextPending?.id === l.id ? 'Abrir ›' : 'Bloqueada 🔒'}</span>
-          </button>
-        </div>`).join('') || '<div class="muted small">Este módulo todavía no tiene lecciones.</div>'}
-      </div>
+    const {m, mi, ml, md, complete, pct} = x;
+    const isNext = ml.some(l => l.id === nextPending?.id);
+    return `<article class="library-module-card ${complete ? 'is-complete' : ''} ${isNext ? 'is-next-module' : ''}" data-formation-module-card="${m.id}">
+      <div class="library-module-cover cover-${mi % 4}"><span class="library-cover-number">${String(mi+1).padStart(2,'0')}</span><span class="library-cover-symbol">${complete ? '✓' : isNext ? '▶' : '◈'}</span><span class="library-cover-tag">${complete ? 'COMPLETADO' : isNext ? 'EN CURSO' : 'MÓDULO'}</span></div>
+      <div class="library-module-body"><div class="library-module-meta"><span>${ml.length} ${ml.length===1?'contenido':'contenidos'}</span><span>${md}/${ml.length}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="true"><span>Ver contenidos</span><b>⌄</b></button></div>
+      <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
     </article>`;
   };
 
-  const sectionHtml = (title, items, emptyText, sectionKey) => `
-    <section class="formation-section" data-formation-section="${sectionKey}">
-      <h2 class="formation-section-title">${title}</h2>
-      <div class="formation-group-list">
-        ${items.length ? items.map(moduleCard).join('') : `<div class="formation-empty-group">${emptyText}</div>`}
-      </div>
-    </section>`;
-
-  $('#training').innerHTML = `<div class="formation-page">
-    <div class="formation-page-header">
-      <div><div class="eyebrow">GRAYXON ACADEMY</div><h1>Formación</h1></div>
-      ${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Mi espacio</button>'}
-    </div>
-    <div class="formation-content-layout">
-      <div class="lesson-view hidden" id="lessonView"></div>
-      <div class="formation-groups">
-        ${sectionHtml('Pendientes',pendingModules,'No tienes lecciones pendientes.','pending')}
-        ${completedModules.length ? sectionHtml('Completados',completedModules,'','completed') : ''}
-      </div>
-    </div>
-  </div>`;
+  const sectionHtml = (title, items, emptyText, sectionKey) => `<section class="formation-section library-section" data-formation-section="${sectionKey}"><div class="library-section-heading"><h2>${title}</h2><span>${items.length} ${items.length===1?'módulo':'módulos'}</span></div><div class="formation-group-list library-module-grid">${items.length ? items.map(moduleCard).join('') : `<div class="library-empty-group">${emptyText}</div>`}</div></section>`;
 
   window._lessons = orderedLessons;
   window._modules = modules || [];
@@ -4015,17 +3995,9 @@ async function trainingTpl(options = {}) {
 
   if (window._creatorDashboardPendingLessonId) delete window._creatorDashboardPendingLessonId;
 
-  if (!options.skipAutoOpen) {
-    if (nextPending) {
-      await openLesson(nextPending.id, {skipReload:true});
-    } else if (totalLessons > 0) {
-      renderFormationCompletedState();
-    } else {
-      const view = $('#lessonView');
-      view?.classList.remove('hidden');
-      if (view) view.innerHTML = '<div class="formation-empty-state"><div class="formation-empty-icon">🎓</div><h2>Próximamente</h2><p>En este momento no hay lecciones publicadas.</p></div>';
-    }
-  }
+  if (!totalLessons) { const view = $('#lessonView'); view?.classList.remove('hidden'); if(view) view.innerHTML = '<div class="library-empty-group">Todavía no hay contenidos publicados.</div>'; }
+  $('#training').querySelectorAll('[data-lesson]').forEach(button => { if(button.dataset.libraryBound) return; button.dataset.libraryBound='1'; });
+  $('#training').querySelectorAll('[data-library-toggle]').forEach(button => { button.addEventListener('click', () => { const id=button.getAttribute('data-library-toggle'); const list=$('#training').querySelector(`[data-library-lessons="${CSS.escape(id)}"]`); const expanded=button.getAttribute('aria-expanded')==='true'; button.setAttribute('aria-expanded',String(!expanded)); if(list) list.hidden=expanded; }); });
 }
 
 function renderFormationCompletedState(){
