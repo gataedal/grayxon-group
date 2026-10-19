@@ -5359,7 +5359,7 @@ function ensureFormationMobileV34Styles(){
 }
 
 function bind() {
-  $('#homeBrand')?.addEventListener('click', () => { window.location.assign('./index.html?v=20261019'); });
+
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'space' && session) nav(profile?.role === 'manager' ? 'manager' : 'space'); else if (target === 'auth' && session) nav(profile?.role === 'manager' ? 'manager' : profile?.role === 'creator' ? 'space' : 'admin'); else nav(target); });
   $$('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
   updateHeaderAccessUI();
