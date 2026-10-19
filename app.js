@@ -2565,15 +2565,12 @@ async function startGrayxonLiveTraining(training, options={}){
         if(!hostIdValue){window.__gxHostParticipantId=null;return;}
         const hostId=String(hostIdValue);
         window.__gxHostParticipantId=hostId;
-        // Fijar al anfitrión y seleccionar su vídeo en la vista principal.
-        // La API externa documenta setLargeVideoParticipant como método directo;
-        // pinParticipant mantiene además la prioridad de recepción del vídeo.
+        // Fijar al anfitrión y seleccionar su cámara en la vista principal.
+        // Ambos métodos están documentados por la IFrame API de Jitsi.
         try{api.pinParticipant?.(hostId,'camera');}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la pista del anfitrión',err);}
         if(String(window.__grayxonLargeVideoParticipant||'')!==hostId){
-          try{
-            if(typeof api.setLargeVideoParticipant==='function') api.setLargeVideoParticipant(hostId);
-            else console.warn('Grayxon LIVE: la API actual no expone setLargeVideoParticipant; se conserva el pin del anfitrión.');
-          }catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal del anfitrión',err);}
+          try{api.executeCommand('setLargeVideoParticipant',hostId,'camera');}
+          catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal del anfitrión',err);}
         }
       }catch(err){
         console.warn('Grayxon LIVE: no se pudo resolver la identidad del anfitrión en Jitsi',err);
