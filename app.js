@@ -2000,9 +2000,8 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   if(spaceEl && !spaceEl.querySelector('.creator-dashboard')){
     spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
       <section class="creator-dashboard-hero creator-profile-hero">
-        <div class="creator-profile-left"><div class="creator-dashboard-avatar">${cachedAvatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><button type="button" class="primary small install-grayxon-dashboard" id="installGrayxonDashboard">📲 Instalar Grayxon</button></div></div>
-        <div class="creator-dashboard-role"><span class="role-pill">Creador</span></div>
-        <div class="creator-space-team-wrap"><div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>Buscando manager…</strong><small>Actualizando tu equipo</small></div></div>
+        <div class="creator-profile-left"><div class="creator-dashboard-avatar">${cachedAvatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div>
+        <div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div>
       </section>
       <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid">
         <div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando tus misiones…</small></div>
@@ -2081,7 +2080,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const paymentsCard=`<button type="button" class="creator-dashboard-card gx-payments-dashboard-card" data-page="payments"><span class="creator-dashboard-card-icon">💸</span><span class="creator-dashboard-card-meta">Historial</span><strong>Mis pagos</strong><p>Consulta tus pagos, liquidaciones y comprobantes.</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><button type="button" class="primary small install-grayxon-dashboard" id="installGrayxonDashboard">📲 Instalar Grayxon</button></div></div><div class="creator-dashboard-role"><span class="role-pill">Creador</span></div><div class="creator-space-team-wrap">${assignmentHTML}</div></section>
+    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section>
     ${performanceHTML}
     <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}${paymentsCard}${gxAnnouncementDashboardCard(true)}</div>${profileIncomplete}
   </div>`;
@@ -2098,7 +2097,7 @@ function renderCreatorSpaceImmediate(){
   const name=profile?.full_name||profile?.username||'Grayxon';
   const user=profile?.username||'creador';
   const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
-  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><button type="button" class="primary small install-grayxon-dashboard" id="installGrayxonDashboard">📲 Instalar Grayxon</button></div></div><div class="creator-dashboard-role"><span class="role-pill">Creador</span></div><div class="creator-space-team-wrap"><div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>Actualizando…</strong><small>Buscando tu equipo</small></div></div></section><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
+  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
   bind();
 }
 
@@ -5649,27 +5648,9 @@ function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classLi
 
 
 function updateGrayxonRoleHeader(){
-  let badge=document.getElementById('grayxonRoleHeaderBadge');
-  if(!badge){
-    const header=document.querySelector('header.top');
-    const brand=document.getElementById('homeBrand');
-    if(!header||!brand)return;
-    badge=document.createElement('div');
-    badge.id='grayxonRoleHeaderBadge';
-    badge.className='grayxon-role-header-badge';
-    badge.innerHTML='<span class="grayxon-role-crown" aria-hidden="true">♛</span><span class="grayxon-role-header-label"></span>';
-    header.insertBefore(badge,header.querySelector('.header-actions'));
-    if(!document.getElementById('grayxon-role-header-styles')){
-      const style=document.createElement('style');
-      style.id='grayxon-role-header-styles';
-      style.textContent='header.top{position:relative}.grayxon-role-header-badge{display:none;align-items:center;gap:9px;margin-left:auto;margin-right:0;padding:9px 16px;border:1px solid transparent;border-radius:999px;background:linear-gradient(#08090b,#08090b) padding-box,linear-gradient(110deg,#25f4ee,#9c83ff,#fe2c55) border-box;color:#f7f8fb;font-size:14px;font-weight:800;white-space:nowrap;flex:0 0 auto}.grayxon-role-crown{font-size:20px;line-height:1;background:linear-gradient(115deg,#25f4ee,#b4a0ff 52%,#fe2c55);color:transparent;background-clip:text;-webkit-background-clip:text}header.top .grayxon-role-header-badge.is-visible{display:inline-flex}@media(max-width:600px){header.top .grayxon-role-header-badge{font-size:11px;padding:7px 10px;gap:6px;margin-left:auto;margin-right:8px}header.top .brand{min-width:0;flex:0 1 auto}header.top .brand b{font-size:clamp(15px,4vw,22px);letter-spacing:.14em}header.top .header-actions{flex:0 0 auto}}';
-      document.head.appendChild(style);
-    }
-  }
-  const role=profile?.role==='admin'?'Administrador':profile?.role==='manager'?'Manager':'Creador';
-  badge.querySelector('.grayxon-role-header-label').textContent=role;
-  badge.classList.toggle('is-visible',!!session);
-  badge.setAttribute('aria-hidden',session?'false':'true');
+  // El rol ahora vive en la tarjeta de bienvenida, no en la barra global.
+  const badge=document.getElementById('grayxonRoleHeaderBadge');
+  if(badge) badge.remove();
 }
 
 function updateHeaderAccessUI(){
