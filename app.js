@@ -7619,9 +7619,11 @@ async function gxLoadAnnouncements({silent=false}={}){
     sb.from('profile_details').select('user_id,avatar_url').in('user_id',[...new Set(items.map(x=>x.author_id).filter(Boolean))])
   ]);
   const avatarByUser=new Map((authorDetails||[]).map(x=>[x.user_id,x.avatar_url]));
+  if(session?.user?.id&&profileDetails?.avatar_url)avatarByUser.set(session.user.id,profileDetails.avatar_url);
   const readSet=new Set((mineReads||[]).map(x=>x.announcement_id)); const myReactions=new Set((mineReactions||[]).map(x=>`${x.announcement_id}:${x.emoji}`));
   feed.innerHTML=items.map(a=>{
-    const author=a.author?.full_name||a.author?.username||'Grayxon';
+    const isCurrentAuthor=a.author_id===session?.user?.id;
+    const author=(isCurrentAuthor?(profile?.full_name||profile?.username):null)||a.author?.full_name||a.author?.username||'Usuario';
     const aud=a.target_type==='agency'?'Toda la agencia':a.target_type==='managers'?'Managers':(a.announcement_teams||[]).map(x=>x.team?.name).filter(Boolean).join(', ')||'Equipo';
     const media=(a.announcement_attachments||[]).map(f=>`<div class="gx-ann-inline-media" data-ann-inline-path="${gxAnnouncementEsc(f.storage_path)}" data-ann-inline-name="${gxAnnouncementEsc(f.file_name)}" data-ann-inline-mime="${gxAnnouncementEsc(f.mime_type)}"><span class="gx-ann-media-loading">${f.mime_type?.startsWith('image/')?'🖼️':f.mime_type?.startsWith('video/')?'🎬':f.mime_type?.startsWith('audio/')?'🎧':f.mime_type==='application/pdf'?'📄':'👁️'} ${gxAnnouncementEsc(f.file_name)}</span></div>`).join('');
     const rx=(reactions||[]).filter(r=>r.announcement_id===a.id);const emojiCounts=['👍','❤️','👏','🔥','😂'].map(e=>{const count=rx.filter(r=>r.emoji===e).length;return `<button class="gx-ann-reaction ${myReactions.has(`${a.id}:${e}`)?'is-active':''}" data-ann-react="${a.id}" data-ann-emoji="${e}" aria-label="Reaccionar ${e}">${e}<small>${count||''}</small></button>`}).join('');
