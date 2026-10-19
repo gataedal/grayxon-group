@@ -7412,12 +7412,23 @@ function gxCleanAnnouncementFeedStyles(){
   document.head.appendChild(style);
 }
 let gxAnnouncementRefreshTimer=null,gxAnnouncementRefreshBusy=false;
+async function gxCheckAnnouncementUpdates(){
+  const feed=$('#gxAnnFeed');if(!feed||!session||current!=='announcements'||gxAnnouncementRefreshBusy)return;
+  gxAnnouncementRefreshBusy=true;
+  try{
+    const {data,error}=await sb.from('announcements').select('id').order('created_at',{ascending:false}).limit(3);
+    if(error)throw error;
+    const visibleIds=new Set(Array.from(feed.querySelectorAll('[data-ann-card]')).map(node=>node.getAttribute('data-ann-card')));
+    const hasNew=(data||[]).some(row=>!visibleIds.has(String(row.id))&&!visibleIds.has(row.id));
+    if(hasNew)await gxLoadAnnouncements({silent:true});
+  }catch(error){console.warn('Comprobación de nuevos comunicados:',error);}
+  finally{gxAnnouncementRefreshBusy=false;}
+}
 function gxStartAnnouncementAutoRefresh(){
   if(gxAnnouncementRefreshTimer)clearInterval(gxAnnouncementRefreshTimer);
-  gxAnnouncementRefreshTimer=setInterval(async()=>{
-    if(document.hidden||current!=='announcements'||!document.getElementById('gxAnnFeed')||gxAnnouncementRefreshBusy)return;
-    gxAnnouncementRefreshBusy=true;
-    try{await gxLoadAnnouncements({silent:true});}catch(error){console.warn('Autoactualización de comunicados:',error);}finally{gxAnnouncementRefreshBusy=false;}
+  gxAnnouncementRefreshTimer=setInterval(()=>{
+    if(document.hidden||current!=='announcements')return;
+    gxCheckAnnouncementUpdates();
   },10000);
 }
 
@@ -7611,19 +7622,22 @@ async function gxLoadAnnouncements({silent=false}={}){
   if(error){feed.innerHTML=`<div class="gx-ann-empty"><strong>No se pudieron cargar los comunicados.</strong><span>${gxAnnouncementEsc(error.message)}<br>Si es la primera instalación, ejecuta primero el SQL incluido en el paquete.</span></div>`;return;}
   const items=data||[]; if(!items.length){feed.innerHTML='<div class="gx-ann-empty"><strong>Aún no hay comunicados.</strong><span>Cuando se publique uno para tu audiencia, aparecerá aquí.</span></div>';await gxRefreshAnnouncementUnreadCount();return;}
   const ids=items.map(x=>x.id);
-  const [{data:reads},{data:reactions},{data:mineReads},{data:mineReactions},{data:authorDetails}]=await Promise.all([
+  const authorIds=[...new Set(items.map(x=>x.author_id).filter(Boolean))];
+  const [{data:reads},{data:reactions},{data:mineReads},{data:mineReactions},{data:authorDetails},{data:authorProfiles}]=await Promise.all([
     profile?.role==='admin'?sb.rpc('grayxon_announcement_read_status',{p_announcement_ids:ids}):Promise.resolve({data:[]}),
     sb.from('announcement_reactions').select('announcement_id,emoji,user_id').in('announcement_id',ids),
     sb.from('announcement_reads').select('announcement_id').eq('user_id',session.user.id).in('announcement_id',ids),
     sb.from('announcement_reactions').select('announcement_id,emoji').eq('user_id',session.user.id).in('announcement_id',ids),
-    sb.from('profile_details').select('user_id,avatar_url').in('user_id',[...new Set(items.map(x=>x.author_id).filter(Boolean))])
+    sb.from('profile_details').select('user_id,avatar_url,photo_url,profile_photo_url,image_url').in('user_id',authorIds),
+    sb.from('profiles').select('id,full_name,username,role').in('id',authorIds)
   ]);
-  const avatarByUser=new Map((authorDetails||[]).map(x=>[x.user_id,x.avatar_url]));
-  if(session?.user?.id&&profileDetails?.avatar_url)avatarByUser.set(session.user.id,profileDetails.avatar_url);
+  const avatarByUser=new Map((authorDetails||[]).map(x=>[x.user_id,x.avatar_url||x.photo_url||x.profile_photo_url||x.image_url||'']));
+  const authorByUser=new Map((authorProfiles||[]).map(x=>[x.id,x]));
   const readSet=new Set((mineReads||[]).map(x=>x.announcement_id)); const myReactions=new Set((mineReactions||[]).map(x=>`${x.announcement_id}:${x.emoji}`));
   feed.innerHTML=items.map(a=>{
     const isCurrentAuthor=a.author_id===session?.user?.id;
-    const author=(isCurrentAuthor?(profile?.full_name||profile?.username):null)||a.author?.full_name||a.author?.username||'Usuario';
+    const authorProfile=authorByUser.get(a.author_id);
+    const author=(isCurrentAuthor?(profile?.full_name||profile?.username||authorProfile?.full_name||authorProfile?.username):null)||authorProfile?.full_name||authorProfile?.username||a.author?.full_name||a.author?.username||'Grayxon';
     const aud=a.target_type==='agency'?'Toda la agencia':a.target_type==='managers'?'Managers':(a.announcement_teams||[]).map(x=>x.team?.name).filter(Boolean).join(', ')||'Equipo';
     const media=(a.announcement_attachments||[]).map(f=>`<div class="gx-ann-inline-media" data-ann-inline-path="${gxAnnouncementEsc(f.storage_path)}" data-ann-inline-name="${gxAnnouncementEsc(f.file_name)}" data-ann-inline-mime="${gxAnnouncementEsc(f.mime_type)}"><span class="gx-ann-media-loading">${f.mime_type?.startsWith('image/')?'🖼️':f.mime_type?.startsWith('video/')?'🎬':f.mime_type?.startsWith('audio/')?'🎧':f.mime_type==='application/pdf'?'📄':'👁️'} ${gxAnnouncementEsc(f.file_name)}</span></div>`).join('');
     const rx=(reactions||[]).filter(r=>r.announcement_id===a.id);const emojiCounts=['👍','❤️','👏','🔥','😂'].map(e=>{const count=rx.filter(r=>r.emoji===e).length;return `<button class="gx-ann-reaction ${myReactions.has(`${a.id}:${e}`)?'is-active':''}" data-ann-react="${a.id}" data-ann-emoji="${e}" aria-label="Reaccionar ${e}">${e}<small>${count||''}</small></button>`}).join('');
