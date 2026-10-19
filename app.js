@@ -2195,14 +2195,22 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const trainingMeta='Buscando LIVE…';
   const trainingDesc='Comprobando si hay un entrenamiento en vivo…';
   const trainingCard=`<button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><span class="creator-dashboard-card-meta">${esc(trainingMeta)}</span><strong>Entrenamientos</strong><p>${esc(trainingDesc)}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
-  const formationCard=`<button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><span class="creator-dashboard-card-meta">${formationPct}%</span><strong>Formación</strong><p>${lessonTotal?`${lessonCompleted} de ${lessonTotal} lecciones completadas.`:'Aún no hay formación publicada.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
-  const missionsCard=`<button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">${missionCompletionLabel}</span><strong>Tus misiones</strong><p>${hasActiveMissions?`${completedMissions} de ${visibleMissions.length} activas completadas.`:'No tienes tareas pendientes.'}</p><span class="creator-dashboard-card-arrow">›</span></button>`;
+  const nextPendingLesson=(lessons||[]).filter(l=>!lessonDone.has(l.id)).sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0))[0]||null;
+  const progressCardStyles=`<style>
+    .gx-progress-section{margin:18px 0 20px}.gx-progress-heading{display:flex;align-items:center;gap:12px;margin:0 0 12px}.gx-progress-heading-icon{font-size:30px;line-height:1}.gx-progress-heading h2{margin:0;font-size:19px;font-weight:850;color:#f5f7fb}.gx-progress-heading p{margin:3px 0 0;color:#aeb7c4;font-size:12px}
+    .gx-progress-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.gx-progress-card{--gx-progress-accent:#795cff;display:flex;flex-direction:column;gap:10px;width:100%;min-width:0;padding:12px 13px;border:1px solid #27313b;border-radius:15px;background:linear-gradient(145deg,#0c141d,#090d13);color:#f7f8fb;text-align:left;cursor:pointer;transition:border-color .18s,transform .18s}.gx-progress-card:hover{border-color:color-mix(in srgb,var(--gx-progress-accent) 65%,#27313b);transform:translateY(-1px)}.gx-progress-card:focus-visible{outline:2px solid var(--gx-progress-accent);outline-offset:3px}
+    .gx-progress-card-top{display:flex;align-items:center;gap:10px;min-width:0}.gx-progress-card-icon{display:flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;height:42px;border-radius:12px;background:color-mix(in srgb,var(--gx-progress-accent) 18%,#0c141d);font-size:23px}.gx-progress-card-copy{flex:1;min-width:0}.gx-progress-card-copy strong{display:block;font-size:12px;font-weight:850}.gx-progress-card-copy small{display:block;margin-top:4px;color:#c1c8d2;font-size:11px;line-height:1.3}.gx-progress-value{font-size:11px;font-weight:850;color:#f1f3f8;white-space:nowrap}.gx-progress-track{height:8px;display:flex;overflow:hidden;border-radius:999px;background:#202b38}.gx-progress-fill{height:100%;border-radius:999px;background:var(--gx-progress-accent)}
+    @media(max-width:520px){.gx-progress-grid{gap:8px}.gx-progress-card{padding:10px;border-radius:13px;gap:9px}.gx-progress-card-top{gap:8px}.gx-progress-card-icon{flex-basis:36px;width:36px;height:36px;font-size:20px}.gx-progress-card-copy strong{font-size:11px}.gx-progress-card-copy small{font-size:10px}.gx-progress-value{font-size:10px}.gx-progress-heading h2{font-size:18px}}
+  </style>`;
+  const formationCard=`<button type="button" class="gx-progress-card" style="--gx-progress-accent:#795cff" data-gx-progress-action="formation" aria-label="Formación: ${lessonCompleted} de ${lessonTotal} lecciones completadas"><span class="gx-progress-card-top"><span class="gx-progress-card-icon">🎓</span><span class="gx-progress-card-copy"><strong>Formación</strong><small>${lessonCompleted} de ${lessonTotal} lecciones</small></span></span><span class="gx-progress-card-top"><span class="gx-progress-track" style="flex:1"><span class="gx-progress-fill" style="width:${formationPct}%"></span></span><span class="gx-progress-value">${formationPct}%</span></span></button>`;
+  const missionsCard=`<button type="button" class="gx-progress-card" style="--gx-progress-accent:#ff3265" data-gx-progress-action="missions" aria-label="Misiones: ${completedMissions} de ${visibleMissions.length} completadas"><span class="gx-progress-card-top"><span class="gx-progress-card-icon">🎯</span><span class="gx-progress-card-copy"><strong>Misiones</strong><small>${completedMissions} de ${visibleMissions.length} completadas</small></span></span><span class="gx-progress-card-top"><span class="gx-progress-track" style="flex:1"><span class="gx-progress-fill" style="width:${missionCompletion??0}%"></span></span><span class="gx-progress-value">${missionCompletion??0}%</span></span></button>`;
   const paymentsCard=`<button type="button" class="creator-dashboard-card gx-payments-dashboard-card" data-page="payments"><span class="creator-dashboard-card-icon">💸</span><span class="creator-dashboard-card-meta">Historial</span><strong>Mis pagos</strong><p>Consulta tus pagos, liquidaciones y comprobantes.</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
     <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${creatorDashboardAvatar()}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div>
+    ${progressCardStyles}<section class="gx-progress-section" aria-label="Tu progreso"><div class="gx-progress-heading"><span class="gx-progress-heading-icon">▮</span><div><h2>Tu progreso</h2><p>Sigue avanzando y alcanza tu próximo nivel.</p></div></div><div class="gx-progress-grid">${formationCard}${missionsCard}</div></section>
     ${performanceHTML}
-    <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}${paymentsCard}${gxAnnouncementDashboardCard(true)}</div>${profileIncomplete}
+    <div class="creator-dashboard-grid">${trainingCard}${paymentsCard}${gxAnnouncementDashboardCard(true)}</div>${profileIncomplete}
   </div>`;
   bind();
   loadCreatorDashboardEventHighlights(expectedNav).catch(()=>{});
@@ -3943,6 +3951,18 @@ async function trainingTpl() {
   window._lessons = orderedLessons;
   window._modules = modules || [];
   window._done = done;
+  const pendingFocusId=window._creatorDashboardPendingLessonId;
+  if(pendingFocusId){
+    delete window._creatorDashboardPendingLessonId;
+    const lesson=orderedLessons.find(l=>l.id===pendingFocusId);
+    const module=lesson&&(modules||[]).find(m=>m.id===lesson.module_id);
+    if(lesson&&module){
+      const toggle=[...document.querySelectorAll('[data-formation-module-toggle]')].find(b=>b.dataset.formationModuleToggle.includes(module.id));
+      const panel=toggle&&document.getElementById(toggle.dataset.formationModuleToggle);
+      if(panel?.classList.contains('hidden')){panel.classList.remove('hidden');toggle?.classList.add('is-open');toggle?.setAttribute('aria-expanded','true');}
+      setTimeout(()=>document.querySelector('[data-lesson="'+CSS.escape(lesson.id)+'"]')?.scrollIntoView({behavior:'smooth',block:'center'}),100);
+    }
+  }
 }
 
 function getLessonById(id){
@@ -6071,7 +6091,18 @@ function ensureFormationMobileV34Styles(){
 function bind() {
 
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'space' && session) nav(profile?.role === 'manager' ? 'manager' : 'space'); else if (target === 'auth' && session) nav(profile?.role === 'manager' ? 'manager' : profile?.role === 'creator' ? 'space' : 'admin'); else nav(target); });
-  $$('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
+  $('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
+  $('[data-gx-progress-action]').forEach(b => b.onclick = () => {
+    const action=b.dataset.gxProgressAction;
+    if(action==='missions'){
+      const pending=visibleMissions.filter(m=>missionPct(m)<100);
+      nav('missions');
+      if(pending.length)setTimeout(()=>focusNextPendingMission(),350);
+    }else if(action==='formation'){
+      if(nextPendingLesson)window._creatorDashboardPendingLessonId=nextPendingLesson.id;
+      nav('training');
+    }
+  });
   updateHeaderAccessUI();
   $('#mobileMenuBtn')?.addEventListener('click', () => { const m = $('#mobileNav'); const open = m?.classList.toggle('open'); $('#mobileMenuBtn')?.setAttribute('aria-expanded', open ? 'true' : 'false'); });
   $('#mobileAdminOpen')?.addEventListener('click', () => { if(session) nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space'); else nav('auth'); });
