@@ -1625,6 +1625,24 @@ function ensureCreatorDashboardStyles(){
       .creator-profile-hero .creator-space-team strong{font-size:15px}
       .creator-profile-hero .creator-space-team .creator-contact-btn{grid-column:2;grid-row:2/4;padding:0 11px}
     }
+    /* Corrección móvil: el rol vive solo en el encabezado y el usuario nunca se comprime en vertical. */
+    .creator-profile-hero .creator-dashboard-role{display:none!important}
+    .creator-profile-hero .creator-dashboard-avatar{position:relative;display:grid;place-items:center;padding:0!important;background:linear-gradient(135deg,#25f4ee 0%,#9b75ff 52%,#fe2c55 100%)!important;overflow:hidden!important}
+    .creator-profile-hero .creator-dashboard-avatar img{width:calc(100% - 6px)!important;height:calc(100% - 6px)!important;max-width:none!important;max-height:none!important;object-fit:cover;border:0!important;border-radius:50%;background:#101318}
+    .creator-profile-hero .creator-manager-avatar{border:0!important;padding:2px!important;background:linear-gradient(135deg,#25f4ee,#9b75ff 52%,#fe2c55)!important;box-shadow:none!important}
+    .creator-profile-hero .creator-manager-avatar img{display:block;width:100%;height:100%;object-fit:cover;border:0;border-radius:50%;background:#101318}
+    @media(max-width:680px){
+      .creator-profile-hero .creator-profile-left{display:grid!important;grid-template-columns:62px minmax(0,1fr);align-items:center;column-gap:12px;row-gap:0}
+      .creator-profile-hero .creator-profile-left .creator-dashboard-avatar{grid-column:1;grid-row:1;width:62px!important;height:62px!important;min-width:62px!important}
+      .creator-profile-hero .creator-profile-left .creator-dashboard-identity{grid-column:2;grid-row:1;width:100%!important;min-width:0!important;max-width:100%!important;flex:none!important;padding:0!important;display:flex;flex-direction:column;align-items:flex-start}
+      .creator-profile-hero .creator-profile-left .creator-dashboard-identity h1{display:block;width:100%;max-width:100%;white-space:normal;word-break:break-word;overflow-wrap:anywhere;font-size:clamp(17px,5vw,22px)!important;line-height:1.2}
+      .creator-profile-hero .creator-profile-left .creator-dashboard-identity .creator-username{max-width:100%;overflow-wrap:anywhere}
+      .creator-profile-hero .creator-space-team-wrap{width:100%;min-width:0}
+      .creator-profile-hero .creator-manager-profile{display:grid;grid-template-columns:52px minmax(0,1fr);column-gap:10px;align-items:center}
+      .creator-profile-hero .creator-manager-avatar{grid-column:1;grid-row:1;width:52px;height:52px;min-width:52px}
+      .creator-profile-hero .creator-manager-profile .creator-space-team{grid-column:2;grid-row:1;width:100%;min-width:0}
+      .creator-profile-hero .creator-space-team .creator-contact-btn{align-self:flex-start;max-width:100%}
+    }
     /* Ajustes finales del perfil: anillo exterior fino y distribución móvil estable. */
     .creator-dashboard-hero.creator-profile-hero{box-sizing:border-box;width:100%;min-width:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
     .creator-profile-hero .creator-profile-left{box-sizing:border-box;min-width:0}
@@ -5406,7 +5424,7 @@ function updateGrayxonRoleHeader(){
     if(!document.getElementById('grayxon-role-header-styles')){
       const style=document.createElement('style');
       style.id='grayxon-role-header-styles';
-      style.textContent='.grayxon-role-header-badge{display:none;align-items:center;gap:9px;margin-left:auto;margin-right:18px;padding:9px 16px;border:1px solid transparent;border-radius:999px;background:linear-gradient(#08090b,#08090b) padding-box,linear-gradient(110deg,#25f4ee,#9c83ff,#fe2c55) border-box;color:#f7f8fb;font-size:14px;font-weight:800;white-space:nowrap}.grayxon-role-crown{font-size:20px;line-height:1;background:linear-gradient(115deg,#25f4ee,#b4a0ff 52%,#fe2c55);color:transparent;background-clip:text;-webkit-background-clip:text}header.top .grayxon-role-header-badge.is-visible{display:inline-flex}@media(max-width:600px){.grayxon-role-header-badge{font-size:11px;padding:7px 10px;gap:6px;margin-right:8px}.grayxon-role-crown{font-size:16px}header.top .brand b{font-size:clamp(15px,4vw,22px);letter-spacing:.14em}}';
+      style.textContent='header.top{position:relative}.grayxon-role-header-badge{display:none;align-items:center;gap:9px;margin-left:auto;margin-right:0;padding:9px 16px;border:1px solid transparent;border-radius:999px;background:linear-gradient(#08090b,#08090b) padding-box,linear-gradient(110deg,#25f4ee,#9c83ff,#fe2c55) border-box;color:#f7f8fb;font-size:14px;font-weight:800;white-space:nowrap;flex:0 0 auto}.grayxon-role-crown{font-size:20px;line-height:1;background:linear-gradient(115deg,#25f4ee,#b4a0ff 52%,#fe2c55);color:transparent;background-clip:text;-webkit-background-clip:text}header.top .grayxon-role-header-badge.is-visible{display:inline-flex}@media(max-width:600px){header.top .grayxon-role-header-badge{font-size:11px;padding:7px 10px;gap:6px;margin-left:auto;margin-right:8px}header.top .brand{min-width:0;flex:0 1 auto}header.top .brand b{font-size:clamp(15px,4vw,22px);letter-spacing:.14em}header.top .header-actions{flex:0 0 auto}}';
       document.head.appendChild(style);
     }
   }
