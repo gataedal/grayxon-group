@@ -2478,10 +2478,10 @@ async function startGrayxonLiveTraining(training, options={}){
   window.__grayxonLargeVideoParticipant = null;
   const isHost = !!session?.user?.id && training.created_by === session.user.id;
   const isAdmin = profile?.role === 'admin';
-  // Solo un administrador de Grayxon puede moderar la sala desde los controles
-  // propios del portal. Ser creador/manager del registro no concede privilegios
-  // de moderación; los permisos efectivos de Jitsi siguen validándose en el servidor.
-  const canManageMeeting = isAdmin;
+  // La interfaz debe reflejar la misma política del backend: anfitrión registrado
+  // o administrador pueden gestionar el cierre global. Jitsi sigue validando
+  // en el servidor los privilegios efectivos de moderación.
+  const canManageMeeting = isHost || isAdmin;
   window.__gxCanManageMeeting = canManageMeeting;
   try{
     const [connection,JitsiMeetExternalAPI]=await Promise.all([
@@ -2565,12 +2565,15 @@ async function startGrayxonLiveTraining(training, options={}){
         if(!hostIdValue){window.__gxHostParticipantId=null;return;}
         const hostId=String(hostIdValue);
         window.__gxHostParticipantId=hostId;
-        // pinParticipant preserves video subscription; setLargeVideoParticipant
-        // chooses the visible stage. Both are local view controls in each client.
+        // Fijar al anfitrión y seleccionar su vídeo en la vista principal.
+        // setLargeVideoParticipant es un método de la API externa, no un comando
+        // de executeCommand. Se mantiene el pin como respaldo de la prioridad visual.
         try{api.pinParticipant?.(hostId,'camera');}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la pista del anfitrión',err);}
         if(String(window.__grayxonLargeVideoParticipant||'')!==hostId){
-          try{api.executeCommand('setLargeVideoParticipant',hostId,'camera');}
-          catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal del anfitrión',err);}
+          try{
+            if(typeof api.setLargeVideoParticipant==='function') api.setLargeVideoParticipant(hostId);
+            else console.warn('Grayxon LIVE: la API actual no expone setLargeVideoParticipant; se conserva el pin del anfitrión.');
+          }catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal del anfitrión',err);}
         }
       }catch(err){
         console.warn('Grayxon LIVE: no se pudo resolver la identidad del anfitrión en Jitsi',err);
