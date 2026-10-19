@@ -3917,7 +3917,13 @@ function ensureFormationRedesignStyles(){
     #training .library-module-lessons{display:grid;padding:0 10px 9px}
     #training .library-module-lessons[hidden]{display:none}
     #training .library-module-lessons .lesson{border-top:1px solid rgba(255,255,255,.055)}
-    #training .library-module-lessons .lesson button{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:7px;width:100%;padding:10px 1px;border:0;background:transparent;color:inherit;text-align:left}
+    #training .library-module-lessons .lesson button{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;min-height:56px;padding:11px 4px;border:0;border-radius:10px;background:transparent;color:inherit;text-align:left;cursor:pointer;transition:background .18s ease,transform .18s ease}
+    #training .library-module-lessons .lesson button:not(:disabled):hover{background:rgba(37,244,238,.055)}
+    #training .library-module-lessons .lesson button:not(:disabled):active{transform:scale(.99)}
+    #training .library-module-lessons .lesson button:focus-visible{outline:2px solid #25f4ee;outline-offset:2px}
+    #training .library-module-lessons .lesson button .formation-lesson-action{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 11px;border:1px solid rgba(37,244,238,.35);border-radius:999px;background:rgba(37,244,238,.08);color:#7ff8f2;font-size:11px;font-weight:800;letter-spacing:.01em;white-space:nowrap}
+    #training .library-module-lessons .lesson button:disabled .formation-lesson-action{border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:#8d95a1}
+    #training .library-module-lessons .lesson-next button .formation-lesson-action{background:rgba(37,244,238,.14);border-color:rgba(37,244,238,.55);color:#9afff9}
     #training .library-module-lessons .lesson-index{display:grid;place-items:center;width:23px;height:23px;border-radius:7px;background:rgba(255,255,255,.05);font-size:10px}
     #training .library-module-lessons .lesson-done .lesson-index{background:rgba(78,196,121,.1);color:#8bd5a5}
     #training .library-module-lessons .lesson-text{min-width:0}
@@ -4009,7 +4015,7 @@ async function trainingTpl(options = {}) {
   if (window._creatorDashboardPendingLessonId) delete window._creatorDashboardPendingLessonId;
 
   if (!totalLessons) { const view = $('#lessonView'); view?.classList.remove('hidden'); if(view) view.innerHTML = '<div class="library-empty-group">Todavía no hay contenidos publicados.</div>'; }
-  $('#training').querySelectorAll('[data-lesson]').forEach(button => { if(button.dataset.libraryBound) return; button.dataset.libraryBound='1'; });
+  $('#training').querySelectorAll('[data-lesson]').forEach(button => { button.onclick = () => openLesson(button.dataset.lesson); button.dataset.libraryBound='1'; });
   $('#training').querySelectorAll('[data-library-toggle]').forEach(button => { button.addEventListener('click', () => { const id=button.getAttribute('data-library-toggle'); const list=$('#training').querySelector(`[data-library-lessons="${CSS.escape(id)}"]`); const expanded=button.getAttribute('aria-expanded')==='true'; button.setAttribute('aria-expanded',String(!expanded)); if(list) list.hidden=expanded; }); });
 }
 
