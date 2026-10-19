@@ -3904,6 +3904,8 @@ function ensureFormationRedesignStyles(){
     #training .formation-lesson-action{font-size:10px;color:#a8b0bb;white-space:nowrap}
     #training .formation-lessons-list .lesson-next{background:rgba(37,244,238,.045)}
     #training .formation-lessons-list .lesson-next .formation-lesson-action{color:#70e6e2}
+    #training .formation-lessons-list button.is-locked{opacity:.42;cursor:not-allowed}
+    #training .formation-lessons-list button:disabled:hover{background:transparent}
     #training .formation-empty-group{padding:14px;border:1px dashed rgba(255,255,255,.12);border-radius:12px;color:#8e96a2;font-size:12px}
     #training .formation-complete-state{padding:clamp(22px,4vw,38px);border:1px solid rgba(37,244,238,.15);border-radius:20px;background:linear-gradient(145deg,#15191d,#0d0f12);text-align:center}
     #training .formation-complete-icon{width:54px;height:54px;margin:0 auto 15px;border-radius:50%;display:grid;place-items:center;background:rgba(78,196,121,.12);color:#8bd5a5;font-size:26px}
@@ -3966,26 +3968,27 @@ async function trainingTpl(options = {}) {
 
   const moduleCard = (x) => {
     const {m, mi, ml, md, complete} = x;
-    return `<article class="formation-module-card ${complete ? 'formation-module-complete' : ''}">
+    const moduleState = complete ? '✓ Completado' : ml.some(l => l.id === nextPending?.id) ? 'SIGUIENTE' : 'PENDIENTE';
+    return `<article class="formation-module-card ${complete ? 'formation-module-complete' : ''}" data-formation-module-card="${m.id}">
       <div class="formation-module-heading">
         <span class="formation-module-number">${String(mi + 1).padStart(2,'0')}</span>
         <span class="formation-module-copy"><strong>${esc(m.title)}</strong>${m.description ? `<small>${esc(m.description)}</small>` : ''}</span>
-        <span class="formation-module-status">${complete ? '✓ Completado' : `${md}/${ml.length}`}</span>
+        <span class="formation-module-status">${moduleState}</span>
       </div>
       <div class="formation-lessons-list">
         ${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}">
-          <button type="button" data-lesson="${l.id}">
+          <button type="button" data-lesson="${l.id}" ${!done.has(l.id) && nextPending?.id !== l.id ? 'disabled aria-disabled="true" class="is-locked"' : ''}>
             <span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span>
             <span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}${done.has(l.id) ? ' · Completado' : ''}</small></span>
-            <span class="formation-lesson-action">${done.has(l.id) ? 'Ver de nuevo' : 'Abrir'} ›</span>
+            <span class="formation-lesson-action">${done.has(l.id) ? 'Ver de nuevo' : nextPending?.id === l.id ? 'Abrir ›' : 'Bloqueada 🔒'}</span>
           </button>
         </div>`).join('') || '<div class="muted small">Este módulo todavía no tiene lecciones.</div>'}
       </div>
     </article>`;
   };
 
-  const sectionHtml = (title, items, emptyText) => `
-    <section class="formation-section">
+  const sectionHtml = (title, items, emptyText, sectionKey) => `
+    <section class="formation-section" data-formation-section="${sectionKey}">
       <h2 class="formation-section-title">${title}</h2>
       <div class="formation-group-list">
         ${items.length ? items.map(moduleCard).join('') : `<div class="formation-empty-group">${emptyText}</div>`}
@@ -4000,8 +4003,8 @@ async function trainingTpl(options = {}) {
     <div class="formation-content-layout">
       <div class="lesson-view hidden" id="lessonView"></div>
       <div class="formation-groups">
-        ${sectionHtml('Pendientes',pendingModules,'No tienes lecciones pendientes.')}
-        ${completedModules.length ? sectionHtml('Completados',completedModules,'') : ''}
+        ${sectionHtml('Pendientes',pendingModules,'No tienes lecciones pendientes.','pending')}
+        ${completedModules.length ? sectionHtml('Completados',completedModules,'','completed') : ''}
       </div>
     </div>
   </div>`;
@@ -4062,9 +4065,64 @@ function getNextLessonAfter(id){
 function getNextPendingLessonAfter(id){
   const lessons = window._lessons || [];
   const done = window._done || new Set();
-  const currentIndex = lessons.findIndex(l => l.id === id);
-  const laterPending = lessons.slice(Math.max(0, currentIndex + 1)).find(l => !done.has(l.id));
-  return laterPending || lessons.find(l => !done.has(l.id)) || null;
+  return lessons.find(l => !done.has(l.id)) || null;
+}
+
+function syncFormationLessonListState(){
+  const lessons = window._lessons || [];
+  const modules = window._modules || [];
+  const done = window._done || new Set();
+  const nextPending = lessons.find(l => !done.has(l.id)) || null;
+
+  for(const lesson of lessons){
+    const button = document.querySelector(`#training [data-lesson="${CSS.escape(lesson.id)}"]`);
+    if(!button) continue;
+    const row = button.closest('.lesson');
+    const isDone = done.has(lesson.id);
+    const isNext = !isDone && lesson.id === nextPending?.id;
+    const locked = !isDone && !isNext;
+    row?.classList.toggle('lesson-done', isDone);
+    row?.classList.toggle('lesson-next', isNext);
+    button.disabled = locked;
+    button.setAttribute('aria-disabled', String(locked));
+    button.classList.toggle('is-locked', locked);
+    const index = button.querySelector('.lesson-index');
+    if(index && isDone) index.textContent = '✓';
+    const type = lesson.type === 'video' ? 'Video' : lesson.type === 'resource' ? 'Recurso' : 'Contenido';
+    const detail = button.querySelector('.lesson-text small');
+    if(detail) detail.textContent = type + (isDone ? ' · Completado' : '');
+    const action = button.querySelector('.formation-lesson-action');
+    if(action) action.textContent = isDone ? 'Ver de nuevo ›' : isNext ? 'Abrir ›' : 'Bloqueada 🔒';
+  }
+
+  for(const module of modules){
+    const moduleLessons = lessons.filter(l => l.module_id === module.id);
+    const isComplete = moduleLessons.length > 0 && moduleLessons.every(l => done.has(l.id));
+    const card = document.querySelector(`#training [data-formation-module-card="${CSS.escape(module.id)}"]`);
+    if(!card) continue;
+    const status = card.querySelector('.formation-module-status');
+    if(status) status.textContent = isComplete ? '✓ Completado' : moduleLessons.some(l => l.id === nextPending?.id) ? 'SIGUIENTE' : 'PENDIENTE';
+
+    const targetKey = isComplete ? 'completed' : 'pending';
+    const targetSection = document.querySelector(`#training [data-formation-section="${targetKey}"] .formation-group-list`);
+    if(targetSection && card.parentElement !== targetSection) targetSection.appendChild(card);
+  }
+
+  const pendingSection = document.querySelector('#training [data-formation-section="pending"] .formation-group-list');
+  if(pendingSection){
+    const hasCards = !!pendingSection.querySelector('.formation-module-card');
+    const empty = pendingSection.querySelector('.formation-empty-group');
+    if(!hasCards && !empty){
+      pendingSection.innerHTML = '<div class="formation-empty-group">No tienes lecciones pendientes.</div>';
+    } else if(hasCards && empty){
+      empty.remove();
+    }
+  }
+  const completedSection = document.querySelector('#training [data-formation-section="completed"] .formation-group-list');
+  if(completedSection){
+    const empty = completedSection.querySelector('.formation-empty-group');
+    if(empty) empty.remove();
+  }
 }
 
 function getNextPendingModuleLesson(currentModuleId){
@@ -4252,6 +4310,7 @@ async function completeLesson(id, options = {}) {
   }
 
   window._done.add(id);
+  syncFormationLessonListState();
   toast('Lección completada ✓');
 
   // Avanzamos sobre la vista actual. No refrescamos Formación después porque ese render
