@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Portal de Grayxon Group</title>
 
 <meta name="description" content="Grayxon Group: agencia de TikTok LIVE en Latinoamérica. Crece, conecta y monetiza con acompañamiento, entrenamientos y oportunidades.">
@@ -1111,4 +1111,8 @@ body{min-height:100dvh!important}
 @media(max-width:850px){.manager-dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:540px){.manager-dashboard-grid{grid-template-columns:1fr}.manager-dashboard-grid>:not(.grayxon-manager-accordion-panel){min-height:96px!important}.manager-dashboard-grid .manager-upcoming-training{min-height:96px!important;padding:14px}.manager-dashboard-grid .grayxon-manager-accordion-toggle,.manager-dashboard-grid .manager-creators-toggle{min-height:96px!important;padding:14px}.dashboard-announcement-card.gx-ann-dashboard-card{min-height:96px!important;padding:14px}}
 
+</style>
+<style id="gx-safe-area-layout">
+/* Mantiene el encabezado debajo de la barra de estado cuando el viewport cubre la pantalla completa. */
+header.top{height:calc(68px + env(safe-area-inset-top,0px))!important;padding-top:env(safe-area-inset-top,0px)!important;box-sizing:border-box!important}
 </style>
