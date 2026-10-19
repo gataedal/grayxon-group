@@ -2512,7 +2512,7 @@ async function startGrayxonLiveTraining(training, options={}){
         // Oculta la miniatura duplicada de la cámara propia en mosaico/franja de Jitsi.
         // La cámara grande sigue controlándose con setLargeVideoParticipant y el menú flotante
         // de Grayxon permanece fuera del iframe, por lo que conserva sus funciones.
-        disableSelfView:true,
+        disableSelfView:false,
         maxFullResolutionParticipants:4,
         // Grayxon uses its own Jitsi server. Force media through the Jitsi Videobridge
         // while diagnosing black remote video; this avoids a broken P2P ICE path
