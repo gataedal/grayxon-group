@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#050609">
+  <meta name="color-scheme" content="dark">
+  <title>Abriendo Grayxon</title>
+  <style>
+    :root{color-scheme:dark;background:#050609;color:#f5f6f8;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    *{box-sizing:border-box}
+    html,body{min-height:100%;margin:0}
+    body{min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 0%,#171b22 0%,#050609 58%)}
+    main{text-align:center;max-width:320px}
+    .mark{width:46px;height:46px;margin:0 auto 18px;border:1px solid #3a414d;border-radius:15px;display:grid;place-items:center;color:#e5eaf1;font-size:22px;font-weight:800}
+    h1{font-size:17px;margin:0 0 8px;font-weight:700}
+    p{font-size:13px;line-height:1.5;color:#9da6b5;margin:0}
+    .spin{width:19px;height:19px;border:2px solid #414753;border-top-color:#dbe2ec;border-radius:50%;margin:22px auto 0;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media(prefers-reduced-motion:reduce){.spin{animation:none}}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js?v=20261020"></script>
+</head>
+<body>
+  <main aria-live="polite">
+    <div class="mark" aria-hidden="true">G</div>
+    <h1>Abriendo Grayxon</h1>
+    <p>Estamos preparando tu espacio.</p>
+    <div class="spin" aria-hidden="true"></div>
+  </main>
+  <script>
+    (async function startGrayxonApp() {
+      const publicPage = './index.html?v=20261019';
+      const portalPage = './portal.html';
+      try {
+        const cfg = window.GRAYXON_CONFIG;
+        if (!window.supabase || typeof window.supabase.createClient !== 'function' ||
+            !cfg || !cfg.SUPABASE_URL || !cfg.SUPABASE_PUBLISHABLE_KEY) {
+          window.location.replace(publicPage);
+          return;
+        }
+        const client = window.supabase.createClient(
+          cfg.SUPABASE_URL,
+          cfg.SUPABASE_PUBLISHABLE_KEY,
+          { auth: { persistSession: true, autoRefreshToken: false, detectSessionInUrl: false } }
+        );
+        const { data, error } = await client.auth.getSession();
+        if (error) throw error;
+        window.location.replace(data && data.session ? portalPage : publicPage);
+      } catch (error) {
+        console.warn('No se pudo comprobar la sesión al abrir Grayxon:', error);
+        window.location.replace(publicPage);
+      }
+    })();
+  </script>
+</body>
+</html>
