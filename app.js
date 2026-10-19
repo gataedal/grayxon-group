@@ -1262,6 +1262,7 @@ function nav(p, push = true) {
     Promise.resolve(render()).then(()=>refreshMyPendingPaymentsBadge()).catch(e => console.warn('Render:', e));
   }
   window.scrollTo(0,0);
+  if(typeof window.refreshGrayxonBottomActive==='function') setTimeout(window.refreshGrayxonBottomActive,0);
 }
 
 window.grayxonNavigateToDashboard = function(){
