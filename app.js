@@ -2227,44 +2227,145 @@ function destroyJaasMeeting() {
 }
 async function recordLiveTrainingJoin(trainingId){
   if(!trainingId||!session?.user?.id)return null;
-  const {data,error}=await sb.from('live_training_participants').insert({training_id:trainingId,user_id:session.user.id}).select('id,training_id,user_id,joined_at').single();
-  if(error){console.warn('No se pudo registrar la entrada:',error.message);return null;} currentLiveParticipantRow=data; return data;
+  const userId=session.user.id;
+  const {data:openRows,error:lookupError}=await sb.from('live_training_participants')
+    .select('id,training_id,user_id,joined_at').eq('training_id',trainingId).eq('user_id',userId)
+    .is('left_at',null).order('joined_at',{ascending:false}).limit(1);
+  if(lookupError)console.warn('No se pudo consultar la asistencia abierta:',lookupError.message);
+  const existing=Array.isArray(openRows)?openRows[0]:null;
+  if(existing){currentLiveParticipantRow=existing;return existing;}
+  const {data,error}=await sb.from('live_training_participants').insert({training_id:trainingId,user_id:userId})
+    .select('id,training_id,user_id,joined_at').single();
+  if(error){
+    if(error.code==='23505'){
+      const retry=await sb.from('live_training_participants').select('id,training_id,user_id,joined_at')
+        .eq('training_id',trainingId).eq('user_id',userId).is('left_at',null)
+        .order('joined_at',{ascending:false}).limit(1);
+      if(!retry.error&&retry.data?.[0]){currentLiveParticipantRow=retry.data[0];return retry.data[0];}
+    }
+    console.warn('No se pudo registrar la entrada:',error.message);return null;
+  }
+  currentLiveParticipantRow=data;return data;
 }
 async function recordLiveTrainingLeave(){
-  const row=currentLiveParticipantRow; currentLiveParticipantRow=null; if(!row?.id)return;
-  const {error}=await sb.from('live_training_participants').update({left_at:new Date().toISOString()}).eq('id',row.id).eq('user_id',session?.user?.id||'');
-  if(error)console.warn('No se pudo registrar la salida:',error.message);
+  const row=currentLiveParticipantRow;if(!row?.id)return;
+  const leftAt=new Date().toISOString(),joinedMs=Date.parse(row.joined_at||'');
+  const durationSeconds=Number.isFinite(joinedMs)?Math.max(0,Math.floor((Date.now()-joinedMs)/1000)):0;
+  const {error}=await sb.from('live_training_participants').update({left_at:leftAt,duration_seconds:durationSeconds})
+    .eq('id',row.id).eq('user_id',session?.user?.id||'').is('left_at',null);
+  if(error){console.warn('No se pudo registrar la salida:',error.message);return;}
+  currentLiveParticipantRow=null;
 }
-async function endLiveTrainingConference(api, trainingId) {
-  if (!api) return;
+function resolveGrayxonLiveTrainingCapabilities({ userId, globalRole, training } = {}) {
+  const authenticated = typeof userId === 'string' && userId.length > 0;
+  const hostUserId = typeof training?.created_by === 'string' ? training.created_by : null;
+  const isAdmin = authenticated && globalRole === 'admin';
+  const isHost = authenticated && !!hostUserId && userId === hostUserId;
+  const canEnter = authenticated && !!training?.id;
+  return Object.freeze({
+    canEnter: !!canEnter,
+    isAdmin: !!isAdmin,
+    isHost: !!isHost,
+    hostUserId,
+    canModerate: !!(canEnter && (isAdmin || isHost)),
+    canPromoteParticipants: !!(canEnter && (isAdmin || isHost)),
+    canEndForAll: !!(canEnter && (isAdmin || isHost)),
+    shouldPinHost: !!hostUserId
+  });
+}
+
+async function endLiveTrainingConference(api, trainingId, canEndAll = null) {
+  const capabilities = resolveGrayxonLiveTrainingCapabilities({
+    userId: session?.user?.id,
+    globalRole: profile?.role,
+    training: currentLiveTraining?.id === trainingId
+      ? currentLiveTraining
+      : { id: trainingId, created_by: liveTrainingHostUserId }
+  });
+  if (canEndAll === false || !capabilities.canEndForAll) {
+    toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
+    return false;
+  }
+  if (!api || !trainingId) return false;
+
   liveTrainingEnding = true;
-  try {
-    // Prefer the native moderator command when the deployment supports it.
-    try { api.executeCommand('endConference'); } catch (_) {}
-    // Also explicitly kick remote participants so the training is closed even
-    // if End Conference is not enabled for the deployment.
-    try {
-      const rooms = await api.getRoomsInfo?.();
-      const participants = (rooms?.rooms || []).flatMap(r => r.participants || []);
-      const localId = participants.find(p => p.userContext?.id === session?.user?.id)?.id;
-      for (const p of participants) {
-        if (p.id && p.id !== localId) {
-          try { api.executeCommand('kickParticipant', p.id); } catch (_) {}
-        }
-      }
-    } catch (_) {}
-    try { api.executeCommand('hangup'); } catch (_) {}
-  } finally {
-    // The database state is the source of truth for the Grayxon EN VIVO badge.
-    if (trainingId) {
-      const endedAt = new Date().toISOString();
-      const { error } = await sb.from('live_trainings')
-        .update({ status:'finished', ended_at:endedAt })
-        .eq('id',trainingId).eq('status','live');
-      if (error) console.warn('No se pudo finalizar el entrenamiento:',error.message);
-      await sb.from('live_training_participants').update({left_at:endedAt})
-        .eq('training_id',trainingId).is('left_at',null);
+  let accessToken = null;
+  const callEndTraining = async (action) => {
+    const response = await fetch(`${CFG.SUPABASE_URL}/functions/v1/end-live-training`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ trainingId, action })
+    });
+    let result = null;
+    try { result = await response.json(); } catch (_) {}
+    if (!response.ok || result?.error || result?.ok !== true) {
+      throw new Error(result?.error || 'El servidor no autorizó finalizar el entrenamiento.');
     }
+    return result;
+  };
+
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    accessToken = sessionData?.session?.access_token;
+    if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible.');
+
+    // Phase 1: server validates role and training ownership without changing data.
+    await callEndTraining('authorize');
+
+    // Wait for Jitsi to confirm the conference is closed before marking the
+    // training finished in Supabase. Issuing endConference alone is not proof
+    // that the room actually closed.
+    let closeTimeout = null;
+    let resolveClosed;
+    let rejectClosed;
+    let closeListenerActive = true;
+    const cleanupCloseListener = () => {
+      if (!closeListenerActive) return;
+      closeListenerActive = false;
+      if (closeTimeout !== null) clearTimeout(closeTimeout);
+      api.removeEventListener?.('readyToClose', onReadyToClose);
+    };
+    const onReadyToClose = () => {
+      cleanupCloseListener();
+      resolveClosed(true);
+    };
+    const conferenceClosed = new Promise((resolve, reject) => {
+      resolveClosed = resolve;
+      rejectClosed = reject;
+    });
+    api.addEventListener('readyToClose', onReadyToClose);
+    closeTimeout = setTimeout(() => {
+      cleanupCloseListener();
+      rejectClosed(new Error('Jitsi no confirmó el cierre de la sala. El estado no se marcará como finalizado.'));
+    }, 15000);
+
+    // The meeting is ended only after the server authorizes this user.
+    try {
+      api.executeCommand('endConference');
+    } catch (commandError) {
+      cleanupCloseListener();
+      throw commandError;
+    }
+    await conferenceClosed;
+
+    // Phase 2: persist only after Jitsi confirms that the conference closed.
+    try {
+      await callEndTraining('finalize');
+    } catch (persistError) {
+      console.error('La sala se cerró, pero falló la actualización del estado:', persistError);
+      toast('La sala se cerró, pero el estado no se pudo guardar. Actualiza el panel y solicita reconciliación.');
+      return false;
+    }
+    return true;
+  } catch (error) {
+    liveTrainingEnding = false;
+    console.warn('No se pudo finalizar el entrenamiento:', error);
+    toast(error?.message || 'No se pudo confirmar la finalización del entrenamiento.');
+    return false;
   }
 }
 
@@ -2301,10 +2402,38 @@ function toggleGrayxonParticipantsPanel(){
   panel.hidden=!panel.hidden;panel.classList.toggle('hidden',panel.hidden);
   if(jaasApi&&!panel.hidden)refreshGrayxonParticipants(jaasApi);
 }
+async function getGrayxonJitsiParticipants(api){
+  if(!api)return [];
+  try{
+    if(typeof api.getRoomsInfo==='function'){
+      const roomInfo=await api.getRoomsInfo();
+      const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:null);
+      if(rooms){
+        const participants=rooms.flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
+        return participants.map(person=>({
+          ...person,
+          participantId:person.participantId||person.id||'',
+          isLocal:String(person?.userContext?.id||'')===String(session?.user?.id||''),
+          avatarURL:person.avatarURL||person.avatarUrl||person.avatar||''
+        }));
+      }
+    }
+  }catch(error){
+    console.warn('Grayxon LIVE: getRoomsInfo no está disponible; se intentará el método compatible anterior.',error);
+  }
+  try{
+    const legacy=await api.getParticipantsInfo?.();
+    return Array.isArray(legacy)?legacy.map(person=>({...person,participantId:person.participantId||person.id||''})):[];
+  }catch(error){
+    console.warn('Grayxon LIVE: no se pudieron consultar los participantes.',error);
+    return [];
+  }
+}
+
 async function refreshGrayxonParticipants(api){
   const panel=$('.gx-participants-panel');if(!panel||!api)return;
   try{
-    const data=await api.getParticipantsInfo();const people=Array.isArray(data)?data:[];
+    const people=await getGrayxonJitsiParticipants(api);
     const local=people.find(p=>p.isLocal);
     if(local)window.__gxLocalParticipantId=local.participantId||local.id||null;
     people.sort((a,b)=>{
@@ -2344,10 +2473,14 @@ async function startGrayxonLiveTraining(training, options={}){
   host.innerHTML='<div id="grayxonJaasLoading" class="live-training-loading" aria-hidden="true"></div>';
   liveTrainingHostUserId = training.created_by || null;
   liveTrainingEnding = false;
+  window.__gxHostParticipantId = null;
+  window.__gxLocalParticipantId = null;
+  window.__grayxonLargeVideoParticipant = null;
   const isHost = !!session?.user?.id && training.created_by === session.user.id;
   const isAdmin = profile?.role === 'admin';
-  // Meeting host and Grayxon administrator are separate capabilities.
-  // The creator remains the visual host; admins can also manage the meeting.
+  // La interfaz debe reflejar la misma política del backend: anfitrión registrado
+  // o administrador pueden gestionar el cierre global. Jitsi sigue validando
+  // en el servidor los privilegios efectivos de moderación.
   const canManageMeeting = isHost || isAdmin;
   window.__gxCanManageMeeting = canManageMeeting;
   try{
@@ -2409,35 +2542,46 @@ async function startGrayxonLiveTraining(training, options={}){
         showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));
         playGrayxonSound('reaction');
       })
-      .on('broadcast',{event:'host-camera-pin'},({payload})=>{
-        const hostParticipantId=String(payload?.participantId||'');
-        if(!hostParticipantId)return;
-        window.__gxHostParticipantId=hostParticipantId;
-        // El evento puede llegar antes de que Jitsi termine de crear el escenario.
-        // Reintentar brevemente evita que el primer pin se pierda durante la entrada.
-        const pinHost=()=>{try{api.executeCommand('setLargeVideoParticipant',hostParticipantId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión',err);}};
-        [0,250,700,1400].forEach(delay=>setTimeout(pinHost,delay));
-      })
-      .on('broadcast',{event:'host-camera-pin-request'},()=>{
-        // Los broadcasts no se reproducen a los participantes que aún no estaban suscritos.
-        // Si alguien entra tarde, el anfitrión le vuelve a anunciar su ID de Jitsi.
-        if(!isHost)return;
-        const hostParticipantId=String(window.__gxLocalParticipantId||'');
-        if(hostParticipantId)sendGrayxonLiveBroadcast('host-camera-pin',{participantId:hostParticipantId,userId:session?.user?.id||null});
-      })
       .subscribe(status=>{
         if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Grayxon LIVE: error en canal de sincronización',status);
-        if(status==='SUBSCRIBED'){
-          const hostParticipantId=String(window.__gxLocalParticipantId||'');
-          if(isHost&&hostParticipantId){
-            [0,500,1400].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin',{participantId:hostParticipantId,userId:session?.user?.id||null}),delay));
-          }else{
-            // Solicitar el ID al anfitrión al conectar; repetir para cubrir la carrera
-            // entre la suscripción de Realtime y la entrada a la sala de Jitsi.
-            [100,700,1600].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin-request',{userId:session?.user?.id||null}),delay));
-          }
-        }
       });
+
+    // La identidad del anfitrión se resuelve desde la identidad de Jitsi asociada
+    // al usuario autenticado, no mediante broadcasts ni el orden de llegada.
+    let gxHostStageSyncInFlight=false;
+    let gxHostStageSyncAgain=false;
+    const syncGrayxonHostStage=async()=>{
+      if(!training?.created_by||jaasApi!==api)return;
+      if(gxHostStageSyncInFlight){gxHostStageSyncAgain=true;return;}
+      gxHostStageSyncInFlight=true;
+      try{
+        const roomInfo=await api.getRoomsInfo?.();
+        // Jitsi SDK deployments may return either a room array or { rooms }.
+        const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[]);
+        const mainRooms=rooms.filter(room=>room?.isMainRoom);
+        const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
+        const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by))||(isHost?participants.find(person=>String(person?.id||person?.participantId||'')===String(window.__gxLocalParticipantId||'')):null);
+        const hostIdValue=hostParticipant?.id||hostParticipant?.participantId;
+        if(!hostIdValue){window.__gxHostParticipantId=null;return;}
+        const hostId=String(hostIdValue);
+        window.__gxHostParticipantId=hostId;
+        // Fijar al anfitrión y seleccionar su cámara en la vista principal.
+        // Ambos métodos están documentados por la IFrame API de Jitsi.
+        try{api.pinParticipant?.(hostId,'camera');}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la pista del anfitrión',err);}
+        if(String(window.__grayxonLargeVideoParticipant||'')!==hostId){
+          try{api.executeCommand('setLargeVideoParticipant',hostId,'camera');}
+          catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal del anfitrión',err);}
+        }
+      }catch(err){
+        console.warn('Grayxon LIVE: no se pudo resolver la identidad del anfitrión en Jitsi',err);
+      }finally{
+        gxHostStageSyncInFlight=false;
+        if(gxHostStageSyncAgain){
+          gxHostStageSyncAgain=false;
+          setTimeout(()=>syncGrayxonHostStage(),0);
+        }
+      }
+    };
     let gxJitsiReady=false;
     let gxAudioMuted=true;
     let gxVideoMuted=true;
@@ -2473,7 +2617,7 @@ async function startGrayxonLiveTraining(training, options={}){
             const handButton=$('[data-gx-call="hand"]');
             if(handButton){handButton.setAttribute('aria-pressed',String(gxHandRaised));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=gxHandRaised?'Bajar la mano':'Levantar la mano';}
             let localId=window.__gxLocalParticipantId;
-            if(!localId){try{const ps=await api.getParticipantsInfo();const lp=Array.isArray(ps)?ps.find(p=>p.isLocal):null;localId=lp?.participantId||lp?.id||null;window.__gxLocalParticipantId=localId;}catch(_){}}
+            if(!localId){try{const ps=await getGrayxonJitsiParticipants(api);const lp=ps.find(p=>p.isLocal);localId=lp?.participantId||lp?.id||null;window.__gxLocalParticipantId=localId;}catch(_){}}
             if(localId)grayxonRaisedHands.set(localId,gxHandRaised);
             refreshGrayxonParticipants(api);
             const handName=profile?.full_name||profile?.username||'Participante';
@@ -2593,8 +2737,8 @@ async function startGrayxonLiveTraining(training, options={}){
       gxLogVideoDiag('ready');
       scheduleGrayxonJitsiResize();
     });
-    api.addEventListener?.('trackAdded', ev=>gxLogVideoDiag('trackAdded', ev));
-    api.addEventListener?.('trackRemoved', ev=>gxLogVideoDiag('trackRemoved', ev));
+    api.addEventListener?.('trackAdded', ev=>{gxLogVideoDiag('trackAdded', ev);if(ev?.type==='video'||ev?.track?.type==='video')syncGrayxonHostStage();});
+    api.addEventListener?.('trackRemoved', ev=>{gxLogVideoDiag('trackRemoved', ev);if(ev?.type==='video'||ev?.track?.type==='video')syncGrayxonHostStage();});
     api.addEventListener?.('connectionQualityChanged', ev=>gxLogVideoDiag('connectionQualityChanged', ev));
 
     api.addEventListener?.('audioMuteStatusChanged',ev=>{
@@ -2626,64 +2770,38 @@ async function startGrayxonLiveTraining(training, options={}){
       await recordLiveTrainingJoin(training.id);
       await refreshGrayxonParticipants(api);
       try{
-        const participants=await api.getParticipantsInfo();
-        const local=Array.isArray(participants)?participants.find(p=>p.isLocal):null;
-        if(local){
-          const localId=String(local.participantId||local.id||'');
-          window.__gxLocalParticipantId=localId||null;
-          if(isHost&&localId){
-            // El anfitrión es la vista principal predeterminada. Al ocultar self-view
-            // no queda una segunda miniatura de la cámara local.
-            window.__gxHostParticipantId=localId;
-            try{api.executeCommand('setLargeVideoParticipant',localId);setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',localId);}catch(_){}},900);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la cámara del anfitrión local',err);}
-            sendGrayxonLiveBroadcast('host-camera-pin',{participantId:localId,userId:session?.user?.id||null});
-          }else if(window.__gxHostParticipantId){
-            const hostParticipantId=String(window.__gxHostParticipantId);
-            [0,300,900].forEach(delay=>setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',hostParticipantId);}catch(_){}},delay));
-          }else{
-            // El anfitrión puede haber entrado antes de que este cliente se suscribiera.
-            [0,700,1600].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin-request',{userId:session?.user?.id||null}),delay));
-          }
-        }
+        const roomInfo=await api.getRoomsInfo?.();
+        const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[]);
+        const mainRooms=rooms.filter(room=>room?.isMainRoom);
+        const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
+        const local=participants.find(person=>String(person?.userContext?.id||'')===String(session?.user?.id||''));
+        if(local?.id)window.__gxLocalParticipantId=String(local.id);
+        await syncGrayxonHostStage();
       }catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal inicial',err);}
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
     });
 
-    api.addEventListener?.('participantJoined',async ev=>{
-      gxLogVideoDiag('participantJoined',ev);refreshGrayxonParticipants(api);
-      if(isHost){
-        try{
-          const people=await api.getParticipantsInfo();
-          const local=Array.isArray(people)?people.find(p=>p.isLocal):null;
-          const id=String(local?.participantId||local?.id||'');
-          if(id){
-            window.__gxLocalParticipantId=id;
-            window.__gxHostParticipantId=id;
-            [0,350,900].forEach(delay=>setTimeout(()=>sendGrayxonLiveBroadcast('host-camera-pin',{participantId:id,userId:session?.user?.id||null}),delay));
-          }
-        }catch(_){}
-      }
+    api.addEventListener?.('participantJoined',ev=>{
+      gxLogVideoDiag('participantJoined',ev);refreshGrayxonParticipants(api);syncGrayxonHostStage();
     });
     api.addEventListener?.('participantRoleChanged',()=>refreshGrayxonParticipants(api));
-    api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);});
+    api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);syncGrayxonHostStage();});
     // El estado de la mano se gestiona con el canal de Grayxon y el ID del participante,
     // evitando que eventos nativos con formatos distintos se asignen a otra persona.
     api.addEventListener?.('raiseHandUpdated',ev=>gxLogVideoDiag('raiseHandUpdated',ev));
     api.addEventListener?.('dominantSpeakerChanged',ev=>{
       window.__grayxonDominantSpeaker=ev?.id||null;
-      // La detección de voz no debe quitarle el escenario al anfitrión.
-      // En cada dispositivo se vuelve a fijar localmente al anfitrión si alguien más
-      // pasa a ser el vídeo principal; fijar es local a cada cliente de Jitsi.
-      if(window.__gxHostParticipantId && String(ev?.id||'')!==String(window.__gxHostParticipantId)){
-        setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
-      }
+      // Este evento solo actualiza el indicador de hablante; no volver a fijar
+      // el escenario desde aquí para evitar un ciclo de cambios de cámara.
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('largeVideoChanged',ev=>{
       window.__grayxonLargeVideoParticipant=ev?.id||null;
-      if(window.__gxHostParticipantId && String(ev?.id||'')!==String(window.__gxHostParticipantId)){
-        setTimeout(()=>{try{api.executeCommand('setLargeVideoParticipant',String(window.__gxHostParticipantId));}catch(err){console.warn('Grayxon LIVE: no se pudo restaurar el anfitrión como vídeo principal',err);}},100);
-      }
+      // Si Jitsi cambia el escenario a un invitado, volver a priorizar al anfitrión.
+      // Cuando el propio anfitrión ya está visible, no se genera otra llamada ni un ciclo.
+      const visibleId=String(ev?.id||'');
+      const hostId=String(window.__gxHostParticipantId||'');
+      if(visibleId && hostId && visibleId!==hostId) syncGrayxonHostStage();
       refreshGrayxonParticipants(api);
     });
     api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
@@ -2696,8 +2814,8 @@ async function startGrayxonLiveTraining(training, options={}){
       if(handMessage){
         (async()=>{
           try{
-            const people=await api.getParticipantsInfo();
-            const person=(Array.isArray(people)?people:[]).find(p=>String(p.displayName||p.name||'')===nick&&!p.isLocal);
+            const people=await getGrayxonJitsiParticipants(api);
+            const person=people.find(p=>String(p.displayName||p.name||'')===nick&&!p.isLocal);
             const pid=person?.participantId||person?.id;
             if(pid)grayxonRaisedHands.set(String(pid),handMessage[1]==='up');
             refreshGrayxonParticipants(api);
@@ -2730,8 +2848,8 @@ async function startGrayxonLiveTraining(training, options={}){
 
     api.addEventListener?.('toolbarButtonClicked',async(ev)=>{
       if(ev?.key!=='hangup')return;
-      if(isHost){
-        await endLiveTrainingConference(api,training.id);
+      if(canManageMeeting){
+        await endLiveTrainingConference(api,training.id,true);
       }else{
         try { api.executeCommand('hangup'); } catch (_) {}
       }
@@ -3001,7 +3119,7 @@ async function liveTrainingTpl(trainingOverride=null) {
     if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
     if(choice==='end'){
       if(!(isHost||profile?.role==='admin')){toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');return;}
-      if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id);
+      if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id,true);
     }
   }));
   if(!(isHost||profile?.role==='admin'))$('.gx-end-all')?.setAttribute('hidden','');
@@ -3944,26 +4062,41 @@ async function cancelLiveTraining(id){
 }
 async function startLiveTraining(id){
   if(!id)return;
-  const {data:t}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();
+  const {data:t,error:lookupError}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();
+  if(lookupError)return toast('No se pudo consultar el entrenamiento: '+lookupError.message);
   if(!t||t.status!=='scheduled')return toast('Este entrenamiento ya no está programado.');
-  const can=profile?.role==='admin'||(profile?.role==='manager'&&t.created_by===session?.user?.id);
-  if(!can)return toast('Solo el instructor o un administrador puede iniciar este entrenamiento.');
-
-  // Before going LIVE, repair any legacy training that has no audience rows.
+  if(!(profile?.role==='admin'||t.created_by===session?.user?.id))return toast('Solo el anfitrión o un administrador puede iniciar este entrenamiento.');
   const {error:audienceError}=await ensureLiveTrainingAudience(t);
-  if(audienceError){toast(audienceError.message||'Este entrenamiento no tiene una audiencia válida.');return;}
-
-  const {data,error}=await sb.from('live_trainings').update({status:'live',started_at:new Date().toISOString(),ended_at:null}).eq('id',id).eq('status','scheduled').select('id,title,description,room_name,created_by,instructor_name,scheduled_at,status,started_at').single();
-  if(error){toast(error.code==='23505'?'Ya hay otro entrenamiento EN VIVO. Finalízalo antes de iniciar uno nuevo.':error.message);return;}
-  currentLiveTraining=data;
-  pendingLiveTrainingAutoStart=data;
-  // Create the in-app notifications only after the database confirms LIVE.
-  const notificationResult = await notifyLiveTrainingAudience(data);
-  if(notificationResult?.ok) toast('Entrenamiento EN VIVO + aviso enviado ✓');
-  else if(notificationResult?.stage) toast('Entrenamiento EN VIVO. Revisa el diagnóstico.');
-  nav('live-training');
+  if(audienceError)return toast(audienceError.message||'Este entrenamiento no tiene una audiencia válida.');
+  try{
+    const {data:authData}=await sb.auth.getSession(),accessToken=authData?.session?.access_token;
+    if(!accessToken)throw new Error('Tu sesión de Grayxon no está disponible. Vuelve a iniciar sesión.');
+    const response=await fetch(`${CFG.SUPABASE_URL}/functions/v1/start-live-training`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':CFG.SUPABASE_PUBLISHABLE_KEY,'Authorization':`Bearer ${accessToken}`},
+      body:JSON.stringify({trainingId:id})
+    });
+    let result=null;try{result=await response.json();}catch(_){}
+    if(!response.ok||result?.error||!result?.training)throw new Error(result?.error||'El servidor no confirmó el inicio del entrenamiento.');
+    currentLiveTraining=result.training;pendingLiveTrainingAutoStart=result.training;
+    const notificationResult=await notifyLiveTrainingAudience(result.training);
+    if(notificationResult?.ok)toast('Entrenamiento EN VIVO + aviso enviado ✓');
+    else if(notificationResult?.stage)toast('Entrenamiento EN VIVO. Revisa el diagnóstico.');
+    nav('live-training');
+  }catch(error){console.error('No se pudo iniciar el entrenamiento desde el servidor:',error);toast(error?.message||'No se pudo iniciar el entrenamiento.');}
 }
-async function finishLiveTraining(id){if(!id)return;const {data:t}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();if(!t||t.status!=='live')return toast('Este entrenamiento no está EN VIVO.');const can=profile?.role==='admin'||(profile?.role==='manager'&&t.created_by===session?.user?.id);if(!can)return toast('No tienes permiso para finalizar este entrenamiento.');if(!confirm('¿Finalizar este entrenamiento?'))return;const endedAt=new Date().toISOString();const {data,error}=await sb.from('live_trainings').update({status:'finished',ended_at:endedAt}).eq('id',id).eq('status','live').select('id,title').single();if(error){toast(error.message);return;}await sb.from('live_training_participants').update({left_at:endedAt}).eq('training_id',id).is('left_at',null);toast(`“${data?.title||'Entrenamiento'}” finalizado ✓`);render();}
+async function finishLiveTraining(id){
+  if(!id)return;
+  const {data:t,error}=await sb.from('live_trainings').select('id,title,status,created_by').eq('id',id).maybeSingle();
+  if(error)return toast('No se pudo consultar el entrenamiento: '+error.message);
+  if(!t||t.status!=='live')return toast('Este entrenamiento no está EN VIVO.');
+  if(!(profile?.role==='admin'||t.created_by===session?.user?.id))return toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
+  if(jaasApi&&currentLiveTraining?.id===id){
+    if(!confirm('¿Finalizar el entrenamiento para todos?'))return;
+    const ok=await endLiveTrainingConference(jaasApi,id,true);if(ok)render();return;
+  }
+  toast('Para finalizar sin dejar la sala activa, entra al entrenamiento y usa “Finalizar entrenamiento para todos”.');
+}
 async function deleteLiveTraining(id){
   if(profile?.role!=='admin'){toast('Solo un administrador puede eliminar el historial de entrenamientos.');return;}
   if(!confirm('¿Eliminar este entrenamiento? Esta acción no se puede deshacer.'))return;
