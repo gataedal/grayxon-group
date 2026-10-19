@@ -2160,7 +2160,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   ]);
 
   // Si el usuario ya navegó a otra pantalla, este render atrasado no debe tocarla.
-  if(renderToken!==creatorDashboardRenderToken || expectedNav!==navGeneration || current!=='space' || !session?.user?.id || session.user.id!==uid) return;
+  if(renderToken!==creatorDashboardRenderToken || current!=='space' || !session?.user?.id || session.user.id!==uid) return;
 
   if(profileRow) profile=profileRow;
   if(details!==undefined) profileDetails=details;
