@@ -1193,31 +1193,16 @@ function ensureLiveTrainingPage() {
 }
 
 function ensureCreatorSpaceFloat(){
-  let btn=document.getElementById('grayxonCreatorSpaceFloat');
-  if(btn)return btn;
-  btn=document.createElement('button');
-  btn.id='grayxonCreatorSpaceFloat';
-  btn.type='button';
-  btn.className='grayxon-creator-space-float';
-  btn.innerHTML='<span class="grayxon-creator-space-float-icon">⌂</span><span>Mi espacio</span>';
-  btn.setAttribute('aria-label','Volver a Mi espacio');
-  btn.addEventListener('click',()=>{ if(session?.user?.id) nav('space'); });
-  document.body.appendChild(btn);
-  return btn;
+  // El botón flotante «Mi espacio» fue retirado del portal.
+  // También elimina cualquier instancia que haya quedado viva en una sesión ya abierta.
+  document.getElementById('grayxonCreatorSpaceFloat')?.remove();
+  return null;
 }
 
 function updateCreatorSpaceFloat(){
-  const btn=ensureCreatorSpaceFloat();
+  document.getElementById('grayxonCreatorSpaceFloat')?.remove();
   const creatorSession=!!session && (profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session'));
-  const inLiveCall=document.body.classList.contains('grayxon-live-training-call');
-  const visible=creatorSession && current!=='space' && current!=='auth' && current!=='home' && !inLiveCall;
   document.body.classList.toggle('grayxon-creator-session',creatorSession);
-  btn.classList.toggle('is-visible',visible);
-  btn.style.setProperty('display', visible ? 'flex' : 'none', 'important');
-  btn.style.setProperty('opacity', visible ? '1' : '0', 'important');
-  btn.style.setProperty('pointer-events', visible ? 'auto' : 'none', 'important');
-  btn.style.setProperty('transform', visible ? 'none' : 'translateY(10px) scale(.96)', 'important');
-  btn.setAttribute('aria-hidden',visible?'false':'true');
 }
 
 function updateCreatorTopNav(){
@@ -6504,29 +6489,7 @@ sb.auth.onAuthStateChange((event,newSession)=>{
   const style=document.createElement('style');
   style.id='grayxon-v18-visuals';
   style.textContent=`
-    .grayxon-creator-space-float{
-      position:fixed!important;right:18px!important;bottom:18px!important;z-index:4900!important;
-      display:flex!important;align-items:center!important;gap:8px!important;
-      min-height:46px!important;padding:0 15px!important;border-radius:999px!important;
-      border:1px solid rgba(37,244,238,.38)!important;
-      background:linear-gradient(135deg,rgba(14,20,24,.96),rgba(18,12,19,.96))!important;
-      color:#fff!important;font-weight:850!important;font-size:12px!important;
-      box-shadow:0 12px 32px rgba(0,0,0,.34),-5px 0 18px rgba(37,244,238,.12),5px 0 18px rgba(254,44,85,.12)!important;
-      opacity:0!important;pointer-events:none!important;transform:translateY(10px) scale(.96)!important;
-      transition:opacity .18s ease,transform .18s ease,box-shadow .18s ease!important;
-      cursor:pointer!important;overflow:hidden!important;
-    }
-    .grayxon-creator-space-float:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#25f4ee,#fe2c55);border-radius:999px 0 0 999px}
-    .grayxon-creator-space-float.is-visible{opacity:1!important;pointer-events:auto!important;transform:none!important}
-    .grayxon-creator-space-float:hover{box-shadow:0 16px 38px rgba(0,0,0,.42),-6px 0 20px rgba(37,244,238,.18),6px 0 20px rgba(254,44,85,.18)!important}
-    /* Creator navigation: the floating Mi espacio button is the only return control. */
-    body.grayxon-creator-session .missions-page > .row > .secondary,
-    body.grayxon-creator-session .live-training-page .live-training-hero > .secondary,
-    body.grayxon-creator-session .training-page > .row > .secondary,
-    body.grayxon-creator-session .training-page .secondary[data-space-action="space"]{
-      display:none!important;
-    }
-    .grayxon-creator-space-float-icon{font-size:19px;line-height:1}
+    /* El botón flotante «Mi espacio» y sus reglas exclusivas fueron retirados. */
 
     /* Acentos laterales estilo TikTok LIVE, sin cambiar el branding Grayxon. */
     .creator-dashboard .creator-dashboard-card{box-shadow:inset 3px 0 0 rgba(37,244,238,.75),0 12px 30px rgba(0,0,0,.14)!important}
@@ -6544,9 +6507,6 @@ sb.auth.onAuthStateChange((event,newSession)=>{
     .manager-page .grayxon-manager-accordion:before,.manager-page .manager-creators-section:before,.manager-page .manager-task-accordion:before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:4px;background:linear-gradient(180deg,#25f4ee,#fe2c55);opacity:.75;pointer-events:none}
     .manager-page .manager-creators-section:before{background:#25f4ee}
     .manager-page .manager-task-accordion:before{background:#fe2c55}
-    @media(max-width:800px){
-      .grayxon-creator-space-float{right:13px!important;bottom:13px!important;min-height:44px!important;padding:0 13px!important}
-    }
   `;
   document.head.appendChild(style);
   ensureCreatorSpaceFloat();
