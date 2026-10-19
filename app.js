@@ -1524,27 +1524,88 @@ function normalizeCountryCode(value){
   return found?.[0]||'CO';
 }
 
-function profileTpl(){
-  ensureGrayxonPreferencesStyles();
-  if (!session || !profile) return authTpl();
-  const d=profileDetails||{}; const pm=paymentMethod||{};
-  const avatar = d.avatar_url ? `<img class="profile-avatar-img" src="${esc(d.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
-  const countries=profileCountries.map(([c,n])=>`<option value="${c}" ${d.country===c?'selected':''}>${n}</option>`).join('');
-  const bankCountry=normalizeCountryCode(pm.bank_country || d.country || 'CO');
-  const banks=(bankSeed[bankCountry]||[]).map(b=>`<option value="${esc(b)}" ${pm.bank_name===b?'selected':''}>${esc(b)}</option>`).join('');
-  return `<div class="profile-page">
-    ${profile.role==='creator' ? '<section class="card creator-profile-manager-card" id="creatorProfileManagerCard"><h2><span aria-hidden="true" style="color:#25F4EE">♙</span> Tu manager</h2><div class="creator-profile-manager-row"><div class="creator-profile-manager-avatar creator-profile-manager-fallback">♙</div><div class="creator-profile-manager-info"><strong>Consultando tu equipo…</strong><small>Un momento</small></div></div></section>' : ''}
-    <div class="card"><h2>Información personal</h2>${field('pEmail','Correo electrónico',d.email||'')}${field('pPhone','Número de teléfono',d.phone||'')}
-      <label class="field"><span>País</span><select id="pCountry">${countries}</select></label>${field('pState','Estado / Departamento / Provincia',d.state_region||'')}${field('pCity','Ciudad',d.city||'')}${field('pAddress','Dirección',d.address||'',true)}
-    </div>
-    <div class="card"><h2>Información de pagos</h2><label class="field"><span>Método de pago</span><select id="pMethod"><option value="bank" ${pm.method_type!=='paypal'?'selected':''}>Cuenta bancaria</option><option value="paypal" ${pm.method_type==='paypal'?'selected':''}>PayPal</option></select></label>
-      <div id="bankFields" ${pm.method_type==='paypal'?'style="display:none"':''}><label class="field"><span>País del banco</span><select id="pBankCountry">${profileCountries.map(([c,n])=>`<option value="${c}" ${bankCountry===c?'selected':''}>${n}</option>`).join('')}</select></label><label class="field"><span>Banco</span><select id="pBank"><option value="">Selecciona tu banco</option>${banks}</select></label><label class="field"><span>Tipo de cuenta</span><select id="pAccountType"><option value="savings" ${pm.account_type==='savings'?'selected':''}>Ahorros</option><option value="checking" ${pm.account_type==='checking'?'selected':''}>Corriente</option><option value="other" ${pm.account_type==='other'?'selected':''}>Otro</option></select></label>${field('pAccountNumber','Número de cuenta',pm.account_number||'')}</div>
-      <div id="paypalFields" ${pm.method_type==='paypal'?'':'style="display:none"'}>${field('pPaypal','Correo de PayPal',pm.paypal_email||'')}</div>
-      <label class="field"><span>Preferencia</span><label style="display:flex;gap:8px;align-items:center;color:#ddd"><input id="pPrimary" type="checkbox" ${pm.is_primary!==false?'checked':''}> Usar como método principal de pago</label></label>
-    </div>
-    <div class="profile-save-wrap"><button class="primary profile-save-btn" id="saveProfile">Guardar</button></div><div id="profileErr" class="error"></div>
-  </div>`;
+function ensureProfileSettingsStyles(){
+  if(document.getElementById('gx-profile-settings-v1'))return;
+  const style=document.createElement('style');style.id='gx-profile-settings-v1';
+  style.textContent='.gx-profile-settings{display:grid;gap:16px;max-width:900px;margin:0 auto}.gx-profile-settings-heading h2{margin:0;color:#f7f9fb;font-size:24px}.gx-profile-settings-heading p{margin:6px 0 0;color:#9da8b5;font-size:13px}.gx-profile-setting-row{display:flex;align-items:center;gap:13px;width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.025);color:#f7f9fb;text-align:left;cursor:pointer}.gx-profile-setting-row:hover,.gx-profile-setting-row[aria-expanded=true]{border-color:rgba(37,244,238,.4);background:rgba(37,244,238,.04)}.gx-profile-setting-icon{width:45px;height:45px;flex:0 0 45px;display:grid;place-items:center;border-radius:13px;background:rgba(37,244,238,.09);color:#25F4EE}.gx-profile-setting-icon svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.gx-profile-setting-icon.security{background:rgba(232,121,249,.09);color:#e879f9}.gx-profile-setting-copy{flex:1;min-width:0}.gx-profile-setting-copy strong{display:block;font-size:15px}.gx-profile-setting-copy small{display:block;margin-top:4px;color:#9da8b5;font-size:12px;line-height:1.4}.gx-profile-setting-chevron{font-size:25px;color:#cbd5e1;transition:transform .18s}.gx-profile-setting-row[aria-expanded=true] .gx-profile-setting-chevron{transform:rotate(90deg);color:#25F4EE}.gx-profile-editor{display:grid;gap:12px;margin-top:10px;padding:17px;border:1px solid rgba(37,244,238,.18);border-radius:15px;background:rgba(5,12,15,.5)}.gx-profile-editor h3{margin:0;color:#fff;font-size:17px}.gx-profile-editor .field{min-width:0}.gx-profile-editor input,.gx-profile-editor select{max-width:100%;box-sizing:border-box}.gx-profile-editor-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:4px}.gx-profile-editor-actions .primary{min-width:145px}.gx-profile-security-action{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid rgba(255,255,255,.08);border-radius:12px}.gx-profile-security-action strong{display:block;color:#fff}.gx-profile-security-action small{display:block;margin-top:4px;color:#9da8b5;font-size:12px;line-height:1.4}.gx-profile-password-panel[hidden]{display:none!important}.gx-profile-password-panel{display:grid;gap:10px;padding:13px;border:1px solid rgba(232,121,249,.2);border-radius:12px}.gx-profile-logout-wrap{display:flex;justify-content:flex-end;margin-top:8px}.gx-profile-logout{border:1px solid rgba(255,90,90,.35)!important;color:#ff8a8a!important;background:rgba(255,70,70,.06)!important}@media(max-width:600px){.gx-profile-setting-row{gap:10px;padding:12px}.gx-profile-setting-icon{width:42px;height:42px;flex-basis:42px}.gx-profile-setting-copy strong{font-size:14px}.gx-profile-editor{padding:13px}.gx-profile-editor-actions{flex-direction:column-reverse}.gx-profile-editor-actions button{width:100%}.gx-profile-security-action{align-items:flex-start;flex-direction:column}.gx-profile-security-action button{width:100%}.gx-profile-logout-wrap,.gx-profile-logout-wrap button{width:100%}}';
+  document.head.appendChild(style);
 }
+function profileTpl(){
+  ensureGrayxonPreferencesStyles();ensureProfileSettingsStyles();
+  if(!session||!profile)return authTpl();
+  return '<div class="profile-page gx-profile-settings">'+
+    (profile.role==='creator' ? '<section class="card creator-profile-manager-card" id="creatorProfileManagerCard"><h2><span style="color:#25F4EE">♙</span> Tu manager</h2><div class="creator-profile-manager-row"><div class="creator-profile-manager-avatar creator-profile-manager-fallback">♙</div><div class="creator-profile-manager-info"><strong>Consultando tu equipo…</strong><small>Un momento</small></div></div></section>' : '')+
+    '<section class="gx-profile-settings-heading"><h2>Tu información</h2><p>Administra los datos asociados a tu cuenta.</p></section>'+
+    '<div><button type="button" class="gx-profile-setting-row" data-profile-section="personal" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"/></svg></span><span class="gx-profile-setting-copy"><strong>Datos personales</strong><small>Correo, teléfono y ubicación</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPersonal"></div></div>'+
+    '<div><button type="button" class="gx-profile-setting-row" data-profile-section="payments" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="gx-profile-setting-copy"><strong>Información para pagos</strong><small>Cuenta bancaria y método de pago</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPayments"></div></div>'+
+    '<div><button type="button" class="gx-profile-setting-row" data-profile-section="security" aria-expanded="false"><span class="gx-profile-setting-icon security"><svg viewBox="0 0 24 24"><path d="M12 3 19 6v5c0 5-3.2 8.2-7 10-3.8-1.8-7-5-7-10V6Z"/><rect x="9" y="10" width="6" height="5" rx="1"/><path d="M10 10V8a2 2 0 0 1 4 0v2"/></svg></span><span class="gx-profile-setting-copy"><strong>Seguridad</strong><small>Acceso y contraseña</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionSecurity"></div></div>'+
+    '<div class="gx-profile-logout-wrap"><button type="button" id="profileLogout" class="secondary gx-profile-logout">↪ Cerrar sesión</button></div></div>';
+}
+function closeProfileSection(section){
+  const target=document.getElementById('gxProfileSection'+section[0].toUpperCase()+section.slice(1));
+  if(target)target.innerHTML='';
+  document.querySelector('[data-profile-section="'+section+'"]')?.setAttribute('aria-expanded','false');
+}
+function openProfileSection(section){
+  const target=document.getElementById('gxProfileSection'+section[0].toUpperCase()+section.slice(1));
+  if(!target)return;
+  const wasOpen=!!target.innerHTML.trim();
+  ['personal','payments','security'].forEach(key=>{const node=document.getElementById('gxProfileSection'+key[0].toUpperCase()+key.slice(1));if(node)node.innerHTML='';document.querySelector('[data-profile-section="'+key+'"]')?.setAttribute('aria-expanded','false');});
+  if(wasOpen)return;
+  document.querySelector('[data-profile-section="'+section+'"]')?.setAttribute('aria-expanded','true');
+  const d=profileDetails||{},pm=paymentMethod||{};
+  const countries=profileCountries.map(([c,n])=>'<option value="'+esc(c)+'" '+(d.country===c?'selected':'')+'>'+esc(n)+'</option>').join('');
+  const bankCountry=normalizeCountryCode(pm.bank_country||d.country||'CO');
+  const banks=(bankSeed[bankCountry]||[]).map(b=>'<option value="'+esc(b)+'" '+(pm.bank_name===b?'selected':'')+'>'+esc(b)+'</option>').join('');
+  if(section==='personal'){
+    target.innerHTML='<div class="gx-profile-editor"><h3>Datos personales</h3>'+
+      field('pEmail','Correo electrónico',d.email||'')+field('pPhone','Número de teléfono',d.phone||'')+
+      '<label class="field"><span>País</span><select id="pCountry">'+countries+'</select></label>'+
+      field('pState','Estado / Departamento / Provincia',d.state_region||'')+field('pCity','Ciudad',d.city||'')+field('pAddress','Dirección',d.address||'',true)+
+      '<div id="gxProfilePersonalError" class="error" aria-live="polite"></div><div class="gx-profile-editor-actions"><button type="button" class="secondary" data-profile-cancel="personal">Cancelar</button><button type="button" class="primary" id="gxSavePersonal">Guardar cambios</button></div></div>';
+    document.getElementById('gxSavePersonal').onclick=saveProfilePersonal;
+  }else if(section==='payments'){
+    target.innerHTML='<div class="gx-profile-editor"><h3>Información para pagos</h3>'+
+      '<label class="field"><span>Método de pago</span><select id="pMethod"><option value="bank" '+(pm.method_type!=='paypal'?'selected':'')+'>Cuenta bancaria</option><option value="paypal" '+(pm.method_type==='paypal'?'selected':'')+'>PayPal</option></select></label>'+
+      '<div id="bankFields" '+(pm.method_type==='paypal'?'style="display:none"':'')+'><label class="field"><span>País del banco</span><select id="pBankCountry">'+profileCountries.map(([c,n])=>'<option value="'+esc(c)+'" '+(bankCountry===c?'selected':'')+'>'+esc(n)+'</option>').join('')+'</select></label><label class="field"><span>Banco</span><select id="pBank"><option value="">Selecciona tu banco</option>'+banks+'</select></label><label class="field"><span>Tipo de cuenta</span><select id="pAccountType"><option value="savings" '+(pm.account_type==='savings'?'selected':'')+'>Ahorros</option><option value="checking" '+(pm.account_type==='checking'?'selected':'')+'>Corriente</option><option value="other" '+(pm.account_type==='other'?'selected':'')+'>Otro</option></select></label>'+field('pAccountNumber','Número de cuenta',pm.account_number||'')+'</div>'+
+      '<div id="paypalFields" '+(pm.method_type==='paypal'?'':'style="display:none"')+'>'+field('pPaypal','Correo de PayPal',pm.paypal_email||'')+'</div>'+
+      '<label class="field"><span>Preferencia</span><label style="display:flex;gap:8px;align-items:center;color:#ddd"><input id="pPrimary" type="checkbox" '+(pm.is_primary!==false?'checked':'')+'> Usar como método principal de pago</label></label>'+
+      '<div id="gxProfilePaymentError" class="error" aria-live="polite"></div><div class="gx-profile-editor-actions"><button type="button" class="secondary" data-profile-cancel="payments">Cancelar</button><button type="button" class="primary" id="gxSavePayments">Guardar cambios</button></div></div>';
+    document.getElementById('pMethod').onchange=togglePaymentFields;
+    document.getElementById('pBankCountry').onchange=populateBanks;
+    togglePaymentFields();populateBanks();
+    document.getElementById('gxSavePayments').onclick=saveProfilePayments;
+  }else if(section==='security'){
+    target.innerHTML='<div class="gx-profile-editor"><h3>Seguridad</h3><div class="gx-profile-security-action"><div><strong>Cambiar contraseña</strong><small>Actualiza la contraseña de acceso al portal.</small></div><button type="button" class="secondary" id="gxOpenChangePassword">Cambiar contraseña</button></div>'+
+      '<div class="gx-profile-password-panel" id="gxChangePasswordPanel" hidden><div class="field"><label>Nueva contraseña</label><input id="gxNewPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres"></div><div class="field"><label>Confirmar nueva contraseña</label><input id="gxConfirmPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Repite la nueva contraseña"></div><div id="gxPasswordError" class="error" aria-live="polite"></div><div class="gx-profile-editor-actions"><button type="button" class="secondary" id="gxCancelChangePassword">Cancelar</button><button type="button" class="primary" id="gxSaveNewPassword">Guardar contraseña</button></div></div>'+
+      '<div class="gx-profile-security-action"><div><strong>Informar un problema</strong><small>Abre el chat de Grayxon.</small></div><button type="button" class="secondary" id="gxReportProblem">Informar un problema ↗</button></div></div>';
+    document.getElementById('gxOpenChangePassword').onclick=()=>{document.getElementById('gxChangePasswordPanel').hidden=false;document.getElementById('gxNewPassword').focus();};
+    document.getElementById('gxCancelChangePassword').onclick=()=>{document.getElementById('gxChangePasswordPanel').hidden=true;document.getElementById('gxNewPassword').value='';document.getElementById('gxConfirmPassword').value='';document.getElementById('gxPasswordError').textContent='';};
+    document.getElementById('gxSaveNewPassword').onclick=saveProfilePassword;
+    document.getElementById('gxReportProblem').onclick=()=>window.open('https://wa.me/573126283007','_blank','noopener,noreferrer');
+  }
+  target.scrollIntoView?.({behavior:'smooth',block:'nearest'});
+}
+async function saveProfilePersonal(){
+  const err=document.getElementById('gxProfilePersonalError'),btn=document.getElementById('gxSavePersonal');if(err)err.textContent='';if(!session?.user?.id)return;if(btn)btn.disabled=true;
+  try{const uid=session.user.id;const data={user_id:uid,email:document.getElementById('pEmail')?.value.trim()||null,phone:document.getElementById('pPhone')?.value.trim()||null,country:document.getElementById('pCountry')?.value||null,state_region:document.getElementById('pState')?.value.trim()||null,city:document.getElementById('pCity')?.value.trim()||null,address:document.getElementById('pAddress')?.value.trim()||null,updated_at:new Date().toISOString()};const {error}=await sb.from('profile_details').upsert(data);if(error)throw error;await loadProfileDetails();updateProfileBadge();closeProfileSection('personal');toast('Cambio exitoso ✓');}
+  catch(e){if(err)err.textContent=e?.message||'No se pudieron guardar los datos personales.';}finally{if(btn)btn.disabled=false;}
+}
+async function saveProfilePayments(){
+  const err=document.getElementById('gxProfilePaymentError'),btn=document.getElementById('gxSavePayments');if(err)err.textContent='';if(!session?.user?.id)return;if(btn)btn.disabled=true;
+  try{const uid=session.user.id,method=document.getElementById('pMethod')?.value==='paypal'?'paypal':'bank';const pm={user_id:uid,method_type:method,is_primary:document.getElementById('pPrimary')?.checked,updated_at:new Date().toISOString()};
+    if(method==='paypal'){pm.paypal_email=document.getElementById('pPaypal')?.value.trim()||null;pm.bank_country=null;pm.bank_name=null;pm.account_type=null;pm.account_number=null;}
+    else{pm.bank_country=normalizeCountryCode(document.getElementById('pBankCountry')?.value||'CO');pm.bank_name=document.getElementById('pBank')?.value||null;pm.account_type=document.getElementById('pAccountType')?.value||null;pm.account_number=document.getElementById('pAccountNumber')?.value.trim()||null;pm.paypal_email=null;}
+    const {data:rows,error:readError}=await sb.from('payment_methods').select('id,is_primary,updated_at').eq('user_id',uid).order('is_primary',{ascending:false}).order('updated_at',{ascending:false}).limit(1);if(readError)throw readError;const existing=rows?.[0];const result=existing?.id?await sb.from('payment_methods').update(pm).eq('id',existing.id):await sb.from('payment_methods').insert(pm);if(result.error)throw result.error;await loadProfileDetails();updateProfileBadge();closeProfileSection('payments');toast('Cambio exitoso ✓');}
+  catch(e){if(err)err.textContent=e?.message||'No se pudo guardar la información para pagos.';}finally{if(btn)btn.disabled=false;}
+}
+async function saveProfilePassword(){
+  const err=document.getElementById('gxPasswordError'),btn=document.getElementById('gxSaveNewPassword'),a=document.getElementById('gxNewPassword')?.value||'',b=document.getElementById('gxConfirmPassword')?.value||'';
+  if(err)err.textContent='';if(a.length<8){if(err)err.textContent='La contraseña debe tener al menos 8 caracteres.';return;}if(a!==b){if(err)err.textContent='Las contraseñas no coinciden.';return;}if(!session?.user?.id){if(err)err.textContent='Tu sesión ha caducado. Inicia sesión nuevamente.';return;}if(btn)btn.disabled=true;
+  try{const {error}=await sb.auth.updateUser({password:a});if(error)throw error;closeProfileSection('security');toast('Cambio exitoso ✓');}
+  catch(e){if(err)err.textContent=e?.message||'No se pudo cambiar la contraseña.';}finally{if(btn)btn.disabled=false;}
+}
+
 async function loadCreatorProfileManager(){
   if(current!=='profile'||profile?.role!=='creator'||!session?.user?.id)return;
   const uid=session.user.id;
@@ -6262,6 +6323,7 @@ async function init() {
     nav('profile');
   });
   if (profileMenu) profileMenu.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', (e) => { const section=e.target?.closest?.('[data-profile-section]'); if(section){e.preventDefault();openProfileSection(section.dataset.profileSection);return;} const cancel=e.target?.closest?.('[data-profile-cancel]');if(cancel){e.preventDefault();closeProfileSection(cancel.dataset.profileCancel);return;} if(e.target?.closest?.('#profileLogout')){e.preventDefault();logout();} });
   
   
   document.addEventListener('click', () => { closeProfileMenu(); $('#notificationsPanel')?.classList.add('hidden'); });
