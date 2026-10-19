@@ -1320,7 +1320,7 @@ function nav(p, push = true) {
     gxDashboardTrace('nav:space:creator-dashboard-call', { navGeneration: thisNav, renderToken: creatorDashboardRenderToken + 1 });
     // Nunca bloqueamos la navegación esperando datos remotos. El dashboard ya está visible;
     // la actualización se ejecuta en segundo plano y solo pinta si seguimos en Mi espacio.
-    creatorDashboardTpl(thisNav).then(()=>refreshMyPendingPaymentsBadge()).catch(e => console.warn('Creator dashboard:', e));
+    creatorDashboardTpl(thisNav).then(()=>refreshMyPendingPaymentsBadge()).catch(e => { gxDashboardTrace('dashboard:render:rejected', { name: e?.name || 'Error', message: e?.message || String(e), stackTop: String(e?.stack || '').split('\n').slice(0,3).join(' | ') }); console.warn('Creator dashboard:', e); });
   } else {
     Promise.resolve(render()).then(()=>refreshMyPendingPaymentsBadge()).catch(e => console.warn('Render:', e));
   }
