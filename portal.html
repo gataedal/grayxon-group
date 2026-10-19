@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
 <title>Portal de Grayxon Group</title>
 
 <meta name="description" content="Grayxon Group: agencia de TikTok LIVE en Latinoamérica. Crece, conecta y monetiza con acompañamiento, entrenamientos y oportunidades.">
@@ -373,6 +373,28 @@ body:not(.gx-bottom-nav-authenticated){padding-bottom:0!important}
 }
 @media(min-width:801px){.gx-bottom-nav{left:50%;right:auto;width:min(560px,calc(100vw - 32px));transform:translateX(-50%)}}
 </style>
+<style id="grayxon-mobile-zoom-prevention">
+/* Evita zoom automático de formularios y pellizco para ampliar en pantallas táctiles. */
+@media (pointer: coarse), (max-width: 1024px) {
+  html, body { touch-action: pan-x pan-y; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea { font-size: 16px !important; }
+}
+</style>
+<script id="grayxon-mobile-zoom-guard">
+(function () {
+  function preventGestureZoom(event) {
+    if (event && event.cancelable) event.preventDefault();
+  }
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (type) {
+    document.addEventListener(type, preventGestureZoom, { capture: true, passive: false });
+  });
+  document.addEventListener('touchmove', function (event) {
+    if (event.touches && event.touches.length > 1 && event.cancelable) event.preventDefault();
+  }, { capture: true, passive: false });
+})();
+</script>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
 <header class="top"><div class="brand" id="homeBrand" role="img" aria-label="Grayxon Group"><img class="logo" src="assets/grayxon-logo.png" alt=""><b>GRAYXON</b><span class="brand-live">LIVE</span></div><nav class="nav"><button data-page="home">Inicio</button><button data-page="benefits">Beneficios y requisitos</button><button data-page="space">Tu espacio</button></nav><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir menú de cuenta">G</button><button id="notificationsBtn" class="notifications-btn" aria-label="Notificaciones"><span class="notification-bell">🔔</span><span id="notificationsBadge" class="notification-badge hidden">0</span></button><div id="notificationsPanel" class="notification-panel hidden"></div><div id="profileMenu" class="profile-menu hidden"><div class="profile-menu-user"><strong id="profileMenuName">Mi cuenta</strong><span id="profileMenuRole">Cuenta Grayxon</span></div><button id="openMyProfile" class="profile-menu-item">👤 <span>Mi perfil</span><b>›</b></button><button id="openMySpace" class="profile-menu-item">🏠 <span>Tu espacio</span><b>›</b></button><button id="menuLogout" class="profile-menu-item profile-menu-logout">↪ <span>Cerrar sesión</span></button></div></div></div></header>
