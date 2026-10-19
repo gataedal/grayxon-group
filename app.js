@@ -2200,14 +2200,112 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const paymentsCard=`<button type="button" class="creator-dashboard-card gx-payments-dashboard-card" data-page="payments"><span class="creator-dashboard-card-icon">💸</span><span class="creator-dashboard-card-meta">Historial</span><strong>Mis pagos</strong><p>Consulta tus pagos, liquidaciones y comprobantes.</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${creatorDashboardAvatar()}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section>
+    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${creatorDashboardAvatar()}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div>
     ${performanceHTML}
     <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}${paymentsCard}${gxAnnouncementDashboardCard(true)}</div>${profileIncomplete}
   </div>`;
   bind();
+  loadCreatorDashboardEventHighlights(expectedNav).catch(()=>{});
   refreshLiveTrainingCard();
   setTimeout(()=>{ if(current==='space' && isCreatorSession()) refreshLiveTrainingCard(); },300);
   setTimeout(()=>{ if(current==='space' && isCreatorSession()) refreshLiveTrainingCard(); },1500);
+}
+
+function ensureCreatorDashboardEventStyles(){
+  if(document.getElementById('gx-creator-dashboard-event-styles'))return;
+  const style=document.createElement('style');style.id='gx-creator-dashboard-event-styles';
+  style.textContent=`
+    .gx-creator-event-highlights{margin:16px 0 20px;display:grid;gap:13px}
+    .gx-creator-event-highlights[hidden]{display:none!important}
+    .gx-creator-event-card{--gx-event-accent:#25f4ee;position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,34%);min-height:190px;overflow:hidden;border:1px solid var(--gx-event-accent);border-radius:18px;background:linear-gradient(112deg,#10151c 0%,#0b0e13 62%,#141018 100%);box-shadow:0 8px 28px rgba(0,0,0,.2),0 0 18px rgba(37,244,238,.08);color:#fff;cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s}
+    .gx-creator-event-card:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.3),0 0 22px rgba(37,244,238,.13)}
+    .gx-creator-event-card:focus-visible{outline:2px solid var(--gx-event-accent);outline-offset:3px}
+    .gx-creator-event-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:9px;min-width:0;padding:19px 22px}
+    .gx-creator-event-badge{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:7px 11px;border:1px solid var(--gx-event-accent);border-radius:999px;background:#0b1017;color:var(--gx-event-accent);font-size:10px;font-weight:900;letter-spacing:.055em;text-transform:uppercase}
+    .gx-creator-event-badge-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}
+    .gx-creator-event-title{margin:0;color:#fff;font-size:clamp(20px,2.5vw,29px);line-height:1.08;font-weight:950;letter-spacing:-.025em;overflow-wrap:anywhere}
+    .gx-creator-event-description{margin:0;color:#c0c8d3;font-size:12px;line-height:1.5;max-width:560px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .gx-creator-event-meta{display:flex;flex-wrap:wrap;gap:7px 13px;color:#cbd3dd;font-size:11px;font-weight:650}
+    .gx-creator-event-meta span{display:inline-flex;align-items:center;gap:6px}
+    .gx-creator-event-cta{display:inline-flex;align-items:center;gap:9px;margin-top:2px;padding:10px 16px;border:0;border-radius:999px;background:var(--gx-event-accent);color:#071014;font-size:12px;font-weight:900;line-height:1.1;box-shadow:0 5px 18px rgba(0,0,0,.18)}
+    .gx-creator-event-visual{position:relative;min-width:0;min-height:100%;overflow:hidden;background:radial-gradient(ellipse at 65% 30%,rgba(37,244,238,.2),transparent 60%),linear-gradient(140deg,#151c27,#080a0f)}
+    .gx-creator-event-visual:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#0b0e13 0%,rgba(11,14,19,.12) 40%,rgba(11,14,19,.04) 100%),linear-gradient(0deg,rgba(6,8,12,.28),transparent 55%);z-index:1}
+    .gx-creator-event-visual img,.gx-creator-event-visual video{display:block;width:100%;height:100%;min-height:190px;position:absolute;inset:0;object-fit:cover;object-position:center}
+    .gx-creator-event-visual-fallback{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(58px,8vw,90px);opacity:.9;text-shadow:0 0 28px rgba(37,244,238,.28)}
+    @media(max-width:650px){.gx-creator-event-highlights{margin:14px 0 18px;gap:11px}.gx-creator-event-card{grid-template-columns:minmax(0,1fr);min-height:0;border-radius:16px}.gx-creator-event-content{padding:16px;gap:8px;order:2}.gx-creator-event-title{font-size:23px}.gx-creator-event-description{font-size:12px}.gx-creator-event-visual{min-height:128px;height:clamp(128px,37vw,190px);order:1}.gx-creator-event-visual img,.gx-creator-event-visual video{min-height:128px}.gx-creator-event-visual:before{background:linear-gradient(0deg,rgba(8,10,14,.42),transparent 65%)}.gx-creator-event-cta{width:100%;justify-content:center;min-height:42px}}
+  `;
+  document.head.appendChild(style);
+}
+async function loadCreatorDashboardEventHighlights(expectedNav=navGeneration){
+  const host=document.getElementById('gxCreatorEventHighlights');
+  if(!host||!session?.user?.id||profile?.role!=='creator'||current!=='space')return;
+  ensureCreatorDashboardEventStyles();
+  const uid=session.user.id;
+  const hide=()=>{if(host.isConnected){host.innerHTML='';host.hidden=true;}};
+  try{
+    const [eventResult,participantResult]=await Promise.all([
+      // RLS uses gx_event_can_view(id), which already checks whether this creator
+      // belongs to the event audience (including selected accounts and teams).
+      sb.from('gx_events').select('id,title,description,event_type,status,audience,registration_open,starts_at,ends_at').in('status',['published','in_progress','scheduled','upcoming']).order('starts_at',{ascending:true,nullsFirst:false}),
+      sb.from('gx_event_participants').select('event_id,status').eq('user_id',uid)
+    ]);
+    if(expectedNav!==navGeneration||current!=='space'||session?.user?.id!==uid||!host.isConnected)return;
+    if(eventResult.error)throw eventResult.error;
+    const now=Date.now();
+    const startOf=e=>e.starts_at?new Date(e.starts_at).getTime():0;
+    const endOf=e=>e.ends_at?new Date(e.ends_at).getTime():Infinity;
+    const isPast=e=>['finished','cancelled','completed'].includes(e.status)||(e.ends_at&&endOf(e)<now);
+    const isLive=e=>!isPast(e)&&((e.status==='in_progress')||(startOf(e)<=now&&endOf(e)>=now&&['published','in_progress'].includes(e.status)));
+    const isUpcoming=e=>!isPast(e)&&!isLive(e)&&['published','scheduled','upcoming'].includes(e.status)&&startOf(e)>now;
+    const candidates=(eventResult.data||[]).filter(e=>(isLive(e)||isUpcoming(e))&&(!e.audience||['all','creators','selected'].includes(e.audience)));
+    if(!candidates.length){hide();return;}
+    const mediaResult=await sb.from('gx_event_media').select('event_id,file_url,mime_type,is_cover,sort_order').in('event_id',candidates.map(e=>e.id)).order('sort_order');
+    if(expectedNav!==navGeneration||current!=='space'||session?.user?.id!==uid||!host.isConnected)return;
+    const participants=participantResult.data||[];
+    // The events query is already audience-filtered by the database policy. Do not
+    // query gx_event_audience_targets directly: that table is intentionally admin-only.
+    const visible=candidates.filter(e=>{
+      const participant=participants.find(p=>p.event_id===e.id&&['registered','confirmed'].includes(p.status));
+      if(isLive(e))return e.registration_open===true||!!participant;
+      return isUpcoming(e);
+    }).sort((a,b)=>startOf(a)-startOf(b));
+    if(!visible.length){hide();return;}
+    const media=mediaResult.error?[]:(mediaResult.data||[]);
+    const iconFor=e=>({battle_league:'⚔️',tournament:'🏆',challenge:'🎯',event:'🎉',other:'✨'})[e.event_type]||'🎉';
+    const accentFor=e=>({battle_league:'#fe2c55',tournament:'#ffbd32',challenge:'#25f4ee',event:'#25f4ee',other:'#b18cff'})[e.event_type]||'#25f4ee';
+    host.innerHTML=visible.map(e=>{
+      const eventMedia=media.filter(m=>m.event_id===e.id);
+      const cover=eventMedia.find(m=>m.is_cover&&String(m.mime_type||'').startsWith('image/'))||eventMedia.find(m=>String(m.mime_type||'').startsWith('image/'))||eventMedia.find(m=>String(m.mime_type||'').startsWith('video/'));
+      const coverUrl=cover?gxEventsSafeHttpUrl(cover.file_url):'';
+      const live=isLive(e);
+      const participant=participants.find(p=>p.event_id===e.id&&['registered','confirmed'].includes(p.status));
+      const label=live?'EVENTO ACTIVO':'PRÓXIMAMENTE';
+      const cta=participant?'Ver mi evento':(live?'Inscribirme':'Ver evento');
+      const dateLabel=e.starts_at?formatDateTime(e.starts_at):'Fecha por confirmar';
+      const desc=String(e.description||'Descubre las misiones, reglas y premios de este evento.').trim();
+      const visual=coverUrl&&String(cover?.mime_type||'').startsWith('video/')?'<video muted playsinline preload="metadata" src="'+esc(coverUrl)+'"></video>':coverUrl?'<img loading="lazy" src="'+esc(coverUrl)+'" alt="" />':'<div class="gx-creator-event-visual-fallback" aria-hidden="true">'+iconFor(e)+'</div>';
+      return '<article class="gx-creator-event-card" role="link" tabindex="0" data-gx-dashboard-event="'+esc(e.id)+'" style="--gx-event-accent:'+accentFor(e)+'"><div class="gx-creator-event-content"><span class="gx-creator-event-badge"><i class="gx-creator-event-badge-dot"></i>'+label+'</span><h2 class="gx-creator-event-title">'+esc(e.title||'Evento Grayxon')+'</h2><p class="gx-creator-event-description">'+esc(desc)+'</p><div class="gx-creator-event-meta"><span>📅 '+esc(dateLabel)+'</span>'+(live?'<span>📝 Inscripciones abiertas</span>':'<span>⏳ Evento programado</span>')+'</div><span class="gx-creator-event-cta">'+cta+' <b aria-hidden="true">›</b></span></div><div class="gx-creator-event-visual">'+visual+'</div></article>';
+    }).join('');
+    if(host.isConnected)host.hidden=false;
+    const open=el=>{
+      const card=el.closest('[data-gx-dashboard-event]');
+      if(!card)return;
+      const id=card.getAttribute('data-gx-dashboard-event');
+      if(!id)return;
+      gxPendingEventTarget=id;
+      gxPendingEventTab='overview';
+      gxPendingEventMatchTarget=null;
+      gxEventsSelectedId=null;
+      nav('events');
+    };
+    host.querySelectorAll('[data-gx-dashboard-event]').forEach(card=>{
+      card.addEventListener('click',()=>open(card));
+      card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open(card);}});
+    });
+  }catch(error){
+    console.warn('Grayxon dashboard event highlights:',error?.message||error);
+    hide();
+  }
 }
 
 function renderCreatorSpaceImmediate(){
@@ -2217,8 +2315,9 @@ function renderCreatorSpaceImmediate(){
   const name=profile?.full_name||profile?.username||'Grayxon';
   const user=profile?.username||'creador';
   const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
-  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${avatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
+  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${avatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
   bind();
+  loadCreatorDashboardEventHighlights().catch(()=>{});
 }
 
 async function spaceTpl(){
