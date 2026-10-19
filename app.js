@@ -1492,7 +1492,46 @@ async function saveFirstPassword(){
 }
 
 function authTpl() {
-  return `<div class="login"><div class="eyebrow">GRAYXON · ACCESO</div><h2 style="margin-top:8px">Inicia sesión</h2><p class="muted">Usa el usuario o correo y la contraseña de tu cuenta. Grayxon detectará automáticamente si eres administrador, manager o creador y abrirá el panel correspondiente.</p><div class="field"><label>Usuario o correo</label><input id="loginUser" autocomplete="username" placeholder="Ej. andrea.onyx o correo@ejemplo.com"></div><div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div><div id="loginErr" class="error"></div><button class="primary" id="loginBtn">Ingresar</button><button class="secondary small" id="forgotPasswordBtn" style="margin-top:10px">¿Olvidaste tu contraseña?</button><div id="resetBox" class="hidden" style="margin-top:14px"><div class="muted small" style="margin-bottom:8px">Escribe tu correo para recibir un enlace de recuperación.</div><input id="resetEmail" type="email" placeholder="correo@ejemplo.com"><button class="secondary small" id="sendResetBtn" style="margin-top:8px">Enviar enlace</button><div id="resetErr" class="error" style="margin-top:8px"></div></div></div>`;
+  return `<style>
+    #auth{min-height:calc(100dvh - 120px);display:grid;place-items:center;padding:clamp(16px,4vw,48px) 16px!important;background:#030405!important;isolation:isolate}
+    #auth .gx-login-shell{position:relative;isolation:isolate;overflow:hidden;width:min(100%,520px);margin:auto;padding:clamp(24px,5vw,48px);border:1px solid rgba(210,220,235,.2);border-radius:26px;background:radial-gradient(ellipse at 50% 0%,rgba(90,104,125,.14),transparent 45%),linear-gradient(145deg,#090b0f,#030405 70%);box-shadow:0 24px 80px rgba(0,0,0,.45)}
+    #auth .gx-login-shell:before{content:"";position:absolute;z-index:-1;inset:0;border-radius:inherit;background:linear-gradient(130deg,transparent 20%,rgba(230,237,255,.035) 48%,transparent 70%);pointer-events:none}
+    #auth .gx-login-brand{display:flex;justify-content:center;align-items:center;margin:0 auto 30px;width:min(100%,270px);height:88px}
+    #auth .gx-login-brand img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+    #auth .gx-login-title{text-align:center;margin:0!important;font-size:clamp(27px,5vw,34px);letter-spacing:-.04em;font-weight:800;color:#f7f8fb}
+    #auth .gx-login-subtitle{text-align:center!important;margin:9px 0 28px!important;color:#aab2c0!important;font-size:14px;line-height:1.6}
+    #auth .gx-login-shell .field{margin:0 0 14px!important}
+    #auth .gx-login-shell .field label{display:block;margin:0 0 8px!important;color:#c4cbd5!important;font-size:12px;font-weight:650;letter-spacing:.025em}
+    #auth .gx-login-shell .field input,#auth #resetEmail{box-sizing:border-box;width:100%;min-height:56px;padding:0 16px!important;border:1px solid #343a46!important;border-radius:14px!important;background:linear-gradient(145deg,#11141a,#090b0f)!important;color:#f7f8fb!important;font-size:15px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)!important;outline:none}
+    #auth .gx-login-shell .field input:focus,#auth #resetEmail:focus{border-color:#8f9aaa!important;box-shadow:0 0 0 3px rgba(175,190,210,.09)!important}
+    #auth .gx-login-options{display:flex;align-items:center;justify-content:flex-end;margin:2px 0 22px}
+    #auth #forgotPasswordBtn{margin:0!important;padding:5px 0!important;border:0!important;background:transparent!important;color:#c5ccd7!important;font-size:12px!important;text-decoration:underline;text-underline-offset:3px;box-shadow:none!important}
+    #auth #loginBtn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:60px;padding:12px 20px!important;border:1.5px solid transparent!important;border-radius:16px!important;background:linear-gradient(#080b10,#080b10) padding-box,linear-gradient(105deg,#00eaff 0%,#9ca7ff 48%,#ff168f 100%) border-box!important;color:#fff!important;font-size:16px!important;font-weight:800!important;letter-spacing:.01em;box-shadow:0 0 22px rgba(0,220,255,.12),0 0 28px rgba(255,22,143,.09)!important;transition:transform .18s ease,box-shadow .18s ease}
+    #auth #loginBtn:after{content:"→";font-size:20px;font-weight:500}
+    #auth #loginBtn:hover{transform:translateY(-1px);box-shadow:0 0 28px rgba(0,220,255,.2),0 0 34px rgba(255,22,143,.16)!important}
+    #auth #loginBtn:disabled{opacity:.65;transform:none}
+    #auth .gx-login-contact{display:flex;justify-content:center;align-items:center;gap:5px;margin:24px 0 0!important;color:#aeb6c4!important;font-size:13px}
+    #auth .gx-login-contact a{color:#f4f6fa!important;font-weight:700;text-decoration:underline;text-underline-offset:4px}
+    #auth .gx-login-contact a:focus-visible,#auth #forgotPasswordBtn:focus-visible,#auth #loginBtn:focus-visible{outline:2px solid #9deeff;outline-offset:4px}
+    #auth #resetBox{margin-top:18px!important;padding:16px;border:1px solid rgba(210,220,235,.13);border-radius:16px;background:rgba(255,255,255,.025)}
+    #auth #sendResetBtn{width:100%;min-height:44px;border-radius:12px!important}
+    #auth .gx-login-footer{margin-top:24px;text-align:center;color:#717987;font-size:10px;letter-spacing:.16em}
+    @media(max-width:520px){#auth{min-height:calc(100dvh - 90px);padding:18px 12px!important;align-items:start}#auth .gx-login-shell{padding:26px 20px 24px;border-radius:22px}#auth .gx-login-brand{height:72px;margin-bottom:25px}#auth .gx-login-subtitle{margin-bottom:24px!important}#auth .gx-login-shell .field input{min-height:54px}#auth #loginBtn{min-height:57px}}
+    @media(prefers-reduced-motion:reduce){#auth #loginBtn{transition:none}}
+  </style>
+  <section class="gx-login-shell" aria-labelledby="gxLoginTitle">
+    <div class="gx-login-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"></div>
+    <h1 id="gxLoginTitle" class="gx-login-title">Inicia sesión</h1>
+    <p class="gx-login-subtitle">Accede a tu espacio en Grayxon</p>
+    <div class="field"><label for="loginUser">Usuario o correo electrónico</label><input id="loginUser" autocomplete="username" placeholder="Tu usuario o correo" aria-label="Usuario o correo electrónico"></div>
+    <div class="field"><label for="loginPass">Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Tu contraseña" aria-label="Contraseña"></div>
+    <div class="gx-login-options"><button type="button" class="secondary small" id="forgotPasswordBtn">¿Olvidaste tu contraseña?</button></div>
+    <div id="loginErr" class="error" role="alert" aria-live="polite"></div>
+    <button type="button" class="primary" id="loginBtn">Iniciar sesión</button>
+    <div id="resetBox" class="hidden"><div class="muted small" style="margin-bottom:10px">Escribe tu correo para recibir un enlace de recuperación.</div><input id="resetEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com" aria-label="Correo para recuperar contraseña"><button class="secondary small" id="sendResetBtn" style="margin-top:10px">Enviar enlace</button><div id="resetErr" class="error" style="margin-top:8px" role="alert"></div></div>
+    <p class="gx-login-contact">¿No tienes cuenta? <a href="https://wa.me/573126283007?text=Hola%20Grayxon%2C%20quiero%20informaci%C3%B3n%20para%20acceder%20al%20portal." target="_blank" rel="noopener noreferrer">Contáctanos</a></p>
+    <div class="gx-login-footer">GRAYXON GROUP · LIVE</div>
+  </section>`;
 }
 
 async function getProfile() {
