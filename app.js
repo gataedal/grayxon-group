@@ -5777,7 +5777,6 @@ async function init() {
     closeProfileMenu();
     if (session) nav('profile'); else nav('auth');
   });
-  if (openMySpace) openMySpace.addEventListener('click', () => { closeProfileMenu(); if (session) nav(profile?.role==='admin' ? 'admin' : profile?.role==='manager' ? 'manager' : 'space'); else nav('auth'); });
   if (menuLogout) menuLogout.addEventListener('click', () => {
     closeProfileMenu();
     logout();
