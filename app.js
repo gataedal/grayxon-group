@@ -5356,7 +5356,7 @@ function ensureFormationMobileV34Styles(){
 }
 
 function bind() {
-  $('#homeBrand')?.addEventListener('click', () => nav('home'));
+  $('#homeBrand')?.addEventListener('click', () => { if (!session) window.location.assign('./index.html?v=20261019'); else nav('home'); });
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'space' && session) nav(profile?.role === 'manager' ? 'manager' : 'space'); else if (target === 'auth' && session) nav(profile?.role === 'manager' ? 'manager' : profile?.role === 'creator' ? 'space' : 'admin'); else nav(target); });
   $$('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
   updateHeaderAccessUI();
@@ -5684,7 +5684,7 @@ async function logout() {
   updateProfileBadge();
   updateNotificationsUI();
   // Al cerrar sesión, volver a la nueva portada pública oficial.
-  window.location.replace('./index.html');
+  window.location.replace('./index.html?v=20261019');
 }
 
 async function saveHome() {
@@ -5828,8 +5828,13 @@ async function init() {
   const matchTargetId=pushParams.get('target')||''; if (session && pushParams.get('grayxonPush') === '1' && pushParams.get('page') === 'event-thread' && GRAYXON_UUID_RE.test(pushTarget)) { gxPendingEventTarget=pushTarget;gxPendingEventTab='thread'; }
   if (session && pushParams.get('grayxonPush') === '1' && pushParams.get('page') === 'event-match' && GRAYXON_UUID_RE.test(matchTargetId)) { const {data: battleTarget}=await sb.from('gx_event_matches').select('event_id').eq('id',matchTargetId).maybeSingle(); if(battleTarget?.event_id){gxPendingEventTarget=battleTarget.event_id;gxPendingEventMatchTarget=matchTargetId;gxEventsActiveTab='missions';if(window.location.hash!=='#events')window.history.replaceState({page:'events'},'',`${window.location.pathname}${window.location.search}#events`);} }
   const requestedPage = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'].includes(hashPage) ? hashPage : null;
-  const initialPage = session ? (profile?.must_change_password ? 'force-password' : (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome)) : (requestedPage || 'home');
-  nav(initialPage, false);
+  if (!session && (!requestedPage || requestedPage === 'home')) {
+    // Sin sesión y sin destino explícito, la portada pública oficial es index.html.
+    window.location.replace('./index.html?v=20261019');
+    return;
+  }
+  const initialPage = session ? (profile?.must_change_password ? 'force-password' : (requestedPage && requestedPage !== 'home' ? requestedPage : roleHome)) : requestedPage;
+  nav(initialPage || 'auth', false);
   if (validQueryNotificationId && session?.user?.id) {
     try { await openGrayxonNotificationById(queryNotificationId); }
     catch (error) { console.warn('No se pudo abrir la notificación desde el enlace:', error); }
