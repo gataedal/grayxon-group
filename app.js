@@ -1625,6 +1625,33 @@ function ensureCreatorDashboardStyles(){
       .creator-profile-hero .creator-space-team strong{font-size:15px}
       .creator-profile-hero .creator-space-team .creator-contact-btn{grid-column:2;grid-row:2/4;padding:0 11px}
     }
+    /* Ajustes finales del perfil: anillo exterior fino y distribución móvil estable. */
+    .creator-dashboard-hero.creator-profile-hero{box-sizing:border-box;width:100%;min-width:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+    .creator-profile-hero .creator-profile-left{box-sizing:border-box;min-width:0}
+    .creator-profile-hero .creator-dashboard-avatar{box-sizing:border-box!important;padding:2px!important;background:linear-gradient(135deg,#25f4ee 0%,#9b75ff 52%,#fe2c55 100%)!important;border:0!important;box-shadow:0 0 0 1px rgba(255,255,255,.1),0 0 14px rgba(37,244,238,.07)!important;overflow:hidden!important}
+    .creator-profile-hero .creator-dashboard-avatar img{display:block;width:100%;height:100%;box-sizing:border-box;border:0!important;border-radius:50%;object-fit:cover;background:#101318}
+    .creator-profile-hero .creator-profile-left .creator-dashboard-identity{flex:1 1 0;width:auto;min-width:0;max-width:100%}
+    .creator-profile-hero .creator-profile-left .creator-dashboard-identity h1{max-width:100%;font-size:clamp(16px,2vw,24px)!important;line-height:1.2;overflow-wrap:anywhere;word-break:normal}
+    .creator-profile-hero .creator-space-team-wrap,.creator-profile-hero .creator-manager-profile,.creator-profile-hero .creator-space-team{min-width:0;max-width:100%;box-sizing:border-box}
+    .creator-profile-hero .creator-manager-avatar{box-sizing:border-box;padding:0;border:1px solid #25f4ee;background:transparent;box-shadow:0 0 0 1px rgba(37,244,238,.08);overflow:hidden}
+    .creator-profile-hero .creator-manager-avatar-fallback{background:linear-gradient(135deg,#25f4ee,#9b75ff,#fe2c55);background-clip:padding-box}
+    @media(max-width:680px){
+      .creator-dashboard{width:100%;max-width:100%;padding-left:0;padding-right:0;box-sizing:border-box}
+      .creator-dashboard-hero.creator-profile-hero{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;gap:14px;padding:17px 14px 15px;min-height:0;overflow:hidden}
+      .creator-profile-hero .creator-profile-left{grid-column:1;grid-row:1;display:flex;align-items:center;gap:12px;width:100%;padding:17px 0 14px;border-bottom:1px solid rgba(255,255,255,.1)}
+      .creator-profile-hero .creator-dashboard-avatar{width:62px!important;height:62px!important;flex:0 0 62px!important}
+      .creator-profile-hero .creator-profile-left .creator-dashboard-identity{padding:9px 0 0;flex:1 1 0;width:auto;min-width:0}
+      .creator-profile-hero .creator-profile-left .creator-dashboard-identity h1{font-size:clamp(15px,4.5vw,21px)!important}
+      .creator-profile-hero .creator-dashboard-role{top:9px;right:10px;max-width:45%}
+      .creator-profile-hero .creator-dashboard-role .role-pill{font-size:10px!important;padding:5px 8px!important}
+      .creator-profile-hero .creator-space-team-wrap{grid-column:1;grid-row:2;width:100%;padding:0;margin:0;border:0;min-height:0}
+      .creator-profile-hero .creator-manager-profile{display:flex;gap:10px;align-items:center}
+      .creator-profile-hero .creator-manager-avatar{width:52px;height:52px;flex:0 0 52px}
+      .creator-profile-hero .creator-space-team{display:flex;flex:1 1 0;flex-direction:column;align-items:flex-start;gap:4px;width:auto}
+      .creator-profile-hero .creator-space-team strong{font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+      .creator-profile-hero .creator-space-team small{font-size:11px;line-height:1.3;overflow-wrap:anywhere}
+      .creator-profile-hero .creator-space-team .creator-contact-btn{align-self:flex-start;margin-top:5px;min-height:34px;padding:0 12px}
+    }
     .creator-dashboard{max-width:980px;margin:0 auto;display:grid;gap:14px}
     .creator-dashboard-loading-card{min-height:120px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.08);border-radius:18px;background:rgba(15,16,20,.96);color:#8f96a2;font-size:14px}
     .creator-dashboard-hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:0;padding:18px 20px;border:1px solid rgba(255,255,255,.1);border-radius:22px;background:radial-gradient(ellipse at 0% 0%,rgba(37,244,238,.07),transparent 48%),radial-gradient(ellipse at 100% 100%,rgba(254,44,85,.07),transparent 48%),linear-gradient(145deg,#101318,#080a0d);box-shadow:0 18px 50px rgba(0,0,0,.22)}
