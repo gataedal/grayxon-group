@@ -1925,11 +1925,9 @@ function ensureCreatorDashboardStyles(){
 
     .creator-dashboard-avatar-editable{position:relative!important;overflow:visible!important}
     .creator-dashboard-avatar-editable>img,.creator-dashboard-avatar-editable>span{border-radius:50%;overflow:hidden}
-    .creator-avatar-actions{position:absolute;right:-5px;bottom:-4px;display:flex;align-items:center;gap:4px;z-index:5}
-    .creator-avatar-actions button{display:grid;place-items:center;width:25px;height:25px;padding:0;border:1px solid rgba(255,255,255,.25);border-radius:50%;background:#11161c;color:#fff;font-size:14px;line-height:1;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer}
-    .creator-avatar-actions button:first-child{background:#10191b;border-color:#25f4ee;color:#25f4ee}
-    .creator-avatar-actions button:last-child{background:#211316;border-color:#fe2c55;color:#ffb3c1}
-    .creator-avatar-actions button.is-hidden{display:none!important}
+    #space .creator-dashboard-hero.creator-profile-hero .creator-dashboard-avatar.creator-dashboard-avatar-editable{overflow:visible!important}
+    #space .creator-dashboard-avatar-editable .creator-avatar-edit{position:absolute!important;right:-8px!important;bottom:-7px!important;z-index:20!important;display:grid!important;place-items:center!important;width:38px!important;height:38px!important;min-width:38px!important;padding:0!important;border:2px solid #25f4ee!important;border-radius:50%!important;background:#101519!important;color:#25f4ee!important;box-shadow:0 3px 12px rgba(0,0,0,.55)!important;cursor:pointer!important;opacity:1!important;visibility:visible!important}
+    #space .creator-dashboard-avatar-editable .creator-avatar-edit svg{display:block!important;width:21px!important;height:21px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important}
     #space #profileAvatarStatus{display:block;min-height:0;margin-top:5px;font-size:11px;color:#a5aab5}
     /* Compact welcome and manager details in Profile. */
     #space .creator-dashboard-hero.creator-profile-hero{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;min-height:0!important;height:auto!important;padding:20px 22px!important;border-radius:22px!important;background:linear-gradient(115deg,#0b1417,#0b0d11 58%,#160b12)!important;border:1px solid rgba(255,255,255,.12)!important;box-sizing:border-box!important}
@@ -2007,7 +2005,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   if(spaceEl && !spaceEl.querySelector('.creator-dashboard')){
     spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
       <section class="creator-dashboard-hero creator-profile-hero">
-        <div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${cachedAvatar}<div class="creator-avatar-actions"><button type="button" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto">✎</button><button type="button" id="deleteProfileAvatar" class="${profileDetails?.avatar_url?'':'is-hidden'}" aria-label="Eliminar foto" title="Eliminar foto">×</button></div><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>
+        <div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${cachedAvatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>
         <div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div>
       </section>
       <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid">
@@ -2083,7 +2081,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const paymentsCard=`<button type="button" class="creator-dashboard-card gx-payments-dashboard-card" data-page="payments"><span class="creator-dashboard-card-icon">💸</span><span class="creator-dashboard-card-meta">Historial</span><strong>Mis pagos</strong><p>Consulta tus pagos, liquidaciones y comprobantes.</p><span class="creator-dashboard-card-arrow">›</span></button>`;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${creatorDashboardAvatar()}<div class="creator-avatar-actions"><button type="button" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto">✎</button><button type="button" id="deleteProfileAvatar" class="${profileDetails?.avatar_url?'':'is-hidden'}" aria-label="Eliminar foto" title="Eliminar foto">×</button></div><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section>
+    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${creatorDashboardAvatar()}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section>
     ${performanceHTML}
     <div class="creator-dashboard-grid">${formationCard}${trainingCard}${missionsCard}${paymentsCard}${gxAnnouncementDashboardCard(true)}</div>${profileIncomplete}
   </div>`;
@@ -2100,7 +2098,7 @@ function renderCreatorSpaceImmediate(){
   const name=profile?.full_name||profile?.username||'Grayxon';
   const user=profile?.username||'creador';
   const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
-  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${avatar}<div class="creator-avatar-actions"><button type="button" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto">✎</button><button type="button" id="deleteProfileAvatar" class="${profileDetails?.avatar_url?'':'is-hidden'}" aria-label="Eliminar foto" title="Eliminar foto">×</button></div><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
+  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${avatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid"><div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div><div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando…</small></div></div></section><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
   bind();
 }
 
@@ -5812,12 +5810,20 @@ function bind() {
   ensureGrayxonPreferencesStyles();
   $('#installGrayxonDashboard')?.addEventListener('click',installGrayxonApp);
   refreshGrayxonPwaPreferenceUI();
-  $('#profileAvatar')?.addEventListener('change', uploadProfileAvatar);
-  $('#profilePhotoEdit')?.addEventListener('click', () => {
-    const input = $('#profileAvatar');
-    if (input) input.click();
-  });
-  $('#deleteProfileAvatar')?.addEventListener('click', deleteProfileAvatar);
+  const avatarRoot=$('#space');
+  if(avatarRoot && !avatarRoot.dataset.avatarControlsBound){
+    avatarRoot.dataset.avatarControlsBound='true';
+    avatarRoot.addEventListener('click',event=>{
+      const edit=event.target?.closest?.('#profilePhotoEdit');
+      if(!edit)return;
+      event.preventDefault();
+      const input=$('#profileAvatar');
+      if(input) input.click();
+    });
+    avatarRoot.addEventListener('change',event=>{
+      if(event.target?.id==='profileAvatar') uploadProfileAvatar();
+    });
+  }
   $('#saveHome')?.addEventListener('click', saveHome);
   $('#saveBenefits')?.addEventListener('click', saveBenefits);
   if ($('#gxAppIconFile')) { $('#gxAppIconFile').addEventListener('change', previewGxAppIcon); $('#gxSaveAppIcon')?.addEventListener('click', saveGxAppIcon); }
@@ -5863,18 +5869,31 @@ function populateBanks(){
   if(!canKeepCurrent) sel.value='';
 }
 async function uploadProfileAvatar(){
-  const file=$('#profileAvatar')?.files?.[0]; if(!file||!session) return; const status=$('#profileAvatarStatus');
-  if(file.size>5*1024*1024){ if(status) status.textContent='La foto debe pesar menos de 5 MB.'; return; }
-  const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg'; const path=`${session.user.id}/${Date.now()}.${ext}`;
-  if(status) status.textContent='Subiendo foto…';
-  const {error}=await sb.storage.from('profile-avatars').upload(path,file,{upsert:false,contentType:file.type});
-  if(error){ if(status) status.textContent=error.message; return; }
-  const url=sb.storage.from('profile-avatars').getPublicUrl(path).data.publicUrl;
-  const {error:saveErr}=await sb.from('profile_details').upsert({user_id:session.user.id,avatar_path:path,avatar_url:url,updated_at:new Date().toISOString()});
-  if(saveErr){ if(status) status.textContent=saveErr.message; return; }
-  profileDetails={...(profileDetails||{}),avatar_path:path,avatar_url:url}; updateProfileBadge();
-  if(status) status.textContent='Foto actualizada ✓';
-  await render();
+  const input=$('#profileAvatar');
+  const file=input?.files?.[0];
+  if(!file||!session) return;
+  const status=$('#profileAvatarStatus');
+  const showStatus=(message)=>{const el=$('#profileAvatarStatus');if(el)el.textContent=message;};
+  if(!/^image\\/(png|jpeg|webp)$/i.test(file.type)){showStatus('Usa una imagen JPG, PNG o WebP.');if(input)input.value='';return;}
+  if(file.size>5*1024*1024){showStatus('La foto debe pesar menos de 5 MB.');if(input)input.value='';return;}
+  const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+  const path=`${session.user.id}/${Date.now()}.${ext}`;
+  showStatus('Subiendo foto…');
+  try{
+    const {error:uploadErr}=await sb.storage.from('profile-avatars').upload(path,file,{upsert:false,contentType:file.type||'image/jpeg',cacheControl:'0'});
+    if(uploadErr) throw new Error('No se pudo subir la foto: '+uploadErr.message);
+    const publicUrl=sb.storage.from('profile-avatars').getPublicUrl(path).data.publicUrl;
+    const url=publicUrl+(publicUrl.includes('?')?'&':'?')+'v='+Date.now();
+    const {error:saveErr}=await sb.from('profile_details').upsert({user_id:session.user.id,avatar_path:path,avatar_url:url,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    if(saveErr) throw new Error('La foto se subió, pero no se pudo guardar en el perfil: '+saveErr.message);
+    profileDetails={...(profileDetails||{}),avatar_path:path,avatar_url:url};
+    updateProfileBadge();
+    showStatus('Foto actualizada ✓');
+    if(input) input.value='';
+    await render();
+  }catch(error){
+    showStatus(error?.message||'No se pudo actualizar la foto. Inténtalo de nuevo.');
+  }
 }
 
 async function deleteProfileAvatar(){
