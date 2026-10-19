@@ -416,6 +416,15 @@ async function updateAdminUserAccess(userId, username, password) {
 let current = 'home';
 let navGeneration = 0;
 let creatorDashboardRenderToken = 0;
+
+// Diagnóstico temporal y opt-in del primer render del dashboard.
+// Activar añadiendo ?gxDebugDashboard=1 a la URL; no registra datos personales.
+function gxDashboardTrace(stage, details = {}) {
+  try {
+    if (new URLSearchParams(window.location.search).get('gxDebugDashboard') !== '1') return;
+    console.debug('[Grayxon dashboard trace]', new Date().toISOString(), stage, details);
+  } catch (_) {}
+}
 let session = null;
 let profile = null;
 let adminView = 'dashboard';
@@ -1235,6 +1244,7 @@ function isCreatorSession(){
 
 function nav(p, push = true) {
   const thisNav = ++navGeneration;
+  if (p === 'space') gxDashboardTrace('nav:space:start', { navGeneration: thisNav, current, role: profile?.role || null, session: !!session?.user?.id });
   const pages = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'];
   if (!pages.includes(p)) p = 'home';
   if (p === 'events' && typeof ensureEventsPage === 'function') ensureEventsPage();
@@ -1307,6 +1317,7 @@ function nav(p, push = true) {
   // Para creadores, Mi espacio ya fue pintado de inmediato. No dejamos que un render
   // asíncrono antiguo vuelva a pisarlo mientras el usuario navega.
   if (p === 'space' && isCreatorSession()) {
+    gxDashboardTrace('nav:space:creator-dashboard-call', { navGeneration: thisNav, renderToken: creatorDashboardRenderToken + 1 });
     // Nunca bloqueamos la navegación esperando datos remotos. El dashboard ya está visible;
     // la actualización se ejecuta en segundo plano y solo pinta si seguimos en Mi espacio.
     creatorDashboardTpl(thisNav).then(()=>refreshMyPendingPaymentsBadge()).catch(e => console.warn('Creator dashboard:', e));
@@ -2117,6 +2128,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const uid=session.user.id;
   const renderToken=++creatorDashboardRenderToken;
   const spaceEl=$('#space');
+  gxDashboardTrace('dashboard:render:start', { renderToken, expectedNav, navGeneration, current, role: profile?.role || null, hasProfileDetails: !!profileDetails, hasAvatar: !!profileDetails?.avatar_url, hasFullName: !!profile?.full_name, hasUsername: !!profile?.username, hasSpaceElement: !!spaceEl });
 
   // Pintamos inmediatamente un dashboard real, usando el contexto ya disponible.
   // Las consultas se refrescan en segundo plano para que volver desde Mi perfil/Misiones
@@ -2136,31 +2148,48 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
       '<section class="gx-progress-section gx-progress-loading" aria-label="Tu progreso"><div class="gx-progress-heading"><span class="gx-progress-heading-icon">▮</span><div><h2>Tu progreso</h2><p>Sigue avanzando y alcanza tu próximo nivel.</p></div></div><div class="gx-progress-grid"><div class="gx-progress-card" style="--gx-progress-accent:#795cff"><strong>Formación</strong><small>Actualizando…</small></div><div class="gx-progress-card" style="--gx-progress-accent:#ff3265"><strong>Misiones</strong><small>Actualizando…</small></div></div></section>' +
       '<section class="creator-dashboard-loading-placeholder" aria-live="polite"><div class="creator-loading-line"></div><div class="creator-loading-line short"></div></section>' +
       gxCreatorRecentAnnouncementsMarkup() + '</div>';
+    gxDashboardTrace('dashboard:placeholder:painted', { renderToken, hasProgressSection: !!spaceEl?.querySelector('.gx-progress-section'), hasTrainingHighlight: !!spaceEl?.querySelector('#gxCreatorTrainingHighlight') });
     // No enlazamos eventos en el placeholder: bind() puede abortar la hidratación antes de consultar datos.
     loadCreatorDashboardEventHighlights(expectedNav).catch(error => console.warn('Creator dashboard highlight failed:', error));
     loadCreatorDashboardTrainingHighlight(expectedNav).catch(error => console.warn('Creator dashboard highlight failed:', error));
   }
 
-  const safe=async(promise,fallback,ms=2200)=>{
+  const safe=async(promise,fallback,ms=2200,label='query')=>{
     try{
-      const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve({data:fallback,error:true}),ms))]);
-      if(r?.error){console.warn('Creator dashboard query failed:',r.error);return fallback;}
+      let timedOut=false;
+      const r=await Promise.race([promise,new Promise(resolve=>setTimeout(()=>{timedOut=true;resolve({data:fallback,error:true});},ms))]);
+      if(r?.error){
+        gxDashboardTrace('dashboard:query:error', { renderToken, label, timeout: timedOut, message: typeof r.error === 'object' ? (r.error.message || String(r.error)) : (timedOut ? 'timeout' : String(r.error)) });
+        console.warn('Creator dashboard query failed:',label,r.error);
+        return fallback;
+      }
+      gxDashboardTrace('dashboard:query:ok', { renderToken, label, rows: Array.isArray(r?.data) ? r.data.length : (r?.data ? 1 : 0), elapsedMs: Date.now()-dashboardQueryStartedAt });
       return r?.data??fallback;
-    }catch(error){console.warn('Creator dashboard query threw an error:',error);return fallback;}
+    }catch(error){
+      gxDashboardTrace('dashboard:query:threw', { renderToken, label, message: error?.message || String(error) });
+      console.warn('Creator dashboard query threw an error:',label,error);
+      return fallback;
+    }
   };
 
+  const dashboardQueryStartedAt=Date.now();
+  gxDashboardTrace('dashboard:queries:start', { renderToken, timeoutMs: 2200, count: 7 });
   const [profileRow, details, payment, lessons, lessonProgress, missions, missionProgress] = await Promise.all([
-    safe(sb.from('profiles').select('id,username,full_name,active,team_id,manager_id,role').eq('id',uid).maybeSingle(),profile),
-    safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),profileDetails),
-    safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),paymentMethod),
-    safe(sb.from('lessons').select('id').eq('published',true),[]),
-    safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[]),
-    safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).eq('assigned_to',uid).order('week_start',{ascending:false}),[]),
-    safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[])
+    safe(sb.from('profiles').select('id,username,full_name,active,team_id,manager_id,role').eq('id',uid).maybeSingle(),profile,2200,'profile'),
+    safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),profileDetails,2200,'profile_details'),
+    safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),paymentMethod,2200,'payment_methods'),
+    safe(sb.from('lessons').select('id').eq('published',true),[],2200,'lessons'),
+    safe(sb.from('lesson_progress').select('lesson_id').eq('user_id',uid),[],2200,'lesson_progress'),
+    safe(sb.from('missions').select('id,type,target,week_start,week_end,assigned_to').eq('published',true).eq('assigned_to',uid).order('week_start',{ascending:false}),[],2200,'missions'),
+    safe(sb.from('mission_progress').select('mission_id,value,completed').eq('user_id',uid),[],2200,'mission_progress')
   ]);
 
+  gxDashboardTrace('dashboard:queries:complete', { renderToken, elapsedMs: Date.now()-dashboardQueryStartedAt, current, navGeneration, currentRenderToken: creatorDashboardRenderToken });
   // Si el usuario ya navegó a otra pantalla, este render atrasado no debe tocarla.
-  if(renderToken!==creatorDashboardRenderToken || !session?.user?.id || session.user.id!==uid) return;
+  if(renderToken!==creatorDashboardRenderToken || !session?.user?.id || session.user.id!==uid) {
+    gxDashboardTrace('dashboard:render:aborted', { renderToken, currentRenderToken: creatorDashboardRenderToken, current, sameSession: !!session?.user?.id && session.user.id===uid });
+    return;
+  }
 
   if(profileRow) profile=profileRow;
   if(details!==undefined) profileDetails=details;
@@ -2206,6 +2235,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const missionsCard=`<button type="button" class="gx-progress-card" style="--gx-progress-accent:#ff3265" data-gx-progress-action="missions" data-gx-has-pending="${pendingMissions.length>0?'true':'false'}" aria-label="Misiones: ${completedMissions} de ${visibleMissions.length} completadas"><span class="gx-progress-card-top"><span class="gx-progress-card-icon">🎯</span><span class="gx-progress-card-copy"><strong>Misiones</strong><small>${completedMissions} de ${visibleMissions.length} completadas</small></span></span><span class="gx-progress-card-top"><span class="gx-progress-track" style="flex:1"><span class="gx-progress-fill" style="width:${missionCompletion??0}%"></span></span><span class="gx-progress-value">${missionCompletion??0}%</span></span></button>`;
   const paymentsCard=``;
 
+  gxDashboardTrace('dashboard:final-render:start', { renderToken, username: !!profile?.username, fullName: !!profile?.full_name, avatar: !!profileDetails?.avatar_url, lessonTotal, lessonCompleted, missionTotal: visibleMissions.length });
   $('#space').innerHTML=`<div class="creator-dashboard">
     <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${creatorDashboardAvatar()}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div class="gx-dashboard-featured-stack"><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div></div>
     ${progressCardStyles}<section class="gx-progress-section" aria-label="Tu progreso"><div class="gx-progress-heading"><span class="gx-progress-heading-icon">▮</span><div><h2>Tu progreso</h2><p>Sigue avanzando y alcanza tu próximo nivel.</p></div></div><div class="gx-progress-grid">${formationCard}${missionsCard}</div></section>
@@ -2213,6 +2243,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     <div class="creator-dashboard-grid">${paymentsCard}</div>${gxCreatorRecentAnnouncementsMarkup()}${profileIncomplete}
   </div>`;
   bind();
+  gxDashboardTrace('dashboard:final-render:complete', { renderToken, hasIdentity: !!document.querySelector('#space .creator-dashboard-identity h1'), hasAvatarImage: !!document.querySelector('#space .creator-dashboard-avatar img'), hasAnnouncementsHost: !!document.getElementById('gxCreatorRecentAnnouncements') });
   gxLoadCreatorRecentAnnouncements().catch(error=>console.warn('Creator recent announcements failed:',error));
   loadCreatorDashboardEventHighlights(expectedNav).catch(error=>console.warn('Creator dashboard highlight failed:',error));
   loadCreatorDashboardTrainingHighlight(expectedNav).catch(error=>console.warn('Creator dashboard highlight failed:',error));
@@ -7427,7 +7458,7 @@ function gxCreatorRecentAnnouncementsMarkup(){return `<section class="gx-recent-
 function gxCreatorRecentAnnouncementsStyles(){if(document.getElementById('gx-creator-recent-announcements-styles'))return;const style=document.createElement('style');style.id='gx-creator-recent-announcements-styles';style.textContent=`
 .gx-recent-announcements{width:100%;min-width:0;margin:22px 0 24px;color:#f5f7fb}.gx-recent-announcements-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 12px}.gx-recent-announcements-head h2{display:flex;align-items:center;gap:10px;margin:0;font-size:18px;font-weight:800;letter-spacing:-.025em}.gx-recent-announcements-head h2 span{font-size:25px;line-height:1;transform:rotate(-15deg)}.gx-recent-announcements-head button{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;color:#38a5ff;font:inherit;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer}.gx-recent-announcements-head button b{font-size:23px;font-weight:400;line-height:.7}.gx-recent-announcements-track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-width:0}.gx-recent-announcement-card{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-width:0;min-height:142px;overflow:hidden;padding:44px 14px 13px;border:1px solid #30343d;border-radius:17px;background:radial-gradient(ellipse at 80% 30%,rgba(37,244,238,.10),transparent 45%),linear-gradient(130deg,#11151c,#07090e 75%);color:#f6f7fb;text-align:left;cursor:pointer;isolation:isolate}.gx-recent-announcement-card:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(5,8,13,.96) 0%,rgba(5,8,13,.82) 54%,rgba(5,8,13,.25) 100%)}.gx-recent-announcement-card img{position:absolute;inset:0 0 0 auto;width:58%;height:100%;object-fit:cover;z-index:-2;opacity:.68;mask-image:linear-gradient(90deg,transparent 0%,#000 38%)}.gx-recent-announcement-meta{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:nowrap;margin:0;min-height:22px}.gx-recent-announcement-age{margin-left:auto}.gx-recent-announcement-tag{display:inline-flex;align-items:center;max-width:100%;padding:5px 8px;border-radius:7px;background:#ff2457;color:#fff;font-size:9px;line-height:1.1;font-weight:900;text-transform:uppercase}.gx-recent-announcement-age{font-size:10px;color:#c0c5ce;white-space:nowrap}.gx-recent-announcement-card h3{display:-webkit-box;min-height:2.7em;max-height:2.7em;max-width:88%;margin:0 0 7px;font-size:13px;line-height:1.35;font-weight:800;overflow-wrap:anywhere;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.gx-recent-announcement-card p{min-height:2.8em;max-height:2.8em;max-width:84%;margin:0;color:#c4c8d0;font-size:10px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.gx-recent-announcements-loading,.gx-recent-announcements-empty{grid-column:1/-1;padding:18px;border:1px solid #282c34;border-radius:15px;background:#0c0e13;color:#aeb5c1;font-size:12px}@media(max-width:560px){.gx-recent-announcements{margin:18px 0 22px}.gx-recent-announcements-head h2{font-size:16px}.gx-recent-announcements-track{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.gx-recent-announcement-card{min-height:142px;padding:39px 9px 10px;border-radius:13px}.gx-recent-announcement-meta{gap:5px;margin-bottom:8px}.gx-recent-announcement-tag{font-size:7px;padding:5px 6px}.gx-recent-announcement-age{font-size:8px}.gx-recent-announcement-card h3{font-size:11px;max-width:100%;min-height:2.7em;max-height:2.7em}.gx-recent-announcement-card p{font-size:9px;max-width:100%;min-height:2.8em;max-height:2.8em;-webkit-line-clamp:2}.gx-recent-announcement-card img{width:70%;opacity:.45}}
 `;document.head.appendChild(style);}
-async function gxLoadCreatorRecentAnnouncements(){const host=document.getElementById('gxCreatorRecentAnnouncements');if(!host||!session?.user?.id||profile?.role!=='creator')return;gxCreatorRecentAnnouncementsStyles();const section=host.closest('.gx-recent-announcements');if(section&&!section.dataset.gxBound){section.dataset.gxBound='1';section.addEventListener('click',e=>{if(e.target.closest('[data-gx-announcements-all]')){nav('announcements');return;}if(e.target.closest('[data-gx-announcement-open]'))nav('announcements');});}try{const {data,error}=await sb.from('announcements').select('id,title,body,target_type,created_at,label,announcement_teams(team_id),announcement_attachments(id,file_name,mime_type,storage_path)').order('created_at',{ascending:false}).limit(60);if(error)throw error;const now=Date.now();const visible=(data||[]).filter(a=>a.target_type==='agency'?true:a.target_type==='managers'?false:(a.announcement_teams||[]).some(t=>t.team_id===profile?.team_id)).slice(0,3);if(!visible.length){host.innerHTML='<div class="gx-recent-announcements-empty">Aquí aparecerán las novedades importantes de Grayxon.</div>';return;}const age=d=>{const h=Math.max(0,Math.floor((now-new Date(d).getTime())/3600000));return h<1?'Ahora':h<24?'Hace '+h+' h':h<48?'Hace 1 día':'Hace '+Math.floor(h/24)+' días';};host.innerHTML=visible.map((a,i)=>{const tag=String(a.label||'').trim();const body=String(a.body||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();return `<button type="button" class="gx-recent-announcement-card" data-gx-announcement-open="${gxAnnouncementEsc(a.id)}"><span class="gx-recent-announcement-meta">${tag?`<span class="gx-recent-announcement-tag">${gxAnnouncementEsc(tag)}</span>`:''}<span class="gx-recent-announcement-age">${age(a.created_at)}</span></span><h3>${gxAnnouncementEsc(a.title||'Comunicado Grayxon')}</h3><p>${gxAnnouncementEsc(body||'Conoce las novedades y avisos de Grayxon.')}</p></button>`;}).join('');for(const a of visible){const file=(a.announcement_attachments||[]).find(f=>f.mime_type?.startsWith('image/'));if(!file)continue;const {data:urlData}=await sb.storage.from(GX_ANNOUNCEMENT_BUCKET).createSignedUrl(file.storage_path,300,{download:false});if(!urlData?.signedUrl)continue;const card=host.querySelector('[data-gx-announcement-open="'+a.id+'"]');if(card){const img=document.createElement('img');img.src=urlData.signedUrl;img.alt='';img.loading='lazy';card.prepend(img);}}}catch(error){console.warn('Comunicados recientes del dashboard:',error);host.innerHTML='<div class="gx-recent-announcements-empty">No se pudieron cargar los comunicados ahora.</div>';}}
+async function gxLoadCreatorRecentAnnouncements(){const host=document.getElementById('gxCreatorRecentAnnouncements');gxDashboardTrace('announcements:load:start',{host:!!host,session:!!session?.user?.id,role:profile?.role||null});if(!host||!session?.user?.id||profile?.role!=='creator')return;gxCreatorRecentAnnouncementsStyles();const section=host.closest('.gx-recent-announcements');if(section&&!section.dataset.gxBound){section.dataset.gxBound='1';section.addEventListener('click',e=>{if(e.target.closest('[data-gx-announcements-all]')){nav('announcements');return;}if(e.target.closest('[data-gx-announcement-open]'))nav('announcements');});}try{const {data,error}=await sb.from('announcements').select('id,title,body,target_type,created_at,label,announcement_teams(team_id),announcement_attachments(id,file_name,mime_type,storage_path)').order('created_at',{ascending:false}).limit(60);if(error)throw error;const now=Date.now();const visible=(data||[]).filter(a=>a.target_type==='agency'?true:a.target_type==='managers'?false:(a.announcement_teams||[]).some(t=>t.team_id===profile?.team_id)).slice(0,3);if(!visible.length){gxDashboardTrace('announcements:load:empty',{rows:(data||[]).length});host.innerHTML='<div class="gx-recent-announcements-empty">Aquí aparecerán las novedades importantes de Grayxon.</div>';return;} gxDashboardTrace('announcements:load:ok',{rows:(data||[]).length,visible:visible.length});const age=d=>{const h=Math.max(0,Math.floor((now-new Date(d).getTime())/3600000));return h<1?'Ahora':h<24?'Hace '+h+' h':h<48?'Hace 1 día':'Hace '+Math.floor(h/24)+' días';};host.innerHTML=visible.map((a,i)=>{const tag=String(a.label||'').trim();const body=String(a.body||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();return `<button type="button" class="gx-recent-announcement-card" data-gx-announcement-open="${gxAnnouncementEsc(a.id)}"><span class="gx-recent-announcement-meta">${tag?`<span class="gx-recent-announcement-tag">${gxAnnouncementEsc(tag)}</span>`:''}<span class="gx-recent-announcement-age">${age(a.created_at)}</span></span><h3>${gxAnnouncementEsc(a.title||'Comunicado Grayxon')}</h3><p>${gxAnnouncementEsc(body||'Conoce las novedades y avisos de Grayxon.')}</p></button>`;}).join('');for(const a of visible){const file=(a.announcement_attachments||[]).find(f=>f.mime_type?.startsWith('image/'));if(!file)continue;const {data:urlData}=await sb.storage.from(GX_ANNOUNCEMENT_BUCKET).createSignedUrl(file.storage_path,300,{download:false});if(!urlData?.signedUrl)continue;const card=host.querySelector('[data-gx-announcement-open="'+a.id+'"]');if(card){const img=document.createElement('img');img.src=urlData.signedUrl;img.alt='';img.loading='lazy';card.prepend(img);}}}catch(error){gxDashboardTrace('announcements:load:error',{message:error?.message||String(error)});console.warn('Comunicados recientes del dashboard:',error);host.innerHTML='<div class="gx-recent-announcements-empty">No se pudieron cargar los comunicados ahora.</div>';}}
 function gxAnnouncementDashboardCard(creatorCard=false){
   const cls=creatorCard?'creator-dashboard-card gx-ann-dashboard-card':'dashboard-announcement-card gx-ann-dashboard-card';
   return `<button type="button" class="${cls}" data-page="announcements"><span class="gx-ann-dashboard-icon">📣</span><span class="gx-ann-dashboard-copy"><strong>Centro de comunicados</strong><small>Novedades, avisos importantes y recursos de tu equipo.</small><span class="gx-ann-unread-badge hidden" data-gx-ann-unread-badge aria-live="polite"><b>0</b> pendientes por leer</span></span><span class="gx-ann-dashboard-arrow">›</span></button>`;
