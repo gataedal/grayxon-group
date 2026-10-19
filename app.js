@@ -792,8 +792,13 @@ function toggleNotifications() {
   const panel = $('#notificationsPanel');
   if (!panel) return;
   closeProfileMenu();
+  const willOpen = panel.classList.contains('hidden');
   panel.classList.toggle('hidden');
-  if (!panel.classList.contains('hidden')) renderNotificationsPanel();
+  if (willOpen) {
+    // Cada apertura empieza siempre en No leídas, incluso si la última vez se consultó Todas.
+    notificationView = 'unread';
+    renderNotificationsPanel();
+  }
 }
 
 async function notifyCreators(title, message, linkPage='space') {
