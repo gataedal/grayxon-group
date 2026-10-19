@@ -2025,7 +2025,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     }catch{return fallback;}
   };
 
-  const [profileRow, details, payment, lessons, lessonProgress, missions, missionProgress, activeTraining] = await Promise.all([
+  const [profileRow, details, payment, lessons, lessonProgress, missions, missionProgress] = await Promise.all([
     safe(sb.from('profiles').select('id,username,full_name,active,team_id,manager_id,role').eq('id',uid).maybeSingle(),profile),
     safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),profileDetails),
     safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),paymentMethod),
