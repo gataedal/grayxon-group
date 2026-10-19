@@ -3870,13 +3870,65 @@ async function liveTrainingTpl(trainingOverride=null) {
   if(autoStart) $('#enterGrayxonTraining')?.click();
 }
 
-async function trainingTpl() {
+
+function ensureFormationRedesignStyles(){
+  if(document.getElementById('grayxon-formation-redesign-v1')) return;
+  const style=document.createElement('style');
+  style.id='grayxon-formation-redesign-v1';
+  style.textContent=`
+    #training .formation-page{display:block!important;width:100%!important;box-sizing:border-box!important}
+    #training .formation-page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px}
+    #training .formation-page-header h1{margin:5px 0 0;font-size:clamp(24px,3vw,32px);letter-spacing:-.035em}
+    #training .formation-content-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr);gap:20px;align-items:start}
+    #training .formation-content-layout>.lesson-view{min-width:0;margin:0!important}
+    #training .formation-groups{display:grid!important;gap:22px!important;margin:0!important;min-width:0}
+    #training .formation-section{display:grid;gap:10px;min-width:0}
+    #training .formation-section-title{margin:0;font-size:16px;font-weight:750;letter-spacing:-.015em}
+    #training .formation-group-list{display:grid;gap:10px}
+    #training .formation-module-card{overflow:hidden;border:1px solid rgba(255,255,255,.09);border-radius:15px;background:#101216}
+    #training .formation-module-heading{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:10px;padding:13px}
+    #training .formation-module-number{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(37,244,238,.06);border:1px solid rgba(37,244,238,.17);color:#c6d0da;font-size:10px;font-weight:800}
+    #training .formation-module-copy{min-width:0}
+    #training .formation-module-copy strong{display:block;font-size:13px;line-height:1.35}
+    #training .formation-module-copy small{display:block;margin-top:4px;color:#9299a5;font-size:11px;line-height:1.4}
+    #training .formation-module-status{color:#9ca4af;font-size:10px;white-space:nowrap}
+    #training .formation-lessons-list{display:grid;gap:0}
+    #training .formation-lessons-list .lesson{border-top:1px solid rgba(255,255,255,.06)}
+    #training .formation-lessons-list .lesson button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;padding:11px 13px;border:0;border-radius:0;background:transparent;color:inherit;text-align:left}
+    #training .formation-lessons-list .lesson button:hover{background:rgba(255,255,255,.035)}
+    #training .formation-lessons-list .lesson-index{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:10px}
+    #training .formation-lessons-list .lesson-done .lesson-index{color:#8bd5a5;background:rgba(78,196,121,.10)}
+    #training .formation-lessons-list .lesson-text{min-width:0}
+    #training .formation-lessons-list .lesson-text strong{display:block;font-size:12px;line-height:1.35}
+    #training .formation-lessons-list .lesson-text small{display:block;margin-top:3px;color:#8d95a1;font-size:10px}
+    #training .formation-lesson-action{font-size:10px;color:#a8b0bb;white-space:nowrap}
+    #training .formation-lessons-list .lesson-next{background:rgba(37,244,238,.045)}
+    #training .formation-lessons-list .lesson-next .formation-lesson-action{color:#70e6e2}
+    #training .formation-empty-group{padding:14px;border:1px dashed rgba(255,255,255,.12);border-radius:12px;color:#8e96a2;font-size:12px}
+    #training .formation-complete-state{padding:clamp(22px,4vw,38px);border:1px solid rgba(37,244,238,.15);border-radius:20px;background:linear-gradient(145deg,#15191d,#0d0f12);text-align:center}
+    #training .formation-complete-icon{width:54px;height:54px;margin:0 auto 15px;border-radius:50%;display:grid;place-items:center;background:rgba(78,196,121,.12);color:#8bd5a5;font-size:26px}
+    #training .formation-complete-state h2{margin:8px 0;font-size:clamp(20px,3vw,28px)}
+    #training .formation-complete-state p{max-width:520px;margin:0 auto;color:#a5abb5;line-height:1.6;font-size:13px}
+    @media(max-width:760px){
+      #training .formation-page-header{margin-bottom:13px}
+      #training .formation-content-layout{grid-template-columns:minmax(0,1fr);gap:22px}
+      #training .formation-groups{order:2}
+      #training .formation-content-layout>.lesson-view{order:1}
+      #training .formation-module-heading{padding:11px}
+      #training .formation-lessons-list .lesson button{padding:11px}
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+async function trainingTpl(options = {}) {
   if (!session) {
     $('#training').innerHTML = authTpl();
     return;
   }
   profile = await getProfile();
   ensureFormationMobileV34Styles();
+  ensureFormationRedesignStyles();
   if (!profile || !profile.active) {
     await sb.auth.signOut();
     session = null;
@@ -3912,69 +3964,78 @@ async function trainingTpl() {
   const pendingModules = moduleData.filter(x => !x.complete);
   const completedModules = moduleData.filter(x => x.complete);
 
-  const moduleCard = (x, section) => {
-    const {m, mi, ml, md, complete, pct} = x;
-    const panelId = `formation-module-${section}-${m.id}`;
-    return `<div class="formation-module-accordion ${complete ? 'formation-module-complete' : ''}">
-      <button type="button" class="formation-module-toggle" data-formation-module-toggle="${esc(panelId)}" aria-expanded="false">
+  const moduleCard = (x) => {
+    const {m, mi, ml, md, complete} = x;
+    return `<article class="formation-module-card ${complete ? 'formation-module-complete' : ''}">
+      <div class="formation-module-heading">
         <span class="formation-module-number">${String(mi + 1).padStart(2,'0')}</span>
-        <span class="formation-module-copy"><strong>${esc(m.title)}</strong><small>${esc(m.description || '')}</small></span>
-        <span class="formation-module-meta"><b>${complete ? '✓' : `${md}/${ml.length}`}</b><span class="formation-module-chevron">›</span></span>
-      </button>
-      <div id="${esc(panelId)}" class="formation-module-panel hidden">
-        <div class="formation-module-progress"><span style="width:${pct}%"></span></div>
-        <div class="formation-module-progress-label">${complete ? 'Módulo completado' : `${md} de ${ml.length} lecciones completadas`}</div>
-        <div class="formation-lessons-list">
-          ${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}">
-            <button type="button" data-lesson="${l.id}">
-              <span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span>
-              <span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}${done.has(l.id) ? ' · Completado' : ''}</small></span>
-            </button>
-            ${nextPending?.id === l.id ? '<span class="next-badge">SIGUIENTE</span>' : ''}
-          </div>`).join('') || '<div class="muted small">Este módulo todavía no tiene lecciones.</div>'}
-        </div>
+        <span class="formation-module-copy"><strong>${esc(m.title)}</strong>${m.description ? `<small>${esc(m.description)}</small>` : ''}</span>
+        <span class="formation-module-status">${complete ? '✓ Completado' : `${md}/${ml.length}`}</span>
       </div>
-    </div>`;
+      <div class="formation-lessons-list">
+        ${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id === l.id ? 'lesson-next' : ''}">
+          <button type="button" data-lesson="${l.id}">
+            <span class="lesson-index">${done.has(l.id) ? '✓' : li + 1}</span>
+            <span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type === 'video' ? 'Video' : l.type === 'resource' ? 'Recurso' : 'Contenido'}${done.has(l.id) ? ' · Completado' : ''}</small></span>
+            <span class="formation-lesson-action">${done.has(l.id) ? 'Ver de nuevo' : 'Abrir'} ›</span>
+          </button>
+        </div>`).join('') || '<div class="muted small">Este módulo todavía no tiene lecciones.</div>'}
+      </div>
+    </article>`;
   };
 
-  const sectionHtml = (title, kicker, items, section, emptyText, defaultOpen=false) => {
-    const panelId=`formation-section-${section}`;
-    return `<section class="formation-group ${defaultOpen?'is-open':''}">
-      <button type="button" class="formation-group-toggle" data-formation-group-toggle="${panelId}" aria-expanded="${defaultOpen?'true':'false'}">
-        <span><span class="eyebrow">${kicker}</span><strong>${title}</strong></span>
-        <span class="formation-group-toggle-right"><b>${items.length}</b><span class="formation-group-chevron">›</span></span>
-      </button>
-      <div id="${panelId}" class="formation-group-panel ${defaultOpen?'':'hidden'}">
-        <div class="formation-group-list">${items.length ? items.map(x => moduleCard(x, section)).join('') : `<div class="formation-empty-group">${emptyText}</div>`}</div>
+  const sectionHtml = (title, items, emptyText) => `
+    <section class="formation-section">
+      <h2 class="formation-section-title">${title}</h2>
+      <div class="formation-group-list">
+        ${items.length ? items.map(moduleCard).join('') : `<div class="formation-empty-group">${emptyText}</div>`}
       </div>
     </section>`;
-  };
 
   $('#training').innerHTML = `<div class="formation-page">
-    <div class="row"><div><div class="eyebrow">FORMACIÓN</div><h1 style="margin:7px 0">Aprende con Grayxon 🎓</h1><p class="muted">Aquí encontrarás tus módulos y lecciones. Abre un módulo para ver su contenido.</p></div>${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Mi espacio</button>'}</div>
-    <div class="card formation-progress-card" style="margin-top:18px"><div class="row"><div><b>Tu progreso</b><div class="muted small">${totalDone} de ${totalLessons} lecciones completadas</div></div><b class="progress-percent">${totalPct}%</b></div><div class="progress-track"><div class="progress-fill" style="width:${totalPct}%"></div></div></div>
-    <div class="formation-groups" style="margin-top:22px">
-      ${sectionHtml('Por ver','POR VER',pendingModules,'pending','No tienes módulos pendientes. 🎉',pendingModules.length>0)}
-      ${sectionHtml('Completados','COMPLETADOS',completedModules,'completed','Todavía no has completado ningún módulo.',false)}
+    <div class="formation-page-header">
+      <div><div class="eyebrow">GRAYXON ACADEMY</div><h1>Formación</h1></div>
+      ${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Mi espacio</button>'}
     </div>
-    <div class="lesson-view hidden" id="lessonView"></div>
+    <div class="formation-content-layout">
+      <div class="lesson-view hidden" id="lessonView"></div>
+      <div class="formation-groups">
+        ${sectionHtml('Pendientes',pendingModules,'No tienes lecciones pendientes.')}
+        ${completedModules.length ? sectionHtml('Completados',completedModules,'') : ''}
+      </div>
+    </div>
   </div>`;
 
   window._lessons = orderedLessons;
   window._modules = modules || [];
   window._done = done;
-  const pendingFocusId=window._creatorDashboardPendingLessonId;
-  if(pendingFocusId){
-    delete window._creatorDashboardPendingLessonId;
-    const lesson=orderedLessons.find(l=>l.id===pendingFocusId);
-    const module=lesson&&(modules||[]).find(m=>m.id===lesson.module_id);
-    if(lesson&&module){
-      const toggle=[...document.querySelectorAll('[data-formation-module-toggle]')].find(b=>b.dataset.formationModuleToggle.includes(module.id));
-      const panel=toggle&&document.getElementById(toggle.dataset.formationModuleToggle);
-      if(panel?.classList.contains('hidden')){panel.classList.remove('hidden');toggle?.classList.add('is-open');toggle?.setAttribute('aria-expanded','true');}
-      setTimeout(()=>document.querySelector('[data-lesson="'+CSS.escape(lesson.id)+'"]')?.scrollIntoView({behavior:'smooth',block:'center'}),100);
+
+  if (window._creatorDashboardPendingLessonId) delete window._creatorDashboardPendingLessonId;
+
+  if (!options.skipAutoOpen) {
+    if (nextPending) {
+      await openLesson(nextPending.id, {skipReload:true});
+    } else if (totalLessons > 0) {
+      renderFormationCompletedState();
+    } else {
+      const view = $('#lessonView');
+      view?.classList.remove('hidden');
+      if (view) view.innerHTML = '<div class="formation-empty-state"><div class="formation-empty-icon">🎓</div><h2>Próximamente</h2><p>En este momento no hay lecciones publicadas.</p></div>';
     }
   }
+}
+
+function renderFormationCompletedState(){
+  const view = $('#lessonView');
+  if (!view) return;
+  view.classList.remove('hidden');
+  view.classList.add('lesson-focus-active');
+  view.innerHTML = `<div class="formation-complete-state">
+    <div class="formation-complete-icon">✓</div>
+    <div class="eyebrow">GRAYXON ACADEMY</div>
+    <h2>¡Has completado la formación disponible!</h2>
+    <p>Terminaste todas las lecciones publicadas a las que tienes acceso. Puedes volver a consultar cualquier contenido desde la lista.</p>
+  </div>`;
 }
 
 function getLessonById(id){
@@ -3996,6 +4057,14 @@ function getNextLessonAfter(id){
   // En revisión también debe existir un “Siguiente contenido”: aquí buscamos
   // el siguiente contenido real del módulo, aunque ya esté completado.
   return lessons[currentIndex + 1] || null;
+}
+
+function getNextPendingLessonAfter(id){
+  const lessons = window._lessons || [];
+  const done = window._done || new Set();
+  const currentIndex = lessons.findIndex(l => l.id === id);
+  const laterPending = lessons.slice(Math.max(0, currentIndex + 1)).find(l => !done.has(l.id));
+  return laterPending || lessons.find(l => !done.has(l.id)) || null;
 }
 
 function getNextPendingModuleLesson(currentModuleId){
@@ -4089,29 +4158,14 @@ async function advanceAfterLesson(id, options = {}){
   const lesson = getLessonById(id);
   if(!lesson) return;
 
-  const nextSameModule = getNextLessonAfter(id);
-  if(nextSameModule){
-    // Tanto en un contenido nuevo como al repasar un contenido ya visto,
-    // primero se ofrece el siguiente contenido REAL del mismo módulo.
-    if(options.fromVideo){
-      await showLessonAdvancePrompt(nextSameModule);
-    } else {
-      await openLesson(nextSameModule.id, {skipReload:true});
-      toast(`Siguiente contenido: ${nextSameModule.title}`);
-    }
+  const nextPending = getNextPendingLessonAfter(id);
+  if (nextPending) {
+    await openLesson(nextPending.id, {skipReload:true});
+    toast(`Siguiente lección: ${nextPending.title}`);
     return;
   }
 
-  // Solo el último contenido puede disparar el popup de módulo completado,
-  // y únicamente cuando todos los contenidos de ese módulo están completados.
-  const moduleLessons = getModuleLessons(lesson.module_id);
-  const done = window._done || new Set();
-  const moduleComplete = moduleLessons.length > 0 && moduleLessons.every(l => done.has(l.id));
-  if(moduleComplete){
-    const module = (window._modules || []).find(m => m.id === lesson.module_id);
-    const nextModuleLesson = getNextPendingModuleLesson(lesson.module_id);
-    await showModuleCompletionPopup(module, nextModuleLesson);
-  }
+  renderFormationCompletedState();
 }
 
 async function renderSelectedLesson(l) {
@@ -4146,9 +4200,7 @@ async function renderSelectedLesson(l) {
   }
 
   const formationPage = $('#training .formation-page');
-  const modulesList = $('.formation-groups');
   formationPage?.classList.add('lesson-focus-mode');
-  modulesList?.classList.add('lesson-focus-hidden');
   $('#lessonView')?.classList.add('lesson-focus-active');
   requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
 }
@@ -4159,7 +4211,7 @@ async function openLesson(id, options = {}) {
   selectedLesson = l;
 
   if(!options.skipReload){
-    await trainingTpl();
+    await trainingTpl({skipAutoOpen:true});
     bind();
   }
 
