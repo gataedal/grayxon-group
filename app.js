@@ -1729,6 +1729,65 @@ function ensureCreatorDashboardStyles(){
         grid-column:2!important;grid-row:2!important;justify-self:start!important;align-self:start!important;min-height:42px!important;padding:0 17px!important;border-radius:14px!important;font-size:13px!important
       }
     }
+    /* Mobile: keep creator and manager side-by-side like the approved reference. */
+    @media(max-width:760px){
+      #space .creator-dashboard-hero.creator-profile-hero{
+        display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:1fr!important;
+        align-items:stretch!important;gap:0!important;padding:20px 13px!important;min-height:0!important;border-radius:23px!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-profile-left{
+        grid-column:1!important;grid-row:1!important;display:grid!important;grid-template-columns:54px minmax(0,1fr)!important;
+        align-content:center!important;align-items:center!important;column-gap:9px!important;row-gap:0!important;
+        padding:22px 10px 22px 0!important;margin:0!important;border:0!important;min-width:0!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-profile-left .creator-dashboard-avatar{
+        grid-column:1!important;grid-row:1!important;width:54px!important;height:54px!important;min-width:54px!important;max-width:54px!important;
+        padding:2px!important;align-self:center!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-profile-left .creator-dashboard-identity{
+        grid-column:2!important;grid-row:1!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;
+        width:100%!important;min-width:0!important;max-width:100%!important;padding:0!important;margin:0!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-profile-greeting{font-size:12px!important;margin:0 0 5px!important;line-height:1.2!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-profile-left .creator-dashboard-identity h1{
+        font-size:clamp(14px,3.8vw,19px)!important;line-height:1.2!important;letter-spacing:-.02em!important;margin:0 0 6px!important;
+        width:100%!important;max-width:100%!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-profile-left .creator-dashboard-identity .creator-username{
+        font-size:11px!important;line-height:1.35!important;width:100%!important;max-width:100%!important;white-space:normal!important;
+        overflow-wrap:anywhere!important;word-break:normal!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-profile-left .install-grayxon-dashboard{display:none!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-space-team-wrap{
+        grid-column:2!important;grid-row:1!important;display:flex!important;align-items:center!important;align-self:stretch!important;
+        min-width:0!important;width:100%!important;max-width:100%!important;padding:8px 0 8px 11px!important;margin:0!important;
+        border:0!important;border-left:1px solid rgba(255,255,255,.14)!important;box-sizing:border-box!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-manager-profile{
+        display:grid!important;grid-template-columns:36px minmax(0,1fr)!important;grid-template-rows:auto auto!important;
+        align-items:center!important;column-gap:7px!important;row-gap:10px!important;width:100%!important;min-width:0!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-manager-avatar{
+        grid-column:1!important;grid-row:1!important;width:36px!important;height:36px!important;min-width:36px!important;max-width:36px!important;
+        padding:2px!important;align-self:center!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-manager-profile .creator-space-team{
+        grid-column:2!important;grid-row:1!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;
+        gap:4px!important;width:100%!important;min-width:0!important;max-width:100%!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-space-team-label{font-size:9px!important;letter-spacing:1.3px!important;line-height:1.2!important}
+      #space .creator-dashboard-hero.creator-profile-hero .creator-space-team strong{
+        font-size:clamp(12px,3.4vw,16px)!important;line-height:1.2!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-space-team small{
+        font-size:10px!important;line-height:1.3!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important
+      }
+      #space .creator-dashboard-hero.creator-profile-hero .creator-space-team .creator-contact-btn{
+        grid-column:1/-1!important;grid-row:2!important;justify-self:stretch!important;align-self:start!important;display:flex!important;
+        width:100%!important;max-width:100%!important;min-height:36px!important;padding:0 7px!important;margin:0!important;
+        border-radius:12px!important;font-size:11px!important;white-space:nowrap!important;box-sizing:border-box!important
+      }
+    }
     /* FIX definitivo de ancho móvil: anular las reglas globales que colapsan el texto. */
     @media(max-width:680px){
       #space .creator-dashboard-hero.creator-profile-hero{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto!important;align-items:start!important;gap:18px!important;padding:18px 15px!important;width:100%!important;box-sizing:border-box!important}
