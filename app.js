@@ -6100,8 +6100,8 @@ function ensureFormationMobileV34Styles(){
 function bind() {
 
   $$('[data-page]').forEach(b => b.onclick = () => { const target = b.dataset.page; if (target === 'space' && session) nav(profile?.role === 'manager' ? 'manager' : 'space'); else if (target === 'auth' && session) nav(profile?.role === 'manager' ? 'manager' : profile?.role === 'creator' ? 'space' : 'admin'); else nav(target); });
-  $('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
-  $('[data-gx-progress-action]').forEach(b => b.onclick = () => {
+  $$('[data-space-action]').forEach(b => b.onclick = () => { const action = b.dataset.spaceAction; if (action === 'missions') nav('missions'); else nav(action); });
+  $$('[data-gx-progress-action]').forEach(b => b.onclick = () => {
     const action=b.dataset.gxProgressAction;
     if(action==='missions'){
       const hasPending=b.dataset.gxHasPending==='true';
