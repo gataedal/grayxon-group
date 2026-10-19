@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#050609">
   <meta name="color-scheme" content="dark">
   <title>Abriendo Grayxon</title>
@@ -32,7 +32,7 @@
   <script>
     (async function startGrayxonApp() {
       const publicPage = './index.html?v=20261019';
-      const portalPage = './portal.html';
+      const portalPage = './portal.html?mobileZoomFix=20261019';
       try {
         const cfg = window.GRAYXON_CONFIG;
         if (!window.supabase || typeof window.supabase.createClient !== 'function' ||
