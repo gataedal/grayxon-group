@@ -1583,6 +1583,8 @@ function openProfileSection(section){
     document.getElementById('gxCancelChangePassword').onclick=()=>{document.getElementById('gxChangePasswordPanel').hidden=true;document.getElementById('gxNewPassword').value='';document.getElementById('gxConfirmPassword').value='';document.getElementById('gxPasswordError').textContent='';};
     document.getElementById('gxSaveNewPassword').onclick=saveProfilePassword;
     document.getElementById('gxReportProblem').onclick=()=>window.open('https://wa.me/573126283007','_blank','noopener,noreferrer');
+    ensureCreatorNotificationMenuAction();
+    ensureGrayxonPushDiagnosticMenuAction();
   }
   target.scrollIntoView?.({behavior:'smooth',block:'nearest'});
 }
@@ -5671,7 +5673,7 @@ async function moveLesson(id, direction) {
 }
 
 function ensureGrayxonPushDiagnosticMenuAction(){
-  const menu=$('#profileMenu');
+  const menu=$('#gxProfileSectionSecurity');
   if(!menu||!session?.user?.id||!['admin','manager','creator'].includes(profile?.role))return;
   let btn=$('#grayxonMenuPushDiagnostic');
   if(!btn){btn=document.createElement('button');btn.type='button';btn.id='grayxonMenuPushDiagnostic';btn.className='secondary small';btn.style.cssText='width:100%;margin-top:8px;text-align:left;justify-content:flex-start;';menu.appendChild(btn);}
@@ -5726,7 +5728,7 @@ function showGrayxonPushDiagnostics(){
 }
 
 function ensureCreatorNotificationMenuAction(){
-  const menu=$('#profileMenu');
+  const menu=$('#gxProfileSectionSecurity');
   if(!menu || profile?.role!=='creator' || !session?.user?.id) return;
   let btn=$('#grayxonMenuPush');
   if(!btn){
