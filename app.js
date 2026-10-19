@@ -5348,7 +5348,20 @@ function bind() {
       if (panel) { panel.classList.remove('hidden'); btn.classList.add('open'); setTimeout(() => btn.scrollIntoView({ behavior:'smooth', block:'center' }), 60); }
     }
   }
-  $$('[data-admin]').forEach(b => b.onclick = () => { if(b.dataset.admin==='payments'){nav('payments');return;} adminView = b.dataset.admin; render(); });
+  $('[data-admin]').forEach(b => b.onclick = () => {
+    if(b.dataset.admin==='payments'){nav('payments');return;}
+    const nextView=b.dataset.admin||'dashboard';
+    if(nextView===adminView)return;
+    adminView=nextView;
+    /* Cada subapartado de Administración entra al historial del navegador.
+       Así Atrás de Android, el gesto lateral de iOS y el botón Atrás del PC
+       vuelven al subapartado anterior sin abandonar el panel. */
+    try{
+      history.pushState({page:'admin',adminView:nextView},'',`${window.location.pathname}${window.location.search}#admin`);
+    }catch(err){console.warn('No se pudo guardar el historial del panel admin',err);}
+    render();
+    window.scrollTo({top:0,behavior:'auto'});
+  });
   $$('[data-open-payments]').forEach(b=>b.onclick=()=>nav('payments'));
   $$('[data-manager-creator-toggle]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.managerCreatorToggle;
@@ -6157,10 +6170,12 @@ window.addEventListener('popstate', () => {
   const page = history.state?.page || hashPage || 'home';
   if (page === 'live-training') ensureLiveTrainingPage();
   current = ['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events'].includes(page) ? page : 'home';
+  if(current==='admin') adminView=history.state?.adminView||'dashboard';
+  if(current==='manager') managerView=history.state?.managerView||'dashboard';
   render();
   updateCreatorSpaceFloat();
   updateCreatorTopNav();
-  window.scrollTo(0, 0);
+  window.scrollTo({top:0,behavior:'auto'});
 });
 
 async function handleGrayxonDeepLinkUrl(urlValue) {
