@@ -359,9 +359,10 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav{visibility:visible!important;
 .gx-bottom-nav{position:fixed;z-index:10000;left:14px;right:14px;bottom:calc(8px + env(safe-area-inset-bottom,0px));min-height:70px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;padding:5px 8px;border:1px solid #292d34;border-radius:19px;background:rgba(7,10,14,.94);backdrop-filter:blur(18px);box-shadow:0 12px 35px #0009}
 .gx-bottom-nav button{position:relative;min-width:0;min-height:56px;padding:5px 2px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;border:0;border-radius:12px;background:transparent;color:#c3c8d1;font-size:12px;line-height:1.15;font-weight:500}
 .gx-bottom-nav button .gx-nav-icon{font-size:23px;line-height:1}
-.gx-bottom-nav button.active{color:#fff}
-.gx-bottom-nav button.active .gx-nav-icon{color:#fe2c55;filter:drop-shadow(0 0 7px #fe2c5580)}
-.gx-bottom-nav button.active:after{content:"";position:absolute;bottom:0;left:34%;right:34%;height:3px;border-radius:9px;background:#fe2c55}
+/* Keep all destinations visually consistent; no page-specific red active state. */
+.gx-bottom-nav button,.gx-bottom-nav button.active{color:#c3c8d1}
+.gx-bottom-nav button .gx-nav-icon,.gx-bottom-nav button.active .gx-nav-icon{color:#c3c8d1;filter:none}
+.gx-bottom-nav button.active:after{display:none}
 .gx-bottom-nav .gx-nav-badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 4px;display:grid;place-items:center;border-radius:999px;background:#fe2c55;color:#fff;font-size:10px;font-weight:800}
 .gx-bottom-nav .gx-nav-badge.hidden{display:none!important}
 #profileMenu.gx-bottom-popover,#notificationsPanel.gx-bottom-popover{position:fixed!important;top:auto!important;left:12px!important;right:12px!important;bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;width:auto!important;max-width:440px!important;max-height:min(65dvh,560px)!important;overflow:auto!important;z-index:10001!important}
@@ -397,33 +398,25 @@ const profileMenu=document.getElementById('profileMenu'),notificationsPanel=docu
 if(profileMenu){profileMenu.classList.add('gx-bottom-popover');document.body.appendChild(profileMenu)}
 if(notificationsPanel){notificationsPanel.classList.add('gx-bottom-popover');document.body.appendChild(notificationsPanel)}
 const homeBtn=nav.querySelector('[data-gx-bottom="home"]');
-function syncActive(){
- const page=[...document.querySelectorAll('main .page')].find(el=>!el.classList.contains('hidden'));
- const destination=window.grayxonDashboardPage || '';
- const isDashboard=!!page && page.id===destination && document.body.classList.contains('gx-bottom-nav-authenticated');
- nav.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===homeBtn&&isDashboard));
-}
+function syncActive(){nav.querySelectorAll('button').forEach(b=>b.classList.remove('active'))}
 window.refreshGrayxonBottomActive=syncActive;
 function scrollCurrentSectionToTop(){
  const page=[...document.querySelectorAll('main .page')].find(el=>!el.classList.contains('hidden'));
- let didScroll=false;
- if((window.scrollY||document.documentElement.scrollTop||0)>8){window.scrollTo({top:0,behavior:'smooth'});didScroll=true;}
+ const scrolling=[];
+ const add=(el,top)=>{if(el&&top>2&&!scrolling.some(x=>x.el===el))scrolling.push({el,top})};
+ add(window,window.scrollY||document.documentElement.scrollTop||document.body.scrollTop||0);
  if(page){
-  const candidates=[page,...page.querySelectorAll('*')];
-  const scrollables=candidates.filter(el=>{
-   const style=getComputedStyle(el);
-   return (style.overflowY==='auto'||style.overflowY==='scroll'||el===page)&&el.scrollHeight>el.clientHeight+8;
-  });
-  const ancestors=[];let node=page.parentElement;
-  while(node&&node!==document.body){
-   const style=getComputedStyle(node);
-   if((style.overflowY==='auto'||style.overflowY==='scroll')&&node.scrollHeight>node.clientHeight+8)ancestors.push(node);
-   node=node.parentElement;
-  }
-  for(const el of [...ancestors,...scrollables])if(el.scrollTop>8){el.scrollTo({top:0,behavior:'smooth'});didScroll=true;}
-  if(!didScroll&&page.scrollTop>8){page.scrollTo({top:0,behavior:'smooth'});didScroll=true;}
+  add(page,page.scrollTop||0);
+  page.querySelectorAll('*').forEach(el=>{if((el.scrollTop||0)>2)add(el,el.scrollTop)});
  }
- return didScroll;
+ document.querySelectorAll('body *').forEach(el=>{
+  if(el===page||page?.contains(el))return;
+  const top=el.scrollTop||0;
+  if(top>2){const style=getComputedStyle(el);if(style.overflowY==='auto'||style.overflowY==='scroll'||el.scrollHeight>el.clientHeight+4)add(el,top)}
+ });
+ if(!scrolling.length)return false;
+ scrolling.forEach(({el})=>{if(el===window)window.scrollTo({top:0,behavior:'smooth'});else if(typeof el.scrollTo==='function')el.scrollTo({top:0,behavior:'smooth'});else el.scrollTop=0});
+ return true;
 }
 nav.addEventListener('click',function(e){
  const button=e.target.closest('button[data-gx-bottom]');if(!button)return;
@@ -453,7 +446,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 </script>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
-<script src="app.js?v=185"></script>
+<script src="app.js?v=186"></script>
 <script src="event-battle-scheduler.js?v=3"></script>
 <style>
 /* v11 final home refinements */
