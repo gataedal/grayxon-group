@@ -2509,10 +2509,10 @@ async function startGrayxonLiveTraining(training, options={}){
         toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
         filmstrip:{disableStageFilmstrip:false,disableResizable:true},
-        // PRUEBA v181: no desactivar la vista propia mientras diagnosticamos el escenario negro.
-        // La opción disableSelfView también puede suprimir la imagen local que intentamos fijar
-        // como escenario principal. Primero recuperamos el renderizado; luego afinaremos la miniatura.
-        disableSelfView:false,
+        // Oculta la miniatura duplicada de la cámara propia en mosaico/franja de Jitsi.
+        // La cámara grande sigue controlándose con setLargeVideoParticipant y el menú flotante
+        // de Grayxon permanece fuera del iframe, por lo que conserva sus funciones.
+        disableSelfView:true,
         maxFullResolutionParticipants:4,
         // Grayxon uses its own Jitsi server. Force media through the Jitsi Videobridge
         // while diagnosing black remote video; this avoids a broken P2P ICE path
