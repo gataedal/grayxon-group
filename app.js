@@ -3895,6 +3895,11 @@ function ensureFormationRedesignStyles(){
     #training .library-section-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
     #training .library-section-heading h2{margin:0;font-size:16px;font-weight:800;letter-spacing:-.02em}
     #training .library-section-heading>span{color:#8e96a2;font-size:10px}
+    #training .library-completed-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+    #training .library-completed-toggle h2{margin:0}
+    #training .library-completed-toggle b{color:#70e6e2;font-size:18px;transition:transform .18s ease}
+    #training .library-completed-toggle[aria-expanded="false"] b{transform:rotate(-90deg)}
+    #training .library-module-grid[hidden]{display:none!important}
     #training .library-page-heading,
     #training .library-progress-summary{display:none!important}
     #training [data-formation-section="pending"] .library-section-heading{display:none!important}
@@ -3997,7 +4002,7 @@ async function trainingTpl(options = {}) {
     </article>`;
   };
 
-  const sectionHtml = (title, items, emptyText, sectionKey) => `<section class="formation-section library-section" data-formation-section="${sectionKey}"><div class="library-section-heading"><h2>${title}</h2><span>${items.length} ${items.length===1?'módulo':'módulos'}</span></div><div class="formation-group-list library-module-grid">${items.length ? items.map(moduleCard).join('') : `<div class="library-empty-group">${emptyText}</div>`}</div></section>`;
+  const sectionHtml = (title, items, emptyText, sectionKey) => (sectionKey === 'pending' && !items.length) ? '' : `<section class="formation-section library-section" data-formation-section="${sectionKey}"><div class="library-section-heading">${sectionKey === 'completed' ? `<button type="button" class="library-completed-toggle" data-library-completed-toggle aria-expanded="true"><h2>${title}</h2><b>⌄</b></button>` : `<h2>${title}</h2>`}<span>${items.length} ${items.length===1?'módulo':'módulos'}</span></div><div class="formation-group-list library-module-grid" data-library-completed-content>${items.map(moduleCard).join('')}</div></section>`;
 
   $('#training').innerHTML = `<div class="formation-page library-page">
     <div class="library-page-heading">
@@ -4021,6 +4026,7 @@ async function trainingTpl(options = {}) {
   if (!totalLessons) { const view = $('#lessonView'); view?.classList.remove('hidden'); if(view) view.innerHTML = '<div class="library-empty-group">Todavía no hay contenidos publicados.</div>'; }
   $('#training').querySelectorAll('[data-lesson]').forEach(button => { button.onclick = () => openLesson(button.dataset.lesson); button.dataset.libraryBound='1'; });
   $('#training').querySelectorAll('[data-library-toggle]').forEach(button => { button.addEventListener('click', () => { const id=button.getAttribute('data-library-toggle'); const list=$('#training').querySelector(`[data-library-lessons="${CSS.escape(id)}"]`); const expanded=button.getAttribute('aria-expanded')==='true'; button.setAttribute('aria-expanded',String(!expanded)); if(list) list.hidden=expanded; }); });
+  $('#training').querySelectorAll('[data-library-completed-toggle]').forEach(button => { button.addEventListener('click', () => { const list=$('#training').querySelector('[data-library-completed-content]'); const expanded=button.getAttribute('aria-expanded')==='true'; button.setAttribute('aria-expanded',String(!expanded)); if(list) list.hidden=expanded; }); });
 }
 
 function renderFormationCompletedState(){
