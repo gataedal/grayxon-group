@@ -2136,7 +2136,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
       '<section class="gx-progress-section gx-progress-loading" aria-label="Tu progreso"><div class="gx-progress-heading"><span class="gx-progress-heading-icon">▮</span><div><h2>Tu progreso</h2><p>Sigue avanzando y alcanza tu próximo nivel.</p></div></div><div class="gx-progress-grid"><div class="gx-progress-card" style="--gx-progress-accent:#795cff"><strong>Formación</strong><small>Actualizando…</small></div><div class="gx-progress-card" style="--gx-progress-accent:#ff3265"><strong>Misiones</strong><small>Actualizando…</small></div></div></section>' +
       '<section class="creator-dashboard-loading-placeholder" aria-live="polite"><div class="creator-loading-line"></div><div class="creator-loading-line short"></div></section>' +
       gxCreatorRecentAnnouncementsMarkup() + '</div>';
-    bind();
+    // No enlazamos eventos en el placeholder: bind() puede abortar la hidratación antes de consultar datos.
     loadCreatorDashboardEventHighlights(expectedNav).catch(error => console.warn('Creator dashboard highlight failed:', error));
     loadCreatorDashboardTrainingHighlight(expectedNav).catch(error => console.warn('Creator dashboard highlight failed:', error));
   }
