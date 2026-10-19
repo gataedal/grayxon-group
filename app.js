@@ -2121,32 +2121,24 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   // Pintamos inmediatamente un dashboard real, usando el contexto ya disponible.
   // Las consultas se refrescan en segundo plano para que volver desde Mi perfil/Misiones
   // nunca deje la pantalla atrapada en "Cargando...".
+  if(!document.getElementById('gx-dashboard-loading-polish')){const st=document.createElement('style');st.id='gx-dashboard-loading-polish';st.textContent='.creator-dashboard-loading-placeholder{display:grid;gap:10px;margin:18px 0 24px;padding:16px;border:1px solid rgba(255,255,255,.07);border-radius:15px;background:#0d0f12}.creator-loading-line{height:13px;width:72%;border-radius:8px;background:linear-gradient(90deg,#171a20,#242830,#171a20);background-size:200% 100%;animation:gxDashboardShimmer 1.4s ease-in-out infinite}.creator-loading-line.short{width:44%;height:10px}.gx-progress-loading .gx-progress-card{min-height:76px}.gx-progress-loading .gx-progress-card small{color:#929aa5}@keyframes gxDashboardShimmer{to{background-position:-200% 0}}';document.head.appendChild(st);}
   const cachedName=profile?.full_name||profile?.username||'Grayxon';
   const cachedUser=profile?.username||'creador';
   const cachedAvatar=profileDetails?.avatar_url ? `<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">` : `<span>${esc(profileInitial())}</span>`;
   if(spaceEl && (!spaceEl.querySelector('.gx-progress-section') || !spaceEl.querySelector('#gxCreatorTrainingHighlight'))){
-    spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
-      <section class="creator-dashboard-hero creator-profile-hero">
-        <div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${cachedAvatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>
-        <div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div>
-      </section>
-      <div class="gx-dashboard-featured-stack"><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div></div>
-      <section class="gx-progress-section" aria-label="Tu progreso"><div class="gx-progress-heading"><span class="gx-progress-heading-icon">▮</span><div><h2>Tu progreso</h2><p>Sigue avanzando y alcanza tu próximo nivel.</p></div></div><div class="gx-progress-grid"><div class="gx-progress-card" style="--gx-progress-accent:#795cff"><strong>Formación</strong><small>Actualizando tu progreso…</small></div><div class="gx-progress-card" style="--gx-progress-accent:#ff3265"><strong>Misiones</strong><small>Actualizando tu progreso…</small></div></div></section>
-      <section class="creator-performance"><div class="creator-section-head"><div><div class="eyebrow">TU DESEMPEÑO</div><h2>Cómo vas dentro de Grayxon</h2></div></div><div class="creator-performance-grid">
-        <div class="creator-metric"><div class="creator-metric-top"><span>CUMPLIMIENTO</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando tus misiones…</small></div>
-        <div class="creator-metric"><div class="creator-metric-top"><span>FORMACIÓN</span><strong>—</strong></div><div class="space-progress"><span style="width:0%"></span></div><small>Actualizando tu formación…</small></div>
-      </div></section>
-      <div class="creator-dashboard-grid">
-        <button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><span class="creator-dashboard-card-meta">—</span><strong>Formación</strong><p>Ver tu formación de Grayxon.</p><span class="creator-dashboard-card-arrow">›</span></button>
-        <button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><span class="creator-dashboard-card-meta">—</span><strong>Entrenamientos</strong><p>Consulta tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button>
-        <button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><span class="creator-dashboard-card-meta">—</span><strong>Tus misiones</strong><p>Consulta tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>
-        
-      </div>
-      ${gxCreatorRecentAnnouncementsMarkup()}
-    </div>`;
+    // Evita pintar temporalmente la antigua composición del dashboard mientras llegan los datos.
+    spaceEl.innerHTML = '<div class="creator-dashboard creator-dashboard-fast">' +
+      '<section class="creator-dashboard-hero creator-profile-hero">' +
+        '<div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">' + cachedAvatar + '<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@' + esc(cachedUser) + '</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>' +
+        '<div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div>' +
+      '</section>' +
+      '<div class="gx-dashboard-featured-stack"><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div></div>' +
+      '<section class="gx-progress-section gx-progress-loading" aria-label="Tu progreso"><div class="gx-progress-heading"><span class="gx-progress-heading-icon">▮</span><div><h2>Tu progreso</h2><p>Sigue avanzando y alcanza tu próximo nivel.</p></div></div><div class="gx-progress-grid"><div class="gx-progress-card" style="--gx-progress-accent:#795cff"><strong>Formación</strong><small>Actualizando…</small></div><div class="gx-progress-card" style="--gx-progress-accent:#ff3265"><strong>Misiones</strong><small>Actualizando…</small></div></div></section>' +
+      '<section class="creator-dashboard-loading-placeholder" aria-live="polite"><div class="creator-loading-line"></div><div class="creator-loading-line short"></div></section>' +
+      gxCreatorRecentAnnouncementsMarkup() + '</div>';
     bind();
-    loadCreatorDashboardEventHighlights(expectedNav).catch(error=>console.warn('Creator dashboard highlight failed:',error));
-    loadCreatorDashboardTrainingHighlight(expectedNav).catch(error=>console.warn('Creator dashboard highlight failed:',error));
+    loadCreatorDashboardEventHighlights(expectedNav).catch(error => console.warn('Creator dashboard highlight failed:', error));
+    loadCreatorDashboardTrainingHighlight(expectedNav).catch(error => console.warn('Creator dashboard highlight failed:', error));
   }
 
   const safe=async(promise,fallback,ms=2200)=>{
