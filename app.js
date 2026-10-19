@@ -1264,6 +1264,21 @@ function nav(p, push = true) {
   window.scrollTo(0,0);
 }
 
+window.grayxonNavigateToDashboard = function(){
+  if(!session){ nav('auth'); return; }
+  const destination = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
+  window.grayxonDashboardPage = destination;
+  nav(destination);
+};
+window.grayxonToggleProfileMenu = function(){
+  if(!session){ nav('auth'); return; }
+  toggleProfileMenu();
+};
+window.grayxonToggleNotifications = function(){
+  if(!session){ nav('auth'); return; }
+  toggleNotifications();
+};
+
 function spaceCard(icon,title,desc,pct,action,detail){
   if(!document.getElementById('gx-space-icon-normalization')){const style=document.createElement('style');style.id='gx-space-icon-normalization';style.textContent='.space-card{display:flex;align-items:center;gap:14px;min-width:0}.space-card-icon{width:48px!important;height:48px!important;min-width:48px!important;max-width:48px!important;flex:0 0 48px!important;display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;line-height:1!important;overflow:hidden}.space-card-icon svg,.space-card-icon img,.space-card-icon i{width:24px!important;height:24px!important;max-width:24px!important;max-height:24px!important;flex:0 0 24px!important;object-fit:contain!important;font-size:24px!important;line-height:1!important}.space-card-main{flex:1 1 auto;min-width:0}.space-card-arrow{flex:0 0 20px;text-align:center}@media(max-width:650px){.space-card{gap:10px;padding:14px!important}.space-card-icon{width:44px!important;height:44px!important;min-width:44px!important;max-width:44px!important;flex-basis:44px!important}.space-card-icon svg,.space-card-icon img,.space-card-icon i{width:22px!important;height:22px!important;max-width:22px!important;max-height:22px!important;flex-basis:22px!important}.space-card-main p,.space-card-main small{overflow-wrap:anywhere}}';document.head.appendChild(style);}
   return `<button class="space-card card ${action==='payments'?'gx-payments-dashboard-card':''}" data-space-action="${esc(action)}"><span class="space-card-icon">${icon}</span><div class="space-card-main"><div class="space-card-top"><strong>${esc(title)}</strong><span>${pct}%</span></div><p>${esc(desc)}</p><div class="space-progress"><span style="width:${Math.max(0,Math.min(100,pct))}%"></span></div><small>${esc(detail)}</small></div><span class="space-card-arrow">›</span></button>`;
@@ -5243,6 +5258,7 @@ function closeProfileMenu(){ const menu=$('#profileMenu'); if(menu) menu.classLi
 
 function updateHeaderAccessUI(){
   if(typeof window.syncGrayxonBottomNavigation==='function') window.syncGrayxonBottomNavigation(!!session);
+  window.grayxonDashboardPage = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
   updateCreatorTopNav();
   ensureCreatorNotificationMenuAction();
   const isManagerSession = !!(session && profile?.role === 'manager');
