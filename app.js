@@ -2025,8 +2025,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
     }catch{return fallback;}
   };
 
-  const [assignment, profileRow, details, payment, lessons, lessonProgress, missions, missionProgress, activeTraining] = await Promise.all([
-    loadCreatorAssignment(),
+  const [profileRow, details, payment, lessons, lessonProgress, missions, missionProgress, activeTraining] = await Promise.all([
     safe(sb.from('profiles').select('id,username,full_name,active,team_id,manager_id,role').eq('id',uid).maybeSingle(),profile),
     safe(sb.from('profile_details').select('*').eq('user_id',uid).maybeSingle(),profileDetails),
     safe(sb.from('payment_methods').select('*').eq('user_id',uid).order('is_primary',{ascending:false}).limit(1).maybeSingle(),paymentMethod),
@@ -2062,9 +2061,6 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const lessonDone=new Set((lessonProgress||[]).map(x=>x.lesson_id));
   const lessonTotal=(lessons||[]).length; const lessonCompleted=(lessons||[]).filter(x=>lessonDone.has(x.id)).length;
   const formationPct=lessonTotal?Math.round(lessonCompleted/lessonTotal*100):0;
-  const team=assignment?.team; const manager=assignment?.manager;
-  const managerContact=manager?.phone?'<a class="creator-contact-btn" href="'+esc(managerWhatsapp(manager.phone))+'" target="_blank" rel="noopener noreferrer">Contactar ↗</a>':''; const managerAvatar=manager?.avatar_url?'<img class="creator-manager-avatar" src="'+esc(manager.avatar_url)+'" alt="Foto del manager">':'<span class="creator-manager-avatar creator-manager-avatar-fallback">♙</span>';
-  const assignmentHTML=team?'<div class="creator-manager-profile">'+managerAvatar+'<div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>'+esc(manager?.name||'Sin manager asignado')+'</strong><small>Equipo · '+esc(team.name)+'</small>'+managerContact+'</div></div>':'<div class="creator-manager-profile">'+managerAvatar+'<div class="creator-space-team"><span class="creator-space-team-label">TU MANAGER</span><strong>Sin manager asignado</strong><small>Aún no tienes un equipo asignado.</small></div></div>';
   const pendingMissions=visibleMissions.filter(m=>missionPct(m)<100);
   const hasPendingTraining=lessonTotal>lessonCompleted;
   const performanceCards=[];
