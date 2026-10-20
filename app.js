@@ -3285,7 +3285,7 @@ async function startGrayxonLiveTraining(training, options={}){
         // Grayxon owns the controls and chat; never render a second Jitsi toolbar.
         toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
-        filmstrip:{disableStageFilmstrip:false,disableResizable:true},
+        filmstrip:{disableStageFilmstrip:true,disableResizable:true},
         // Mantener la vista propia activa: desactivarla también elimina la vista previa local.
         // La miniatura duplicada debe resolverse mediante el diseño de participantes, no apagando self-view.
         disableSelfView:false,
