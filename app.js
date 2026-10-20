@@ -3297,7 +3297,10 @@ function renderGrayxonLiveKitTrack(track, participant, host){
     label.style.cssText='position:absolute;left:10px;bottom:9px;z-index:2;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px';
     tile.appendChild(label);host.appendChild(tile);
   }
+  const trackKey=String(track.sid||track.mediaStreamTrack?.id||'');
+  if(trackKey && tile.querySelector('[data-gx-livekit-track="'+CSS.escape(trackKey)+'"]'))return;
   const element=track.attach();
+  if(trackKey)element.dataset.gxLivekitTrack=trackKey;
   element.autoplay=true;
   element.playsInline=true;
   element.style.cssText='width:100%;height:100%;min-height:180px;max-height:70vh;object-fit:contain;background:#000';
@@ -3310,7 +3313,11 @@ async function leaveGrayxonLiveKitTraining(){
   liveTrainingEnding=true;
   try{await recordLiveTrainingLeave();}catch(error){console.warn('No se pudo registrar la salida de LiveKit:',error);}
   if(gxLiveKitCleanup){const cleanup=gxLiveKitCleanup;gxLiveKitCleanup=null;try{cleanup();}catch(error){console.warn('No se pudo limpiar la sala LiveKit:',error);}}
-  else{try{room.removeAllListeners();}catch(_){}try{await room.disconnect();}catch(_){}}
+  else{
+    try{room.removeAllListeners();}catch(_){}
+    try{room.localParticipant?.trackPublications?.forEach(pub=>{try{pub.track?.stop();}catch(_){}});}catch(_){}
+    try{await room.disconnect();}catch(_){}
+  }
   if(gxLiveKitRoom===room)gxLiveKitRoom=null;
   if(gxLiveCallRealtimeChannel){try{await sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(error){console.warn('No se pudo cerrar el canal Realtime:',error);}gxLiveCallRealtimeChannel=null;}
   gxLiveCallRealtimeTrainingId=null;
@@ -3397,9 +3404,12 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
     room.remoteParticipants.forEach(participant=>participant.trackPublications.forEach(pub=>{if(pub.track&&pub.track.kind==='video')onTrack(pub.track,participant);}));
     const controls=$('.gx-call-controls');
+    let mediaActionBusy=false;
     controls?.querySelectorAll('[data-gx-call]').forEach(button=>{
       button.onclick=async()=>{
         const action=button.getAttribute('data-gx-call');
+        if((action==='video'||action==='audio')&&mediaActionBusy)return;
+        if(action==='video'||action==='audio'){mediaActionBusy=true;button.disabled=true;}
         try{
           if(action==='hangup'){const modal=$('.gx-call-end-modal');if(modal){modal.hidden=false;modal.classList.remove('hidden');}return;}
           if(action==='more'){const menu=$('.gx-call-more-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;}
@@ -3418,6 +3428,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
             return;
           }
         }catch(err){console.warn('Control LiveKit no disponible:',action,err);toast('No se pudo ejecutar ese control. Revisa los permisos del dispositivo.');}
+        finally{if(action==='video'||action==='audio'){mediaActionBusy=false;button.disabled=false;}}
       };
     });
     $('.gx-call-more-menu')?.querySelectorAll('[data-gx-more]').forEach(button=>{button.onclick=async()=>{const action=button.getAttribute('data-gx-more');try{if(action==='share')await room.localParticipant.setScreenShareEnabled(!shareTrack);else if(action==='participants')toast('Participantes conectados: '+(room.remoteParticipants.size+1));else if(action==='settings')toast('Configura cámara y micrófono desde los permisos del navegador.');}catch(e){console.warn(e);}const menu=$('.gx-call-more-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}$('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');};});
@@ -3468,7 +3479,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
       .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.userId||payload.name||'participant');if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
       .subscribe();
     toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
-    gxLiveKitCleanup=()=>{joined=false;try{room?.removeAllListeners();}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
+    gxLiveKitCleanup=()=>{joined=false;try{room?.removeAllListeners();}catch(_){}try{room?.localParticipant?.trackPublications?.forEach(pub=>{try{pub.track?.stop();}catch(_){}});}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
     room.on(LK.RoomEvent.Disconnected,async()=>{
       if(liveTrainingEnding||gxLiveKitRoom!==room)return;
       try{await recordLiveTrainingLeave();}catch(_){}
