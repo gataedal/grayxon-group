@@ -29,7 +29,7 @@ BEGIN
     RAISE EXCEPTION 'Selecciona dos participantes diferentes.' USING ERRCODE='22023';
   END IF;
 
-  SELECT * INTO v_event FROM public.gx_events WHERE id = p_event_id FOR UPDATE;
+  SELECT * INTO v_event FROM public.gx_events WHERE id = p_event_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'El evento no existe.' USING ERRCODE='P0002';
   END IF;
