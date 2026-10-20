@@ -24,7 +24,7 @@ function b64url(bytes: Uint8Array): string {
 function jsonPart(value: unknown): string {
   return b64url(new TextEncoder().encode(JSON.stringify(value)));
 }
-async function signServerToken(apiKey: string, apiSecret: string, roomName: string, userId: string) {
+async function signServerToken(apiKey: string, apiSecret: string, userId: string, grant: "roomList" | "roomCreate") {
   const now = Math.floor(Date.now() / 1000);
   const header = jsonPart({ alg: "HS256", typ: "JWT" });
   const payload = jsonPart({
@@ -32,7 +32,7 @@ async function signServerToken(apiKey: string, apiSecret: string, roomName: stri
     sub: userId,
     nbf: now - 5,
     exp: now + 60,
-    video: { roomCreate: true },
+    video: { [grant]: true },
   });
   const input = header + "." + payload;
   const key = await crypto.subtle.importKey(
@@ -119,7 +119,41 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       return response({ error: "La finalización global de LiveKit aún no está configurada en el servidor." }, 503);
     }
 
-    const token = await signServerToken(apiKey, apiSecret, training.room_name, userId);
+    // Confirm the room is actually present in LiveKit before attempting deletion.
+    // This prevents the endpoint from accidentally finalizing a Jitsi-only session.
+    let listResponse: Response;
+    try {
+      const listToken = await signServerToken(apiKey, apiSecret, userId, "roomList");
+      listResponse = await fetch(`${baseUrl}/twirp/livekit.RoomService/ListRooms`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${listToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ names: [training.room_name] }),
+      });
+    } catch (error) {
+      console.error("end-livekit-training: LiveKit ListRooms request failed", error);
+      return response({ error: "No se pudo comprobar la sala en LiveKit. El entrenamiento no se marcó como finalizado." }, 502);
+    }
+    if (!listResponse.ok) {
+      const detail = (await listResponse.text()).slice(0, 500);
+      console.error("end-livekit-training: LiveKit rejected ListRooms", {
+        status: listResponse.status, detail,
+      });
+      return response({ error: "LiveKit no permitió verificar la sala. El entrenamiento sigue sin finalizar." }, 502);
+    }
+    const roomList = await listResponse.json().catch(() => null);
+    const roomExists = Array.isArray(roomList?.rooms) &&
+      roomList.rooms.some((room: { name?: string }) => room.name === training.room_name);
+    if (!roomExists) {
+      return response({
+        error: "No se encontró una sala activa de LiveKit para este entrenamiento. No se modificó su estado.",
+        code: "LIVEKIT_ROOM_NOT_FOUND",
+      }, 409);
+    }
+
+    const token = await signServerToken(apiKey, apiSecret, userId, "roomCreate");
     let deleteResponse: Response;
     try {
       deleteResponse = await fetch(`${baseUrl}/twirp/livekit.RoomService/DeleteRoom`, {
