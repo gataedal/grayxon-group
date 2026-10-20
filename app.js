@@ -3334,18 +3334,21 @@ async function startGrayxonLiveTraining(training, options={}){
         const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[]);
         const mainRooms=rooms.filter(room=>room?.isMainRoom);
         const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
-        const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by))||(isHost?participants.find(person=>String(person?.id||person?.participantId||'')===String(window.__gxLocalParticipantId||'')):null);
+        // En algunas versiones de Jitsi el userContext no se expone en getRoomsInfo.
+        // Si esta sesión pertenece a quien creó el entrenamiento, su participante local
+        // es la fuente de verdad; no debemos elegir por orden de llegada ni por hablante activo.
+        const creatorIsLocal=String(session?.user?.id||'')===String(training.created_by);
+        const localHost=creatorIsLocal?participants.find(person=>String(person?.id||person?.participantId||'')===String(window.__gxLocalParticipantId||'')):null;
+        const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by))||localHost;
         const hostIdValue=hostParticipant?.id||hostParticipant?.participantId;
         if(!hostIdValue){window.__gxHostParticipantId=null;return;}
         const hostId=String(hostIdValue);
         window.__gxHostParticipantId=hostId;
-        // Fijar al anfitrión y seleccionar su cámara en la vista principal.
-        // Ambos métodos están documentados por la IFrame API de Jitsi.
-        try{api.pinParticipant?.(hostId,'camera');}catch(err){console.warn('Grayxon LIVE: no se pudo fijar la pista del anfitrión',err);}
-        if(String(window.__grayxonLargeVideoParticipant||'')!==hostId){
-          try{api.executeCommand('setLargeVideoParticipant',hostId,'camera');}
-          catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal del anfitrión',err);}
-        }
+        // La IFrame API documenta estos comandos en executeCommand; pinParticipant
+        // recibe solo el ID y setLargeVideoParticipant fija explícitamente la cámara.
+        try{api.executeCommand('pinParticipant',hostId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar al anfitrión',err);}
+        try{api.executeCommand('setLargeVideoParticipant',hostId,'camera');}
+        catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal del anfitrión',err);}
       }catch(err){
         console.warn('Grayxon LIVE: no se pudo resolver la identidad del anfitrión en Jitsi',err);
       }finally{
@@ -3531,6 +3534,8 @@ async function startGrayxonLiveTraining(training, options={}){
     });
     api.addEventListener?.('videoConferenceJoined',async(ev)=>{
       gxLogVideoDiag('videoConferenceJoined', ev);
+      // El evento de entrada puede aportar el ID local incluso si userContext no está disponible.
+      if(ev?.id)window.__gxLocalParticipantId=String(ev.id);
       gxJitsiReady=true;
       // Forzar el diseño de escenario + tira de participantes; evitar la cuadrícula de tarjetas grandes.
       try{api.executeCommand('setTileView',false);}catch(err){console.warn('Grayxon LIVE: no se pudo activar el diseño de escenario',err);}
@@ -3550,8 +3555,8 @@ async function startGrayxonLiveTraining(training, options={}){
         const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[]);
         const mainRooms=rooms.filter(room=>room?.isMainRoom);
         const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
-        const local=participants.find(person=>String(person?.userContext?.id||'')===String(session?.user?.id||''));
-        if(local?.id)window.__gxLocalParticipantId=String(local.id);
+        const local=participants.find(person=>String(person?.userContext?.id||'')===String(session?.user?.id||''))||participants.find(person=>String(person?.id||person?.participantId||'')===String(window.__gxLocalParticipantId||''));
+        if(local?.id||local?.participantId)window.__gxLocalParticipantId=String(local.id||local.participantId);
         await syncGrayxonHostStage();
       }catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal inicial',err);}
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
