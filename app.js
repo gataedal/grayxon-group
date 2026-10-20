@@ -3344,7 +3344,14 @@ async function startGrayxonLiveKitTraining(training, options={}){
           if(action==='audio'){audioEnabled=!audioEnabled;await room.localParticipant.setMicrophoneEnabled(audioEnabled);setButton('audio',audioEnabled,'Micrófono encendido','Micrófono apagado');return;}
           if(action==='video'){videoEnabled=!videoEnabled;await room.localParticipant.setCameraEnabled(videoEnabled);setButton('video',videoEnabled,'Cámara encendida','Cámara apagada');if(videoEnabled){room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});}return;}
           if(action==='share'){if(shareTrack){await room.localParticipant.setScreenShareEnabled(false);shareTrack=null;}else{await room.localParticipant.setScreenShareEnabled(true);shareTrack=true;}return;}
-          if(action==='hand'){toast('La mano se puede levantar desde el control de Grayxon cuando se habilite la sincronización LiveKit.');return;}
+          if(action==='hand'){
+            gxHandRaised=!gxHandRaised;
+            setButton('hand',gxHandRaised,'Bajar la mano','Levantar la mano');
+            const name=profile?.full_name||profile?.username||'Participante';
+            sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,name,raised:gxHandRaised});
+            toast(gxHandRaised?'Levantaste la mano':'Bajaste la mano');
+            return;
+          }
         }catch(err){console.warn('Control LiveKit no disponible:',action,err);toast('No se pudo ejecutar ese control. Revisa los permisos del dispositivo.');}
       };
     });
@@ -3354,6 +3361,8 @@ async function startGrayxonLiveKitTraining(training, options={}){
     gxLiveCallRealtimeTrainingId=training.id;
     gxLiveCallRealtimeChannel=sb.channel('grayxon-live-call-'+training.id,{config:{broadcast:{self:false}}})
       .on('broadcast',{event:'reaction'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.emoji){showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));playGrayxonSound('reaction');}})
+      .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){appendGrayxonChatMessage(String(payload.name||'Participante'),String(payload.message));}})
+      .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.userId||payload.name||'participant');if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
       .subscribe();
     toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
     gxLiveKitCleanup=()=>{joined=false;try{room?.removeAllListeners();}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
@@ -4033,7 +4042,7 @@ async function liveTrainingTpl(trainingOverride=null) {
     }catch(error){console.warn('No se pudo ejecutar la acción de moderación:',action,error);toast('No se pudo completar la acción.');button.disabled=false;}
   });
   $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');});
-  $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(profile?.full_name||profile?.username||'Tú',message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
+  $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;const name=profile?.full_name||profile?.username||'Tú';if(gxLiveKitRoom){sendGrayxonLiveBroadcast('chat',{userId:session?.user?.id||null,name,message,createdAt:new Date().toISOString()}).then(result=>{if(result?.error)toast('No se pudo enviar el mensaje a los demás participantes.');});appendGrayxonChatMessage(name,message);if(input)input.value='';return;}if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(name,message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
   $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
     const emoji=button.getAttribute('data-gx-reaction');
     const name=profile?.full_name||profile?.username||'Participante';
