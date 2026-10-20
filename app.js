@@ -3376,6 +3376,44 @@ async function startGrayxonLiveKitTraining(training, options={}){
       };
     });
     $('.gx-call-more-menu')?.querySelectorAll('[data-gx-more]').forEach(button=>{button.onclick=async()=>{const action=button.getAttribute('data-gx-more');try{if(action==='share')await room.localParticipant.setScreenShareEnabled(!shareTrack);else if(action==='participants')toast('Participantes conectados: '+(room.remoteParticipants.size+1));else if(action==='settings')toast('Configura cámara y micrófono desde los permisos del navegador.');}catch(e){console.warn(e);}const menu=$('.gx-call-more-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}$('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');};});
+    // Conectar los controles compartidos de chat/reacciones al canal realtime de LiveKit.
+    const chatForm=$('.gx-chat-panel form');
+    if(chatForm)chatForm.onsubmit=async ev=>{
+      ev.preventDefault();
+      const input=$('#gx-chat-input'),message=String(input?.value||'').trim();
+      if(!message)return;
+      if(message.length>1000){toast('El mensaje es demasiado largo.');return;}
+      const payload={userId:session?.user?.id||null,name:profile?.full_name||profile?.username||'Participante',message};
+      const sent=await sendGrayxonLiveBroadcast('chat',payload);
+      if(sent?.error){toast('No se pudo enviar el mensaje.');return;}
+      appendGrayxonChatMessage(payload.name,payload.message);
+      if(input)input.value='';
+    };
+    $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>{
+      button.onclick=async()=>{
+        const emoji=button.getAttribute('data-gx-reaction');if(!emoji)return;
+        const payload={userId:session?.user?.id||null,name:profile?.full_name||profile?.username||'Participante',emoji};
+        const sent=await sendGrayxonLiveBroadcast('reaction',payload);
+        if(sent?.error){toast('No se pudo enviar la reacción.');return;}
+        showGrayxonReaction(payload.name,payload.emoji);playGrayxonSound('reaction');
+        const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
+        $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
+      };
+    });
+    const refreshLiveKitParticipants=()=>{
+      const panel=$('.gx-participants-panel'),list=panel?.querySelector('.gx-participants-list');if(!list||!room)return;
+      const people=[{identity:room.localParticipant.identity,name:profile?.full_name||profile?.username||'Tú',local:true},...Array.from(room.remoteParticipants.values()).map(p=>({identity:p.identity,name:p.name||p.identity,local:false}))];
+      list.replaceChildren();
+      people.forEach(person=>{const row=document.createElement('div');row.className='gx-participant-status';row.textContent=person.name+(person.local?' · Tú':'');list.appendChild(row);});
+    };
+    room.on(LK.RoomEvent.ParticipantConnected,refreshLiveKitParticipants);
+    room.on(LK.RoomEvent.ParticipantDisconnected,refreshLiveKitParticipants);
+    const participantsButton=$('[data-gx-more="participants"]');
+    if(participantsButton)participantsButton.onclick=()=>{
+      const panel=$('.gx-participants-panel');if(panel){const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);if(open)refreshLiveKitParticipants();}
+      const menu=$('.gx-call-more-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
+      $('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');
+    };
     if(!gxLiveStartedAt)gxLiveStartedAt=Date.now();updateGrayxonLiveElapsed();if(!gxElapsedInterval)gxElapsedInterval=setInterval(updateGrayxonLiveElapsed,1000);startGrayxonWakeLock();await recordLiveTrainingJoin(training.id);elapsedStarted=true;
     if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
     gxLiveCallRealtimeTrainingId=training.id;
