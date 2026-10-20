@@ -32,7 +32,7 @@ async function signServerToken(apiKey: string, apiSecret: string, userId: string
     sub: userId,
     nbf: now - 5,
     exp: now + 60,
-    video: { [grant]: true, ...(grant === "roomAdmin" ? { room: roomName } : {}) },
+    video: { [grant]: true, ...(grant === "roomAdmin" && roomName ? { room: roomName } : {}) },
   });
   const input = header + "." + payload;
   const key = await crypto.subtle.importKey(
@@ -201,7 +201,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       }, 409);
     }
 
-    const token = await signServerToken(apiKey, apiSecret, userId, "roomAdmin", training.room_name);
+    const token = await signServerToken(apiKey, apiSecret, userId, "roomCreate");
     let deleteResponse: Response;
     try {
       deleteResponse = await fetch(`${baseUrl}/twirp/livekit.RoomService/DeleteRoom`, {
