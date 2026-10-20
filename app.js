@@ -3308,7 +3308,7 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   const tileId=isLocal?'gx-livekit-local':'gx-livekit-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_');
   let tile=host.querySelector('[data-gx-livekit-tile="'+CSS.escape(tileId)+'"]');
   if(!tile){tile=document.createElement('div');tile.dataset.gxLivekitTile=tileId;host.appendChild(tile);}
-  if(!host.querySelector('[data-gx-livekit-main="true"]'))tile.dataset.gxLivekitMain='true';
+  if(!host.querySelector('[data-gx-livekit-main="true"]'))tile.dataset.gxLivekitMain=String(!isLocal);
   let label=tile.querySelector('[data-gx-livekit-label]');
   if(!label){label=document.createElement('div');label.dataset.gxLivekitLabel='1';label.textContent=isLocal?(profile?.full_name||profile?.username||'Tú')+' · Tú':(participant?.name||participant?.identity||'Participante');tile.appendChild(label);}
   let avatar=tile.querySelector('.gx-livekit-avatar');
@@ -3436,6 +3436,8 @@ async function startGrayxonLiveKitTraining(training, options={}){
     stage.appendChild(localTile);
     renderGrayxonLiveKitTrack(null,room.localParticipant,stage);
     room.remoteParticipants.forEach(participant=>renderGrayxonLiveKitTrack(null,participant,stage));
+    const remoteTile=stage.querySelector('[data-gx-livekit-tile]:not([data-gx-livekit-tile="gx-livekit-local"])');
+    if(remoteTile&&!stage.querySelector('[data-gx-livekit-tile][data-gx-livekit-main="true"]:not([data-gx-livekit-tile="gx-livekit-local"])')){stage.querySelectorAll('[data-gx-livekit-tile]').forEach(tile=>tile.dataset.gxLivekitMain=String(tile===remoteTile));}
     room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
     room.remoteParticipants.forEach(participant=>participant.trackPublications.forEach(pub=>{if(pub.track&&pub.track.kind==='video')onTrack(pub.track,participant);}));
     const controls=$('.gx-call-controls');
