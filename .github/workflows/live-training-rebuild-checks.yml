@@ -12,6 +12,7 @@ on:
       - "supabase/tests/**"
       - "supabase/migrations/**"
       - "docs/live-training-rebuild-status.md"
+      - ".github/workflows/live-training-rebuild-checks.yml"
 
 jobs:
   live-training-policy:
