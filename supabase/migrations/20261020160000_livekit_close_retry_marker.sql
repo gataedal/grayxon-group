@@ -1,8 +1,3 @@
--- Records that the exact LiveKit room was confirmed present before deletion.
--- This makes database reconciliation safely retryable if LiveKit deletion succeeds
--- but the following Supabase RPC fails.
-ALTER TABLE public.live_trainings
-  ADD COLUMN IF NOT EXISTS livekit_room_verified_at timestamptz;
-
-COMMENT ON COLUMN public.live_trainings.livekit_room_verified_at IS
-  'Set by the trusted LiveKit close endpoint after confirming this exact room exists, before deleting it; supports safe retry after database reconciliation failure.';
+-- Superseded filename retained for history only.
+-- The matching applied migration is 20261020203752_livekit_close_retry_marker.sql.
+-- Intentionally no-op to avoid duplicate schema changes.
