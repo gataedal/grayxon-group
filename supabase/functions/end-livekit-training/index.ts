@@ -180,17 +180,25 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
 
     // Persist the verification before deletion so reconciliation can be retried
     // safely if DeleteRoom succeeds but the database RPC subsequently fails.
-    const { error: markerError } = await ctx.supabaseAdmin
+    const { data: markedTraining, error: markerError } = await ctx.supabaseAdmin
       .from("live_trainings")
       .update({ livekit_room_verified_at: new Date().toISOString() })
       .eq("id", trainingId)
-      .eq("status", "live");
+      .eq("status", "live")
+      .select("id")
+      .maybeSingle();
     if (markerError) {
       console.error("end-livekit-training: failed to persist room verification", markerError);
       return response({
         error: "Se verificó la sala, pero no se pudo guardar la marca de seguridad. No se cerró la sala.",
         code: "LIVEKIT_VERIFICATION_MARKER_FAILED",
       }, 500);
+    }
+    if (!markedTraining) {
+      return response({
+        error: "El entrenamiento cambió de estado durante la verificación. No se cerró la sala.",
+        code: "LIVE_TRAINING_STATE_CHANGED",
+      }, 409);
     }
 
     const token = await signServerToken(apiKey, apiSecret, userId, "roomAdmin");
