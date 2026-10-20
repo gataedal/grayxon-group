@@ -83,7 +83,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
 
     const { data: training, error: trainingError } = await ctx.supabaseAdmin
       .from("live_trainings")
-      .select("id, room_name, created_by, status, started_at, ended_at")
+      .select("id, room_name, created_by, status, started_at, ended_at, livekit_room_verified_at")
       .eq("id", trainingId)
       .maybeSingle();
     if (trainingError) {
@@ -147,10 +147,50 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     const roomExists = Array.isArray(roomList?.rooms) &&
       roomList.rooms.some((room: { name?: string }) => room.name === training.room_name);
     if (!roomExists) {
+      // If this exact room was previously verified before deletion, retry only the
+      // database reconciliation. Without the marker, a missing room is not proof
+      // that this training was a LiveKit session.
+      if (training.livekit_room_verified_at) {
+        const retryEndedAt = new Date().toISOString();
+        const { data: retriedFinalization, error: retryFinalizeError } = await ctx.supabaseAdmin.rpc(
+          "finalize_live_training_from_livekit_delete",
+          { p_training_id: trainingId, p_ended_at: retryEndedAt },
+        );
+        if (retryFinalizeError) {
+          console.error("end-livekit-training: retry reconciliation failed", {
+            code: retryFinalizeError.code, message: retryFinalizeError.message,
+          });
+          return response({
+            error: "La sala ya no aparece en LiveKit, pero la sincronización sigue pendiente. Vuelve a intentarlo.",
+            code: "LIVEKIT_DATABASE_RECONCILIATION_PENDING",
+          }, 500);
+        }
+        return response({
+          ok: true,
+          endedAt: retryEndedAt,
+          verifiedBy: "previous-livekit-room-verification",
+          result: retriedFinalization,
+        });
+      }
       return response({
         error: "No se encontró una sala activa de LiveKit para este entrenamiento. No se modificó su estado.",
         code: "LIVEKIT_ROOM_NOT_FOUND",
       }, 409);
+    }
+
+    // Persist the verification before deletion so reconciliation can be retried
+    // safely if DeleteRoom succeeds but the database RPC subsequently fails.
+    const { error: markerError } = await ctx.supabaseAdmin
+      .from("live_trainings")
+      .update({ livekit_room_verified_at: new Date().toISOString() })
+      .eq("id", trainingId)
+      .eq("status", "live");
+    if (markerError) {
+      console.error("end-livekit-training: failed to persist room verification", markerError);
+      return response({
+        error: "Se verificó la sala, pero no se pudo guardar la marca de seguridad. No se cerró la sala.",
+        code: "LIVEKIT_VERIFICATION_MARKER_FAILED",
+      }, 500);
     }
 
     const token = await signServerToken(apiKey, apiSecret, userId, "roomCreate");
