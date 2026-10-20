@@ -3432,9 +3432,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     const localTile=document.createElement('div');
     localTile.dataset.gxLivekitTile='gx-livekit-local';
     localTile.style.cssText='position:relative;min-width:0;min-height:180px;background:#090a0c;border:1px solid #30343b;border-radius:12px;overflow:hidden;display:grid;place-items:center';
-    const localLabel=document.createElement('div');localLabel.textContent=(profile?.full_name||profile?.username||'Tú')+' · Tú';
-    localLabel.style.cssText='position:absolute;left:10px;bottom:9px;z-index:2;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px';
-    localTile.appendChild(localLabel);stage.appendChild(localTile);
+    stage.appendChild(localTile);
     renderGrayxonLiveKitTrack(null,room.localParticipant,stage);
     room.remoteParticipants.forEach(participant=>renderGrayxonLiveKitTrack(null,participant,stage));
     room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
