@@ -32,7 +32,7 @@ async function signServerToken(apiKey: string, apiSecret: string, roomName: stri
     sub: userId,
     nbf: now - 5,
     exp: now + 60,
-    video: { roomAdmin: true, room: roomName },
+    video: { roomCreate: true },
   });
   const input = header + "." + payload;
   const key = await crypto.subtle.importKey(
