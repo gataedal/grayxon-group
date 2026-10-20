@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - rebuild-live-training-v3-20261018
+      - review/livekit-integration-mainline
   pull_request:
     paths:
       - "app.js"
@@ -34,3 +35,4 @@ jobs:
           deno check supabase/functions/generate-jitsi-jwt/index.ts
           deno check supabase/functions/end-live-training/index.ts
           deno check supabase/functions/jitsi-event-sync/index.ts
+          deno check supabase/functions/end-livekit-training/index.ts

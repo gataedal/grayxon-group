@@ -1,0 +1,3 @@
+-- Superseded filename retained for history only.
+-- The matching applied migration is 20261020203752_livekit_close_retry_marker.sql.
+-- Intentionally no-op to avoid duplicate schema changes.
