@@ -1152,27 +1152,8 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-toolbar{display:flex!important;visibility:visible!important;position:fixed!important;left:12px!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;z-index:100001!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;gap:8px!important;flex-wrap:wrap!important;background:rgba(10,12,16,.94)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:18px!important;padding:10px!important;backdrop-filter:blur(16px)!important}
       body.grayxon-live-training-call #grayxonJaasMeet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;padding:0!important;box-sizing:border-box!important;background:#050608!important;overflow:hidden!important}
       body.grayxon-live-training-call #grayxonJaasMeet iframe{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;border:0!important;touch-action:pan-y!important}
-      /* En móvil, reserva una zona inferior para los controles de Grayxon.
-         El iframe de Jitsi termina antes de la barra, así la tira de participantes
-         queda dentro de su propio espacio y no debajo de los controles. */
-      @media(max-width:600px){
-        body.grayxon-live-training-call #grayxonJaasMeet iframe{
-          bottom:calc(112px + env(safe-area-inset-bottom))!important;
-          height:calc(100% - 112px - env(safe-area-inset-bottom))!important;
-        }
-        body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-controls{
-          bottom:calc(8px + env(safe-area-inset-bottom))!important;
-          max-width:calc(100vw - 16px)!important;
-          gap:4px!important;
-          padding:7px 8px!important;
-        }
-        body.grayxon-live-training-call .gx-call-controls button{
-          min-width:44px!important;
-          min-height:48px!important;
-          padding:4px 4px!important;
-          font-size:9px!important;
-        }
-      }
+      /* En móvil, mantener el escenario de Jitsi a pantalla completa.
+         El espacio de la tira se controla con el diseño propio de Jitsi, no recortando el iframe. */
       body.grayxon-live-training-call .live-training-loading{display:none!important}
       .page-section[hidden], #space[hidden], #home[hidden], #benefits[hidden], #auth[hidden], #manager[hidden], #training[hidden], #live-training[hidden], #missions[hidden], #profile[hidden], #admin[hidden]{display:none!important;}
       .live-training-space-card .space-progress span{width:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}
@@ -3304,7 +3285,7 @@ async function startGrayxonLiveTraining(training, options={}){
         // Grayxon owns the controls and chat; never render a second Jitsi toolbar.
         toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
-        filmstrip:{disableStageFilmstrip:true,disableResizable:true},
+        filmstrip:{disableStageFilmstrip:false,disableResizable:true},
         // Mantener la vista propia activa: desactivarla también elimina la vista previa local.
         // La miniatura duplicada debe resolverse mediante el diseño de participantes, no apagando self-view.
         disableSelfView:false,
