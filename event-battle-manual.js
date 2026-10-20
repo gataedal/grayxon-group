@@ -22,12 +22,6 @@
   function data(){return typeof gxEventsDashboardData!=='undefined'?gxEventsDashboardData:null}
   function close(){document.querySelector('.gxmb-backdrop')?.remove()}
   function toastMsg(s){if(typeof toast==='function')toast(s);else console.info('[Grayxon]',s)}
-  function bogotaDefault(){
-    const d=new Date(Date.now()+3600000);
-    const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d);
-    const x={};p.forEach(a=>{if(a.type!=='literal')x[a.type]=a.value});
-    return {date:x.year+'-'+x.month+'-'+x.day,time:x.hour+':'+x.minute};
-  }
   function injectButton(){
     if(typeof gxEventsAdmin!=='function'||!gxEventsAdmin())return;
     const d=data();if(!d?.event?.battle_enabled||!gxEventsSelectedId)return;
@@ -48,7 +42,6 @@
     if(participants.length<2){toastMsg('Se necesitan al menos dos participantes activos que hayan confirmado su asistencia.');return}
     const rounds=(d.rounds||[]).slice().sort((a,b)=>Number(a.round_number)-Number(b.round_number));
     const phases=(d.phases||[]);
-    const dt=bogotaDefault();
     const roundOptions=rounds.map(r=>'<option value="'+esc(r.id)+'">'+esc(r.title||('Ronda '+r.round_number))+' · #'+esc(r.round_number)+'</option>').join('');
     const phaseOptions='<option value="">Sin fase asignada</option>'+phases.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+'</option>').join('');
     close();
@@ -57,7 +50,7 @@
       '<div class="gxmb-fields"><div class="gxmb-field"><label>Primer creador</label><select data-a required><option value="">Seleccionar creador…</option>'+options+'</select></div><div class="gxmb-field"><label>Segundo creador</label><select data-b required><option value="">Seleccionar creador…</option>'+options+'</select></div></div>'+
       '<div class="gxmb-field"><label>Ronda</label><select data-round><option value="">Crear una nueva ronda manual</option>'+roundOptions+'</select></div>'+
       '<div class="gxmb-field" data-phase-wrap style="margin-top:12px"><label>Fase para la nueva ronda</label><select data-phase>'+phaseOptions+'</select></div>'+
-      '<div class="gxmb-fields"><div class="gxmb-field"><label>Fecha (opcional)</label><input type="date" data-date value="'+dt.date+'"></div><div class="gxmb-field"><label>Hora de Colombia (opcional, UTC−5)</label><input type="time" data-time value="'+dt.time+'"></div></div>'+
+      '<div class="gxmb-fields"><div class="gxmb-field"><label>Fecha (opcional)</label><input type="date" data-date value=""></div><div class="gxmb-field"><label>Hora de Colombia (opcional, UTC−5)</label><input type="time" data-time value=""></div></div>'+
       '<div class="gxmb-note">Se creará únicamente el enfrentamiento elegido. Si seleccionas una ronda existente, los creadores no pueden tener otra batalla programada en esa misma ronda. Si dejas fecha y hora vacías, el horario quedará pendiente.</div>'+
       '<div class="gxmb-actions"><button type="button" class="gxmb-btn" data-cancel>Cancelar</button><button type="button" class="gxmb-btn primary" data-save>Crear batalla y notificar</button></div></section>';
     document.body.appendChild(w);
