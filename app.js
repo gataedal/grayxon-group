@@ -3893,11 +3893,13 @@ async function startGrayxonLiveTraining(training, options={}){
 
     api.addEventListener?.('toolbarButtonClicked',async(ev)=>{
       if(ev?.key!=='hangup')return;
-      if(canManageMeeting){
-        await endLiveTrainingConference(api,training.id,true);
-      }else{
-        try { api.executeCommand('hangup'); } catch (_) {}
-      }
+      // Salir de la llamada nunca debe finalizar automáticamente la sesión para todos,
+      // incluso para anfitrión/administrador. El cierre global requiere la elección
+      // explícita "Finalizar entrenamiento para todos" en el modal de Grayxon.
+      const modal=$('.gx-call-end-modal');
+      if(modal){modal.hidden=false;modal.classList.remove('hidden');return;}
+      // Fallback defensivo si el modal no está disponible: desconectar solo a este usuario.
+      try { api.executeCommand('hangup'); } catch (_) {}
     });
 
     api.addEventListener?.('readyToClose',async()=>{
