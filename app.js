@@ -3288,17 +3288,17 @@ async function loadGrayxonLiveKitSdk(){
 function ensureGrayxonLiveKitLayout(){
   if(document.getElementById('gx-livekit-responsive-layout'))return;
   const style=document.createElement('style');style.id='gx-livekit-responsive-layout';
-  style.textContent=`#grayxonLiveKitStage{display:grid!important;grid-template-columns:minmax(0,1fr) 190px;grid-template-rows:repeat(3,minmax(100px,1fr));gap:10px;width:100%;height:100%;min-height:320px;align-content:stretch;align-items:stretch}
-  #grayxonLiveKitStage [data-gx-livekit-tile]{position:relative;min-width:0;min-height:100px;aspect-ratio:16/10;background:#090a0c;border:1px solid #30343b;border-radius:12px;overflow:hidden;display:grid;place-items:center;cursor:pointer}
-  #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1;grid-row:1 / span 3;aspect-ratio:auto;min-height:0}
-  #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]){grid-column:2;aspect-ratio:16/10}
+  style.textContent=`#grayxonLiveKitStage{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));grid-auto-rows:auto;gap:10px;width:100%;height:auto;min-height:0;align-content:start;align-items:stretch}
+  #grayxonLiveKitStage [data-gx-livekit-tile]{position:relative;min-width:0;min-height:120px;aspect-ratio:16/9;background:#090a0c;border:1px solid #30343b;border-radius:12px;overflow:hidden;display:grid;place-items:center;cursor:pointer}
+  #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1;aspect-ratio:16/9;min-height:220px}
+  #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]){aspect-ratio:16/9;min-height:110px}
   #grayxonLiveKitStage [data-gx-livekit-tile] video{position:absolute;inset:0;width:100%;height:100%;min-height:0;max-height:none;object-fit:contain;background:#000}
   #grayxonLiveKitStage .gx-livekit-avatar{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,#252a32,#090a0c 72%);pointer-events:none}
-  #grayxonLiveKitStage .gx-livekit-avatar img{width:clamp(64px,18%,112px);aspect-ratio:1;border-radius:50%;object-fit:cover;border:2px solid #555b66}
-  #grayxonLiveKitStage .gx-livekit-avatar-fallback{display:flex;align-items:center;justify-content:center;width:clamp(64px,18%,112px);aspect-ratio:1;border-radius:50%;background:#252a32;color:#fff;font-size:clamp(24px,5vw,42px);font-weight:600}
+  #grayxonLiveKitStage .gx-livekit-avatar img{width:clamp(64px,12%,112px);aspect-ratio:1;border-radius:50%;object-fit:cover;border:2px solid #555b66}
+  #grayxonLiveKitStage .gx-livekit-avatar-fallback{display:flex;align-items:center;justify-content:center;width:clamp(64px,12%,112px);aspect-ratio:1;border-radius:50%;background:#252a32;color:#fff;font-size:clamp(24px,4vw,42px);font-weight:600}
   #grayxonLiveKitStage [data-gx-livekit-label]{position:absolute;left:10px;bottom:9px;z-index:3;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px;max-width:85%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  @media(max-width:600px){#grayxonLiveKitStage{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto;gap:7px;align-content:start;min-height:0;height:auto}#grayxonLiveKitStage [data-gx-livekit-tile]{grid-column:auto!important;grid-row:auto!important;aspect-ratio:3/4;min-height:135px;border-radius:10px}#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1!important;aspect-ratio:16/9;min-height:190px}#grayxonLiveKitStage [data-gx-livekit-tile] video{object-fit:cover}#grayxonLiveKitStage .gx-livekit-avatar img,#grayxonLiveKitStage .gx-livekit-avatar-fallback{width:clamp(54px,22vw,86px)}}
-  @media(min-width:601px){#grayxonLiveKitStage [data-gx-livekit-tile]{min-height:100px}}`;
+  @media(max-width:600px){#grayxonLiveKitStage{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-height:0;height:auto;align-content:start}#grayxonLiveKitStage [data-gx-livekit-tile]{grid-column:auto!important;grid-row:auto!important;aspect-ratio:4/3;min-height:110px;border-radius:10px}#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1!important;aspect-ratio:16/9;min-height:190px}#grayxonLiveKitStage [data-gx-livekit-tile] video{object-fit:cover}#grayxonLiveKitStage .gx-livekit-avatar img,#grayxonLiveKitStage .gx-livekit-avatar-fallback{width:clamp(54px,18vw,86px)}}
+  @media(min-width:601px){#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{min-height:260px}}`;
   document.head.appendChild(style);
 }
 function renderGrayxonLiveKitTrack(track, participant, host){
@@ -3417,8 +3417,9 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room.on(LK.RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
       try{track.detach().forEach(el=>el.remove());}catch(_){}
       if(track.kind==='video'&&participant){
-        const key=String(participant?.identity||participant?.sid||'remote').replace(/[^a-zA-Z0-9_-]/g,'_');
-        const tile=stage?.querySelector('[data-gx-livekit-tile="gx-livekit-'+key+'"]');
+        const isLocal=!!(gxLiveKitRoom&&participant===gxLiveKitRoom.localParticipant);
+        const key=isLocal?'gx-livekit-local':'gx-livekit-'+String(participant?.identity||participant?.sid||'remote').replace(/[^a-zA-Z0-9_-]/g,'_');
+        const tile=stage?.querySelector('[data-gx-livekit-tile="'+CSS.escape(key)+'"]');
         if(tile){tile.querySelectorAll('video,[data-gx-livekit-track]').forEach(el=>el.remove());const avatar=tile.querySelector('.gx-livekit-avatar');if(avatar)avatar.style.display='flex';}
       }
     });
@@ -3451,7 +3452,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
           if(action==='reactions'){const menu=$('.gx-reactions-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;}
           if(!joined){toast('La llamada todavía se está conectando…');return;}
           if(action==='audio'){audioEnabled=!audioEnabled;await room.localParticipant.setMicrophoneEnabled(audioEnabled);setButton('audio',audioEnabled,'Micrófono encendido','Micrófono apagado');return;}
-          if(action==='video'){videoEnabled=!videoEnabled;await room.localParticipant.setCameraEnabled(videoEnabled);setButton('video',videoEnabled,'Cámara encendida','Cámara apagada');if(videoEnabled){room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});}return;}
+          if(action==='video'){videoEnabled=!videoEnabled;await room.localParticipant.setCameraEnabled(videoEnabled);setButton('video',videoEnabled,'Cámara encendida','Cámara apagada');const localTile=stage?.querySelector('[data-gx-livekit-tile="gx-livekit-local"]');const localAvatar=localTile?.querySelector('.gx-livekit-avatar');if(!videoEnabled){localTile?.querySelectorAll('video,[data-gx-livekit-track]').forEach(el=>el.remove());if(localAvatar)localAvatar.style.display='flex';}else{room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});}return;}
           if(action==='share'){if(shareTrack){await room.localParticipant.setScreenShareEnabled(false);shareTrack=null;}else{await room.localParticipant.setScreenShareEnabled(true);shareTrack=true;}return;}
           if(action==='hand'){
             gxHandRaised=!gxHandRaised;
