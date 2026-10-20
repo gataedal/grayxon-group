@@ -3283,7 +3283,7 @@ async function startGrayxonLiveTraining(training, options={}){
         // Grayxon owns the controls and chat; never render a second Jitsi toolbar.
         toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
-        filmstrip:{disableStageFilmstrip:true,disableResizable:true},
+        filmstrip:{disableStageFilmstrip:false,disableResizable:true},
         // Mantener la vista propia activa: desactivarla también elimina la vista previa local.
         // La miniatura duplicada debe resolverse mediante el diseño de participantes, no apagando self-view.
         disableSelfView:false,
@@ -3532,6 +3532,8 @@ async function startGrayxonLiveTraining(training, options={}){
     api.addEventListener?.('videoConferenceJoined',async(ev)=>{
       gxLogVideoDiag('videoConferenceJoined', ev);
       gxJitsiReady=true;
+      // Forzar el diseño de escenario + tira de participantes; evitar la cuadrícula de tarjetas grandes.
+      try{api.executeCommand('setTileView',false);}catch(err){console.warn('Grayxon LIVE: no se pudo activar el diseño de escenario',err);}
       // Repetir después de unirse: las dimensiones definitivas de la vista ya están aplicadas.
       scheduleGrayxonJitsiResize();
       // No activar toggleModeration automáticamente: es un conmutador y al reconectar
