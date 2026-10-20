@@ -2479,7 +2479,16 @@ async function missionsTpl() {
     .eq('assigned_to', session.user.id)
     .order('week_start',{ascending:false}).order('created_at',{ascending:false});
   if (error) { $('#missions').innerHTML = `<div class="card"><h2>Tus misiones</h2><div class="error">${esc(error.message)}</div></div>`; return; }
-  if(profile?.role==='creator'&&(ms||[]).length){const receipts=(ms||[]).map(m=>({user_id:session.user.id,mission_id:m.id,read_at:new Date().toISOString()}));const readResult=await sb.from('mission_reads').upsert(receipts,{onConflict:'user_id,mission_id'});if(readResult.error)console.warn('Misiones: no se pudieron marcar como vistas',readResult.error.message);}
+  const unreadMissionIds=new Set();
+  if(profile?.role==='creator'&&(ms||[]).length){
+    const readQuery=await sb.from('mission_reads').select('mission_id').eq('user_id',session.user.id).in('mission_id',ms.map(m=>m.id));
+    if(readQuery.error)console.warn('Misiones: no se pudieron consultar lecturas',readQuery.error.message);
+    const readIds=new Set((readQuery.data||[]).map(r=>r.mission_id));
+    (ms||[]).forEach(m=>{if(!readIds.has(m.id))unreadMissionIds.add(m.id);});
+    const receipts=(ms||[]).map(m=>({user_id:session.user.id,mission_id:m.id,read_at:new Date().toISOString()}));
+    const readResult=await sb.from('mission_reads').upsert(receipts,{onConflict:'user_id,mission_id'});
+    if(readResult.error)console.warn('Misiones: no se pudieron marcar como vistas',readResult.error.message);
+  }
   gxMissionsRefreshUnreadBadge().catch(()=>{});
   const today = new Date().toISOString().slice(0,10);
   const { data: ps } = await sb.from('mission_progress').select('mission_id,value,completed').eq('user_id', session.user.id);
@@ -2501,7 +2510,7 @@ async function missionsTpl() {
     const expired=!!m.week_end && m.week_end < today && v<100;
     const submitted = !!p.completed;
     return `<div class="mission-card ${submitted?'mission-complete':''} ${expired?'mission-expired':''}" data-mission-card-id="${m.id}">
-      <div class="mission-head"><div class="mission-icon">${v>=100?'✓':expired?'⌁':m.type==='checkbox'?'✓':'↗'}</div><div><strong>${esc(m.title)}</strong><p class="muted small">${esc(m.description||'')}</p><small>${esc(weekLabel(m.week_start,m.week_end))}${expired?' · Semana finalizada':''}</small></div><span class="mission-pct">${v}%</span></div>
+      <div class="mission-head"><div class="mission-icon">${v>=100?'✓':expired?'⌁':m.type==='checkbox'?'✓':'↗'}</div><div><strong>${esc(m.title)}</strong>${unreadMissionIds.has(m.id)?'<span class="mission-new-badge" style="display:inline-flex;margin:4px 0;padding:3px 7px;border-radius:999px;background:rgba(254,44,85,.16);border:1px solid rgba(254,44,85,.35);font-size:10px;font-weight:800;color:#fff">🔔 Nueva</span>':''}<p class="muted small">${esc(m.description||'')}</p><small>${esc(weekLabel(m.week_start,m.week_end))}${expired?' · Semana finalizada':''}</small></div><span class="mission-pct">${v}%</span></div>
       <div class="space-progress mission-progress"><span style="width:${v}%"></span></div>
       <div class="mission-actions">
         ${m.link_url?`<a class="mission-link" href="${esc(m.link_url)}" target="_blank" rel="noopener noreferrer">🔗 Abrir recurso</a>`:'' }
@@ -2524,11 +2533,12 @@ async function missionsTpl() {
     const current = isCurrentWeek(g.start,g.end);
     const done = g.items.filter(m => pct(m)>=100).length;
     const total = g.items.length;
+    const newCount = g.items.filter(m=>unreadMissionIds.has(m.id)).length;
     const avg = total ? Math.round(g.items.reduce((sum,m)=>sum+pct(m),0)/total) : 0;
     const id = `${type}-${String(g.start||'none').replace(/[^0-9a-z]/gi,'')}-${String(g.end||'none').replace(/[^0-9a-z]/gi,'')}`;
     return `<button type="button" class="mission-week-card" data-mission-week="${id}" data-week-start="${esc(g.start)}" data-week-end="${esc(g.end)}">
       <div class="mission-week-icon">${type==='assigned'?'🎯':'✓'}</div>
-      <div class="mission-week-main"><div class="mission-week-top"><strong>${current && type==='assigned'?'Misiones para esta semana':'Semana '+weekLabel(g.start,g.end)}</strong><span>${avg}%</span></div><p>${type==='assigned'?`${total} ${total===1?'misión asignada':'misiones asignadas'} · ${done} completada${done===1?'':'s'}`:`${total} ${total===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}`}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b>
+      <div class="mission-week-main"><div class="mission-week-top"><strong>${current && type==='assigned'?'Misiones para esta semana':'Semana '+weekLabel(g.start,g.end)}</strong><span>${avg}%</span></div>${newCount?'<span class="mission-new-badge" style="display:inline-flex;margin:2px 0 6px;padding:3px 7px;border-radius:999px;background:rgba(254,44,85,.16);border:1px solid rgba(254,44,85,.35);font-size:10px;font-weight:800;color:#fff">🔔 '+newCount+' nueva'+(newCount===1?'':'s')+'</span>':''}<p>${type==='assigned'?`${total} ${total===1?'misión asignada':'misiones asignadas'} · ${done} completada${done===1?'':'s'}`:`${total} ${total===1?'misión':'misiones'} · ${done} completada${done===1?'':'s'}`}</p><div class="space-progress"><span style="width:${avg}%"></span></div></div><b class="mission-week-arrow">›</b>
     </button>`;
   };
 
