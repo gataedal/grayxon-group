@@ -12,6 +12,7 @@ on:
       - "supabase/tests/**"
       - "supabase/migrations/**"
       - "docs/live-training-rebuild-status.md"
+      - ".github/workflows/live-training-rebuild-checks.yml"
 
 jobs:
   live-training-policy:
@@ -36,3 +37,4 @@ jobs:
           deno check supabase/functions/end-live-training/index.ts
           deno check supabase/functions/jitsi-event-sync/index.ts
           deno check supabase/functions/end-livekit-training/index.ts
+          deno check supabase/functions/generate-livekit-token/index.ts
