@@ -24,7 +24,7 @@ function b64url(bytes: Uint8Array): string {
 function jsonPart(value: unknown): string {
   return b64url(new TextEncoder().encode(JSON.stringify(value)));
 }
-async function signServerToken(apiKey: string, apiSecret: string, userId: string, grant: "roomList" | "roomCreate") {
+async function signServerToken(apiKey: string, apiSecret: string, userId: string, grant: "roomList" | "roomCreate" | "roomAdmin") {
   const now = Math.floor(Date.now() / 1000);
   const header = jsonPart({ alg: "HS256", typ: "JWT" });
   const payload = jsonPart({
@@ -193,7 +193,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       }, 500);
     }
 
-    const token = await signServerToken(apiKey, apiSecret, userId, "roomCreate");
+    const token = await signServerToken(apiKey, apiSecret, userId, "roomAdmin");
     let deleteResponse: Response;
     try {
       deleteResponse = await fetch(`${baseUrl}/twirp/livekit.RoomService/DeleteRoom`, {
