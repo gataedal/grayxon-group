@@ -3273,7 +3273,7 @@ async function startGrayxonLiveTraining(training, options={}){
       height:'100%',
       lang:'es',
       userInfo:{displayName:profile?.full_name||profile?.username||session?.user?.email?.split('@')[0]||'Participante Grayxon',email:session?.user?.email||''},
-      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,SHOW_PROMOTIONAL_CLOSE_PAGE:false,SHOW_DEEP_LINKING_IMAGE:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608',JITSI_WATERMARK_LINK:'',BRAND_WATERMARK_LINK:'',VERTICAL_FILMSTRIP:false,FILM_STRIP_MAX_HEIGHT:132,DISABLE_JOIN_LEAVE_NOTIFICATIONS:true},
+      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,SHOW_PROMOTIONAL_CLOSE_PAGE:false,SHOW_DEEP_LINKING_IMAGE:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608',JITSI_WATERMARK_LINK:'',BRAND_WATERMARK_LINK:'',VERTICAL_FILMSTRIP:false,FILM_STRIP_MAX_HEIGHT:104,TILE_VIEW_MAX_COLUMNS:3,DISABLE_JOIN_LEAVE_NOTIFICATIONS:true},
       configOverwrite:{
         prejoinConfig:{enabled:false},
         // Start with both devices muted. Do not disable initial GUM: on some mobile
@@ -3283,7 +3283,7 @@ async function startGrayxonLiveTraining(training, options={}){
         // Grayxon owns the controls and chat; never render a second Jitsi toolbar.
         toolbarButtons:[],
         toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
-        filmstrip:{disableStageFilmstrip:false,disableResizable:true},
+        filmstrip:{disableStageFilmstrip:true,disableResizable:true},
         // Mantener la vista propia activa: desactivarla también elimina la vista previa local.
         // La miniatura duplicada debe resolverse mediante el diseño de participantes, no apagando self-view.
         disableSelfView:false,
