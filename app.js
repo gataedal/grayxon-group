@@ -3490,11 +3490,10 @@ async function startGrayxonLiveKitTraining(training, options={}){
 }
 
 async function startGrayxonLiveTraining(training, options={}){
-  // Persistir el modo de prueba durante el login/navegación interna, que puede limpiar la query string.
-  const testParam = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
-  if (testParam) { try { sessionStorage.setItem('grayxonJitsiTestMode','1'); } catch (_) {} }
-  let requestedJitsiTest = testParam;
-  if (!requestedJitsiTest) { try { requestedJitsiTest = sessionStorage.getItem('grayxonJitsiTestMode') === '1'; } catch (_) {} }
+  // Jitsi solo se selecciona explícitamente para esta URL de prueba o mediante el respaldo manual.
+  // No persistirlo en sessionStorage: un modo Jitsi antiguo puede sobrevivir a la navegación
+  // y mezclar una sala Jitsi con participantes que están usando LiveKit para el mismo entrenamiento.
+  const requestedJitsiTest = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
   // El parámetro solo selecciona el proveedor; la Edge Function sigue validando acceso y permisos.
   const provider = options.provider || (requestedJitsiTest ? 'jitsi' : GRAYXON_LIVE_PROVIDER);
   if(provider==='livekit') return startGrayxonLiveKitTraining(training,options);
