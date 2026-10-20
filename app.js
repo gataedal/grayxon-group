@@ -2994,6 +2994,8 @@ async function getSelfHostedJitsiJwt(trainingId) {
 }
 
 function destroyJaasMeeting() {
+  if(gxLiveKitRoom){const room=gxLiveKitRoom;gxLiveKitRoom=null;try{room.disconnect();}catch(_){}}
+  if(gxLiveKitCleanup){const cleanup=gxLiveKitCleanup;gxLiveKitCleanup=null;try{cleanup();}catch(_){}}
   if (jaasApi) { try { jaasApi.dispose(); } catch (_) {} }
   jaasApi = null; jaasApiRoom = null;
   if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
@@ -3264,7 +3266,7 @@ async function loadGrayxonLiveKitSdk(){
 function renderGrayxonLiveKitTrack(track, participant, host){
   if(!track||!host)return;
   const identity=String(participant?.identity||participant?.sid||'remote');
-  const tileId='gx-livekit-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_');
+  const tileId=(gxLiveKitRoom&&participant===gxLiveKitRoom.localParticipant)?'gx-livekit-local':'gx-livekit-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_');
   let tile=host.querySelector('[data-gx-livekit-tile="'+CSS.escape(tileId)+'"]');
   if(!tile){
     tile=document.createElement('div');tile.dataset.gxLivekitTile=tileId;
