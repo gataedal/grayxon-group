@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - rebuild-live-training-v3-20261018
+      - review/livekit-integration-mainline
   pull_request:
     paths:
       - "app.js"
