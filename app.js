@@ -3557,6 +3557,16 @@ async function startGrayxonLiveTraining(training, options={}){
         const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
         const local=participants.find(person=>String(person?.userContext?.id||'')===String(session?.user?.id||''))||participants.find(person=>String(person?.id||person?.participantId||'')===String(window.__gxLocalParticipantId||''));
         if(local?.id||local?.participantId)window.__gxLocalParticipantId=String(local.id||local.participantId);
+        // Jitsi fija la cámara de forma local por defecto. Para que todos vean
+        // el mismo escenario, el creador activa Follow Me y fija su propia cámara.
+        if(isHost){
+          try{api.executeCommand('setFollowMe',true);}catch(err){console.warn('Grayxon LIVE: no se pudo activar la sincronización del escenario',err);}
+          const localHostId=String(window.__gxLocalParticipantId||'');
+          if(localHostId){
+            try{api.executeCommand('pinParticipant',localHostId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar al anfitrión',err);}
+            try{api.executeCommand('setLargeVideoParticipant',localHostId,'camera');}catch(err){console.warn('Grayxon LIVE: no se pudo mostrar al anfitrión',err);}
+          }
+        }
         await syncGrayxonHostStage();
       }catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal inicial',err);}
       toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
