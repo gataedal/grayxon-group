@@ -3281,6 +3281,29 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   element.style.cssText='width:100%;height:100%;min-height:180px;max-height:70vh;object-fit:contain;background:#000';
   tile.insertBefore(element,tile.firstChild);
 }
+async function leaveGrayxonLiveKitTraining(){
+  const room=gxLiveKitRoom;
+  if(!room){toast('La llamada de LiveKit ya no está conectada.');return false;}
+  // Suppress the unexpected-disconnect handler: this is an intentional leave.
+  liveTrainingEnding=true;
+  try{await recordLiveTrainingLeave();}catch(error){console.warn('No se pudo registrar la salida de LiveKit:',error);}
+  if(gxLiveKitCleanup){const cleanup=gxLiveKitCleanup;gxLiveKitCleanup=null;try{cleanup();}catch(error){console.warn('No se pudo limpiar la sala LiveKit:',error);}}
+  else{try{room.removeAllListeners();}catch(_){}try{await room.disconnect();}catch(_){}}
+  if(gxLiveKitRoom===room)gxLiveKitRoom=null;
+  if(gxLiveCallRealtimeChannel){try{await sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(error){console.warn('No se pudo cerrar el canal Realtime:',error);}gxLiveCallRealtimeChannel=null;}
+  gxLiveCallRealtimeTrainingId=null;
+  if(gxElapsedInterval){clearInterval(gxElapsedInterval);gxElapsedInterval=null;}
+  if(gxWakeLock){try{await gxWakeLock.release();}catch(_){}gxWakeLock=null;}
+  document.body.classList.remove('grayxon-live-training-call','grayxon-live-training-active');
+  updateCreatorSpaceFloat();
+  const host=$('#grayxonJaasMeet');if(host)host.replaceChildren();
+  const wrap=$('#grayxonTrainingRoomWrap');
+  if(wrap){wrap.classList.add('hidden');wrap.hidden=true;wrap.style.setProperty('display','none','important');}
+  liveTrainingEnding=false;
+  nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space',false);
+  return true;
+}
+
 async function startGrayxonLiveKitTraining(training, options={}){
   const host=$('#grayxonJaasMeet');if(!host||!training?.room_name)return;
   destroyJaasMeeting();
@@ -4122,9 +4145,10 @@ async function liveTrainingTpl(trainingOverride=null) {
   $('.gx-call-end-modal')?.querySelectorAll('[data-gx-end-choice]').forEach(button=>button.addEventListener('click',async()=>{
     const choice=button.getAttribute('data-gx-end-choice');const modal=$('.gx-call-end-modal');
     if(choice==='cancel'){if(modal){modal.hidden=true;modal.classList.add('hidden');}return;}
-    if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
+    if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}if(gxLiveKitRoom){await leaveGrayxonLiveKitTraining();return;}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
     if(choice==='end'){
       if(!(isHost||profile?.role==='admin')){toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');return;}
+      if(gxLiveKitRoom){toast('La finalización global todavía no está habilitada para LiveKit. Puedes salir de la llamada; no se cambiará el estado del entrenamiento.');return;}
       if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id,true);
     }
   }));
