@@ -3065,7 +3065,9 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = null) {
     toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
     return false;
   }
-  if (!api || !trainingId) return false;
+  if (!trainingId) return false;
+  const liveKitEnding = !!gxLiveKitRoom;
+  if (!api && !liveKitEnding) return false;
 
   liveTrainingEnding = true;
   let accessToken = null;
@@ -3091,6 +3093,26 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = null) {
     const { data: sessionData } = await sb.auth.getSession();
     accessToken = sessionData?.session?.access_token;
     if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible.');
+
+    if (liveKitEnding) {
+      const response = await fetch(`${CFG.SUPABASE_URL}/functions/v1/end-livekit-training`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ trainingId })
+      });
+      let result = null;
+      try { result = await response.json(); } catch (_) {}
+      if (!response.ok || result?.error || result?.ok !== true) {
+        throw new Error(result?.error || 'El servidor no confirmó el cierre de la sala LiveKit.');
+      }
+      toast('Entrenamiento finalizado para todos.');
+      await leaveGrayxonLiveKitTraining();
+      return true;
+    }
 
     // Phase 1: server validates role and training ownership without changing data.
     await callEndTraining('authorize');
@@ -4148,7 +4170,6 @@ async function liveTrainingTpl(trainingOverride=null) {
     if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}if(gxLiveKitRoom){await leaveGrayxonLiveKitTraining();return;}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
     if(choice==='end'){
       if(!(isHost||profile?.role==='admin')){toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');return;}
-      if(gxLiveKitRoom){toast('La finalización global todavía no está habilitada para LiveKit. Puedes salir de la llamada; no se cambiará el estado del entrenamiento.');return;}
       if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id,true);
     }
   }));
