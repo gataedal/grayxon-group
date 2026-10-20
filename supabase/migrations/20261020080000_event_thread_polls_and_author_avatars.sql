@@ -126,7 +126,7 @@ returns table(
   poll_id uuid,
   option_id uuid,
   option_text text,
-  position integer,
+  option_position integer,
   vote_count bigint,
   my_option_id uuid,
   closes_at timestamptz
