@@ -4047,12 +4047,17 @@ async function liveTrainingTpl(trainingOverride=null) {
     const emoji=button.getAttribute('data-gx-reaction');
     const name=profile?.full_name||profile?.username||'Participante';
     showGrayxonReaction(name,emoji);playGrayxonSound('reaction');
-    // Enviar por el canal de Grayxon y por el chat de la propia sala como respaldo.
-    // Así la reacción llega incluso si el canal Realtime no se suscribe en algún móvil.
-    sendGrayxonLiveBroadcast('reaction',{userId:session?.user?.id||null,name,emoji}).then(result=>{
-      if(result?.error)console.warn('Grayxon LIVE: fallback de reacción por chat Jitsi.',result.error);
-    });
-    try{jaasApi?.executeCommand('sendChatMessage','[GXREACTION:'+emoji+']');}catch(err){console.warn('No se pudo enviar la reacción por Jitsi:',err);}
+    // LiveKit usa el canal Realtime de Grayxon; Jitsi conserva su fallback de chat.
+    if(gxLiveKitRoom){
+      sendGrayxonLiveBroadcast('reaction',{userId:session?.user?.id||null,name,emoji}).then(result=>{
+        if(result?.error)toast('La reacción solo se mostró en este dispositivo; no se pudo sincronizar.');
+      });
+    }else{
+      sendGrayxonLiveBroadcast('reaction',{userId:session?.user?.id||null,name,emoji}).then(result=>{
+        if(result?.error)console.warn('Grayxon LIVE: no se pudo sincronizar la reacción.',result.error);
+      });
+      try{jaasApi?.executeCommand('sendChatMessage','[GXREACTION:'+emoji+']');}catch(err){console.warn('No se pudo enviar la reacción por Jitsi:',err);}
+    }
     const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
     $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
   }));
