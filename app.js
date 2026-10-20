@@ -3299,10 +3299,27 @@ async function startGrayxonLiveKitTraining(training, options={}){
     b.setAttribute('aria-pressed',String(enabled));
     const label=b.querySelector('span:last-child');if(label)label.textContent=enabled?labelOn:labelOff;
   };
-  const onTrack=(track,participant)=>{if(track.kind==='video')renderGrayxonLiveKitTrack(track,participant,stage);};
+  const onTrack=(track,participant)=>{
+    if(!track||!stage)return;
+    if(track.kind==='video'){
+      renderGrayxonLiveKitTrack(track,participant,stage);
+      return;
+    }
+    // LiveKit audio tracks must be attached to an audio element for remote audio playback.
+    if(track.kind==='audio'){
+      const audio=track.attach();
+      audio.autoplay=true;
+      audio.setAttribute('playsinline','');
+      audio.dataset.gxLivekitAudio=String(participant?.identity||participant?.sid||'remote');
+      audio.style.cssText='position:absolute;width:1px;height:1px;opacity:0;pointer-events:none';
+      stage.appendChild(audio);
+    }
+  };
   const removeParticipant=(participant)=>{
     const key=String(participant?.identity||participant?.sid||'').replace(/[^a-zA-Z0-9_-]/g,'_');
     stage?.querySelector('[data-gx-livekit-tile="gx-livekit-'+key+'"]')?.remove();
+    const identity=String(participant?.identity||participant?.sid||'');
+    stage?.querySelectorAll('[data-gx-livekit-audio]').forEach(el=>{if(el.dataset.gxLivekitAudio===identity)el.remove();});
   };
   try{
     const [LK,response]=await Promise.all([
@@ -3315,7 +3332,10 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room=new LK.Room({adaptiveStream:true,dynacast:true});
     gxLiveKitRoom=room;
     room.on(LK.RoomEvent.TrackSubscribed,(track,publication,participant)=>onTrack(track,participant));
-    room.on(LK.RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{try{track.detach().forEach(el=>el.remove());}catch(_){}});
+    room.on(LK.RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
+      try{track.detach().forEach(el=>el.remove());}catch(_){}
+      if(track.kind==='video'&&participant)removeParticipant(participant);
+    });
     room.on(LK.RoomEvent.ParticipantDisconnected,participant=>removeParticipant(participant));
     room.on(LK.RoomEvent.ParticipantConnected,participant=>{if(participant.videoTrackPublications)participant.videoTrackPublications.forEach(pub=>{if(pub.track)onTrack(pub.track,participant);});});
     room.on(LK.RoomEvent.Disconnected,()=>{if(joined&&!liveTrainingEnding)toast('La conexión del entrenamiento se cerró.');});
