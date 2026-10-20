@@ -3285,26 +3285,44 @@ async function loadGrayxonLiveKitSdk(){
   return window.LivekitClient;
 }
 
+function ensureGrayxonLiveKitLayout(){
+  if(document.getElementById('gx-livekit-responsive-layout'))return;
+  const style=document.createElement('style');style.id='gx-livekit-responsive-layout';
+  style.textContent=`#grayxonLiveKitStage{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;width:100%;height:100%;min-height:280px;align-content:center;align-items:stretch}
+  #grayxonLiveKitStage [data-gx-livekit-tile]{position:relative;min-width:0;min-height:180px;aspect-ratio:16/10;background:#090a0c;border:1px solid #30343b;border-radius:12px;overflow:hidden;display:grid;place-items:center}
+  #grayxonLiveKitStage [data-gx-livekit-tile] video{position:absolute;inset:0;width:100%;height:100%;min-height:0;max-height:none;object-fit:contain;background:#000}
+  #grayxonLiveKitStage .gx-livekit-avatar{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,#252a32,#090a0c 72%);pointer-events:none}
+  #grayxonLiveKitStage .gx-livekit-avatar img{width:clamp(64px,18%,112px);aspect-ratio:1;border-radius:50%;object-fit:cover;border:2px solid #555b66}
+  #grayxonLiveKitStage .gx-livekit-avatar-fallback{display:flex;align-items:center;justify-content:center;width:clamp(64px,18%,112px);aspect-ratio:1;border-radius:50%;background:#252a32;color:#fff;font-size:clamp(24px,5vw,42px);font-weight:600}
+  #grayxonLiveKitStage [data-gx-livekit-label]{position:absolute;left:10px;bottom:9px;z-index:3;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px;max-width:85%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  @media(max-width:600px){#grayxonLiveKitStage{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;align-content:start;min-height:0}#grayxonLiveKitStage [data-gx-livekit-tile]{aspect-ratio:3/4;min-height:135px;border-radius:10px}#grayxonLiveKitStage [data-gx-livekit-tile] video{object-fit:cover}#grayxonLiveKitStage .gx-livekit-avatar img,#grayxonLiveKitStage .gx-livekit-avatar-fallback{width:clamp(54px,22vw,86px)}}
+  @media(min-width:601px){#grayxonLiveKitStage [data-gx-livekit-tile]{min-height:220px}}`;
+  document.head.appendChild(style);
+}
 function renderGrayxonLiveKitTrack(track, participant, host){
-  if(!track||!host)return;
+  if(!host)return;
   const identity=String(participant?.identity||participant?.sid||'remote');
-  const tileId=(gxLiveKitRoom&&participant===gxLiveKitRoom.localParticipant)?'gx-livekit-local':'gx-livekit-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_');
+  const isLocal=!!(gxLiveKitRoom&&participant===gxLiveKitRoom.localParticipant);
+  const tileId=isLocal?'gx-livekit-local':'gx-livekit-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_');
   let tile=host.querySelector('[data-gx-livekit-tile="'+CSS.escape(tileId)+'"]');
-  if(!tile){
-    tile=document.createElement('div');tile.dataset.gxLivekitTile=tileId;
-    tile.style.cssText='position:relative;min-width:0;min-height:180px;background:#090a0c;border:1px solid #30343b;border-radius:12px;overflow:hidden;display:grid;place-items:center';
-    const label=document.createElement('div');label.textContent=participant?.name||participant?.identity||'Participante';
-    label.style.cssText='position:absolute;left:10px;bottom:9px;z-index:2;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px';
-    tile.appendChild(label);host.appendChild(tile);
+  if(!tile){tile=document.createElement('div');tile.dataset.gxLivekitTile=tileId;host.appendChild(tile);}
+  let label=tile.querySelector('[data-gx-livekit-label]');
+  if(!label){label=document.createElement('div');label.dataset.gxLivekitLabel='1';label.textContent=isLocal?(profile?.full_name||profile?.username||'Tú')+' · Tú':(participant?.name||participant?.identity||'Participante');tile.appendChild(label);}
+  let avatar=tile.querySelector('.gx-livekit-avatar');
+  if(!avatar){
+    avatar=document.createElement('div');avatar.className='gx-livekit-avatar';
+    const metadata=(()=>{try{return JSON.parse(participant?.metadata||'{}')}catch(_){return {}}})();
+    const url=isLocal?(profileDetails?.avatar_url||''):(metadata.avatar_url||metadata.avatarUrl||metadata.photo_url||'');
+    if(url){const img=document.createElement('img');img.src=url;img.alt='Foto de perfil';img.onerror=()=>{avatar.replaceChildren();const fb=document.createElement('span');fb.className='gx-livekit-avatar-fallback';fb.textContent=String(participant?.name||participant?.identity||'G').trim().charAt(0).toUpperCase()||'G';avatar.appendChild(fb);};avatar.appendChild(img);}
+    else{const fb=document.createElement('span');fb.className='gx-livekit-avatar-fallback';fb.textContent=String(isLocal?(profile?.full_name||profile?.username||'Tú'):(participant?.name||participant?.identity||'G')).trim().charAt(0).toUpperCase()||'G';avatar.appendChild(fb);}
+    tile.insertBefore(avatar,label);
   }
-  const trackKey=String(track.sid||track.mediaStreamTrack?.id||'');
-  if(trackKey && tile.querySelector('[data-gx-livekit-track="'+CSS.escape(trackKey)+'"]'))return;
-  const element=track.attach();
-  if(trackKey)element.dataset.gxLivekitTrack=trackKey;
-  element.autoplay=true;
-  element.playsInline=true;
-  element.style.cssText='width:100%;height:100%;min-height:180px;max-height:70vh;object-fit:contain;background:#000';
-  tile.insertBefore(element,tile.firstChild);
+  if(!track||track.kind!=='video')return;
+  const key=String(track.sid||track.mediaStreamTrack?.id||'');
+  if(key&&tile.querySelector('[data-gx-livekit-track="'+CSS.escape(key)+'"]'))return;
+  const video=track.attach();if(key)video.dataset.gxLivekitTrack=key;video.autoplay=true;video.playsInline=true;
+  video.style.cssText='position:absolute;inset:0;width:100%;height:100%;min-height:0;max-height:none;object-fit:contain;background:#000';
+  tile.insertBefore(video,avatar);avatar.style.display='none';
 }
 async function leaveGrayxonLiveKitTraining(){
   const room=gxLiveKitRoom;
@@ -3335,6 +3353,7 @@ async function leaveGrayxonLiveKitTraining(){
 
 async function startGrayxonLiveKitTraining(training, options={}){
   const host=$('#grayxonJaasMeet');if(!host||!training?.room_name)return;
+  ensureGrayxonLiveKitLayout();
   destroyJaasMeeting();
   if(gxLiveKitRoom){try{gxLiveKitRoom.disconnect();}catch(_){}gxLiveKitRoom=null;}
   if(gxLiveKitCleanup){try{gxLiveKitCleanup();}catch(_){}gxLiveKitCleanup=null;}
@@ -3389,7 +3408,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
       if(track.kind==='video'&&participant)removeParticipant(participant);
     });
     room.on(LK.RoomEvent.ParticipantDisconnected,participant=>removeParticipant(participant));
-    room.on(LK.RoomEvent.ParticipantConnected,participant=>{if(participant.videoTrackPublications)participant.videoTrackPublications.forEach(pub=>{if(pub.track)onTrack(pub.track,participant);});});
+    room.on(LK.RoomEvent.ParticipantConnected,participant=>{renderGrayxonLiveKitTrack(null,participant,stage);if(participant.videoTrackPublications)participant.videoTrackPublications.forEach(pub=>{if(pub.track)onTrack(pub.track,participant);});});
     room.on(LK.RoomEvent.Disconnected,()=>{if(joined&&!liveTrainingEnding)toast('La conexión del entrenamiento se cerró.');});
     await room.connect(data.serverUrl,data.token,{autoSubscribe:true});
     joined=true;
@@ -3401,6 +3420,8 @@ async function startGrayxonLiveKitTraining(training, options={}){
     const localLabel=document.createElement('div');localLabel.textContent=(profile?.full_name||profile?.username||'Tú')+' · Tú';
     localLabel.style.cssText='position:absolute;left:10px;bottom:9px;z-index:2;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px';
     localTile.appendChild(localLabel);stage.appendChild(localTile);
+    renderGrayxonLiveKitTrack(null,room.localParticipant,stage);
+    room.remoteParticipants.forEach(participant=>renderGrayxonLiveKitTrack(null,participant,stage));
     room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
     room.remoteParticipants.forEach(participant=>participant.trackPublications.forEach(pub=>{if(pub.track&&pub.track.kind==='video')onTrack(pub.track,participant);}));
     const controls=$('.gx-call-controls');
