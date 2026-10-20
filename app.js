@@ -326,7 +326,7 @@ const JAAS_JWT_FUNCTION = 'generate-jaas-jwt';
 // Nueva integración aislada; JaaS permanece disponible como alternativa manual.
 const JITSI_DOMAIN = 'meet.grayxongroup.com';
 const JITSI_JWT_FUNCTION = 'generate-jitsi-jwt';
-const GRAYXON_LIVE_PROVIDER = 'jitsi'; // Jitsi propio queda como proveedor integrado de los entrenamientos LIVE.
+const GRAYXON_LIVE_PROVIDER = 'livekit'; // LiveKit es el proveedor principal; Jitsi queda como respaldo manual.
 const GRAYXON_LIVE_TRAINING_ROOM = 'grayxon-live-training';
 // v14: training audiences are controlled by live_training_audience + RLS.
 let jaasApi = null;
@@ -2994,6 +2994,8 @@ async function getSelfHostedJitsiJwt(trainingId) {
 }
 
 function destroyJaasMeeting() {
+  if(gxLiveKitRoom){const room=gxLiveKitRoom;gxLiveKitRoom=null;try{room.disconnect();}catch(_){}}
+  if(gxLiveKitCleanup){const cleanup=gxLiveKitCleanup;gxLiveKitCleanup=null;try{cleanup();}catch(_){}}
   if (jaasApi) { try { jaasApi.dispose(); } catch (_) {} }
   jaasApi = null; jaasApiRoom = null;
   if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
@@ -3063,7 +3065,9 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = null) {
     toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
     return false;
   }
-  if (!api || !trainingId) return false;
+  if (!trainingId) return false;
+  const liveKitEnding = !!gxLiveKitRoom;
+  if (!api && !liveKitEnding) return false;
 
   liveTrainingEnding = true;
   let accessToken = null;
@@ -3089,6 +3093,26 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = null) {
     const { data: sessionData } = await sb.auth.getSession();
     accessToken = sessionData?.session?.access_token;
     if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible.');
+
+    if (liveKitEnding) {
+      const response = await fetch(`${CFG.SUPABASE_URL}/functions/v1/end-livekit-training`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ trainingId })
+      });
+      let result = null;
+      try { result = await response.json(); } catch (_) {}
+      if (!response.ok || result?.error || result?.ok !== true) {
+        throw new Error(result?.error || 'El servidor no confirmó el cierre de la sala LiveKit.');
+      }
+      toast('Entrenamiento finalizado para todos.');
+      await leaveGrayxonLiveKitTraining();
+      return true;
+    }
 
     // Phase 1: server validates role and training ownership without changing data.
     await callEndTraining('authorize');
@@ -3237,14 +3261,242 @@ async function refreshGrayxonParticipants(api){
     const count=$('.gx-participants-count',panel);if(count)count.textContent=people.length+' conectado'+(people.length===1?'':'s');
   }catch(e){console.warn('No se pudo actualizar participantes',e);}
 }
+
+let gxLiveKitRoom = null;
+let gxLiveKitCleanup = null;
+
+async function loadGrayxonLiveKitSdk(){
+  if(window.LivekitClient?.Room) return window.LivekitClient;
+  await new Promise((resolve,reject)=>{
+    const existing=document.querySelector('script[data-grayxon-livekit-sdk]');
+    if(existing){
+      if(window.LivekitClient?.Room){resolve();return;}
+      existing.addEventListener('load',resolve,{once:true});
+      existing.addEventListener('error',()=>reject(new Error('No se pudo cargar LiveKit.')), {once:true});
+      return;
+    }
+    const script=document.createElement('script');
+    script.src='https://cdn.jsdelivr.net/npm/livekit-client@2.15.6/dist/livekit-client.umd.min.js';
+    script.async=true;script.dataset.grayxonLivekitSdk='1';
+    script.onload=resolve;script.onerror=()=>reject(new Error('No se pudo cargar el cliente de LiveKit.'));
+    document.head.appendChild(script);
+  });
+  if(!window.LivekitClient?.Room) throw new Error('El cliente de LiveKit no quedó disponible.');
+  return window.LivekitClient;
+}
+
+function renderGrayxonLiveKitTrack(track, participant, host){
+  if(!track||!host)return;
+  const identity=String(participant?.identity||participant?.sid||'remote');
+  const tileId=(gxLiveKitRoom&&participant===gxLiveKitRoom.localParticipant)?'gx-livekit-local':'gx-livekit-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_');
+  let tile=host.querySelector('[data-gx-livekit-tile="'+CSS.escape(tileId)+'"]');
+  if(!tile){
+    tile=document.createElement('div');tile.dataset.gxLivekitTile=tileId;
+    tile.style.cssText='position:relative;min-width:0;min-height:180px;background:#090a0c;border:1px solid #30343b;border-radius:12px;overflow:hidden;display:grid;place-items:center';
+    const label=document.createElement('div');label.textContent=participant?.name||participant?.identity||'Participante';
+    label.style.cssText='position:absolute;left:10px;bottom:9px;z-index:2;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px';
+    tile.appendChild(label);host.appendChild(tile);
+  }
+  const element=track.attach();
+  element.autoplay=true;
+  element.playsInline=true;
+  element.style.cssText='width:100%;height:100%;min-height:180px;max-height:70vh;object-fit:contain;background:#000';
+  tile.insertBefore(element,tile.firstChild);
+}
+async function leaveGrayxonLiveKitTraining(){
+  const room=gxLiveKitRoom;
+  if(!room){toast('La llamada de LiveKit ya no está conectada.');return false;}
+  // Suppress the unexpected-disconnect handler: this is an intentional leave.
+  liveTrainingEnding=true;
+  try{await recordLiveTrainingLeave();}catch(error){console.warn('No se pudo registrar la salida de LiveKit:',error);}
+  if(gxLiveKitCleanup){const cleanup=gxLiveKitCleanup;gxLiveKitCleanup=null;try{cleanup();}catch(error){console.warn('No se pudo limpiar la sala LiveKit:',error);}}
+  else{try{room.removeAllListeners();}catch(_){}try{await room.disconnect();}catch(_){}}
+  if(gxLiveKitRoom===room)gxLiveKitRoom=null;
+  if(gxLiveCallRealtimeChannel){try{await sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(error){console.warn('No se pudo cerrar el canal Realtime:',error);}gxLiveCallRealtimeChannel=null;}
+  gxLiveCallRealtimeTrainingId=null;
+  if(gxElapsedInterval){clearInterval(gxElapsedInterval);gxElapsedInterval=null;}
+  if(gxWakeLock){try{await gxWakeLock.release();}catch(_){}gxWakeLock=null;}
+  document.body.classList.remove('grayxon-live-training-call','grayxon-live-training-active');
+  updateCreatorSpaceFloat();
+  const host=$('#grayxonJaasMeet');if(host)host.replaceChildren();
+  const wrap=$('#grayxonTrainingRoomWrap');
+  if(wrap){wrap.classList.add('hidden');wrap.hidden=true;wrap.style.setProperty('display','none','important');}
+  liveTrainingEnding=false;
+  nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space',false);
+  return true;
+}
+
+async function startGrayxonLiveKitTraining(training, options={}){
+  const host=$('#grayxonJaasMeet');if(!host||!training?.room_name)return;
+  destroyJaasMeeting();
+  if(gxLiveKitRoom){try{gxLiveKitRoom.disconnect();}catch(_){}gxLiveKitRoom=null;}
+  if(gxLiveKitCleanup){try{gxLiveKitCleanup();}catch(_){}gxLiveKitCleanup=null;}
+  host.innerHTML='<div id="grayxonLiveKitStage" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px;width:100%;height:100%;min-height:280px;align-content:center"><div class="live-training-loading" aria-hidden="true"></div></div>';
+  liveTrainingHostUserId=training.created_by||null;liveTrainingEnding=false;
+  window.__gxHostParticipantId=null;window.__gxLocalParticipantId=null;
+  const isHost=!!session?.user?.id&&training.created_by===session.user.id;
+  const isAdmin=profile?.role==='admin';
+  window.__gxCanManageMeeting=isHost||isAdmin;
+  let room=null, joined=false, audioEnabled=false, videoEnabled=false, shareTrack=null, elapsedStarted=false;
+  const stage=$('#grayxonLiveKitStage');
+  const setButton=(action,enabled,labelOn,labelOff)=>{
+    const b=$('[data-gx-call="'+action+'"]');if(!b)return;
+    b.setAttribute('aria-pressed',String(enabled));
+    const label=b.querySelector('span:last-child');if(label)label.textContent=enabled?labelOn:labelOff;
+  };
+  const onTrack=(track,participant)=>{
+    if(!track||!stage)return;
+    if(track.kind==='video'){
+      renderGrayxonLiveKitTrack(track,participant,stage);
+      return;
+    }
+    // LiveKit audio tracks must be attached to an audio element for remote audio playback.
+    if(track.kind==='audio'){
+      const audio=track.attach();
+      audio.autoplay=true;
+      audio.setAttribute('playsinline','');
+      audio.dataset.gxLivekitAudio=String(participant?.identity||participant?.sid||'remote');
+      audio.style.cssText='position:absolute;width:1px;height:1px;opacity:0;pointer-events:none';
+      stage.appendChild(audio);
+    }
+  };
+  const removeParticipant=(participant)=>{
+    const key=String(participant?.identity||participant?.sid||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+    stage?.querySelector('[data-gx-livekit-tile="gx-livekit-'+key+'"]')?.remove();
+    const identity=String(participant?.identity||participant?.sid||'');
+    stage?.querySelectorAll('[data-gx-livekit-audio]').forEach(el=>{if(el.dataset.gxLivekitAudio===identity)el.remove();});
+  };
+  try{
+    const [LK,response]=await Promise.all([
+      loadGrayxonLiveKitSdk(),
+      sb.functions.invoke('generate-livekit-token',{body:{trainingId:training.id}})
+    ]);
+    if(response.error)throw new Error(response.error.message||'No se pudo obtener acceso a LiveKit.');
+    const data=response.data||{};
+    if(!data.token||!data.serverUrl)throw new Error(data.error||'El servidor no devolvió el acceso a la sala.');
+    room=new LK.Room({adaptiveStream:true,dynacast:true});
+    gxLiveKitRoom=room;
+    room.on(LK.RoomEvent.TrackSubscribed,(track,publication,participant)=>onTrack(track,participant));
+    room.on(LK.RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
+      try{track.detach().forEach(el=>el.remove());}catch(_){}
+      if(track.kind==='video'&&participant)removeParticipant(participant);
+    });
+    room.on(LK.RoomEvent.ParticipantDisconnected,participant=>removeParticipant(participant));
+    room.on(LK.RoomEvent.ParticipantConnected,participant=>{if(participant.videoTrackPublications)participant.videoTrackPublications.forEach(pub=>{if(pub.track)onTrack(pub.track,participant);});});
+    room.on(LK.RoomEvent.Disconnected,()=>{if(joined&&!liveTrainingEnding)toast('La conexión del entrenamiento se cerró.');});
+    await room.connect(data.serverUrl,data.token,{autoSubscribe:true});
+    joined=true;
+    window.__gxLocalParticipantId=room.localParticipant.identity;
+    stage.innerHTML='';
+    const localTile=document.createElement('div');
+    localTile.dataset.gxLivekitTile='gx-livekit-local';
+    localTile.style.cssText='position:relative;min-width:0;min-height:180px;background:#090a0c;border:1px solid #30343b;border-radius:12px;overflow:hidden;display:grid;place-items:center';
+    const localLabel=document.createElement('div');localLabel.textContent=(profile?.full_name||profile?.username||'Tú')+' · Tú';
+    localLabel.style.cssText='position:absolute;left:10px;bottom:9px;z-index:2;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px';
+    localTile.appendChild(localLabel);stage.appendChild(localTile);
+    room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
+    room.remoteParticipants.forEach(participant=>participant.trackPublications.forEach(pub=>{if(pub.track&&pub.track.kind==='video')onTrack(pub.track,participant);}));
+    const controls=$('.gx-call-controls');
+    controls?.querySelectorAll('[data-gx-call]').forEach(button=>{
+      button.onclick=async()=>{
+        const action=button.getAttribute('data-gx-call');
+        try{
+          if(action==='hangup'){const modal=$('.gx-call-end-modal');if(modal){modal.hidden=false;modal.classList.remove('hidden');}return;}
+          if(action==='more'){const menu=$('.gx-call-more-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;}
+          if(action==='chat'){const panel=$('.gx-chat-panel');if(!panel)return;const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);document.body.classList.toggle('gx-chat-open',open);button.setAttribute('aria-pressed',String(open));if(open)$('#gx-chat-input')?.focus();return;}
+          if(action==='reactions'){const menu=$('.gx-reactions-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;}
+          if(!joined){toast('La llamada todavía se está conectando…');return;}
+          if(action==='audio'){audioEnabled=!audioEnabled;await room.localParticipant.setMicrophoneEnabled(audioEnabled);setButton('audio',audioEnabled,'Micrófono encendido','Micrófono apagado');return;}
+          if(action==='video'){videoEnabled=!videoEnabled;await room.localParticipant.setCameraEnabled(videoEnabled);setButton('video',videoEnabled,'Cámara encendida','Cámara apagada');if(videoEnabled){room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});}return;}
+          if(action==='share'){if(shareTrack){await room.localParticipant.setScreenShareEnabled(false);shareTrack=null;}else{await room.localParticipant.setScreenShareEnabled(true);shareTrack=true;}return;}
+          if(action==='hand'){
+            gxHandRaised=!gxHandRaised;
+            setButton('hand',gxHandRaised,'Bajar la mano','Levantar la mano');
+            const name=profile?.full_name||profile?.username||'Participante';
+            sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,name,raised:gxHandRaised});
+            toast(gxHandRaised?'Levantaste la mano':'Bajaste la mano');
+            return;
+          }
+        }catch(err){console.warn('Control LiveKit no disponible:',action,err);toast('No se pudo ejecutar ese control. Revisa los permisos del dispositivo.');}
+      };
+    });
+    $('.gx-call-more-menu')?.querySelectorAll('[data-gx-more]').forEach(button=>{button.onclick=async()=>{const action=button.getAttribute('data-gx-more');try{if(action==='share')await room.localParticipant.setScreenShareEnabled(!shareTrack);else if(action==='participants')toast('Participantes conectados: '+(room.remoteParticipants.size+1));else if(action==='settings')toast('Configura cámara y micrófono desde los permisos del navegador.');}catch(e){console.warn(e);}const menu=$('.gx-call-more-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}$('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');};});
+    // Conectar los controles compartidos de chat/reacciones al canal realtime de LiveKit.
+    const chatForm=$('.gx-chat-panel form');
+    if(chatForm)chatForm.onsubmit=async ev=>{
+      ev.preventDefault();
+      const input=$('#gx-chat-input'),message=String(input?.value||'').trim();
+      if(!message)return;
+      if(message.length>1000){toast('El mensaje es demasiado largo.');return;}
+      const payload={userId:session?.user?.id||null,name:profile?.full_name||profile?.username||'Participante',message};
+      const sent=await sendGrayxonLiveBroadcast('chat',payload);
+      if(sent?.error){toast('No se pudo enviar el mensaje.');return;}
+      appendGrayxonChatMessage(payload.name,payload.message);
+      if(input)input.value='';
+    };
+    $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>{
+      button.onclick=async()=>{
+        const emoji=button.getAttribute('data-gx-reaction');if(!emoji)return;
+        const payload={userId:session?.user?.id||null,name:profile?.full_name||profile?.username||'Participante',emoji};
+        const sent=await sendGrayxonLiveBroadcast('reaction',payload);
+        if(sent?.error){toast('No se pudo enviar la reacción.');return;}
+        showGrayxonReaction(payload.name,payload.emoji);playGrayxonSound('reaction');
+        const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
+        $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
+      };
+    });
+    const refreshLiveKitParticipants=()=>{
+      const panel=$('.gx-participants-panel'),list=panel?.querySelector('.gx-participants-list');if(!list||!room)return;
+      const people=[{identity:room.localParticipant.identity,name:profile?.full_name||profile?.username||'Tú',local:true},...Array.from(room.remoteParticipants.values()).map(p=>({identity:p.identity,name:p.name||p.identity,local:false}))];
+      list.replaceChildren();
+      people.forEach(person=>{const row=document.createElement('div');row.className='gx-participant-status';row.textContent=person.name+(person.local?' · Tú':'');list.appendChild(row);});
+    };
+    room.on(LK.RoomEvent.ParticipantConnected,refreshLiveKitParticipants);
+    room.on(LK.RoomEvent.ParticipantDisconnected,refreshLiveKitParticipants);
+    const participantsButton=$('[data-gx-more="participants"]');
+    if(participantsButton)participantsButton.onclick=()=>{
+      const panel=$('.gx-participants-panel');if(panel){const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);if(open)refreshLiveKitParticipants();}
+      const menu=$('.gx-call-more-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
+      $('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');
+    };
+    if(!gxLiveStartedAt)gxLiveStartedAt=Date.now();updateGrayxonLiveElapsed();if(!gxElapsedInterval)gxElapsedInterval=setInterval(updateGrayxonLiveElapsed,1000);startGrayxonWakeLock();await recordLiveTrainingJoin(training.id);elapsedStarted=true;
+    if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
+    gxLiveCallRealtimeTrainingId=training.id;
+    gxLiveCallRealtimeChannel=sb.channel('grayxon-live-call-'+training.id,{config:{broadcast:{self:false}}})
+      .on('broadcast',{event:'reaction'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.emoji){showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));playGrayxonSound('reaction');}})
+      .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){appendGrayxonChatMessage(String(payload.name||'Participante'),String(payload.message));}})
+      .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.userId||payload.name||'participant');if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
+      .subscribe();
+    toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
+    gxLiveKitCleanup=()=>{joined=false;try{room?.removeAllListeners();}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
+    room.on(LK.RoomEvent.Disconnected,async()=>{
+      if(liveTrainingEnding||gxLiveKitRoom!==room)return;
+      try{await recordLiveTrainingLeave();}catch(_){}
+      if(gxLiveKitCleanup){gxLiveKitCleanup();gxLiveKitCleanup=null;}
+      document.body.classList.remove('grayxon-live-training-call');updateCreatorSpaceFloat();
+      const wrap=$('#grayxonTrainingRoomWrap');if(host)host.innerHTML='';
+      if(wrap){wrap.classList.add('hidden');wrap.hidden=true;wrap.style.setProperty('display','none','important');}
+      nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space',false);
+    });
+  }catch(error){
+    console.error('GRAYXON LIVEKIT ERROR:',error);
+    if(room){try{await room.disconnect();}catch(_){}}
+    if(gxLiveKitRoom===room)gxLiveKitRoom=null;
+    const message=esc(error?.message||'No se pudo preparar la sala LiveKit.');
+    host.innerHTML='<div class="live-training-error" style="max-width:620px;margin:8vh auto;padding:24px;color:#fff;background:#11141a;border:1px solid rgba(255,255,255,.12);border-radius:18px"><h3>No pudimos abrir el entrenamiento con LiveKit</h3><p>'+message+'</p><p>La sala anterior de Jitsi sigue disponible como respaldo.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="primary" id="retryGrayxonTraining">Intentar LiveKit nuevamente</button><button class="secondary" id="fallbackGrayxonJitsi">Entrar con Jitsi</button></div></div>';
+    $('#retryGrayxonTraining')?.addEventListener('click',()=>startGrayxonLiveTraining(training,{...options,provider:'livekit'}));
+    $('#fallbackGrayxonJitsi')?.addEventListener('click',()=>startGrayxonLiveTraining(training,{...options,provider:'jitsi'}));
+  }
+}
+
 async function startGrayxonLiveTraining(training, options={}){
-  // Persistir el modo de prueba durante el login/navegación interna, que puede limpiar la query string.
-  const testParam = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
-  if (testParam) { try { sessionStorage.setItem('grayxonJitsiTestMode','1'); } catch (_) {} }
-  let requestedJitsiTest = testParam;
-  if (!requestedJitsiTest) { try { requestedJitsiTest = sessionStorage.getItem('grayxonJitsiTestMode') === '1'; } catch (_) {} }
+  // Jitsi solo se selecciona explícitamente para esta URL de prueba o mediante el respaldo manual.
+  // No persistirlo en sessionStorage: un modo Jitsi antiguo puede sobrevivir a la navegación
+  // y mezclar una sala Jitsi con participantes que están usando LiveKit para el mismo entrenamiento.
+  const requestedJitsiTest = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
   // El parámetro solo selecciona el proveedor; la Edge Function sigue validando acceso y permisos.
   const provider = options.provider || (requestedJitsiTest ? 'jitsi' : GRAYXON_LIVE_PROVIDER);
+  if(provider==='livekit') return startGrayxonLiveKitTraining(training,options);
   const host=$('#grayxonJaasMeet'); if(!host||!training?.room_name)return;
   destroyJaasMeeting();
   host.innerHTML='<div id="grayxonJaasLoading" class="live-training-loading" aria-hidden="true"></div>';
@@ -3641,11 +3893,13 @@ async function startGrayxonLiveTraining(training, options={}){
 
     api.addEventListener?.('toolbarButtonClicked',async(ev)=>{
       if(ev?.key!=='hangup')return;
-      if(canManageMeeting){
-        await endLiveTrainingConference(api,training.id,true);
-      }else{
-        try { api.executeCommand('hangup'); } catch (_) {}
-      }
+      // Salir de la llamada nunca debe finalizar automáticamente la sesión para todos,
+      // incluso para anfitrión/administrador. El cierre global requiere la elección
+      // explícita "Finalizar entrenamiento para todos" en el modal de Grayxon.
+      const modal=$('.gx-call-end-modal');
+      if(modal){modal.hidden=false;modal.classList.remove('hidden');return;}
+      // Fallback defensivo si el modal no está disponible: desconectar solo a este usuario.
+      try { api.executeCommand('hangup'); } catch (_) {}
     });
 
     api.addEventListener?.('readyToClose',async()=>{
@@ -3892,24 +4146,29 @@ async function liveTrainingTpl(trainingOverride=null) {
     }catch(error){console.warn('No se pudo ejecutar la acción de moderación:',action,error);toast('No se pudo completar la acción.');button.disabled=false;}
   });
   $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');});
-  $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(profile?.full_name||profile?.username||'Tú',message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
+  $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;const name=profile?.full_name||profile?.username||'Tú';if(gxLiveKitRoom){sendGrayxonLiveBroadcast('chat',{userId:session?.user?.id||null,name,message,createdAt:new Date().toISOString()}).then(result=>{if(result?.error)toast('No se pudo enviar el mensaje a los demás participantes.');});appendGrayxonChatMessage(name,message);if(input)input.value='';return;}if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(name,message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
   $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
     const emoji=button.getAttribute('data-gx-reaction');
     const name=profile?.full_name||profile?.username||'Participante';
     showGrayxonReaction(name,emoji);playGrayxonSound('reaction');
-    // Enviar por el canal de Grayxon y por el chat de la propia sala como respaldo.
-    // Así la reacción llega incluso si el canal Realtime no se suscribe en algún móvil.
-    sendGrayxonLiveBroadcast('reaction',{userId:session?.user?.id||null,name,emoji}).then(result=>{
-      if(result?.error)console.warn('Grayxon LIVE: fallback de reacción por chat Jitsi.',result.error);
-    });
-    try{jaasApi?.executeCommand('sendChatMessage','[GXREACTION:'+emoji+']');}catch(err){console.warn('No se pudo enviar la reacción por Jitsi:',err);}
+    // LiveKit usa el canal Realtime de Grayxon; Jitsi conserva su fallback de chat.
+    if(gxLiveKitRoom){
+      sendGrayxonLiveBroadcast('reaction',{userId:session?.user?.id||null,name,emoji}).then(result=>{
+        if(result?.error)toast('La reacción solo se mostró en este dispositivo; no se pudo sincronizar.');
+      });
+    }else{
+      sendGrayxonLiveBroadcast('reaction',{userId:session?.user?.id||null,name,emoji}).then(result=>{
+        if(result?.error)console.warn('Grayxon LIVE: no se pudo sincronizar la reacción.',result.error);
+      });
+      try{jaasApi?.executeCommand('sendChatMessage','[GXREACTION:'+emoji+']');}catch(err){console.warn('No se pudo enviar la reacción por Jitsi:',err);}
+    }
     const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
     $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
   }));
   $('.gx-call-end-modal')?.querySelectorAll('[data-gx-end-choice]').forEach(button=>button.addEventListener('click',async()=>{
     const choice=button.getAttribute('data-gx-end-choice');const modal=$('.gx-call-end-modal');
     if(choice==='cancel'){if(modal){modal.hidden=true;modal.classList.add('hidden');}return;}
-    if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
+    if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}if(gxLiveKitRoom){await leaveGrayxonLiveKitTraining();return;}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
     if(choice==='end'){
       if(!(isHost||profile?.role==='admin')){toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');return;}
       if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id,true);
