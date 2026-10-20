@@ -3358,7 +3358,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
     gxLiveKitCleanup=()=>{joined=false;try{room?.removeAllListeners();}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
     room.on(LK.RoomEvent.Disconnected,async()=>{
-      if(liveTrainingEnding)return;
+      if(liveTrainingEnding||gxLiveKitRoom!==room)return;
       try{await recordLiveTrainingLeave();}catch(_){}
       if(gxLiveKitCleanup){gxLiveKitCleanup();gxLiveKitCleanup=null;}
       document.body.classList.remove('grayxon-live-training-call');updateCreatorSpaceFloat();
