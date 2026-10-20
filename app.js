@@ -3308,7 +3308,15 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   const tileId=isLocal?'gx-livekit-local':'gx-livekit-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_');
   let tile=host.querySelector('[data-gx-livekit-tile="'+CSS.escape(tileId)+'"]');
   if(!tile){tile=document.createElement('div');tile.dataset.gxLivekitTile=tileId;host.appendChild(tile);}
-  if(!host.querySelector('[data-gx-livekit-main="true"]'))tile.dataset.gxLivekitMain='true';
+  const pinnedId=String(window.__gxLiveKitPinnedParticipantId||'');
+  const isTrainingHost=String(participant?.identity||'')===String(window.__gxHostParticipantId||'');
+  if(pinnedId){
+    host.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item.dataset.gxLivekitTile===pinnedId);});
+  }else if(isTrainingHost){
+    host.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item===tile);});
+  }else if(!host.querySelector('[data-gx-livekit-main="true"]')){
+    tile.dataset.gxLivekitMain=String(!isLocal);
+  }
   let label=tile.querySelector('[data-gx-livekit-label]');
   if(!label){label=document.createElement('div');label.dataset.gxLivekitLabel='1';label.textContent=isLocal?(profile?.full_name||profile?.username||'Tú')+' · Tú':(participant?.name||participant?.identity||'Participante');tile.appendChild(label);}
   let avatar=tile.querySelector('.gx-livekit-avatar');
@@ -3362,7 +3370,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
   if(gxLiveKitCleanup){try{gxLiveKitCleanup();}catch(_){}gxLiveKitCleanup=null;}
   host.innerHTML='<div id="grayxonLiveKitStage" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px;width:100%;height:100%;min-height:280px;align-content:center"><div class="live-training-loading" aria-hidden="true"></div></div>';
   liveTrainingHostUserId=training.created_by||null;liveTrainingEnding=false;
-  window.__gxHostParticipantId=null;window.__gxLocalParticipantId=null;
+  window.__gxHostParticipantId=String(training.created_by||'');window.__gxLocalParticipantId=null;window.__gxLiveKitPinnedParticipantId=null;
   const isHost=!!session?.user?.id&&training.created_by===session.user.id;
   const isAdmin=profile?.role==='admin';
   window.__gxCanManageMeeting=isHost||isAdmin;
@@ -3374,6 +3382,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
       const tile=event.target.closest('[data-gx-livekit-tile]');
       if(!tile||!stage.contains(tile))return;
       stage.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item===tile);});
+      window.__gxLiveKitPinnedParticipantId=tile.dataset.gxLivekitTile;
     });
   }
   const setButton=(action,enabled,labelOn,labelOff)=>{
