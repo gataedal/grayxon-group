@@ -83,7 +83,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
 
     const { data: training, error: trainingError } = await ctx.supabaseAdmin
       .from("live_trainings")
-      .select("id, room_name, created_by, status, started_at, ended_at, livekit_room_verified_at")
+      .select("id, room_name, created_by, status, started_at, ended_at")
       .eq("id", trainingId)
       .maybeSingle();
     if (trainingError) {
@@ -147,57 +147,10 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     const roomExists = Array.isArray(roomList?.rooms) &&
       roomList.rooms.some((room: { name?: string }) => room.name === training.room_name);
     if (!roomExists) {
-      // A prior request may have verified this exact room and successfully deleted
-      // it, but failed while reconciling Supabase. The durable marker makes that
-      // recovery safe without treating an arbitrary missing room as a LiveKit close.
-      if (training.livekit_room_verified_at) {
-        const endedAt = new Date().toISOString();
-        const { data: finalized, error: finalizeError } = await ctx.supabaseAdmin.rpc(
-          "finalize_live_training_from_livekit_delete",
-          { p_training_id: trainingId, p_ended_at: endedAt },
-        );
-        if (finalizeError) {
-          console.error("end-livekit-training: retry reconciliation failed", {
-            code: finalizeError.code, message: finalizeError.message,
-          });
-          return response({
-            error: "La sala ya no existe en LiveKit y la sincronización sigue pendiente. Se requiere revisar el estado del entrenamiento.",
-            code: "LIVEKIT_DATABASE_RECONCILIATION_PENDING",
-          }, 500);
-        }
-        return response({
-          ok: true,
-          endedAt,
-          recoveredAfterRetry: true,
-          verifiedBy: "previous-livekit-room-verification",
-          result: finalized,
-        });
-      }
       return response({
         error: "No se encontró una sala activa de LiveKit para este entrenamiento. No se modificó su estado.",
         code: "LIVEKIT_ROOM_NOT_FOUND",
       }, 409);
-    }
-
-    // Persist proof that this training's exact room existed before attempting
-    // deletion. If deletion succeeds but DB reconciliation fails, a retry can
-    // safely finish the DB update even though the room is now gone.
-    const { data: verifiedTraining, error: markerError } = await ctx.supabaseAdmin
-      .from("live_trainings")
-      .update({ livekit_room_verified_at: new Date().toISOString() })
-      .eq("id", trainingId)
-      .eq("status", "live")
-      .eq("room_name", training.room_name)
-      .select("id")
-      .maybeSingle();
-    if (markerError) {
-      console.error("end-livekit-training: failed to persist room verification", {
-        code: markerError.code, message: markerError.message,
-      });
-      return response({ error: "No se pudo guardar la verificación de la sala. No se intentó cerrarla." }, 500);
-    }
-    if (!verifiedTraining) {
-      return response({ error: "El entrenamiento cambió de estado durante la operación. No se intentó cerrar la sala." }, 409);
     }
 
     const token = await signServerToken(apiKey, apiSecret, userId, "roomCreate");
