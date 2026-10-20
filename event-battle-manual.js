@@ -41,10 +41,11 @@
   function openModal(){
     if(busy||typeof gxEventsAdmin!=='function'||!gxEventsAdmin())return;
     const d=data();if(!d?.event?.battle_enabled)return toastMsg('Este evento no tiene las batallas habilitadas.');
-    const participants=(d.participants||[]).filter(p=>['registered','confirmed'].includes(p.status));
+    const confirmedUsers=new Set((d.responses||[]).filter(r=>r.response==='yes').map(r=>r.user_id));
+    const participants=(d.participants||[]).filter(p=>['registered','confirmed'].includes(p.status)&&confirmedUsers.has(p.user_id));
     const profiles=new Map((d.profiles||[]).map(p=>[p.id,p]));
     const options=participants.map(p=>{const u=profiles.get(p.user_id)||{};const name=p.tiktok_username||u.tiktok_username||u.username||u.full_name||String(p.user_id||'').slice(0,8);return '<option value="'+esc(p.id)+'">@'+esc(String(name).replace(/^@+/,''))+'</option>'}).join('');
-    if(participants.length<2){toastMsg('Se necesitan al menos dos participantes activos en el evento.');return}
+    if(participants.length<2){toastMsg('Se necesitan al menos dos participantes activos que hayan confirmado su asistencia.');return}
     const rounds=(d.rounds||[]).slice().sort((a,b)=>Number(a.round_number)-Number(b.round_number));
     const phases=(d.phases||[]);
     const dt=bogotaDefault();
