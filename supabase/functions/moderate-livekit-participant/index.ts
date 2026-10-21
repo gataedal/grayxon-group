@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "jsr:@supabase/server@^1";
-import { resolveLiveTrainingCapabilities } from "../_shared/live-training-policy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
