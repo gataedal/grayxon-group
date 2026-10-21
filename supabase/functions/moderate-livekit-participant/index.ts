@@ -46,6 +46,15 @@ function liveKitHttpBase(rawUrl: string): string | null {
   } catch { return null; }
 }
 
+// Keep authorization local to this self-contained Edge Function. The shared
+// policy module is not imported here, so this helper must be defined here.
+function resolveLiveTrainingCapabilities(userId: string, role: unknown, active: unknown, createdBy: unknown) {
+  const isActive = active === true;
+  const isAdmin = String(role ?? "").toLowerCase() === "admin";
+  const isHost = String(createdBy ?? "") === userId;
+  return { isActive, isAdmin, isHost, canModerate: isActive && (isAdmin || isHost) };
+}
+
 const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
   try {
     const userId = ctx.userClaims?.id;
