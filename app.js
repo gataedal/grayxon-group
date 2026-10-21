@@ -3013,6 +3013,7 @@ function destroyJaasMeeting() {
   if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
   gxLiveCallRealtimeTrainingId=null;
   grayxonRaisedHands.clear();
+  gxLiveKitHandRaised=false;
   window.__gxLocalParticipantId=null;
   window.__gxCanManageMeeting=false;
 }
