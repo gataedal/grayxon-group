@@ -3345,46 +3345,22 @@ function renderGrayxonLiveKitTrack(track, participant, host){
     if(!controls){
       controls=document.createElement('div');
       controls.dataset.gxLivekitMiniControls='1';
-      controls.style.cssText='position:absolute;left:6px;right:6px;bottom:6px;z-index:5;display:flex;justify-content:space-between;align-items:center;pointer-events:none';
-      const makeControl=(kind,label,iconOn,iconOff)=>{
+      controls.style.cssText='position:absolute;right:7px;bottom:38px;z-index:8;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:7px;pointer-events:none';
+      const makeControl=(kind,label)=>{
         const button=document.createElement('button');
         button.type='button';
         button.dataset.gxMiniMedia=kind;
         button.setAttribute('aria-label',label);
-        button.style.cssText='width:30px;height:30px;border:1px solid #ffffff35;border-radius:50%;background:#101319e8;color:#fff;display:grid;place-items:center;padding:0;pointer-events:auto;box-shadow:0 2px 8px #0008';
+        button.style.cssText='width:31px;height:31px;border:1px solid #ffffff45;border-radius:50%;background:#101319e8;color:#fff;display:grid;place-items:center;padding:0;pointer-events:auto;box-shadow:0 2px 8px #0008;touch-action:manipulation';
         button.innerHTML=kind==='audio'
           ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="13" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"></path></svg>'
           : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="m16 10 5-3v10l-5-3"></path></svg>';
-        button.addEventListener('click',async ev=>{
+        button.addEventListener('click',ev=>{
           ev.preventDefault();ev.stopPropagation();
-          const liveRoom=gxLiveKitRoom;
-          const local=liveRoom?.localParticipant;
-          if(!local){toast('La llamada no está conectada.');return;}
-          button.disabled=true;
-          try{
-            if(kind==='audio'){
-              const enabled=!(local.isMicrophoneEnabled??false);
-              await local.setMicrophoneEnabled(enabled);
-              button.dataset.enabled=String(enabled);
-              button.style.background=enabled?'#101319e8':'#b42336';
-              button.setAttribute('aria-pressed',String(enabled));
-              button.setAttribute('aria-label',enabled?'Apagar micrófono':'Activar micrófono');
-              button.title=enabled?'Micrófono encendido':'Micrófono apagado';
-              const mainButton=$('[data-gx-call="audio"]');
-              if(mainButton){mainButton.setAttribute('aria-pressed',String(enabled));const text=mainButton.querySelector('span:last-child');if(text)text.textContent=enabled?'Micrófono encendido':'Micrófono apagado';}
-            }else{
-              const enabled=!(local.isCameraEnabled??false);
-              await local.setCameraEnabled(enabled);
-              button.dataset.enabled=String(enabled);
-              button.style.background=enabled?'#101319e8':'#b42336';
-              button.setAttribute('aria-pressed',String(enabled));
-              button.setAttribute('aria-label',enabled?'Apagar cámara':'Activar cámara');
-              button.title=enabled?'Cámara encendida':'Cámara apagada';
-              const mainButton=$('[data-gx-call="video"]');
-              if(mainButton){mainButton.setAttribute('aria-pressed',String(enabled));const text=mainButton.querySelector('span:last-child');if(text)text.textContent=enabled?'Cámara encendida':'Cámara apagada';}
-            }
-          }catch(err){console.warn('No se pudo cambiar dispositivo desde miniatura:',kind,err);toast('No se pudo cambiar el dispositivo. Revisa los permisos.');}
-          finally{button.disabled=false;}
+          const mainButton=$('[data-gx-call="'+kind+'"]');
+          if(!gxLiveKitRoom?.localParticipant){toast('La llamada no está conectada.');return;}
+          if(mainButton)mainButton.click();
+          else toast('El control de '+(kind==='audio'?'micrófono':'cámara')+' no está disponible.');
         });
         return button;
       };
@@ -3430,7 +3406,7 @@ async function leaveGrayxonLiveKitTraining(){
   gxLiveCallRealtimeTrainingId=null;
   if(gxElapsedInterval){clearInterval(gxElapsedInterval);gxElapsedInterval=null;}
   if(gxWakeLock){try{await gxWakeLock.release();}catch(_){}gxWakeLock=null;}
-  document.body.classList.remove('grayxon-live-training-call','grayxon-live-training-active');
+  document.body.classList.remove('grayxon-live-training-call','grayxon-live-training-active','grayxon-livekit-active');
   updateCreatorSpaceFloat();
   const host=$('#grayxonJaasMeet');if(host)host.replaceChildren();
   const wrap=$('#grayxonTrainingRoomWrap');
@@ -3537,8 +3513,35 @@ async function startGrayxonLiveKitTraining(training, options={}){
         const isLocal=!!(gxLiveKitRoom&&participant===gxLiveKitRoom.localParticipant);
         const key=isLocal?'gx-livekit-local':'gx-livekit-'+String(participant?.identity||participant?.sid||'remote').replace(/[^a-zA-Z0-9_-]/g,'_');
         const tile=stage?.querySelector('[data-gx-livekit-tile="'+CSS.escape(key)+'"]');
-        if(tile){tile.querySelectorAll('video,[data-gx-livekit-track]').forEach(el=>el.remove());const avatar=tile.querySelector('.gx-livekit-avatar');if(avatar)avatar.style.display='flex';}
+        if(tile){
+          tile.querySelectorAll('video,[data-gx-livekit-track]').forEach(el=>el.remove());
+          const avatar=tile.querySelector('.gx-livekit-avatar');
+          if(avatar){avatar.style.display='flex';avatar.style.visibility='visible';}
+        }
       }
+    });
+    room.on(LK.RoomEvent.TrackMuted,(publication,participant)=>{
+      if(publication?.kind!=='video'||!participant)return;
+      const isLocal=participant===room.localParticipant;
+      const key=isLocal?'gx-livekit-local':'gx-livekit-'+String(participant.identity||participant.sid||'remote').replace(/[^a-zA-Z0-9_-]/g,'_');
+      const tile=stage?.querySelector('[data-gx-livekit-tile="'+CSS.escape(key)+'"]');
+      const video=tile?.querySelector('video');
+      const avatar=tile?.querySelector('.gx-livekit-avatar');
+      if(video)video.style.display='none';
+      if(avatar){avatar.style.display='flex';avatar.style.visibility='visible';}
+    });
+    room.on(LK.RoomEvent.TrackUnmuted,(publication,participant)=>{
+      if(publication?.kind!=='video'||!participant)return;
+      const isLocal=participant===room.localParticipant;
+      const key=isLocal?'gx-livekit-local':'gx-livekit-'+String(participant.identity||participant.sid||'remote').replace(/[^a-zA-Z0-9_-]/g,'_');
+      const tile=stage?.querySelector('[data-gx-livekit-tile="'+CSS.escape(key)+'"]');
+      const video=tile?.querySelector('video');
+      const avatar=tile?.querySelector('.gx-livekit-avatar');
+      if(video)video.style.display='block';
+      if(video&&avatar)avatar.style.display='none';
+    });
+    room.on(LK.RoomEvent.LocalTrackPublished,(publication,participant)=>{
+      if(publication?.kind==='video'&&publication.track)renderGrayxonLiveKitTrack(publication.track,participant||room.localParticipant,stage);
     });
     room.on(LK.RoomEvent.ParticipantDisconnected,participant=>removeParticipant(participant));
     room.on(LK.RoomEvent.ParticipantConnected,participant=>{
@@ -3553,6 +3556,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room.on(LK.RoomEvent.Disconnected,()=>{if(joined&&!liveTrainingEnding)toast('La conexión del entrenamiento se cerró.');});
     await room.connect(data.serverUrl,data.token,{autoSubscribe:true});
     joined=true;
+    document.body.classList.add('grayxon-livekit-active');
     window.__gxLocalParticipantId=room.localParticipant.identity;
     window.__gxHostParticipantId=String(data.sessionHostUserId||'');
     stage.innerHTML='';
