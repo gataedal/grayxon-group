@@ -3503,11 +3503,20 @@ async function startGrayxonLiveKitTraining(training, options={}){
       const key=isLocal?'gx-livekit-local':'gx-livekit-'+String(participant?.identity||participant?.sid||'remote').replace(/[^a-zA-Z0-9_-]/g,'_');
       const tile=stage?.querySelector('[data-gx-livekit-tile="'+CSS.escape(key)+'"]');
       const track=publication.track;
+      const source=String(publication.source||track?.source||'').toLowerCase().replace(/[_-]/g,'');
       try{track?.detach?.().forEach(element=>element.remove());}catch(_){}
       if(tile){
-        const remainingVideo=tile.querySelector('video');
+        // A screen-share track ending must never leave a stale black frame or
+        // hide a camera track that is still published by the same participant.
+        if(source.includes('screenshare'))tile.querySelectorAll('video[data-gx-screen-share="true"]').forEach(element=>element.remove());
+        const cameraPublication=Array.from(participant.videoTrackPublications?.values?.()||[]).find(pub=>String(pub.source||pub.track?.source||'').toLowerCase().replace(/[_-]/g,'')==='camera');
+        if(cameraPublication){
+          try{cameraPublication.setSubscribed?.(true);}catch(error){console.warn('No se pudo recuperar la suscripción de cámara:',error);}
+          if(cameraPublication.track)onTrack(cameraPublication.track,participant);
+        }
+        const remainingVideo=tile.querySelector('video:not([data-gx-screen-share="true"])');
         const avatar=tile.querySelector('.gx-livekit-avatar');
-        if(remainingVideo){if(avatar){avatar.style.display='none';avatar.style.visibility='hidden';}}
+        if(remainingVideo){remainingVideo.style.display='block';remainingVideo.style.visibility='visible';if(avatar){avatar.style.display='none';avatar.style.visibility='hidden';}}
         else if(avatar){avatar.style.display='flex';avatar.style.visibility='visible';}
       }
     });
