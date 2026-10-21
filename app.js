@@ -3489,6 +3489,28 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room=new LK.Room({adaptiveStream:true,dynacast:true});
     gxLiveKitRoom=room;
     room.on(LK.RoomEvent.TrackSubscribed,(track,publication,participant)=>onTrack(track,participant));
+    // Reafirma la suscripción cuando una pista remota se publica de nuevo.
+    // Esto ayuda a que los participantes que ya están dentro reciban el vídeo
+    // restaurado sin tener que abandonar y volver a entrar a la sala.
+    room.on(LK.RoomEvent.TrackPublished,(publication,participant)=>{
+      if(!publication||!participant||participant===room.localParticipant)return;
+      try{publication.setSubscribed?.(true);}catch(error){console.warn('No se pudo reafirmar la suscripción de la pista remota:',error);}
+      if(publication.track)onTrack(publication.track,participant);
+    });
+    room.on(LK.RoomEvent.TrackUnpublished,(publication,participant)=>{
+      if(!publication||!participant)return;
+      const isLocal=participant===room.localParticipant;
+      const key=isLocal?'gx-livekit-local':'gx-livekit-'+String(participant?.identity||participant?.sid||'remote').replace(/[^a-zA-Z0-9_-]/g,'_');
+      const tile=stage?.querySelector('[data-gx-livekit-tile="'+CSS.escape(key)+'"]');
+      const track=publication.track;
+      try{track?.detach?.().forEach(element=>element.remove());}catch(_){}
+      if(tile){
+        const remainingVideo=tile.querySelector('video');
+        const avatar=tile.querySelector('.gx-livekit-avatar');
+        if(remainingVideo){if(avatar){avatar.style.display='none';avatar.style.visibility='hidden';}}
+        else if(avatar){avatar.style.display='flex';avatar.style.visibility='visible';}
+      }
+    });
     room.on(LK.RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
       // Quita únicamente la pista que LiveKit acaba de desuscribir. Al terminar
       // de compartir pantalla, no debemos borrar también la cámara que sigue activa.
