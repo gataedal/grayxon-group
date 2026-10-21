@@ -139,7 +139,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        room: training.room_name, identity: participantId, track_sid: track.sid, muted: true,
+        room: training.room_name, identity: participantId, trackSid: track.sid, muted: true,
       }),
     });
     if (!muteResponse.ok) {
