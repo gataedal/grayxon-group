@@ -3635,8 +3635,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
       try{
         const devices=await navigator.mediaDevices.enumerateDevices();
         const fill=(select,kind,label)=>{
-          const previous=select.value;
-          select.replaceChildren();
+          const previous=select.value;select.replaceChildren();
           const list=devices.filter(device=>device.kind===kind);
           if(!list.length){const option=document.createElement('option');option.value='';option.textContent='No se encontraron dispositivos';select.appendChild(option);return;}
           list.forEach((device,index)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||label+' '+(index+1);select.appendChild(option);});
@@ -3661,8 +3660,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
       const select=$('[data-gx-device-camera]');if(!select)return;
       const choices=Array.from(select.options).filter(option=>option.value);
       if(choices.length<2){toast('Este dispositivo no ofrece otra cámara.');return;}
-      const next=choices[(choices.findIndex(option=>option.value===select.value)+1)%choices.length];
-      select.value=next.value;
+      const next=choices[(choices.findIndex(option=>option.value===select.value)+1)%choices.length];select.value=next.value;
       try{await room.switchActiveDevice('videoinput',next.value);toast('Cámara cambiada ✓');}catch(error){toast(error?.message||'No se pudo cambiar la cámara.');}
     });
     $('[data-gx-device-apply]')?.addEventListener('click',async()=>{
@@ -3670,9 +3668,8 @@ async function startGrayxonLiveKitTraining(training, options={}){
       try{
         if(camera)await room.switchActiveDevice('videoinput',camera);
         if(microphone)await room.switchActiveDevice('audioinput',microphone);
-        const publication=room.localParticipant.getTrackPublication?.(LK.Track.Source.Camera);
-        const track=publication?.track;
-        if(track?.restartTrack){const height=quality,width=Math.round(height*16/9);await track.restartTrack({resolution:{width,height,frameRate:30}});}
+        const track=room.localParticipant.getTrackPublication?.(LK.Track.Source.Camera)?.track;
+        if(track?.restartTrack){const height=quality,width=Math.round(height*16/9);await track.restartTrack({width:{ideal:width},height:{ideal:height},frameRate:{ideal:30,max:30}});}
         applyMirror(!!$('[data-gx-device-mirror]')?.checked);
         if(note)note.textContent='Configuración aplicada. La calidad efectiva puede variar según la cámara, la red y el navegador.';
         toast('Dispositivos actualizados ✓');
