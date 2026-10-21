@@ -3453,14 +3453,14 @@ async function startGrayxonLiveKitTraining(training, options={}){
         menu.id='gx-livekit-participant-menu';
         menu.className='gx-livekit-participant-menu';
         menu.setAttribute('role','menu');
-        menu.innerHTML='<div class="gx-livekit-participant-menu-title" data-gx-participant-menu-name>Participante</div><button type="button" data-gx-participant-menu-action="pin">Fijar participante</button><button type="button" data-gx-participant-menu-action="audio">Silenciar micrófono</button><button type="button" data-gx-participant-menu-action="video">Apagar cámara</button>';
+        menu.innerHTML='<div class="gx-livekit-participant-menu-title" data-gx-participant-menu-name>Participante</div><button type="button" data-gx-participant-menu-action="pin">Fijar participante</button><button type="button" data-gx-participant-menu-action="unpin" hidden>Desfijar participante</button><button type="button" data-gx-participant-menu-action="audio">Silenciar micrófono</button><button type="button" data-gx-participant-menu-action="video">Apagar cámara</button>';
         document.body.appendChild(menu);
         menu.addEventListener('click',async ev=>{
           const button=ev.target.closest('[data-gx-participant-menu-action]');
           if(!button)return;
           const targetId=String(menu.dataset.targetIdentity||'');
           const action=String(button.dataset.gxParticipantMenuAction||'');
-          if(!targetId||!['pin','audio','video'].includes(action))return;
+          if(!targetId||!['pin','unpin','audio','video'].includes(action))return;
           if(button.dataset.busy==='1')return;
           const trainingId=String(training?.id||currentLiveTraining?.id||'');
           if(!trainingId){toast('No se identificó el entrenamiento activo.');return;}
@@ -3468,6 +3468,21 @@ async function startGrayxonLiveKitTraining(training, options={}){
           button.dataset.busy='1';
           button.disabled=true;
           try{
+            if(action==='unpin'){
+              window.__gxLiveKitPinnedParticipantId=null;
+              const broadcast=await sendGrayxonLiveBroadcast('pin-participant',{participantId:'',userId:session?.user?.id||'',trainingId});
+              if(broadcast?.error)throw new Error('No se pudo sincronizar el desfijado con los demás participantes.');
+              const tiles=Array.from(stage?.querySelectorAll('[data-gx-livekit-tile]')||[]);
+              const hostId=String(window.__gxHostParticipantId||'');
+              const hostTile=tiles.find(item=>item.dataset.gxLivekitIdentity===hostId);
+              const localTile=tiles.find(item=>item.dataset.gxLivekitIdentity===String(room?.localParticipant?.identity||''));
+              const main=hostTile||localTile||tiles[0];
+              if(main&&stage&&main!==stage.firstChild)stage.insertBefore(main,stage.firstChild);
+              tiles.forEach(item=>item.dataset.gxLivekitMain=String(item===main));
+              toast('Participante desfijado ✓');
+              menu.hidden=true;
+              return;
+            }
             const {data,error}=await sb.functions.invoke('moderate-livekit-participant',{body:{trainingId,participantId:targetId,action}});
             if(error)throw new Error(error.message||'No se pudo ejecutar la acción de moderación.');
             if(data?.error||!data?.ok)throw new Error(data?.error||'El servidor no confirmó la acción.');
@@ -3496,6 +3511,11 @@ async function startGrayxonLiveKitTraining(training, options={}){
         });
       }
       menu.dataset.targetIdentity=identity;
+      const currentlyPinned=String(window.__gxLiveKitPinnedParticipantId||'');
+      const pinButton=menu.querySelector('[data-gx-participant-menu-action="pin"]');
+      const unpinButton=menu.querySelector('[data-gx-participant-menu-action="unpin"]');
+      if(pinButton)pinButton.hidden=currentlyPinned===identity;
+      if(unpinButton)unpinButton.hidden=currentlyPinned!==identity;
       menu.querySelector('[data-gx-participant-menu-name]').textContent=tile.querySelector('[data-gx-livekit-label]')?.textContent||tile.querySelector('[data-gx-livekit-label]')?.innerText||'Participante';
       const rect=tile.getBoundingClientRect();
       menu.style.left=Math.max(12,Math.min(rect.left,window.innerWidth-236))+'px';
