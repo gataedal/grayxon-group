@@ -3433,8 +3433,8 @@ function ensureGrayxonLiveKitLayout(){
   #grayxonLiveKitStage [data-gx-livekit-label]{position:absolute;left:10px;bottom:9px;z-index:3;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px;max-width:85%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   @media(max-width:600px){#grayxonLiveKitStage{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-height:0;height:auto;align-content:start}#grayxonLiveKitStage [data-gx-livekit-tile]{grid-column:auto!important;grid-row:auto!important;aspect-ratio:4/3;min-height:110px;border-radius:10px}#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1!important;aspect-ratio:16/9;min-height:190px}#grayxonLiveKitStage [data-gx-livekit-tile] video{object-fit:cover}#grayxonLiveKitStage .gx-livekit-avatar img,#grayxonLiveKitStage .gx-livekit-avatar-fallback{width:clamp(54px,18vw,86px)}}
   @media(min-width:601px){#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1;aspect-ratio:16/9;min-height:260px}}
-  /* Evita mostrar la barra heredada de Jitsi mientras la sala usa LiveKit. */
-  body.grayxon-live-training-call #grayxonTrainingRoomWrap:has(#grayxonLiveKitStage) .live-training-toolbar{display:none!important;visibility:hidden!important;}`;
+  /* Si queda un iframe de Jitsi durante el arranque, nunca debe cubrir la sala LiveKit. */
+  body.grayxon-live-training-call #grayxonJaasMeet:has(#grayxonLiveKitStage) iframe{display:none!important;visibility:hidden!important;pointer-events:none!important;}`;
   document.head.appendChild(style);
 }
 function renderGrayxonLiveKitTrack(track, participant, host){
