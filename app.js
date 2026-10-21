@@ -8398,6 +8398,16 @@ function gxEnsureEventsMatrixStyles(){
   } 
   #events .gxev-ranking-full-table tr.gxev-current-user-rank td{background:rgba(255,207,102,.12);text-decoration:underline;text-decoration-color:#ffcf66;text-decoration-thickness:2px;text-underline-offset:4px}
   @media(max-width:650px){#events .gxev-rank-compact-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;overflow-x:auto}#events .gxev-rank-compact-row{padding:7px 5px;flex-direction:column;justify-content:center;text-align:center;gap:4px;min-width:0;font-size:11px}#events .gxev-rank-compact-row b{max-width:100%;width:100%}#events .gxev-rank-compact-row strong{font-size:10px}#events .gxev-rank-feature-compact{padding:9px}}
+  /* Mobile-only final overrides for event podium header/footer */
+  @media(max-width:650px){
+    #events .gxev-event-podium .gxev-rank-feature-head{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:start!important;justify-content:initial!important;gap:8px!important;margin-bottom:22px!important}
+    #events .gxev-event-podium .gxev-podium-heading{grid-column:1;grid-row:1;min-width:0}
+    #events .gxev-event-podium .gxev-podium-heading .gxev-eyebrow{display:block!important}
+    #events .gxev-event-podium .gxev-podium-heading h3{display:none!important}
+    #events .gxev-event-podium .gxev-podium-count{grid-column:2;grid-row:1;justify-self:end;align-self:start;margin:0!important;white-space:nowrap!important}
+    #events .gxev-event-podium .gxev-podium-footer{display:flex!important;justify-content:flex-end!important;align-items:center!important;width:100%!important;margin-top:24px!important}
+    #events .gxev-event-podium .gxev-podium-footer .gxev-rank-cta-button{display:inline-flex!important;width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:0!important;align-self:flex-end!important}
+  }
   #events .gxev-battle-simple-opponent{margin:8px 0 12px;font-size:15px;overflow-wrap:anywhere}
   #events .gxev-battle-round-visible{margin:12px 0;padding:14px;border:1px solid #2b394b;border-radius:14px;background:#0d121a}
   #events .gxev-battle-round-visible>.gxev-panel-head{margin-bottom:12px}
