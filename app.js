@@ -3277,7 +3277,9 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   if(!track||track.kind!=='video')return;
   const key=String(track.sid||track.mediaStreamTrack?.id||'');
   if(key&&tile.querySelector('[data-gx-livekit-track="'+CSS.escape(key)+'"]'))return;
-  const video=track.attach();if(key)video.dataset.gxLivekitTrack=key;video.autoplay=true;video.playsInline=true;
+  const video=track.attach();if(key)video.dataset.gxLivekitTrack=key;
+  if(String(track.source||'').toLowerCase().replace(/[_-]/g,'').includes('screenshare'))video.dataset.gxScreenShare='true';
+  video.autoplay=true;video.playsInline=true;
   video.style.cssText='position:absolute;inset:0;width:100%;height:100%;min-height:0;max-height:none;object-fit:contain;background:#000';
   tile.insertBefore(video,avatar);avatar.style.display='none';
 }
@@ -3646,6 +3648,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
         this._video.style.cssText='position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
         document.body.appendChild(this._video);
         this._video.srcObject=new MediaStream([track]);
+        const playback=this._video.play();
         if(this._video.readyState<2)await new Promise((resolve,reject)=>{
           const ready=()=>{cleanup();resolve();};
           const failed=()=>{cleanup();reject(new Error('No se pudo preparar el vídeo para reflejarlo.'));};
@@ -3653,7 +3656,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
           this._video.addEventListener('loadeddata',ready,{once:true});
           this._video.addEventListener('error',failed,{once:true});
         });
-        await this._video.play();
+        await playback;
         const settings=track.getSettings?.()||{};
         this._canvas=document.createElement('canvas');
         this._canvas.width=Math.max(2,Number(settings.width)||1280);
