@@ -350,3 +350,22 @@ body.grayxon-livekit-active .gx-call-controls [data-gx-call="video"] {
     max-width: 100% !important;
   }
 }
+
+
+/* Explicitly override the legacy mobile rule that hid the camera on thumbnails. */
+@media (max-width: 600px) {
+  #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]) [data-gx-livekit-mini-controls] [data-gx-mini-media="video"] {
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+  #grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] [data-gx-mini-media="audio"],
+  #grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] [data-gx-mini-media="video"] {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    flex: 0 0 30px !important;
+  }
+}
