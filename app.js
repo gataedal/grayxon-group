@@ -3377,7 +3377,7 @@ function ensureGrayxonLiveKitLayout(){
   #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]){aspect-ratio:16/9;min-height:110px}
   #grayxonLiveKitStage [data-gx-livekit-tile] video{position:absolute;inset:0;width:100%;height:100%;min-height:0;max-height:none;object-fit:contain;background:#000}
   #grayxonLiveKitStage [data-gx-livekit-hand-badge]{position:absolute;right:7px;bottom:4px;top:auto;left:auto}
-  @media(max-width:600px){#grayxonLiveKitStage [data-gx-livekit-hand-badge]{position:absolute!important;right:44px!important;bottom:76px!important;top:auto!important;left:auto!important}}
+  @media(max-width:600px){#grayxonLiveKitStage [data-gx-livekit-mini-controls]{flex-direction:row!important;gap:7px!important;right:7px!important;bottom:38px!important;align-items:center!important}#grayxonLiveKitStage [data-gx-livekit-mini-controls] [data-gx-mini-media],#grayxonLiveKitStage [data-gx-livekit-mini-controls] [data-gx-mini-hand]{width:31px!important;height:31px!important;min-width:31px!important;min-height:31px!important;flex:0 0 31px!important}#grayxonLiveKitStage [data-gx-livekit-hand-badge]{display:none!important}}
   #grayxonLiveKitStage .gx-livekit-avatar{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,#252a32,#090a0c 72%);pointer-events:none}
   #grayxonLiveKitStage .gx-livekit-avatar img{width:clamp(64px,12%,112px);aspect-ratio:1;border-radius:50%;object-fit:cover;border:2px solid #555b66}
   #grayxonLiveKitStage .gx-livekit-avatar-fallback{display:flex;align-items:center;justify-content:center;width:clamp(64px,12%,112px);aspect-ratio:1;border-radius:50%;background:#252a32;color:#fff;font-size:clamp(24px,4vw,42px);font-weight:600}
@@ -3424,7 +3424,7 @@ function renderGrayxonLiveKitTrack(track, participant, host){
     if(!controls){
       controls=document.createElement('div');
       controls.dataset.gxLivekitMiniControls='1';
-      controls.style.cssText='position:absolute;right:7px;bottom:38px;z-index:8;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:7px;pointer-events:none';
+      controls.style.cssText='position:absolute;right:7px;bottom:38px;z-index:8;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:7px;pointer-events:none';controls.dataset.gxLivekitMiniControlsReady='1';
       const makeControl=(kind,label)=>{
         const button=document.createElement('button');
         button.type='button';
@@ -3433,18 +3433,22 @@ function renderGrayxonLiveKitTrack(track, participant, host){
         button.style.cssText='width:31px;height:31px;border:1px solid #ffffff45;border-radius:50%;background:#101319e8;color:#fff;display:grid;place-items:center;padding:0;pointer-events:auto;box-shadow:0 2px 8px #0008;touch-action:manipulation';
         button.innerHTML=kind==='audio'
           ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="13" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"></path></svg>'
-          : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="m16 10 5-3v10l-5-3"></path></svg>';
+          : kind==='video'
+          ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="m16 10 5-3v10l-5-3"></path></svg>'
+          : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12V5a1.5 1.5 0 0 1 3 0v5-7a1.5 1.5 0 0 1 3 0v7-5a1.5 1.5 0 0 1 3 0v7l1-2a1.7 1.7 0 0 1 3 1l-2 7c-.7 2.4-2.3 4-5 4h-2c-2 0-3.3-1-4.5-2.5L4 14a1.8 1.8 0 0 1 2.7-2.3z"></path></svg>';
+        if(kind==='hand'){button.dataset.gxMiniHand='1';button.setAttribute('aria-pressed','false');}
         button.addEventListener('click',ev=>{
           ev.preventDefault();ev.stopPropagation();
-          const mainButton=$('[data-gx-call="'+kind+'"]');
+          const mainButton=kind==='hand'?$('[data-gx-call="hand"]'):$('[data-gx-call="'+kind+'"]');
           if(!gxLiveKitRoom?.localParticipant){toast('La llamada no está conectada.');return;}
           if(mainButton)mainButton.click();
-          else toast('El control de '+(kind==='audio'?'micrófono':'cámara')+' no está disponible.');
+          else toast('El control de '+(kind==='audio'?'micrófono':kind==='video'?'cámara':'mano')+' no está disponible.');
         });
         return button;
       };
       controls.appendChild(makeControl('audio','Micrófono','mic','mic-off'));
       controls.appendChild(makeControl('video','Cámara','video','video-off'));
+      controls.appendChild(makeControl('hand','Levantar la mano'));
       tile.appendChild(controls);
     }
     const local=gxLiveKitRoom?.localParticipant;
