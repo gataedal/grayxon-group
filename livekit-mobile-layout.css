@@ -49,6 +49,12 @@
     height: 100% !important;
     object-fit: cover !important;
   }
+  /* Only the main host/pinned tile preserves the full camera or screen-share frame.
+     Keep its existing box dimensions; never change participant thumbnail fitting. */
+  #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"] video {
+    object-fit: contain !important;
+    background: #000 !important;
+  }
 }
 /* LiveKit media controls: vertical stack over the local preview only. */
 body.grayxon-livekit-active .gx-call-controls [data-gx-call="audio"],
