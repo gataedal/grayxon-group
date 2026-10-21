@@ -1143,7 +1143,11 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call .gx-call-more-menu[hidden],body.grayxon-live-training-call .gx-call-more-menu.hidden{display:none!important}
       body.grayxon-live-training-call .gx-chat-panel{position:fixed!important;right:14px!important;top:calc(62px + env(safe-area-inset-top))!important;bottom:calc(88px + env(safe-area-inset-bottom))!important;width:min(370px,calc(100vw - 28px))!important;max-height:calc(100dvh - 170px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;z-index:100007!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;border:1px solid #ffffff20!important;border-radius:20px!important;background:rgba(10,13,18,.98)!important;color:#fff!important;box-shadow:0 20px 60px #0009!important;backdrop-filter:blur(18px)!important}
       body.grayxon-live-training-call .gx-chat-panel[hidden],body.grayxon-live-training-call .gx-chat-panel.hidden{display:none!important}.gx-chat-head{display:flex!important;justify-content:space-between!important;align-items:center!important;padding:14px 15px!important;border-bottom:1px solid #ffffff16!important}.gx-chat-head strong,.gx-chat-head small{display:block!important}.gx-chat-head small{font-size:11px!important;color:#9ba4b2!important;margin-top:3px!important}.gx-chat-head button{border:0!important;border-radius:9px!important;padding:8px 10px!important;background:#202630!important;color:#fff!important}.gx-chat-messages{flex:1!important;overflow:auto!important;padding:12px!important}.gx-chat-message{padding:9px 10px!important;margin-bottom:8px!important;border-radius:12px!important;background:#ffffff09!important;overflow-wrap:anywhere!important}.gx-chat-message strong{font-size:11px!important;color:#7de8e2!important}.gx-chat-message p{font-size:13px!important;line-height:1.45!important;margin:4px 0 0!important;white-space:pre-wrap!important}.gx-chat-empty{font-size:12px!important;color:#9ba4b2!important;text-align:center!important;padding:18px 8px!important}.gx-chat-form{display:flex!important;gap:7px!important;padding:10px!important;border-top:1px solid #ffffff16!important}.gx-chat-form input{flex:1!important;min-width:0!important;background:#171b22!important;border:1px solid #ffffff18!important;border-radius:11px!important;color:#fff!important;padding:11px!important;font-size:13px!important}.gx-chat-form button{border:0!important;border-radius:11px!important;background:#fe2c55!important;color:#fff!important;font-weight:800!important;padding:0 13px!important}
-      @media(max-width:600px){body.grayxon-live-training-call .gx-chat-panel{top:auto!important;left:10px!important;right:10px!important;bottom:calc(82px + env(safe-area-inset-bottom))!important;width:auto!important;height:min(42dvh,340px)!important;max-height:42dvh!important;min-height:210px!important;border-radius:16px!important}.gx-chat-head{padding:9px 11px!important}.gx-chat-messages{padding:8px!important}.gx-chat-form{padding:8px!important}.gx-chat-form input{font-size:16px!important;min-height:40px!important}.gx-chat-form button{min-height:40px!important}}
+      @media(max-width:600px){body.grayxon-live-training-call .gx-chat-panel{top:max(8px,calc(var(--gx-vv-top, 0px) + 8px))!important;left:10px!important;right:10px!important;bottom:calc(8px + var(--gx-keyboard-inset, 0px) + env(safe-area-inset-bottom))!important;width:auto!important;height:min(calc(var(--gx-vv-height, 100dvh) - 24px),340px)!important;max-height:calc(var(--gx-vv-height, 100dvh) - 24px)!important;min-height:160px!important;border-radius:16px!important}.gx-chat-head{padding:9px 11px!important}.gx-chat-messages{padding:8px!important}.gx-chat-form{padding:8px!important}.gx-chat-form input{font-size:16px!important;min-height:40px!important}.gx-chat-form button{min-height:40px!important}}
+      #gx-chat-live-toast-layer{position:fixed!important;left:14px!important;right:14px!important;bottom:calc(100px + env(safe-area-inset-bottom))!important;z-index:100009!important;display:flex!important;flex-direction:column-reverse!important;align-items:flex-start!important;gap:7px!important;pointer-events:none!important}
+      .gx-chat-live-toast{display:flex!important;flex-direction:column!important;gap:3px!important;max-width:min(88vw,360px)!important;padding:9px 12px!important;border:1px solid #ffffff20!important;border-radius:12px!important;background:rgba(14,18,24,.94)!important;color:#fff!important;box-shadow:0 6px 22px #0008!important;overflow-wrap:anywhere!important;animation:gxChatToastIn .18s ease-out!important}
+      .gx-chat-live-toast strong{font-size:11px!important;color:#7de8e2!important}.gx-chat-live-toast span{font-size:13px!important;line-height:1.35!important}
+      @keyframes gxChatToastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
       #gx-reaction-float-layer{position:fixed!important;inset:0!important;overflow:hidden!important;pointer-events:none!important;z-index:100008!important}
       .gx-reaction-float{position:absolute!important;bottom:100px!important;display:flex!important;align-items:center!important;gap:8px!important;padding:7px 12px 7px 7px!important;border:1px solid #ffffff24!important;border-radius:999px!important;background:rgba(15,19,26,.92)!important;color:#fff!important;box-shadow:0 8px 28px #0008!important;animation:gxReactionRise 3.5s ease-out forwards!important;white-space:nowrap!important}
       .gx-reaction-float-emoji{font-size:30px!important}.gx-reaction-float-name{font-size:12px!important;font-weight:800!important}
@@ -3254,6 +3258,18 @@ function syncGrayxonLiveKitHandTiles(stage=document.querySelector('#grayxonLiveK
   if(main&&main!==stage.firstElementChild)stage.insertBefore(main,stage.firstElementChild);
   minis.forEach(tile=>stage.appendChild(tile));
 }
+function showGrayxonLiveChatToast(name,message){
+  const call=document.querySelector('#grayxonLiveKitStage')||document.querySelector('#grayxonJaasMeet');
+  if(!call)return;
+  let layer=document.querySelector('#gx-chat-live-toast-layer');
+  if(!layer){layer=document.createElement('div');layer.id='gx-chat-live-toast-layer';layer.setAttribute('aria-live','polite');document.body.appendChild(layer);}
+  const item=document.createElement('div');item.className='gx-chat-live-toast';
+  const title=document.createElement('strong');title.textContent=String(name||'Participante');
+  const body=document.createElement('span');body.textContent=String(message||'');
+  item.append(title,body);layer.appendChild(item);
+  while(layer.children.length>3)layer.firstElementChild.remove();
+  setTimeout(()=>item.remove(),5200);
+}
 function appendGrayxonChatMessage(name,message,isPrivate=false){
   const list=$('#gx-chat-messages');if(!list)return;
   const item=document.createElement('div');item.className='gx-chat-message';
@@ -3275,6 +3291,16 @@ async function startGrayxonWakeLock(){
   }catch(e){console.info('El navegador no permite mantener la pantalla activa:',e?.message||e);}
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&document.body.classList.contains('grayxon-live-training-call'))startGrayxonWakeLock();});
+function updateGrayxonChatViewport(){
+  const vv=window.visualViewport;
+  if(!vv)return;
+  const keyboardInset=Math.max(0,window.innerHeight-(vv.height+vv.offsetTop));
+  document.documentElement.style.setProperty('--gx-vv-height',vv.height+'px');
+  document.documentElement.style.setProperty('--gx-vv-top',vv.offsetTop+'px');
+  document.documentElement.style.setProperty('--gx-keyboard-inset',keyboardInset+'px');
+}
+if(window.visualViewport){window.visualViewport.addEventListener('resize',updateGrayxonChatViewport);window.visualViewport.addEventListener('scroll',updateGrayxonChatViewport);window.addEventListener('resize',updateGrayxonChatViewport);updateGrayxonChatViewport();}
+
 function showGrayxonReaction(name,emoji){
   const layer=$('#gx-reaction-float-layer');if(!layer)return;
   const item=document.createElement('div');item.className='gx-reaction-float';
@@ -3377,7 +3403,7 @@ function ensureGrayxonLiveKitLayout(){
   #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]){aspect-ratio:16/9;min-height:110px}
   #grayxonLiveKitStage [data-gx-livekit-tile] video{position:absolute;inset:0;width:100%;height:100%;min-height:0;max-height:none;object-fit:contain;background:#000}
   #grayxonLiveKitStage [data-gx-livekit-hand-badge]{position:absolute;right:7px;bottom:4px;top:auto;left:auto}
-  @media(max-width:600px){#grayxonLiveKitStage [data-gx-livekit-mini-controls]{flex-direction:row!important;gap:7px!important;right:7px!important;bottom:38px!important;align-items:center!important}#grayxonLiveKitStage [data-gx-livekit-mini-controls] [data-gx-mini-media],#grayxonLiveKitStage [data-gx-livekit-mini-controls] [data-gx-mini-hand]{width:31px!important;height:31px!important;min-width:31px!important;min-height:31px!important;flex:0 0 31px!important}#grayxonLiveKitStage [data-gx-livekit-hand-badge]{display:none!important}}
+  @media(max-width:600px){#grayxonLiveKitStage [data-gx-livekit-mini-controls]{flex-direction:row!important;gap:7px!important;right:7px!important;bottom:38px!important;align-items:center!important}#grayxonLiveKitStage [data-gx-livekit-mini-controls] [data-gx-mini-media],#grayxonLiveKitStage [data-gx-livekit-mini-controls] [data-gx-mini-hand]{width:31px!important;height:31px!important;min-width:31px!important;min-height:31px!important;flex:0 0 31px!important}#grayxonLiveKitStage [data-gx-livekit-hand-badge]{right:7px!important;bottom:38px!important;top:auto!important;left:auto!important;width:31px!important;height:31px!important;font-size:18px!important}}
   #grayxonLiveKitStage .gx-livekit-avatar{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,#252a32,#090a0c 72%);pointer-events:none}
   #grayxonLiveKitStage .gx-livekit-avatar img{width:clamp(64px,12%,112px);aspect-ratio:1;border-radius:50%;object-fit:cover;border:2px solid #555b66}
   #grayxonLiveKitStage .gx-livekit-avatar-fallback{display:flex;align-items:center;justify-content:center;width:clamp(64px,12%,112px);aspect-ratio:1;border-radius:50%;background:#252a32;color:#fff;font-size:clamp(24px,4vw,42px);font-weight:600}
@@ -3819,6 +3845,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
       const sent=await sendGrayxonLiveBroadcast('chat',payload);
       if(sent?.error){toast('No se pudo enviar el mensaje.');return;}
       appendGrayxonChatMessage(payload.name,payload.message);
+      showGrayxonLiveChatToast(payload.name,payload.message);
       if(input)input.value='';
     };
     $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>{
@@ -3851,7 +3878,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     gxLiveCallRealtimeTrainingId=training.id;
     gxLiveCallRealtimeChannel=sb.channel('grayxon-live-call-'+training.id,{config:{broadcast:{self:false}}})
       .on('broadcast',{event:'reaction'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.emoji){showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));playGrayxonSound('reaction');}})
-      .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){appendGrayxonChatMessage(String(payload.name||'Participante'),String(payload.message));}})
+      .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){const chatName=String(payload.name||'Participante'),chatMessage=String(payload.message);appendGrayxonChatMessage(chatName,chatMessage);showGrayxonLiveChatToast(chatName,chatMessage);}})
       .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.participantId||payload.identity||'');if(!key)return;if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);syncGrayxonLiveKitHandTiles(stage);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
       .on('broadcast',{event:'pin-participant'},({payload})=>{
         if(!payload||String(payload.trainingId||'')!==String(training.id||''))return;
