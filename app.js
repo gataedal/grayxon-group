@@ -9222,9 +9222,10 @@ const importConfirm=e.target.closest('#gxevParticipantImportConfirm');if(importC
     const me=meIndex>=0?d.leaderboard[meIndex]:null;
     const renderAvatar=(userId,username,participantId,person)=>{
       const participant=participantId?d.participantById?.get?.(participantId):null;
-      const resolvedUserId=String(userId||participant?.user_id||'');
+      const resolvedUserId=String(participant?.user_id||userId||'');
       const profileDetail=d.profiles?.find?.(p=>String(p.id)===resolvedUserId)||person||{};
-      const url=d.avatarMap?.get?.(resolvedUserId)||d.avatarMap?.get?.(String(userId||''))||profileDetail.avatar_url||profileDetail.photo_url||profileDetail.profile_photo_url||'';
+      const userAvatar=d.avatarMap?.get?.(resolvedUserId)||d.avatarMap?.get?.(String(userId||''))||'';
+      const url=userAvatar||profileDetail.avatar_url||profileDetail.photo_url||profileDetail.profile_photo_url||'';
       const initials=gxEventsEsc(String(username||'U').slice(0,1).toUpperCase());
       return url
         ? '<img class="gxev-ranking-avatar" src="'+gxEventsEsc(url)+'" alt="Foto de '+gxEventsEsc(username||'participante')+'" loading="lazy" onerror="this.onerror=null;this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'"><span class="gxev-ranking-avatar" aria-hidden="true" style="display:none;place-items:center;font-weight:800">'+initials+'</span>'
