@@ -50,3 +50,42 @@
     object-fit: cover !important;
   }
 }
+/* LiveKit media controls: vertical stack over the local preview only. */
+body.grayxon-livekit-active .gx-call-controls [data-gx-call="audio"],
+body.grayxon-livekit-active .gx-call-controls [data-gx-call="video"] {
+  display: none !important;
+}
+#grayxonLiveKitStage [data-gx-livekit-mini-controls] {
+  position: absolute !important;
+  right: 7px !important;
+  bottom: 38px !important;
+  left: auto !important;
+  top: auto !important;
+  z-index: 20 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  pointer-events: none !important;
+}
+#grayxonLiveKitStage [data-gx-livekit-mini-controls] [data-gx-mini-media] {
+  flex: 0 0 31px !important;
+  width: 31px !important;
+  height: 31px !important;
+  min-width: 31px !important;
+  min-height: 31px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+}
+#grayxonLiveKitStage [data-gx-livekit-tile] .gx-livekit-avatar {
+  z-index: 1;
+}
+#grayxonLiveKitStage [data-gx-livekit-tile] video {
+  z-index: 2;
+}
+#grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-label] {
+  z-index: 4;
+}
