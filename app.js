@@ -8381,6 +8381,48 @@ function gxEnsureEventsMatrixStyles(){
   .gxev-ranking-full-table{width:100%;border-collapse:collapse}
   .gxev-ranking-full-table th,.gxev-ranking-full-table td{padding:12px 15px;text-align:left;border-bottom:1px solid #293546}
   .gxev-ranking-full-table th{position:sticky;top:0;background:#111923;z-index:1;color:#b8c6d9}
+  /* Ranking responsive: cambios limitados al modal de clasificación de eventos */
+  .gxev-full-ranking-modal{width:min(760px,calc(100vw - 28px));max-width:760px;max-height:calc(100dvh - 28px);padding:clamp(14px,2.5vw,24px);gap:14px;overflow:hidden}
+  .gxev-full-ranking-modal>.gxev-top{align-items:flex-start;gap:12px;margin-bottom:0}
+  .gxev-full-ranking-modal #gxevFullRankingTitle{margin:0;font-size:clamp(20px,3vw,27px);line-height:1.2}
+  .gxev-full-ranking-modal .gxev-ranking-event-name{margin-top:6px;color:#aebbd0;font-size:14px;overflow-wrap:anywhere}
+  .gxev-full-ranking-modal .gxev-ranking-modal-scroll{flex:1;min-height:0;max-height:none;overflow:auto;border:1px solid #2a394b;border-radius:14px;background:#0b1119}
+  .gxev-ranking-mobile-list{display:flex;flex-direction:column;gap:0}
+  .gxev-ranking-person{display:grid;grid-template-columns:40px 42px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:68px;padding:10px 14px;border-bottom:1px solid #202d3d;background:#0e1621}
+  .gxev-ranking-person:last-child{border-bottom:0}
+  .gxev-ranking-place{display:grid;place-items:center;min-width:34px;font-size:17px;font-weight:850;color:#d4deeb}
+  .gxev-ranking-avatar{width:42px;height:42px;flex:0 0 42px;object-fit:cover;border-radius:50%;border:1px solid #425166;background:#202c3b;color:#e7edf5}
+  .gxev-ranking-username{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f4f7fb;font-weight:750}
+  .gxev-ranking-score{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap;color:#f4f7fb;font-weight:850;font-variant-numeric:tabular-nums}
+  .gxev-ranking-score small,.gxev-ranking-my-score small{font-size:11px;font-weight:600;color:#9eacc0}
+  .gxev-ranking-person.is-first{background:linear-gradient(90deg,#493a17 0%,#171a1c 72%);border-left:3px solid #e6bd55}
+  .gxev-ranking-person.is-first .gxev-ranking-place{color:#f3cf62}
+  .gxev-ranking-person.is-second{background:linear-gradient(90deg,#303b48 0%,#141b24 72%);border-left:3px solid #c5d0dc}
+  .gxev-ranking-person.is-second .gxev-ranking-place{color:#d5e0eb}
+  .gxev-ranking-person.is-third{background:linear-gradient(90deg,#4b3024 0%,#171a1c 72%);border-left:3px solid #c88b63}
+  .gxev-ranking-person.is-third .gxev-ranking-place{color:#dfa47b}
+  .gxev-ranking-person.gxev-current-user-rank{box-shadow:inset 0 0 0 1px #25f4ee;background-color:#10262b}
+  .gxev-ranking-my-position{display:grid;grid-template-columns:auto 42px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid #25f4ee;border-radius:14px;background:#101f28;box-shadow:0 -8px 24px #0005}
+  .gxev-ranking-my-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9db0c3;font-weight:800}
+  .gxev-ranking-my-place{font-size:21px;font-weight:900;color:#25f4ee;line-height:1.25}
+  .gxev-ranking-my-user{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;color:#fff}
+  .gxev-ranking-my-score{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap;font-weight:850;color:#fff;font-variant-numeric:tabular-nums}
+  @media(max-width:650px){
+    .gxev-full-ranking-modal{width:calc(100vw - 18px);max-width:none;max-height:calc(100dvh - 18px);padding:12px;gap:10px;border-radius:16px}
+    .gxev-full-ranking-modal>.gxev-top{gap:8px}
+    .gxev-full-ranking-modal .gxev-top .gxev-btn{padding:8px 10px;white-space:nowrap;font-size:12px}
+    .gxev-full-ranking-modal #gxevFullRankingTitle{font-size:20px}
+    .gxev-full-ranking-modal .gxev-ranking-event-name{font-size:13px}
+    .gxev-ranking-person{grid-template-columns:28px 36px minmax(0,1fr) auto;gap:8px;min-height:60px;padding:9px 9px}
+    .gxev-ranking-place{min-width:26px;font-size:15px}
+    .gxev-ranking-avatar{width:36px;height:36px;flex-basis:36px}
+    .gxev-ranking-username{font-size:13px}
+    .gxev-ranking-score{font-size:13px}
+    .gxev-ranking-score small,.gxev-ranking-my-score small{font-size:10px}
+    .gxev-ranking-my-position{grid-template-columns:auto 36px minmax(0,1fr);gap:8px;padding:10px}
+    .gxev-ranking-my-place{font-size:19px}
+    .gxev-ranking-my-score{grid-column:3;align-items:flex-start}
+  }
   @media(max-width:650px){#events .gxev-top-three{display:flex;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding:4px 2px 12px;gap:12px;-webkit-overflow-scrolling:touch}#events .gxev-prize-podium{display:flex;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;padding:4px 2px 12px;gap:10px;-webkit-overflow-scrolling:touch}#events .gxev-top-rank{flex:0 0 min(78vw,270px);min-width:min(78vw,270px);scroll-snap-align:start}#events .gxev-prize-place{flex:1 1 0;min-width:0;grid-column:auto!important;grid-row:auto!important;padding:8px 4px;order:2}#events .gxev-prize-place-1{order:1}#events .gxev-prize-place-2{order:0}#events .gxev-prize-place-3{order:2}#events .gxev-prize-item img{height:100px}#events .gxev-ranking-modal-scroll{max-height:calc(100dvh - 220px)}#events .gxev-layout{min-width:0}#events .gxev-workspace{min-width:0;overflow-wrap:anywhere}#events .gxev-localnav{overflow-x:auto;flex-wrap:nowrap;max-width:100%;-webkit-overflow-scrolling:touch}#events .gxev-localnav button{flex:0 0 auto}}
   /* Grayxon: correcciones estrictas para medios y responsive en pantallas pequeñas */
   #events .gxev-hero-media{position:relative;flex:0 0 34%;width:34%;min-width:0;max-width:360px;min-height:185px;overflow:hidden}
@@ -9162,10 +9204,45 @@ const importConfirm=e.target.closest('#gxevParticipantImportConfirm');if(importC
     return;
   }
   if(b.hasAttribute('data-gxev-open-full-ranking')){
-    const d=gxEventsDashboardData;if(!d)return;document.getElementById('gxevEventModal')?.remove();
-    const currentUserId=String(session?.user?.id||'').trim().toLowerCase();const currentUsername=String(profile?.username||d.profileMap?.get?.(session?.user?.id)?.username||'').trim().replace(/^@/,'').toLowerCase();const rows=d.leaderboard.map((r,i)=>{const rowUserId=String(r.user_id||r.participant_user_id||'').trim().toLowerCase();const rowParticipantId=String(r.participant_id||'').trim().toLowerCase();const rowUsername=String(r.username||r.tiktok_username||'').trim().replace(/^@/,'').toLowerCase();const isMe=!!currentUserId&&(rowUserId===currentUserId||rowParticipantId===currentUserId)||(!!currentUsername&&rowUsername===currentUsername);const position=Number(r.rank_position)||i+1;return `<tr class="${isMe?'gxev-current-user-rank':''}"><td><b>${position<=3?(['','🥇','🥈','🥉'][position]||'#'+position):'#'+position}</b></td><td><b>@${gxEventsEsc(r.username||r.tiktok_username||'usuario')}${isMe?' · Tú':''}</b></td><td><b>${gxEventsFormatNumber(r.points)} puntos</b></td></tr>`;}).join('');
-    document.body.insertAdjacentHTML('beforeend',`<div class="gxev-modal-backdrop" id="gxevEventModal"><section class="gxev-modal gxev-full-ranking-modal" role="dialog" aria-modal="true" aria-labelledby="gxevFullRankingTitle"><div class="gxev-top"><div><div class="gxev-eyebrow">EVENT MATRIX / CLASIFICACIÓN</div><h2 id="gxevFullRankingTitle">Ranking completo del evento</h2><p class="gxev-muted">${d.leaderboard.length} participantes · Ordenados de mayor a menor puntuación</p></div><button type="button" class="gxev-btn" data-gxev-close-modal>✕ Cerrar</button></div><div class="gxev-ranking-modal-scroll"><table class="gxev-ranking-full-table"><thead><tr><th>Puesto</th><th>Usuario</th><th>Puntos</th></tr></thead><tbody>${rows||'<tr><td colspan="3">Aún no hay participantes en el ranking.</td></tr>'}</tbody></table></div></section></div>`);
-    const rankingModal=document.getElementById('gxevEventModal');rankingModal?.querySelector('[data-gxev-close-modal]')?.addEventListener('click',()=>{rankingModal.remove();document.body.classList.remove('gxev-modal-open');});rankingModal?.addEventListener('click',event=>{if(event.target===rankingModal){rankingModal.remove();document.body.classList.remove('gxev-modal-open');}});document.body.classList.add('gxev-modal-open');return;
+    const d=gxEventsDashboardData;if(!d)return;
+    document.getElementById('gxevEventModal')?.remove();
+    const currentUserId=String(session?.user?.id||'').trim().toLowerCase();
+    const currentUsername=String(profile?.username||d.profileMap?.get?.(session?.user?.id)?.username||'').trim().replace(/^@/,'').toLowerCase();
+    const meIndex=(d.leaderboard||[]).findIndex((r,i)=>{
+      const uid=String(r.user_id||r.participant_user_id||'').trim().toLowerCase();
+      const pid=String(r.participant_id||'').trim().toLowerCase();
+      const username=String(r.username||r.tiktok_username||d.profileMap?.get?.(r.user_id)?.username||'').trim().replace(/^@/,'').toLowerCase();
+      return (!!currentUserId&&(uid===currentUserId||pid===currentUserId))|| (!!currentUsername&&username===currentUsername);
+    });
+    const me=meIndex>=0?d.leaderboard[meIndex]:null;
+    const renderAvatar=(userId,username)=>{
+      const url=d.avatarMap?.get?.(userId)||'';
+      return url
+        ? '<img class="gxev-ranking-avatar" src="'+gxEventsEsc(url)+'" alt="" loading="lazy">'
+        : '<span class="gxev-ranking-avatar" aria-hidden="true" style="display:grid;place-items:center;font-weight:800">'+gxEventsEsc(String(username||'U').slice(0,1).toUpperCase())+'</span>';
+    };
+    const rows=(d.leaderboard||[]).map((r,i)=>{
+      const rank=Number(r.rank_position)||i+1;
+      const person=d.profileMap?.get?.(r.user_id)||{};
+      const username=String(r.username||person.username||r.tiktok_username||person.full_name||'usuario').replace(/^@/,'');
+      const uid=String(r.user_id||r.participant_user_id||'').trim().toLowerCase();
+      const pid=String(r.participant_id||'').trim().toLowerCase();
+      const isMe=(!!currentUserId&&(uid===currentUserId||pid===currentUserId))|| (!!currentUsername&&username.toLowerCase()===currentUsername);
+      const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank;
+      const tier=rank===1?' is-first':rank===2?' is-second':rank===3?' is-third':'';
+      return '<article class="gxev-ranking-person'+tier+(isMe?' gxev-current-user-rank':'')+'"><span class="gxev-ranking-place">'+medal+'</span>'+renderAvatar(r.user_id,username)+'<span class="gxev-ranking-username" title="@'+gxEventsEsc(username)+'">@'+gxEventsEsc(username)+(isMe?' · Tú':'')+'</span><span class="gxev-ranking-score">'+gxEventsFormatNumber(r.points)+'<small>puntos</small></span></article>';
+    }).join('');
+    const meProfile=me?(d.profileMap?.get?.(me.user_id)||{}):{};
+    const myUsername=me?String(me.username||meProfile.username||me.tiktok_username||meProfile.full_name||'usuario').replace(/^@/,''):'';
+    const myRank=me?(Number(me.rank_position)||meIndex+1):0;
+    const pinnedPosition=me&&myRank>8
+      ? '<div class="gxev-ranking-my-position"><div><div class="gxev-ranking-my-label">Tu posición</div><div class="gxev-ranking-my-place">#'+myRank+'</div></div>'+renderAvatar(me.user_id,myUsername)+'<div style="min-width:0"><div class="gxev-ranking-my-user" title="@'+gxEventsEsc(myUsername)+'">@'+gxEventsEsc(myUsername)+'</div><div class="gxev-ranking-my-score">'+gxEventsFormatNumber(me.points)+'<small>puntos</small></div></div></div>'
+      : '';
+    document.body.insertAdjacentHTML('beforeend','<div class="gxev-modal-backdrop" id="gxevEventModal"><section class="gxev-modal gxev-full-ranking-modal" role="dialog" aria-modal="true" aria-labelledby="gxevFullRankingTitle"><div class="gxev-top"><div><h2 id="gxevFullRankingTitle">Tabla de clasificación</h2><div class="gxev-ranking-event-name">'+gxEventsEsc(d.event?.title||'Evento')+'</div></div><button type="button" class="gxev-btn" data-gxev-close-modal>✕ Cerrar</button></div><div class="gxev-ranking-modal-scroll"><div class="gxev-ranking-mobile-list">'+(rows||'<div class="gxev-empty">Aún no hay participantes en el ranking.</div>')+'</div></div>'+pinnedPosition+'</section></div>');
+    const rankingModal=document.getElementById('gxevEventModal');
+    rankingModal?.querySelector('[data-gxev-close-modal]')?.addEventListener('click',()=>{rankingModal.remove();document.body.classList.remove('gxev-modal-open');});
+    rankingModal?.addEventListener('click',event=>{if(event.target===rankingModal){rankingModal.remove();document.body.classList.remove('gxev-modal-open');}});
+    document.body.classList.add('gxev-modal-open');return;
   }
   if(b.hasAttribute('data-gxev-close-modal')){document.getElementById('gxevEventModal')?.remove();document.body.classList.remove('gxev-modal-open');return;}
   if(b.hasAttribute('data-gxev-view-media')){const id=b.dataset.gxevViewMedia;const m=[...(gxEventsMediaCache||[]),...(gxEventsDashboardData?.media||[])].find(x=>x.id===id);if(m)gxEventsOpenMediaViewer(m);return;}
