@@ -1150,6 +1150,8 @@ function ensureLiveTrainingPage() {
       @media(max-width:600px){body.grayxon-live-training-call .gx-call-more-menu{right:12px!important;bottom:calc(76px + env(safe-area-inset-bottom))!important;left:12px!important;min-width:0!important}}
       @media(max-width:600px){body.grayxon-live-training-call .gx-call-brand{top:calc(8px + env(safe-area-inset-top))!important;left:10px!important}body.grayxon-live-training-call .gx-call-brand img{width:70px!important;max-height:28px!important}body.grayxon-live-training-call .gx-call-brand .gx-live-pill{font-size:9px!important;padding:5px 7px!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-controls{left:8px!important;right:8px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:none!important;max-width:none!important;gap:4px!important;padding:7px 5px!important;border-radius:17px!important}body.grayxon-live-training-call .gx-call-controls button{flex:1 1 0!important;min-width:0!important;min-height:45px!important;padding:5px 2px!important;font-size:9px!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon{font-size:18px!important}}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-toolbar{display:flex!important;visibility:visible!important;position:fixed!important;left:12px!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;z-index:100001!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;gap:8px!important;flex-wrap:wrap!important;background:rgba(10,12,16,.94)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:18px!important;padding:10px!important;backdrop-filter:blur(16px)!important}
+      /* En llamadas LiveKit no mostrar nunca la barra heredada de Jitsi, ni durante el arranque. */
+      body.grayxon-live-training-call.grayxon-livekit-call #grayxonTrainingRoomWrap .live-training-toolbar{display:none!important;visibility:hidden!important;pointer-events:none!important}
       body.grayxon-live-training-call #grayxonJaasMeet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;padding:0!important;box-sizing:border-box!important;background:#050608!important;overflow:hidden!important}
       body.grayxon-live-training-call #grayxonJaasMeet iframe{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;border:0!important;touch-action:pan-y!important}
       /* En móvil, mantener el escenario de Jitsi a pantalla completa.
@@ -3316,7 +3318,7 @@ async function leaveGrayxonLiveKitTraining(){
   gxLiveCallRealtimeTrainingId=null;
   if(gxElapsedInterval){clearInterval(gxElapsedInterval);gxElapsedInterval=null;}
   if(gxWakeLock){try{await gxWakeLock.release();}catch(_){}gxWakeLock=null;}
-  document.body.classList.remove('grayxon-live-training-call','grayxon-live-training-active');
+  document.body.classList.remove('grayxon-live-training-call','grayxon-live-training-active','grayxon-livekit-call');
   updateCreatorSpaceFloat();
   const host=$('#grayxonJaasMeet');if(host)host.replaceChildren();
   const wrap=$('#grayxonTrainingRoomWrap');
@@ -3473,7 +3475,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
       if(liveTrainingEnding||gxLiveKitRoom!==room)return;
       try{await recordLiveTrainingLeave();}catch(_){}
       if(gxLiveKitCleanup){gxLiveKitCleanup();gxLiveKitCleanup=null;}
-      document.body.classList.remove('grayxon-live-training-call');updateCreatorSpaceFloat();
+      document.body.classList.remove('grayxon-live-training-call','grayxon-livekit-call');updateCreatorSpaceFloat();
       const wrap=$('#grayxonTrainingRoomWrap');if(host)host.innerHTML='';
       if(wrap){wrap.classList.add('hidden');wrap.hidden=true;wrap.style.setProperty('display','none','important');}
       nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space',false);
@@ -3496,6 +3498,9 @@ async function startGrayxonLiveTraining(training, options={}){
   const requestedJitsiTest = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
   // El parámetro solo selecciona el proveedor; la Edge Function sigue validando acceso y permisos.
   const provider = options.provider || (requestedJitsiTest ? 'jitsi' : GRAYXON_LIVE_PROVIDER);
+  // Determinar el proveedor antes del primer repintado: el toolbar viejo solo pertenece a Jitsi.
+  if(provider==='livekit') document.body.classList.add('grayxon-livekit-call');
+  else document.body.classList.remove('grayxon-livekit-call');
   if(provider==='livekit') return startGrayxonLiveKitTraining(training,options);
   const host=$('#grayxonJaasMeet'); if(!host||!training?.room_name)return;
   destroyJaasMeeting();
