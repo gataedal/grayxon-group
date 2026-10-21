@@ -1073,7 +1073,7 @@ function ensureLiveTrainingPage() {
       }
       .live-training-access{font-size:12px;color:#7dd3a9}
       .live-training-shell{margin-top:22px;overflow:hidden;border:1px solid rgba(255,255,255,.10);border-radius:20px;background:#0b0d11;box-shadow:0 20px 70px rgba(0,0,0,.28)}
-      .grayxon-livekit-host{min-height:0;height:100%;width:100%;background:#050608;overflow:hidden}
+      .grayxon-livekit-host{position:absolute;inset:0;width:100%;height:100%;min-height:0;background:#050608;overflow:hidden}
       .live-training-loading{min-height:650px;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px;color:#aeb3bd}
       .live-training-loading strong{display:block;color:#fff;font-size:18px;margin-bottom:8px}
       .live-training-error{padding:45px 28px;text-align:center}
@@ -1146,6 +1146,7 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call .gx-call-more-menu button{padding:11px 12px!important;border:0!important;border-radius:9px!important;background:#1a2029!important;color:#fff!important;text-align:left!important;font:600 12px system-ui,sans-serif!important}
       @media(max-width:600px){body.grayxon-live-training-call .gx-call-more-menu{right:12px!important;bottom:calc(76px + env(safe-area-inset-bottom))!important;left:12px!important;min-width:0!important}}
       @media(max-width:600px){body.grayxon-live-training-call .gx-call-brand{top:calc(8px + env(safe-area-inset-top))!important;left:10px!important}body.grayxon-live-training-call .gx-call-brand img{width:70px!important;max-height:28px!important}body.grayxon-live-training-call .gx-call-brand .gx-live-pill{font-size:9px!important;padding:5px 7px!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-controls{left:8px!important;right:8px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:none!important;max-width:none!important;gap:4px!important;padding:7px 5px!important;border-radius:17px!important}body.grayxon-live-training-call .gx-call-controls button{flex:1 1 0!important;min-width:0!important;min-height:45px!important;padding:5px 2px!important;font-size:9px!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon{font-size:18px!important}}
+         El diseño propio de LiveKit controla las miniaturas sin recortar el escenario. */
       body.grayxon-live-training-call .live-training-loading{display:none!important}
       .page-section[hidden], #space[hidden], #home[hidden], #benefits[hidden], #auth[hidden], #manager[hidden], #training[hidden], #live-training[hidden], #missions[hidden], #profile[hidden], #admin[hidden]{display:none!important;}
       .live-training-space-card .space-progress span{width:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}
@@ -2991,7 +2992,7 @@ async function endLiveTrainingConference(trainingId, canEndAll = null) {
 
 const grayxonRaisedHands = new Map();
 let gxLiveKitHandRaised = false;
-// sobrescriba o deje sin efecto el botón cuando la sala activa usa LiveKit.
+// Manejo delegado en fase de captura para sincronizar el control de mano de LiveKit.
 if(!window.__gxLiveKitHandCaptureBound){
   window.__gxLiveKitHandCaptureBound=true;
   document.addEventListener('click',async event=>{
@@ -3190,7 +3191,7 @@ function ensureGrayxonLiveKitLayout(){
   #grayxonLiveKitStage [data-gx-livekit-label]{position:absolute;left:10px;bottom:9px;z-index:3;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px;max-width:85%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   @media(max-width:600px){#grayxonLiveKitStage{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-height:0;height:auto;align-content:start}#grayxonLiveKitStage [data-gx-livekit-tile]{grid-column:auto!important;grid-row:auto!important;aspect-ratio:4/3;min-height:110px;border-radius:10px}#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1!important;aspect-ratio:16/9;min-height:190px}#grayxonLiveKitStage [data-gx-livekit-tile] video{object-fit:cover}#grayxonLiveKitStage .gx-livekit-avatar img,#grayxonLiveKitStage .gx-livekit-avatar-fallback{width:clamp(54px,18vw,86px)}}
   @media(min-width:601px){#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1;aspect-ratio:16/9;min-height:260px}}
-  body.grayxon-live-training-call #grayxonLiveKitHost:has(#grayxonLiveKitStage) iframe{display:none!important;visibility:hidden!important;pointer-events:none!important;}`;
+  /* El escenario LiveKit es el único proveedor de videollamadas. */
   document.head.appendChild(style);
 }
 function renderGrayxonLiveKitTrack(track, participant, host){
@@ -3293,9 +3294,6 @@ async function leaveGrayxonLiveKitTraining(){
     try{await room.disconnect();}catch(_){}
   }
   if(gxLiveKitRoom===room)gxLiveKitRoom=null;
-    const message=esc(error?.message||'No se pudo preparar la sala LiveKit.');
-    host.innerHTML='<div class="live-training-error" style="max-width:620px;margin:8vh auto;padding:24px;color:#fff;background:#11141a;border:1px solid rgba(255,255,255,.12);border-radius:18px"><h3>No pudimos abrir el entrenamiento con LiveKit</h3><p>'+message+'</p><button class="primary" id="retryGrayxonTraining">Intentar nuevamente</button></div>';
-    $('#retryGrayxonTraining')?.addEventListener('click',()=>startGrayxonLiveKitTraining(training,options));
   if(gxLiveCallRealtimeChannel){try{await sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(error){console.warn('No se pudo cerrar el canal Realtime:',error);}gxLiveCallRealtimeChannel=null;}
   gxLiveCallRealtimeTrainingId=null;
   if(gxElapsedInterval){clearInterval(gxElapsedInterval);gxElapsedInterval=null;}
@@ -3631,7 +3629,282 @@ async function startGrayxonLiveKitTraining(training, options={}){
       appendGrayxonChatMessage(payload.name,payload.message);
       if(input)input.value='';
     };
-    $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
+    $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>{
+      button.onclick=async()=>{
+        const emoji=button.getAttribute('data-gx-reaction');if(!emoji)return;
+        const payload={userId:session?.user?.id||null,name:profile?.full_name||profile?.username||'Participante',emoji};
+        const sent=await sendGrayxonLiveBroadcast('reaction',payload);
+        if(sent?.error){toast('No se pudo enviar la reacción.');return;}
+        showGrayxonReaction(payload.name,payload.emoji);playGrayxonSound('reaction');
+        const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
+        $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
+      };
+    });
+    const refreshLiveKitParticipants=()=>{
+      const panel=$('.gx-participants-panel'),list=panel?.querySelector('.gx-participants-list');if(!list||!room)return;
+      const people=[{identity:room.localParticipant.identity,name:profile?.full_name||profile?.username||'Tú',local:true},...Array.from(room.remoteParticipants.values()).map(p=>({identity:p.identity,name:p.name||p.identity,local:false}))];
+      list.replaceChildren();
+      people.forEach(person=>{const row=document.createElement('div');row.className='gx-participant-status';row.textContent=person.name+(person.local?' · Tú':'');list.appendChild(row);});
+    };
+    room.on(LK.RoomEvent.ParticipantConnected,refreshLiveKitParticipants);
+    room.on(LK.RoomEvent.ParticipantDisconnected,refreshLiveKitParticipants);
+    const participantsButton=$('[data-gx-more="participants"]');
+    if(participantsButton)participantsButton.onclick=()=>{
+      const panel=$('.gx-participants-panel');if(panel){const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);if(open)refreshLiveKitParticipants();}
+      const menu=$('.gx-call-more-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
+      $('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');
+    };
+    if(!gxLiveStartedAt)gxLiveStartedAt=Date.now();updateGrayxonLiveElapsed();if(!gxElapsedInterval)gxElapsedInterval=setInterval(updateGrayxonLiveElapsed,1000);startGrayxonWakeLock();await recordLiveTrainingJoin(training.id);elapsedStarted=true;
+    if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
+    gxLiveCallRealtimeTrainingId=training.id;
+    gxLiveCallRealtimeChannel=sb.channel('grayxon-live-call-'+training.id,{config:{broadcast:{self:false}}})
+      .on('broadcast',{event:'reaction'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.emoji){showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));playGrayxonSound('reaction');}})
+      .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){const chatName=String(payload.name||'Participante'),chatMessage=String(payload.message);appendGrayxonChatMessage(chatName,chatMessage);}})
+      .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.participantId||payload.identity||'');if(!key)return;if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);syncGrayxonLiveKitHandTiles(stage);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
+      .on('broadcast',{event:'pin-participant'},({payload})=>{
+        if(!payload||String(payload.trainingId||'')!==String(training.id||''))return;
+        const participantId=String(payload.participantId||'');
+        window.__gxLiveKitPinnedParticipantId=participantId||null;
+        const tiles=Array.from(stage?.querySelectorAll('[data-gx-livekit-tile]')||[]);
+        const pinned=participantId&&tiles.find(item=>item.dataset.gxLivekitIdentity===participantId);
+        const hostTile=tiles.find(item=>item.dataset.gxLivekitIdentity===String(window.__gxHostParticipantId||''));
+        const localTile=tiles.find(item=>item.dataset.gxLivekitIdentity===String(room?.localParticipant?.identity||''));
+        const main=pinned||hostTile||localTile||tiles[0];
+        if(main&&stage&&main!==stage.firstChild)stage.insertBefore(main,stage.firstChild);
+        tiles.forEach(item=>item.dataset.gxLivekitMain=String(item===main));
+      })
+      .subscribe();
+    toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
+    gxLiveKitCleanup=()=>{joined=false;try{room?.removeAllListeners();}catch(_){}try{room?.localParticipant?.trackPublications?.forEach(pub=>{try{pub.track?.stop();}catch(_){}});}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
+    room.on(LK.RoomEvent.Disconnected,async()=>{
+      if(liveTrainingEnding||gxLiveKitRoom!==room)return;
+      try{await recordLiveTrainingLeave();}catch(_){}
+      if(gxLiveKitCleanup){gxLiveKitCleanup();gxLiveKitCleanup=null;}
+      document.body.classList.remove('grayxon-live-training-call');updateCreatorSpaceFloat();
+      const wrap=$('#grayxonTrainingRoomWrap');if(host)host.innerHTML='';
+      if(wrap){wrap.classList.add('hidden');wrap.hidden=true;wrap.style.setProperty('display','none','important');}
+      nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space',false);
+    });
+  }catch(error){
+    console.error('GRAYXON LIVEKIT ERROR:',error);
+    if(room){try{await room.disconnect();}catch(_){}}
+    if(gxLiveKitRoom===room)gxLiveKitRoom=null;
+    const message=esc(error?.message||'No se pudo preparar la sala LiveKit.');
+
+  }
+}
+
+async function markLiveTrainingViewed(trainingId){
+  if(!trainingId||!session?.user?.id)return false;
+  const {error}=await sb.from('live_training_views').upsert({training_id:trainingId,user_id:session.user.id,viewed_at:new Date().toISOString()},{onConflict:'training_id,user_id'});
+  if(error){console.warn('No se pudo registrar la visualización:',error.message);return false;}
+  return true;
+}
+
+function showCreatorTrainingDetail(training){
+  const existing=document.querySelector('.grayxon-training-detail-modal'); if(existing) existing.remove();
+  const el=document.createElement('div');
+  el.className='modal-backdrop grayxon-training-detail-modal';
+  el.innerHTML=`<div class="card modal" style="max-width:700px"><div class="row"><div><div class="eyebrow">GRAYXON · ENTRENAMIENTO</div><h2>${esc(training.title)}</h2></div><button class="secondary" id="closeCreatorTrainingDetail">Cerrar</button></div><div class="hr"></div><div class="grid"><div class="item"><b>Instructor</b><div class="muted small">${esc(training.instructor_name||'Grayxon')}</div></div><div class="item"><b>Fecha</b><div class="muted small">${formatDateTime(training.started_at||training.scheduled_at||training.created_at)}</div></div><div class="item"><b>Duración</b><div class="muted small">${liveTrainingDuration(training.started_at,training.ended_at)}</div></div><div class="item"><b>Estado</b><div class="muted small">${training.status==='live'?'EN VIVO':training.status==='scheduled'?'Programado':'Completado'}</div></div></div><div class="item" style="margin-top:18px"><b>Contenido</b><p class="muted" style="margin:8px 0 0;line-height:1.65">${esc(training.description||'Este entrenamiento no tiene una descripción adicional.')}</p></div>${training.status==='live'?'<div style="margin-top:18px"><button class="primary" id="detailEnterLive">Entrar al entrenamiento</button></div>':''}</div>`;
+  document.body.appendChild(el);
+  $('#closeCreatorTrainingDetail').onclick=()=>el.remove();
+  $('#detailEnterLive')?.addEventListener('click',async()=>{el.remove();await enterCreatorLiveTraining(training);});
+}
+
+async function enterCreatorLiveTraining(training){
+  if(!training?.id) return;
+  pendingLiveTrainingAutoStart={id:training.id};
+  currentLiveTraining=training;
+  current='live-training';
+  updateCreatorSpaceFloat();
+  updateCreatorTopNav();
+  document.body.classList.add('grayxon-live-training-active');
+  const pages=['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'];
+  pages.forEach(id=>{
+    const node=$('#'+id); if(!node)return;
+    const active=id==='live-training';
+    node.classList.toggle('hidden',!active);
+    node.hidden=!active;
+    if(active) node.removeAttribute('aria-hidden'); else node.setAttribute('aria-hidden','true');
+  });
+  const spaceEl=$('#space');
+  if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
+  if(history.state?.page!=='live-training') history.pushState({page:'live-training'},'',`${window.location.pathname}${window.location.search}#live-training`);
+  await liveTrainingTpl(training);
+  $('#enterGrayxonTraining')?.click();
+}
+
+async function creatorTrainingsTpl(){
+  const el=ensureLiveTrainingPage();
+  document.body.classList.add('grayxon-live-training-active');
+  const spaceEl=$('#space'); if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
+  if(!session){el.innerHTML=authTpl();return;}
+  profile=await getProfile();
+  if(!profile?.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2></div>';return;}
+
+  // Para CREADORES, la pantalla de Entrenamientos no es una biblioteca de
+  // entrenamientos programados. Solo debe destacar un LIVE al que realmente
+  // pueda entrar. El resto de la pantalla es un historial compacto de los
+  // entrenamientos a los que efectivamente asistió.
+  const {data:rawLive,error:liveError}=await sb.from('live_trainings')
+    .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+    .eq('status','live')
+    .order('started_at',{ascending:false});
+  if(liveError){
+    el.innerHTML=`<div class="live-training-page"><div class="live-training-feature"><div class="live-training-feature-inner"><h2>No pudimos cargar tus entrenamientos</h2><p class="muted">${esc(liveError.message)}</p></div></div></div>`;
+    return;
+  }
+
+  const uid=session.user.id;
+  const p=profile||{};
+  const liveIds=(rawLive||[]).map(t=>t.id);
+  const {data:liveAudience}=liveIds.length
+    ? await sb.from('live_training_audience').select('training_id,target_type,target_id').in('training_id',liveIds)
+    : {data:[]};
+
+  // IMPORTANTE: target_type=manager NUNCA da acceso a un creador.
+  const allowedLiveIds=new Set((liveAudience||[]).filter(a =>
+    a.target_type==='all_creators' ||
+    (a.target_type==='creator' && a.target_id===uid) ||
+    (a.target_type==='team' && a.target_id===p.team_id)
+  ).map(a=>a.training_id));
+
+  let liveTrainings=(rawLive||[]).filter(t=>allowedLiveIds.has(t.id));
+
+  // Compatibilidad con LIVE antiguos sin audiencia guardada.
+  // Si el instructor es admin, el comportamiento histórico por defecto era
+  // permitir a todos los creadores entrar; si es manager, se deriva por equipo.
+  if(!liveTrainings.length && rawLive?.length){
+    const adminCreated=(rawLive||[]).filter(t=>t.created_by && !liveAudience?.some(a=>a.training_id===t.id));
+    if(adminCreated.length){
+      const {data:owners}=await sb.from('profiles').select('id,role').in('id',[...new Set(adminCreated.map(t=>t.created_by))]);
+      const adminIds=new Set((owners||[]).filter(o=>o.role==='admin').map(o=>o.id));
+      liveTrainings=adminCreated.filter(t=>adminIds.has(t.created_by));
+    }
+  }
+
+  // Compatibilidad con LIVE antiguos de manager que no tienen audiencia guardada.
+  // Si el creador pertenece a un equipo administrado por el instructor, ese LIVE
+  // sigue siendo válido para él.
+  if(!liveTrainings.length && rawLive?.length && p.team_id){
+    const managerUserIds=[...new Set(rawLive.map(t=>t.created_by).filter(Boolean))];
+    if(managerUserIds.length){
+      const {data:managerRows}=await sb.from('managers').select('id,user_id').in('user_id',managerUserIds).eq('active',true);
+      const managerIds=(managerRows||[]).map(m=>m.id);
+      if(managerIds.length){
+        const {data:managedTeam}=await sb.from('teams').select('id,manager_id').eq('id',p.team_id).in('manager_id',managerIds).maybeSingle();
+        if(managedTeam?.manager_id){
+          const managerByUser=new Map((managerRows||[]).map(m=>[m.user_id,m.id]));
+          liveTrainings=(rawLive||[]).filter(t=>managerByUser.get(t.created_by)===managedTeam.manager_id);
+        }
+      }
+    }
+  }
+  const pendingId=pendingLiveTrainingAutoStart?.id||null;
+  const activeLive=(pendingId && (rawLive||[]).find(t=>t.id===pendingId)) || liveTrainings[0] || null;
+  if(pendingId) pendingLiveTrainingAutoStart=null;
+  currentLiveTraining=activeLive||null;
+
+  // Historial real = entrenamientos donde el creador tiene un registro de
+  // participación. Una simple apertura/visualización no cuenta como asistencia.
+  const {data:participantRows, error:participantError}=await sb.from('live_training_participants')
+    .select('training_id,joined_at,left_at,duration_seconds')
+    .eq('user_id',uid)
+    .order('joined_at',{ascending:false});
+
+  let attended=[];
+  if(!participantError && participantRows?.length){
+    const attendedIds=[...new Set(participantRows.map(r=>r.training_id).filter(Boolean))];
+    const {data:attendedTrainings}=await sb.from('live_trainings')
+      .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
+      .in('id',attendedIds)
+      .order('started_at',{ascending:false});
+    const tm=new Map((attendedTrainings||[]).map(t=>[t.id,t]));
+    attended=participantRows.map(r=>({training:tm.get(r.training_id),participant:r})).filter(x=>x.training);
+  }
+
+  const uniqueAttended=[];
+  const seenAttended=new Set();
+  for(const item of attended){
+    if(seenAttended.has(item.training.id)) continue;
+    seenAttended.add(item.training.id);
+    uniqueAttended.push(item);
+  }
+
+  const liveCard=activeLive ? `<section class="creator-live-now-section">
+    <div class="eyebrow">ENTRENAMIENTO EN VIVO</div>
+    <div class="creator-live-now-card">
+      <div class="creator-live-now-copy">
+        <div class="creator-live-now-badge"><span></span> EN VIVO</div>
+        <h2>${esc(activeLive.title)}</h2>
+        <p class="muted">Instructor: ${esc(activeLive.instructor_name||'Grayxon')}</p>
+        ${activeLive.description?`<p class="muted small">${esc(activeLive.description)}</p>`:''}
+      </div>
+      <button type="button" class="primary" id="enterCreatorLiveNow">Entrar al entrenamiento</button>
+    </div>
+  </section>` : '';
+
+  const historyItems=uniqueAttended.map(({training:t,participant:r})=>`<div class="creator-attended-item">
+    <div class="creator-attended-main">
+      <span class="creator-training-icon">🎥</span>
+      <span><strong>${esc(t.title)}</strong><small>${esc(t.instructor_name||'Grayxon')} · ${formatDateTime(t.started_at||t.scheduled_at||t.created_at)}</small></span>
+    </div>
+    <span class="creator-attended-duration">${t.started_at ? liveTrainingDuration(r.joined_at,r.left_at||t.ended_at) : 'Asistencia registrada'}</span>
+  </div>`).join('');
+
+  el.innerHTML=`<div class="live-training-page creator-training-library">
+    <div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Tus entrenamientos 🎥</h1><p>Entra directamente cuando un entrenamiento esté EN VIVO y consulta abajo tu historial de asistencia.</p></div></div>
+    ${liveCard}
+    <section class="creator-attended-section">
+      <button type="button" class="creator-attended-toggle" id="creatorAttendedToggle" aria-expanded="false">
+        <span><span class="eyebrow">HISTORIAL</span><strong>Entrenamientos a los que asististe</strong></span>
+        <span class="creator-attended-toggle-right"><b>${uniqueAttended.length}</b><span class="creator-training-chevron">›</span></span>
+      </button>
+      <div id="creatorAttendedPanel" class="creator-attended-panel hidden">
+        ${historyItems || '<div class="creator-training-empty">Todavía no has asistido a ningún entrenamiento.</div>'}
+      </div>
+    </section>
+  </div>`;
+
+  $('#enterCreatorLiveNow')?.addEventListener('click',async()=>{
+    if(!activeLive)return;
+    await enterCreatorLiveTraining(activeLive);
+  });
+  $('#creatorAttendedToggle')?.addEventListener('click',()=>{
+    const panel=$('#creatorAttendedPanel');
+    const btn=$('#creatorAttendedToggle');
+    if(!panel||!btn)return;
+    const open=panel.classList.contains('hidden');
+    panel.classList.toggle('hidden',!open);
+    btn.setAttribute('aria-expanded',open?'true':'false');
+    btn.classList.toggle('open',open);
+  });
+}
+
+async function liveTrainingTpl(trainingOverride=null) {
+  if((profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session')) && !trainingOverride) return creatorTrainingsTpl();
+  const el=ensureLiveTrainingPage();
+  document.body.classList.add('grayxon-live-training-active');
+  const spaceEl=$('#space'); if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
+  if(!session){el.innerHTML=authTpl();return;}
+  profile=await getProfile();
+  if(!profile||!profile.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2></div>';cleanupGrayxonLiveCall();return;}
+  const training=trainingOverride || await fetchActiveLiveTraining(); currentLiveTraining=training;
+  const isHost=!!training?.created_by && training.created_by===session?.user?.id;
+  const isModerator=profile.role==='admin'||profile.role==='manager';
+  const backPage=isModerator?(profile.role==='admin'?'admin':'manager'):'space';
+  if(!training){
+    el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamientos en vivo 🎥</h1><p>Cuando Grayxon inicie un entrenamiento, aparecerá aquí automáticamente.</p></div></div><section class="live-training-feature live-training-empty-compact"><div class="live-training-feature-inner live-training-empty-state"><span class="live-training-idle-icon">○</span><h2>No hay un entrenamiento en vivo</h2><p class="live-training-subtitle">En este momento no hay ninguna sesión activa.</p></div></section></div>`;
+    bind();
+    return;
+  }
+  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':profile.role==='admin'?'Administrador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div class="gx-call-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"><span class="gx-live-pill">EN VIVO</span><span class="gx-live-elapsed" id="gx-live-elapsed" aria-live="off">00:00</span></div><div id="grayxonLiveKitHost" class="grayxon-livekit-host"></div><div class="gx-self-camera-menu-wrap" style="display:none"><button type="button" class="gx-self-camera-menu-trigger" aria-label="Opciones de mi cámara" aria-expanded="false" title="Opciones de mi cámara">•••</button><div class="gx-self-camera-menu hidden" hidden><button type="button" data-gx-camera-option="flip">Cambiar cámara</button><button type="button" data-gx-camera-option="mirror">Voltear imagen</button><button type="button" data-gx-camera-option="background">Fondo virtual</button><button type="button" data-gx-camera-option="settings">Ajustes de cámara</button></div></div><nav class="gx-call-controls" aria-label="Controles de la llamada"><button type="button" data-gx-call="audio" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="13" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"></path></svg></span><span>Micrófono</span></button><button type="button" data-gx-call="video" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="m16 10 5-3v10l-5-3"></path></svg></span><span>Cámara</span></button><button type="button" data-gx-call="hand" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 12V5a1.5 1.5 0 0 1 3 0v5-7a1.5 1.5 0 0 1 3 0v7-5a1.5 1.5 0 0 1 3 0v7l1-2a1.7 1.7 0 0 1 3 1l-2 7c-.7 2.4-2.3 4-5 4h-2c-2 0-3.3-1-4.5-2.5L4 14a1.8 1.8 0 0 1 2.7-2.3z"></path></svg></span><span data-gx-hand-label>Levantar la mano</span></button><button type="button" data-gx-call="hangup" class="gx-call-end" aria-label="Colgar llamada" title="Colgar llamada"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 16.5c5.5-5 14.5-5 20 0l-2.8 3.2a1.5 1.5 0 0 1-1.8.4l-2.3-1a1.5 1.5 0 0 1-.8-1.7l.3-1.1a13 13 0 0 0-5.2 0l.3 1.1a1.5 1.5 0 0 1-.8 1.7l-2.3 1a1.5 1.5 0 0 1-1.8-.4z"></path></svg></span><span>Colgar</span></button><button type="button" data-gx-call="chat"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v13H9l-5 4z"></path><path d="M8 9h8M8 13h5"></path></svg></span><span>Chat</span></button><button type="button" data-gx-call="reactions"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 3 4 3 4-3 4-3M9 9h.01M15 9h.01"></path></svg></span><span>Reacciones</span></button><button type="button" data-gx-call="more" aria-expanded="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg></span><span>Más</span></button></nav><div id="gx-reaction-float-layer" aria-live="polite"></div><aside class="gx-chat-panel hidden" hidden aria-label="Chat de la llamada"><div class="gx-chat-head"><div><strong>Chat en vivo</strong><small>Mensajes de la sesión</small></div><button type="button" data-gx-chat-close>✕</button></div><div id="gx-chat-messages" class="gx-chat-messages" aria-live="polite"><p class="gx-chat-empty">Los mensajes aparecerán aquí.</p></div><form id="gx-chat-form" class="gx-chat-form"><input id="gx-chat-input" maxlength="1000" placeholder="Escribe un mensaje…" autocomplete="off"><button type="submit">Enviar</button></form></aside><div class="gx-reactions-menu hidden" hidden aria-label="Reacciones"><button type="button" data-gx-reaction="👏">👏</button><button type="button" data-gx-reaction="❤️">❤️</button><button type="button" data-gx-reaction="😂">😂</button><button type="button" data-gx-reaction="🔥">🔥</button><button type="button" data-gx-reaction="🎉">🎉</button><button type="button" data-gx-reaction="👍">👍</button></div><div class="gx-call-more-menu hidden" hidden><button type="button" data-gx-more="share">Compartir pantalla</button><button type="button" data-gx-more="participants">Participantes</button><button type="button" data-gx-more="settings">Dispositivos y ajustes</button></div><aside class="gx-participants-panel hidden" hidden aria-label="Participantes"><div class="gx-participants-head"><div><strong>Participantes</strong><div class="gx-participants-count">Conectando…</div></div><button type="button" data-gx-close-participants>✕</button></div><div class="gx-participants-list"><p class="gx-participant-status">Cargando participantes…</p></div></aside><div class="gx-call-end-modal hidden" hidden role="dialog" aria-modal="true"><div class="gx-call-end-card"><h3>¿Qué quieres hacer?</h3><p>Elige si quieres salir de tu llamada o finalizar el entrenamiento para todos.</p><div class="gx-call-end-actions"><button type="button" data-gx-end-choice="leave">Salir de la llamada</button><button type="button" class="gx-end-all" data-gx-end-choice="end">Finalizar entrenamiento para todos</button><button type="button" class="gx-end-cancel" data-gx-end-choice="cancel">Cancelar</button></div></div></div></div></div></div>`;
+  bind();
+  $('[data-gx-close-participants]')?.addEventListener('click',toggleGrayxonParticipantsPanel);
+  $('.gx-participants-list')?.addEventListener('click',()=>{});
+  $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');updateGrayxonChatCounter();});
+   $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;if(!gxLiveKitRoom){toast('La llamada no está conectada todavía.');return;}const name=profile?.full_name||profile?.username||'Tú';sendGrayxonLiveBroadcast('chat',{userId:session?.user?.id||null,name,message,createdAt:new Date().toISOString()}).then(result=>{if(result?.error)toast('No se pudo enviar el mensaje a los demás participantes.');});appendGrayxonChatMessage(name,message);if(input)input.value='';});
+  $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
      // LiveKit ya gestiona las reacciones y evita duplicados.
      if(gxLiveKitRoom)return;
    }));
@@ -4747,7 +5020,9 @@ async function finishLiveTraining(id){
   if(error)return toast('No se pudo consultar el entrenamiento: '+error.message);
   if(!t||t.status!=='live')return toast('Este entrenamiento no está EN VIVO.');
   if(!(profile?.role==='admin'||t.created_by===session?.user?.id))return toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
+  if(gxLiveKitRoom&&currentLiveTraining?.id===id){
     if(!confirm('¿Finalizar el entrenamiento para todos?'))return;
+    const ok=await endLiveTrainingConference(id,true);if(ok)render();return;
   }
   toast('Para finalizar sin dejar la sala activa, entra al entrenamiento y usa “Finalizar entrenamiento para todos”.');
 }
