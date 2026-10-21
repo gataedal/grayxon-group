@@ -316,21 +316,8 @@ async function enableGrayxonPushFromAccount() {
   else toast('No se pudo activar las notificaciones. Revisa la consola del navegador.');
 }
 
-// GRAYXON BUILD V32
-// Grayxon live trainings use Jitsi as a Service (JaaS).
-// The App ID is public; the private signing key stays exclusively in the
-// Supabase Edge Function `generate-jaas-jwt`.
-const JAAS_APP_ID = 'vpaas-magic-cookie-7db4f66a87d64b5696c9aa9ac4b08b7e';
-const JAAS_DOMAIN = '8x8.vc';
-const JAAS_JWT_FUNCTION = 'generate-jaas-jwt';
-// Nueva integración aislada; JaaS permanece disponible como alternativa manual.
-const JITSI_DOMAIN = 'meet.grayxongroup.com';
-const JITSI_JWT_FUNCTION = 'generate-jitsi-jwt';
-const GRAYXON_LIVE_PROVIDER = 'livekit'; // LiveKit es el proveedor principal; Jitsi queda como respaldo manual.
-const GRAYXON_LIVE_TRAINING_ROOM = 'grayxon-live-training';
+// Grayxon live calls use LiveKit exclusively.
 // v14: training audiences are controlled by live_training_audience + RLS.
-let jaasApi = null;
-let jaasApiRoom = null;
 let gxLiveCallRealtimeChannel = null;
 let gxLiveCallRealtimeTrainingId = null;
 async function sendGrayxonLiveBroadcast(event,payload){
@@ -1086,10 +1073,7 @@ function ensureLiveTrainingPage() {
       }
       .live-training-access{font-size:12px;color:#7dd3a9}
       .live-training-shell{margin-top:22px;overflow:hidden;border:1px solid rgba(255,255,255,.10);border-radius:20px;background:#0b0d11;box-shadow:0 20px 70px rgba(0,0,0,.28)}
-      .live-training-toolbar{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
-      .live-training-toolbar-copy strong{display:block;color:#fff}
-      .live-training-toolbar-copy span{display:block;margin-top:4px;color:#8d929c;font-size:12px}
-      .live-training-meet{min-height:650px;background:#050608}
+      .grayxon-livekit-host{min-height:0;height:100%;width:100%;background:#050608;overflow:hidden}
       .live-training-loading{min-height:650px;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px;color:#aeb3bd}
       .live-training-loading strong{display:block;color:#fff;font-size:18px;margin-bottom:8px}
       .live-training-error{padding:45px 28px;text-align:center}
@@ -1111,12 +1095,9 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call #live-training .live-training-hero,
       body.grayxon-live-training-call #live-training .live-training-feature{display:none!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap{display:block!important;visibility:visible!important;margin:0!important;padding:0!important}
-      /* La sala y el host de Jitsi deben compartir exactamente el viewport en modo llamada. */
       body.grayxon-live-training-call #live-training .live-training-page{height:100dvh!important;min-height:100dvh!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;z-index:99990!important}
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
-      body.grayxon-live-training-call #grayxonJaasMeet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
-      body.grayxon-live-training-call #grayxonJaasMeet iframe{display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important}
       /* Franja inferior horizontal para los participantes, como en la referencia móvil. */
       body.grayxon-live-training-call .gx-self-camera-menu-wrap{position:fixed!important;top:calc(16px + env(safe-area-inset-top))!important;right:14px!important;z-index:100009!important;display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:6px!important}
       body.grayxon-live-training-call .gx-self-camera-menu-trigger{width:38px!important;height:38px!important;border:1px solid #ffffff28!important;border-radius:50%!important;background:rgba(9,12,17,.78)!important;color:#fff!important;font-size:20px!important;letter-spacing:2px!important;box-shadow:0 5px 20px #0005!important;backdrop-filter:blur(12px)!important}
@@ -1124,7 +1105,6 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call .gx-self-camera-menu[hidden],body.grayxon-live-training-call .gx-self-camera-menu.hidden{display:none!important}
       body.grayxon-live-training-call .gx-self-camera-menu button{padding:10px 12px!important;text-align:left!important;border:0!important;border-radius:9px!important;background:transparent!important;color:#f5f7fa!important;font:600 12px/1.3 system-ui,sans-serif!important}
       body.grayxon-live-training-call .gx-self-camera-menu button:hover{background:#ffffff12!important}
-      body.grayxon-live-training-call #grayxonJaasMeet iframe{--gx-filmstrip-layout:horizontal!important}
 
       body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-shell{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
       body.grayxon-live-training-call header.top,body.grayxon-live-training-call .top{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;overflow:hidden!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-brand{position:fixed!important;top:calc(10px + env(safe-area-inset-top))!important;left:14px!important;z-index:100002!important;display:flex!important;align-items:center!important;gap:10px!important;pointer-events:none!important;transform:none!important;touch-action:none!important}
@@ -1166,13 +1146,6 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call .gx-call-more-menu button{padding:11px 12px!important;border:0!important;border-radius:9px!important;background:#1a2029!important;color:#fff!important;text-align:left!important;font:600 12px system-ui,sans-serif!important}
       @media(max-width:600px){body.grayxon-live-training-call .gx-call-more-menu{right:12px!important;bottom:calc(76px + env(safe-area-inset-bottom))!important;left:12px!important;min-width:0!important}}
       @media(max-width:600px){body.grayxon-live-training-call .gx-call-brand{top:calc(8px + env(safe-area-inset-top))!important;left:10px!important}body.grayxon-live-training-call .gx-call-brand img{width:70px!important;max-height:28px!important}body.grayxon-live-training-call .gx-call-brand .gx-live-pill{font-size:9px!important;padding:5px 7px!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-controls{left:8px!important;right:8px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:none!important;max-width:none!important;gap:4px!important;padding:7px 5px!important;border-radius:17px!important}body.grayxon-live-training-call .gx-call-controls button{flex:1 1 0!important;min-width:0!important;min-height:45px!important;padding:5px 2px!important;font-size:9px!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon{font-size:18px!important}}
-      body.grayxon-live-training-call #grayxonTrainingRoomWrap .live-training-toolbar{display:flex!important;visibility:visible!important;position:fixed!important;left:12px!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;z-index:100001!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;gap:8px!important;flex-wrap:wrap!important;background:rgba(10,12,16,.94)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:18px!important;padding:10px!important;backdrop-filter:blur(16px)!important}
-      /* En llamadas LiveKit ocultar la barra heredada de Jitsi desde el arranque. */
-      body.grayxon-live-training-call.grayxon-livekit-call #grayxonTrainingRoomWrap .live-training-toolbar{display:none!important;visibility:hidden!important;pointer-events:none!important}
-      body.grayxon-live-training-call #grayxonJaasMeet{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;padding:0!important;box-sizing:border-box!important;background:#050608!important;overflow:hidden!important}
-      body.grayxon-live-training-call #grayxonJaasMeet iframe{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;border:0!important;touch-action:pan-y!important}
-      /* En móvil, mantener el escenario de Jitsi a pantalla completa.
-         El espacio de la tira se controla con el diseño propio de Jitsi, no recortando el iframe. */
       body.grayxon-live-training-call .live-training-loading{display:none!important}
       .page-section[hidden], #space[hidden], #home[hidden], #benefits[hidden], #auth[hidden], #manager[hidden], #training[hidden], #live-training[hidden], #missions[hidden], #profile[hidden], #admin[hidden]{display:none!important;}
       .live-training-space-card .space-progress span{width:100%;background:linear-gradient(90deg,#25f4ee,#fe2c55)}
@@ -1204,8 +1177,7 @@ function ensureLiveTrainingPage() {
           font-weight:900;
         }
         .live-training-access{display:block;line-height:1.45}
-        .live-training-meet,.live-training-loading{min-height:560px}
-        .live-training-toolbar{align-items:flex-start;flex-direction:column}
+        .grayxon-livekit-host,.live-training-loading{min-height:0}
       }
     `;
     document.head.appendChild(style);
@@ -1321,7 +1293,7 @@ function nav(p, push = true) {
     }
   }
 
-  if (p !== 'live-training' && jaasApi) destroyJaasMeeting();
+  if (p !== 'live-training' && (gxLiveKitRoom || gxLiveKitCleanup)) cleanupGrayxonLiveCall();
   // El render de la página activa lo controla render(). Para creadores no
   // pintamos el shell antiguo aquí porque provocaba el estado "Cargando mi espacio..."
   // al volver desde Misiones/Mi perfil.
@@ -2927,96 +2899,9 @@ function startCreatorLiveDashboardWatcher(){
   },5000);
 }
 
-function loadJaasIframeApi() {
-  return new Promise((resolve, reject) => {
-    const expectedSrc = `https://${JAAS_DOMAIN}/${JAAS_APP_ID}/external_api.js`;
-    const existing = document.querySelector('script[data-grayxon-jaas-api]');
-    if (existing && existing.dataset.loaded === 'true' && window.JitsiMeetExternalAPI) return resolve(window.JitsiMeetExternalAPI);
-    if (existing && existing.dataset.loading === 'true') {
-      existing.addEventListener('load', () => window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de videollamada no quedó disponible.')), { once:true });
-      existing.addEventListener('error', () => reject(new Error('No se pudo cargar el sistema de videollamada.')), { once:true });
-      return;
-    }
-    const script = existing || document.createElement('script');
-    script.src = expectedSrc;
-    script.async = true;
-    script.dataset.grayxonJaasApi = 'true';
-    script.dataset.loading = 'true';
-    script.onload = () => { script.dataset.loading = 'false'; script.dataset.loaded = 'true'; window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de videollamada no quedó disponible.')); };
-    script.onerror = () => { script.dataset.loading = 'false'; reject(new Error('No se pudo cargar la API de videollamada.')); };
-    if (!existing) document.head.appendChild(script);
-  });
-}
-async function getJaasJwt(room = GRAYXON_LIVE_TRAINING_ROOM) {
-  const { data: sessionData } = await sb.auth.getSession();
-  const accessToken = sessionData?.session?.access_token;
-  if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible. Vuelve a iniciar sesión.');
-
-  const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/${JAAS_JWT_FUNCTION}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
-      'Authorization': `Bearer ${accessToken}`
-    },
-    body: JSON.stringify({ room })
-  });
-
-  let data = null;
-  try { data = await res.json(); } catch (_) {}
-
-  if (!res.ok || data?.error) {
-    throw new Error(data?.error || data?.message || `No se pudo preparar el entrenamiento (${res.status}).`);
-  }
-
-  if (!data?.token || !data?.roomName) {
-    throw new Error('El servidor no devolvió los datos necesarios para entrar al entrenamiento.');
-  }
-
-  return data;
-}
-
-function loadSelfHostedJitsiApi() {
-  return new Promise((resolve, reject) => {
-    const expectedSrc = `https://${JITSI_DOMAIN}/external_api.js`;
-    const existing = document.querySelector('script[data-grayxon-selfhosted-jitsi-api]');
-    if (existing && existing.dataset.loaded === 'true' && window.JitsiMeetExternalAPI) return resolve(window.JitsiMeetExternalAPI);
-    if (existing && existing.dataset.loading === 'true') {
-      existing.addEventListener('load', () => window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de Jitsi no quedó disponible.')), { once:true });
-      existing.addEventListener('error', () => reject(new Error('No se pudo cargar la API de Jitsi autohospedado.')), { once:true });
-      return;
-    }
-    const script = existing || document.createElement('script');
-    script.src = expectedSrc;
-    script.async = true;
-    script.dataset.grayxonSelfhostedJitsiApi = 'true';
-    script.dataset.loading = 'true';
-    script.onload = () => { script.dataset.loading = 'false'; script.dataset.loaded = 'true'; window.JitsiMeetExternalAPI ? resolve(window.JitsiMeetExternalAPI) : reject(new Error('La API de Jitsi no quedó disponible.')); };
-    script.onerror = () => { script.dataset.loading = 'false'; reject(new Error('No se pudo cargar la API de Jitsi autohospedado.')); };
-    if (!existing) document.head.appendChild(script);
-  });
-}
-async function getSelfHostedJitsiJwt(trainingId) {
-  if (!trainingId) throw new Error('No se identificó el entrenamiento que quieres abrir.');
-  const { data: sessionData } = await sb.auth.getSession();
-  const accessToken = sessionData?.session?.access_token;
-  if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible. Vuelve a iniciar sesión.');
-  const res = await fetch(`${CFG.SUPABASE_URL}/functions/v1/${JITSI_JWT_FUNCTION}`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json','apikey':CFG.SUPABASE_PUBLISHABLE_KEY,'Authorization':`Bearer ${accessToken}`},
-    body:JSON.stringify({trainingId})
-  });
-  let data=null; try { data=await res.json(); } catch (_) {}
-  if (!res.ok || data?.error) throw new Error(data?.error || data?.message || `No se pudo preparar Jitsi (${res.status}).`);
-  if (!data?.token || !data?.roomName || data?.domain !== JITSI_DOMAIN) throw new Error('Jitsi no devolvió los datos de conexión esperados.');
-  return data;
-}
-
-function destroyJaasMeeting() {
-  if(gxLiveKitRoom){const room=gxLiveKitRoom;gxLiveKitRoom=null;try{room.disconnect();}catch(_){}}
-  if(gxLiveKitCleanup){const cleanup=gxLiveKitCleanup;gxLiveKitCleanup=null;try{cleanup();}catch(_){}}
-  if (jaasApi) { try { jaasApi.dispose(); } catch (_) {} }
-  jaasApi = null; jaasApiRoom = null;
+function cleanupGrayxonLiveCall() {
+  if(gxLiveKitRoom){const room=gxLiveKitRoom;gxLiveKitRoom=null;try{room.disconnect();}catch(_){} }
+  if(gxLiveKitCleanup){const cleanup=gxLiveKitCleanup;gxLiveKitCleanup=null;try{cleanup();}catch(_){} }
   if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
   gxLiveCallRealtimeTrainingId=null;
   grayxonRaisedHands.clear();
@@ -3024,6 +2909,7 @@ function destroyJaasMeeting() {
   window.__gxLocalParticipantId=null;
   window.__gxCanManageMeeting=false;
 }
+
 async function recordLiveTrainingJoin(trainingId){
   if(!trainingId||!session?.user?.id)return null;
   const userId=session.user.id;
@@ -3073,126 +2959,38 @@ function resolveGrayxonLiveTrainingCapabilities({ userId, globalRole, training }
   });
 }
 
-async function endLiveTrainingConference(api, trainingId, canEndAll = null) {
+async function endLiveTrainingConference(trainingId, canEndAll = null) {
   const capabilities = resolveGrayxonLiveTrainingCapabilities({
-    userId: session?.user?.id,
-    globalRole: profile?.role,
-    training: currentLiveTraining?.id === trainingId
-      ? currentLiveTraining
-      : { id: trainingId, created_by: liveTrainingHostUserId }
+    userId: session?.user?.id, globalRole: profile?.role,
+    training: currentLiveTraining?.id === trainingId ? currentLiveTraining : { id: trainingId, created_by: liveTrainingHostUserId }
   });
-  if (canEndAll === false || !capabilities.canEndForAll) {
-    toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
-    return false;
-  }
-  if (!trainingId) return false;
-  const liveKitEnding = !!gxLiveKitRoom;
-  if (!api && !liveKitEnding) return false;
-
+  if (canEndAll === false || !capabilities.canEndForAll) { toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.'); return false; }
+  if (!trainingId || !gxLiveKitRoom) return false;
   liveTrainingEnding = true;
-  let accessToken = null;
-  const callEndTraining = async (action) => {
-    const response = await fetch(`${CFG.SUPABASE_URL}/functions/v1/end-live-training`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({ trainingId, action })
-    });
-    let result = null;
-    try { result = await response.json(); } catch (_) {}
-    if (!response.ok || result?.error || result?.ok !== true) {
-      throw new Error(result?.error || 'El servidor no autorizó finalizar el entrenamiento.');
-    }
-    return result;
-  };
-
   try {
     const { data: sessionData } = await sb.auth.getSession();
-    accessToken = sessionData?.session?.access_token;
+    const accessToken = sessionData?.session?.access_token;
     if (!accessToken) throw new Error('Tu sesión de Grayxon no está disponible.');
-
-    if (liveKitEnding) {
-      const response = await fetch(`${CFG.SUPABASE_URL}/functions/v1/end-livekit-training`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': CFG.SUPABASE_PUBLISHABLE_KEY,
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ trainingId })
-      });
-      let result = null;
-      try { result = await response.json(); } catch (_) {}
-      if (!response.ok || result?.error || result?.ok !== true) {
-        throw new Error(result?.error || 'El servidor no confirmó el cierre de la sala LiveKit.');
-      }
-      toast('Entrenamiento finalizado para todos.');
-      await leaveGrayxonLiveKitTraining();
-      return true;
-    }
-
-    // Phase 1: server validates role and training ownership without changing data.
-    await callEndTraining('authorize');
-
-    // Wait for Jitsi to confirm the conference is closed before marking the
-    // training finished in Supabase. Issuing endConference alone is not proof
-    // that the room actually closed.
-    let closeTimeout = null;
-    let resolveClosed;
-    let rejectClosed;
-    let closeListenerActive = true;
-    const cleanupCloseListener = () => {
-      if (!closeListenerActive) return;
-      closeListenerActive = false;
-      if (closeTimeout !== null) clearTimeout(closeTimeout);
-      api.removeEventListener?.('readyToClose', onReadyToClose);
-    };
-    const onReadyToClose = () => {
-      cleanupCloseListener();
-      resolveClosed(true);
-    };
-    const conferenceClosed = new Promise((resolve, reject) => {
-      resolveClosed = resolve;
-      rejectClosed = reject;
+    const response = await fetch(CFG.SUPABASE_URL + '/functions/v1/end-livekit-training', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':CFG.SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken},
+      body:JSON.stringify({trainingId})
     });
-    api.addEventListener('readyToClose', onReadyToClose);
-    closeTimeout = setTimeout(() => {
-      cleanupCloseListener();
-      rejectClosed(new Error('Jitsi no confirmó el cierre de la sala. El estado no se marcará como finalizado.'));
-    }, 15000);
-
-    // The meeting is ended only after the server authorizes this user.
-    try {
-      api.executeCommand('endConference');
-    } catch (commandError) {
-      cleanupCloseListener();
-      throw commandError;
-    }
-    await conferenceClosed;
-
-    // Phase 2: persist only after Jitsi confirms that the conference closed.
-    try {
-      await callEndTraining('finalize');
-    } catch (persistError) {
-      console.error('La sala se cerró, pero falló la actualización del estado:', persistError);
-      toast('La sala se cerró, pero el estado no se pudo guardar. Actualiza el panel y solicita reconciliación.');
-      return false;
-    }
+    let result=null; try { result=await response.json(); } catch (_) {}
+    if(!response.ok||result?.error||result?.ok!==true) throw new Error(result?.error||'El servidor no confirmó el cierre de la sala LiveKit.');
+    toast('Entrenamiento finalizado para todos.');
+    await leaveGrayxonLiveKitTraining();
     return true;
-  } catch (error) {
-    liveTrainingEnding = false;
-    console.warn('No se pudo finalizar el entrenamiento:', error);
-    toast(error?.message || 'No se pudo confirmar la finalización del entrenamiento.');
+  } catch(error) {
+    liveTrainingEnding=false;
+    console.warn('No se pudo finalizar el entrenamiento:',error);
+    toast(error?.message||'No se pudo confirmar la finalización del entrenamiento.');
     return false;
   }
 }
 
 const grayxonRaisedHands = new Map();
 let gxLiveKitHandRaised = false;
-// Manejo delegado en fase de captura: evita que el controlador heredado de Jitsi
 // sobrescriba o deje sin efecto el botón cuando la sala activa usa LiveKit.
 if(!window.__gxLiveKitHandCaptureBound){
   window.__gxLiveKitHandCaptureBound=true;
@@ -3262,7 +3060,7 @@ function syncGrayxonLiveKitHandTiles(stage=document.querySelector('#grayxonLiveK
   minis.forEach(tile=>stage.appendChild(tile));
 }
 function showGrayxonLiveChatToast(name,message){
-  const call=document.querySelector('#grayxonLiveKitStage')||document.querySelector('#grayxonJaasMeet');
+  const call=document.querySelector('#grayxonLiveKitStage')||document.querySelector('#grayxonLiveKitHost');
   if(!call)return;
   let layer=document.querySelector('#gx-chat-live-toast-layer');
   if(!layer){layer=document.createElement('div');layer.id='gx-chat-live-toast-layer';layer.setAttribute('aria-live','polite');document.body.appendChild(layer);}
@@ -3335,65 +3133,22 @@ function showGrayxonReaction(name,emoji){
 function toggleGrayxonParticipantsPanel(){
   const panel=$('.gx-participants-panel');if(!panel)return;
   panel.hidden=!panel.hidden;panel.classList.toggle('hidden',panel.hidden);
-  if(jaasApi&&!panel.hidden)refreshGrayxonParticipants(jaasApi);
+  if(!panel.hidden)refreshGrayxonLiveKitParticipants();
 }
-async function getGrayxonJitsiParticipants(api){
-  if(!api)return [];
-  try{
-    if(typeof api.getRoomsInfo==='function'){
-      const roomInfo=await api.getRoomsInfo();
-      const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:null);
-      if(rooms){
-        const participants=rooms.flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
-        return participants.map(person=>({
-          ...person,
-          participantId:person.participantId||person.id||'',
-          isLocal:String(person?.userContext?.id||'')===String(session?.user?.id||''),
-          avatarURL:person.avatarURL||person.avatarUrl||person.avatar||''
-        }));
-      }
-    }
-  }catch(error){
-    console.warn('Grayxon LIVE: getRoomsInfo no está disponible; se intentará el método compatible anterior.',error);
-  }
-  try{
-    const legacy=await api.getParticipantsInfo?.();
-    return Array.isArray(legacy)?legacy.map(person=>({...person,participantId:person.participantId||person.id||''})):[];
-  }catch(error){
-    console.warn('Grayxon LIVE: no se pudieron consultar los participantes.',error);
-    return [];
-  }
-}
-
-async function refreshGrayxonParticipants(api){
-  const panel=$('.gx-participants-panel');if(!panel||!api)return;
-  try{
-    const people=await getGrayxonJitsiParticipants(api);
-    const local=people.find(p=>p.isLocal);
-    if(local)window.__gxLocalParticipantId=local.participantId||local.id||null;
-    people.sort((a,b)=>{
-      const aid=a.participantId||a.id||'',bid=b.participantId||b.id||'';
-      const ah=grayxonRaisedHands.get(aid)?1:0,bh=grayxonRaisedHands.get(bid)?1:0;
-      if(ah!==bh)return bh-ah;
-      const as=aid===window.__grayxonDominantSpeaker?1:0,bs=bid===window.__grayxonDominantSpeaker?1:0;
-      if(as!==bs)return bs-as;
-      const av=(a.isLocal?1:0),bv=(b.isLocal?1:0);
-      return av-bv;
-    });
-    const list=$('.gx-participants-list',panel);if(!list)return;
-    list.innerHTML=people.map(p=>{
-      const id=p.participantId||p.id||'';const name=p.displayName||p.name||'Participante';
-      const hand=grayxonRaisedHands.get(id);const sharing=(window.__grayxonSharingParticipants||[]).includes(id);
-      const main=window.__grayxonLargeVideoParticipant===id;
-      const status=[p.isLocal?'Tú':(p.role==='moderator'?'Moderador':'Participante'),hand?'Solicitó la palabra':'',sharing?'Compartiendo pantalla':(main?'En pantalla principal':'')].filter(Boolean).join(' · ');
-      const initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
-      const avatar=p.avatarURL||p.avatarUrl||p.avatar||'';
-      const canManage=!!window.__gxCanManageMeeting&&!p.isLocal;
-      const manageAction=canManage?'<div class="gx-participant-actions">'+(p.role!=='moderator'?'<button type="button" class="gx-promote-participant" data-gx-participant-action="promote" data-gx-participant-id="'+esc(String(id))+'">Hacer moderador</button>':'<span class="gx-participant-role">Moderador</span>')+'<button type="button" class="gx-promote-participant" data-gx-participant-action="mute-audio" data-gx-participant-id="'+esc(String(id))+'">Silenciar</button><button type="button" class="gx-promote-participant" data-gx-participant-action="mute-video" data-gx-participant-id="'+esc(String(id))+'">Apagar cámara</button><button type="button" class="gx-promote-participant gx-participant-kick" data-gx-participant-action="kick" data-gx-participant-id="'+esc(String(id))+'">Expulsar</button></div>':'';
-      return '<div class="gx-participant-row"><div class="gx-participant-avatar">'+(avatar?'<img src="'+esc(avatar)+'" alt="" loading="lazy">':esc(initials||'G'))+'</div><div class="gx-participant-info"><div class="gx-participant-name">'+esc(name)+(p.isLocal?' (tú)':'')+'</div><div class="gx-participant-status">'+esc(status||'Conectado')+'</div></div>'+(hand?'<span class="gx-participant-hand">✋</span>':'')+manageAction+'</div>';
-    }).join('')||'<p class="gx-participant-status">Esperando participantes…</p>';
-    const count=$('.gx-participants-count',panel);if(count)count.textContent=people.length+' conectado'+(people.length===1?'':'s');
-  }catch(e){console.warn('No se pudo actualizar participantes',e);}
+function refreshGrayxonLiveKitParticipants(){
+  const panel=$('.gx-participants-panel');if(!panel)return;
+  const stage=$('#grayxonLiveKitStage');
+  const tiles=Array.from(stage?.querySelectorAll('[data-gx-livekit-tile]')||[]);
+  const list=$('.gx-participants-list',panel);if(!list)return;
+  list.innerHTML=tiles.map(tile=>{
+    const name=tile.querySelector('[data-gx-livekit-label]')?.textContent||'Participante';
+    const mic=tile.dataset.gxLivekitMicEnabled==='true';
+    const camera=tile.dataset.gxLivekitCameraEnabled==='true';
+    const identity=String(tile.dataset.gxLivekitIdentity||'');
+    const hand=grayxonRaisedHands.has(identity)||!!tile.querySelector('[data-gx-livekit-hand-badge]');
+    return '<div class="gx-participant-row"><div class="gx-participant-avatar">'+esc(name.trim().charAt(0).toUpperCase()||'G')+'</div><div class="gx-participant-info"><div class="gx-participant-name">'+esc(name)+'</div><div class="gx-participant-status">'+(mic?'Micrófono activo':'Micrófono apagado')+' · '+(camera?'Cámara activa':'Cámara apagada')+'</div></div>'+(hand?'<span class="gx-participant-hand">✋</span>':'')+'</div>';
+  }).join('')||'<p class="gx-participant-status">Esperando participantes…</p>';
+  const count=$('.gx-participants-count',panel);if(count)count.textContent=tiles.length+' conectado'+(tiles.length===1?'':'s');
 }
 
 let gxLiveKitRoom = null;
@@ -3435,8 +3190,7 @@ function ensureGrayxonLiveKitLayout(){
   #grayxonLiveKitStage [data-gx-livekit-label]{position:absolute;left:10px;bottom:9px;z-index:3;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px;max-width:85%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   @media(max-width:600px){#grayxonLiveKitStage{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-height:0;height:auto;align-content:start}#grayxonLiveKitStage [data-gx-livekit-tile]{grid-column:auto!important;grid-row:auto!important;aspect-ratio:4/3;min-height:110px;border-radius:10px}#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1!important;aspect-ratio:16/9;min-height:190px}#grayxonLiveKitStage [data-gx-livekit-tile] video{object-fit:cover}#grayxonLiveKitStage .gx-livekit-avatar img,#grayxonLiveKitStage .gx-livekit-avatar-fallback{width:clamp(54px,18vw,86px)}}
   @media(min-width:601px){#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1;aspect-ratio:16/9;min-height:260px}}
-  /* Si queda un iframe de Jitsi durante el arranque, nunca debe cubrir la sala LiveKit. */
-  body.grayxon-live-training-call #grayxonJaasMeet:has(#grayxonLiveKitStage) iframe{display:none!important;visibility:hidden!important;pointer-events:none!important;}`;
+  body.grayxon-live-training-call #grayxonLiveKitHost:has(#grayxonLiveKitStage) iframe{display:none!important;visibility:hidden!important;pointer-events:none!important;}`;
   document.head.appendChild(style);
 }
 function renderGrayxonLiveKitTrack(track, participant, host){
@@ -3539,13 +3293,16 @@ async function leaveGrayxonLiveKitTraining(){
     try{await room.disconnect();}catch(_){}
   }
   if(gxLiveKitRoom===room)gxLiveKitRoom=null;
+    const message=esc(error?.message||'No se pudo preparar la sala LiveKit.');
+    host.innerHTML='<div class="live-training-error" style="max-width:620px;margin:8vh auto;padding:24px;color:#fff;background:#11141a;border:1px solid rgba(255,255,255,.12);border-radius:18px"><h3>No pudimos abrir el entrenamiento con LiveKit</h3><p>'+message+'</p><button class="primary" id="retryGrayxonTraining">Intentar nuevamente</button></div>';
+    $('#retryGrayxonTraining')?.addEventListener('click',()=>startGrayxonLiveKitTraining(training,options));
   if(gxLiveCallRealtimeChannel){try{await sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(error){console.warn('No se pudo cerrar el canal Realtime:',error);}gxLiveCallRealtimeChannel=null;}
   gxLiveCallRealtimeTrainingId=null;
   if(gxElapsedInterval){clearInterval(gxElapsedInterval);gxElapsedInterval=null;}
   if(gxWakeLock){try{await gxWakeLock.release();}catch(_){}gxWakeLock=null;}
-  document.body.classList.remove('grayxon-live-training-call','grayxon-live-training-active','grayxon-livekit-active','grayxon-livekit-call');
+  document.body.classList.remove('grayxon-live-training-call','grayxon-live-training-active','grayxon-livekit-active');
   updateCreatorSpaceFloat();
-  const host=$('#grayxonJaasMeet');if(host)host.replaceChildren();
+  const host=$('#grayxonLiveKitHost');if(host)host.replaceChildren();
   const wrap=$('#grayxonTrainingRoomWrap');
   if(wrap){wrap.classList.add('hidden');wrap.hidden=true;wrap.style.setProperty('display','none','important');}
   liveTrainingEnding=false;
@@ -3554,9 +3311,9 @@ async function leaveGrayxonLiveKitTraining(){
 }
 
 async function startGrayxonLiveKitTraining(training, options={}){
-  const host=$('#grayxonJaasMeet');if(!host||!training?.room_name)return;
+  const host=$('#grayxonLiveKitHost');if(!host||!training?.room_name)return;
   ensureGrayxonLiveKitLayout();
-  destroyJaasMeeting();
+  cleanupGrayxonLiveCall();
   if(gxLiveKitRoom){try{gxLiveKitRoom.disconnect();}catch(_){}gxLiveKitRoom=null;}
   if(gxLiveKitCleanup){try{gxLiveKitCleanup();}catch(_){}gxLiveKitCleanup=null;}
   host.innerHTML='<div id="grayxonLiveKitStage" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px;width:100%;height:100%;min-height:280px;align-content:center"><div class="live-training-loading" aria-hidden="true"></div></div>';
@@ -3874,808 +3631,22 @@ async function startGrayxonLiveKitTraining(training, options={}){
       appendGrayxonChatMessage(payload.name,payload.message);
       if(input)input.value='';
     };
-    $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>{
-      button.onclick=async()=>{
-        const emoji=button.getAttribute('data-gx-reaction');if(!emoji)return;
-        const payload={userId:session?.user?.id||null,name:profile?.full_name||profile?.username||'Participante',emoji};
-        const sent=await sendGrayxonLiveBroadcast('reaction',payload);
-        if(sent?.error){toast('No se pudo enviar la reacción.');return;}
-        showGrayxonReaction(payload.name,payload.emoji);playGrayxonSound('reaction');
-        const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
-        $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
-      };
-    });
-    const refreshLiveKitParticipants=()=>{
-      const panel=$('.gx-participants-panel'),list=panel?.querySelector('.gx-participants-list');if(!list||!room)return;
-      const people=[{identity:room.localParticipant.identity,name:profile?.full_name||profile?.username||'Tú',local:true},...Array.from(room.remoteParticipants.values()).map(p=>({identity:p.identity,name:p.name||p.identity,local:false}))];
-      list.replaceChildren();
-      people.forEach(person=>{const row=document.createElement('div');row.className='gx-participant-status';row.textContent=person.name+(person.local?' · Tú':'');list.appendChild(row);});
-    };
-    room.on(LK.RoomEvent.ParticipantConnected,refreshLiveKitParticipants);
-    room.on(LK.RoomEvent.ParticipantDisconnected,refreshLiveKitParticipants);
-    const participantsButton=$('[data-gx-more="participants"]');
-    if(participantsButton)participantsButton.onclick=()=>{
-      const panel=$('.gx-participants-panel');if(panel){const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);if(open)refreshLiveKitParticipants();}
-      const menu=$('.gx-call-more-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
-      $('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');
-    };
-    if(!gxLiveStartedAt)gxLiveStartedAt=Date.now();updateGrayxonLiveElapsed();if(!gxElapsedInterval)gxElapsedInterval=setInterval(updateGrayxonLiveElapsed,1000);startGrayxonWakeLock();await recordLiveTrainingJoin(training.id);elapsedStarted=true;
-    if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
-    gxLiveCallRealtimeTrainingId=training.id;
-    gxLiveCallRealtimeChannel=sb.channel('grayxon-live-call-'+training.id,{config:{broadcast:{self:false}}})
-      .on('broadcast',{event:'reaction'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.emoji){showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));playGrayxonSound('reaction');}})
-      .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){const chatName=String(payload.name||'Participante'),chatMessage=String(payload.message);appendGrayxonChatMessage(chatName,chatMessage);}})
-      .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.participantId||payload.identity||'');if(!key)return;if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);syncGrayxonLiveKitHandTiles(stage);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
-      .on('broadcast',{event:'pin-participant'},({payload})=>{
-        if(!payload||String(payload.trainingId||'')!==String(training.id||''))return;
-        const participantId=String(payload.participantId||'');
-        window.__gxLiveKitPinnedParticipantId=participantId||null;
-        const tiles=Array.from(stage?.querySelectorAll('[data-gx-livekit-tile]')||[]);
-        const pinned=participantId&&tiles.find(item=>item.dataset.gxLivekitIdentity===participantId);
-        const hostTile=tiles.find(item=>item.dataset.gxLivekitIdentity===String(window.__gxHostParticipantId||''));
-        const localTile=tiles.find(item=>item.dataset.gxLivekitIdentity===String(room?.localParticipant?.identity||''));
-        const main=pinned||hostTile||localTile||tiles[0];
-        if(main&&stage&&main!==stage.firstChild)stage.insertBefore(main,stage.firstChild);
-        tiles.forEach(item=>item.dataset.gxLivekitMain=String(item===main));
-      })
-      .subscribe();
-    toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
-    gxLiveKitCleanup=()=>{joined=false;try{room?.removeAllListeners();}catch(_){}try{room?.localParticipant?.trackPublications?.forEach(pub=>{try{pub.track?.stop();}catch(_){}});}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
-    room.on(LK.RoomEvent.Disconnected,async()=>{
-      if(liveTrainingEnding||gxLiveKitRoom!==room)return;
-      try{await recordLiveTrainingLeave();}catch(_){}
-      if(gxLiveKitCleanup){gxLiveKitCleanup();gxLiveKitCleanup=null;}
-      document.body.classList.remove('grayxon-live-training-call','grayxon-livekit-call');updateCreatorSpaceFloat();
-      const wrap=$('#grayxonTrainingRoomWrap');if(host)host.innerHTML='';
-      if(wrap){wrap.classList.add('hidden');wrap.hidden=true;wrap.style.setProperty('display','none','important');}
-      nav(profile?.role==='admin'?'admin':profile?.role==='manager'?'manager':'space',false);
-    });
-  }catch(error){
-    console.error('GRAYXON LIVEKIT ERROR:',error);
-    if(room){try{await room.disconnect();}catch(_){}}
-    if(gxLiveKitRoom===room)gxLiveKitRoom=null;
-    const message=esc(error?.message||'No se pudo preparar la sala LiveKit.');
-    host.innerHTML='<div class="live-training-error" style="max-width:620px;margin:8vh auto;padding:24px;color:#fff;background:#11141a;border:1px solid rgba(255,255,255,.12);border-radius:18px"><h3>No pudimos abrir el entrenamiento con LiveKit</h3><p>'+message+'</p><p>La sala anterior de Jitsi sigue disponible como respaldo.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="primary" id="retryGrayxonTraining">Intentar LiveKit nuevamente</button><button class="secondary" id="fallbackGrayxonJitsi">Entrar con Jitsi</button></div></div>';
-    $('#retryGrayxonTraining')?.addEventListener('click',()=>startGrayxonLiveTraining(training,{...options,provider:'livekit'}));
-    $('#fallbackGrayxonJitsi')?.addEventListener('click',()=>startGrayxonLiveTraining(training,{...options,provider:'jitsi'}));
-  }
-}
-
-async function startGrayxonLiveTraining(training, options={}){
-  // Jitsi solo se selecciona explícitamente para esta URL de prueba o mediante el respaldo manual.
-  // No persistirlo en sessionStorage: un modo Jitsi antiguo puede sobrevivir a la navegación
-  // y mezclar una sala Jitsi con participantes que están usando LiveKit para el mismo entrenamiento.
-  const requestedJitsiTest = new URLSearchParams(window.location.search).get('jitsiTest') === '1';
-  // El parámetro solo selecciona el proveedor; la Edge Function sigue validando acceso y permisos.
-  const provider = options.provider || (requestedJitsiTest ? 'jitsi' : GRAYXON_LIVE_PROVIDER);
-  // Marcar LiveKit antes del primer repintado para que no aparezca la barra heredada de Jitsi.
-  if(provider==='livekit') document.body.classList.add('grayxon-livekit-call');
-  else document.body.classList.remove('grayxon-livekit-call');
-  if(provider==='livekit') return startGrayxonLiveKitTraining(training,options);
-  const host=$('#grayxonJaasMeet'); if(!host||!training?.room_name)return;
-  destroyJaasMeeting();
-  host.innerHTML='<div id="grayxonJaasLoading" class="live-training-loading" aria-hidden="true"></div>';
-  liveTrainingHostUserId = training.created_by || null;
-  liveTrainingEnding = false;
-  window.__gxHostParticipantId = null;
-  window.__gxLocalParticipantId = null;
-  window.__grayxonLargeVideoParticipant = null;
-  const isHost = !!session?.user?.id && training.created_by === session.user.id;
-  const isAdmin = profile?.role === 'admin';
-  // La interfaz debe reflejar la misma política del backend: anfitrión registrado
-  // o administrador pueden gestionar el cierre global. Jitsi sigue validando
-  // en el servidor los privilegios efectivos de moderación.
-  const canManageMeeting = isHost || isAdmin;
-  window.__gxCanManageMeeting = canManageMeeting;
-  try{
-    const [connection,JitsiMeetExternalAPI]=await Promise.all([
-      provider === 'jitsi' ? getSelfHostedJitsiJwt(training.id) : getJaasJwt(training.room_name),
-      provider === 'jitsi' ? loadSelfHostedJitsiApi() : loadJaasIframeApi()
-    ]);
-    const {token,roomName}=connection;
-    if(!$('#grayxonJaasMeet'))return;
-    const api=new JitsiMeetExternalAPI(provider === 'jitsi' ? JITSI_DOMAIN : JAAS_DOMAIN,{
-      roomName,
-      jwt:token,
-      parentNode:$('#grayxonJaasMeet'),
-      width:'100%',
-      height:'100%',
-      lang:'es',
-      userInfo:{displayName:profile?.full_name||profile?.username||session?.user?.email?.split('@')[0]||'Participante Grayxon',email:session?.user?.email||''},
-      interfaceConfigOverwrite:{SHOW_JITSI_WATERMARK:false,SHOW_WATERMARK_FOR_GUESTS:false,SHOW_BRAND_WATERMARK:false,SHOW_POWERED_BY:false,SHOW_PROMOTIONAL_CLOSE_PAGE:false,SHOW_DEEP_LINKING_IMAGE:false,MOBILE_APP_PROMO:false,DEFAULT_BACKGROUND:'#050608',JITSI_WATERMARK_LINK:'',BRAND_WATERMARK_LINK:'',VERTICAL_FILMSTRIP:false,FILM_STRIP_MAX_HEIGHT:104,TILE_VIEW_MAX_COLUMNS:3,DISABLE_JOIN_LEAVE_NOTIFICATIONS:true},
-      configOverwrite:{
-        prejoinConfig:{enabled:false},
-        // Start with both devices muted. Do not disable initial GUM: on some mobile
-        // browsers that flag prevents the camera track from being created on demand.
-        startWithAudioMuted:true,
-        startWithVideoMuted:true,
-        // Grayxon owns the controls and chat; never render a second Jitsi toolbar.
-        toolbarButtons:[],
-        toolbarConfig:{initialTimeout:0,timeout:0,alwaysVisible:false},
-        filmstrip:{disableStageFilmstrip:true,disableResizable:true},
-        // Mantener la vista propia activa: desactivarla también elimina la vista previa local.
-        // La miniatura duplicada debe resolverse mediante el diseño de participantes, no apagando self-view.
-        disableSelfView:false,
-        maxFullResolutionParticipants:4,
-        // Grayxon uses its own Jitsi server. Force media through the Jitsi Videobridge
-        // while diagnosing black remote video; this avoids a broken P2P ICE path
-        // between clients. It does not affect room access or the Grayxon controls.
-        p2p:{enabled:false},
-        disableDeepLinking:true,
-        // Expose the hangup click so the host can end the entire training.
-        buttonsWithNotifyClick:[{key:'hangup',preventExecution:true}],
-        // AV moderation makes participants request permission before unmuting.
-        // Moderators can approve/ask-to-unmute from the participant controls.
-      }
-    });
-    jaasApi=api; jaasApiRoom=roomName;
-    // Sincronización de controles propios de Grayxon por entrenamiento; no depende del chat de Jitsi.
-    if(gxLiveCallRealtimeChannel){try{sb?.removeChannel(gxLiveCallRealtimeChannel);}catch(_){}gxLiveCallRealtimeChannel=null;}
-    gxLiveCallRealtimeTrainingId=training.id;
-    gxLiveCallRealtimeChannel=sb.channel(`grayxon-live-call-${training.id}`,{config:{broadcast:{self:false}}})
-      .on('broadcast',{event:'hand'},({payload})=>{
-        if(!payload||payload.userId===session?.user?.id)return;
-        const participantId=String(payload.participantId||'');
-        if(participantId)grayxonRaisedHands.set(participantId,!!payload.raised);
-        refreshGrayxonParticipants(api);
-        if(payload.raised&&(isHost||isAdmin))toast('✋ '+String(payload.name||'Un participante')+' levantó la mano');
-      })
-      .on('broadcast',{event:'reaction'},({payload})=>{
-        if(!payload||payload.userId===session?.user?.id||!payload.emoji)return;
-        showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));
-        playGrayxonSound('reaction');
-      })
-      .subscribe(status=>{
-        if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Grayxon LIVE: error en canal de sincronización',status);
-      });
-
-    // La identidad del anfitrión se resuelve desde la identidad de Jitsi asociada
-    // al usuario autenticado, no mediante broadcasts ni el orden de llegada.
-    let gxHostStageSyncInFlight=false;
-    let gxHostStageSyncAgain=false;
-    const syncGrayxonHostStage=async()=>{
-      if(!training?.created_by||jaasApi!==api)return;
-      if(gxHostStageSyncInFlight){gxHostStageSyncAgain=true;return;}
-      gxHostStageSyncInFlight=true;
-      try{
-        const roomInfo=await api.getRoomsInfo?.();
-        // Jitsi SDK deployments may return either a room array or { rooms }.
-        const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[]);
-        const mainRooms=rooms.filter(room=>room?.isMainRoom);
-        const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
-        // En algunas versiones de Jitsi el userContext no se expone en getRoomsInfo.
-        // Si esta sesión pertenece a quien creó el entrenamiento, su participante local
-        // es la fuente de verdad; no debemos elegir por orden de llegada ni por hablante activo.
-        const creatorIsLocal=String(session?.user?.id||'')===String(training.created_by);
-        const localHost=creatorIsLocal?participants.find(person=>String(person?.id||person?.participantId||'')===String(window.__gxLocalParticipantId||'')):null;
-        const hostParticipant=participants.find(person=>String(person?.userContext?.id||'')===String(training.created_by))||localHost;
-        const hostIdValue=hostParticipant?.id||hostParticipant?.participantId;
-        if(!hostIdValue){window.__gxHostParticipantId=null;return;}
-        const hostId=String(hostIdValue);
-        window.__gxHostParticipantId=hostId;
-        // La IFrame API documenta estos comandos en executeCommand; pinParticipant
-        // recibe solo el ID y setLargeVideoParticipant fija explícitamente la cámara.
-        try{api.executeCommand('pinParticipant',hostId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar al anfitrión',err);}
-        try{api.executeCommand('setLargeVideoParticipant',hostId,'camera');}
-        catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal del anfitrión',err);}
-      }catch(err){
-        console.warn('Grayxon LIVE: no se pudo resolver la identidad del anfitrión en Jitsi',err);
-      }finally{
-        gxHostStageSyncInFlight=false;
-        if(gxHostStageSyncAgain){
-          gxHostStageSyncAgain=false;
-          setTimeout(()=>syncGrayxonHostStage(),0);
-        }
-      }
-    };
-    let gxJitsiReady=false;
-    let gxAudioMuted=true;
-    let gxVideoMuted=true;
-    let gxHandRaised=false;
-    const callControls=$('.gx-call-controls');
-    const callCommand={audio:'toggleAudio',video:'toggleVideo'};
-    callControls?.querySelectorAll('[data-gx-call]').forEach(button=>{
-      button.onclick=async()=>{
-        const action=button.getAttribute('data-gx-call');
-        try {
-          if(action==='hangup'){ const modal=$('.gx-call-end-modal'); if(modal){modal.hidden=false;modal.classList.remove('hidden');} return; }
-          if(action==='more'){
-            const menu=$('.gx-call-more-menu');
-            const open=button.getAttribute('aria-expanded')==='true';
-            button.setAttribute('aria-expanded',String(!open));
-            if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}
-            return;
-          }
-          if(action==='chat'){
-            const panel=$('.gx-chat-panel');if(!panel)return;
-            const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);
-            document.body.classList.toggle('gx-chat-open',open);button.setAttribute('aria-pressed',String(open));
-            if(open){const input=$('#gx-chat-input');input?.focus();}
-            return;
-          }
-          if(action==='reactions'){
-            const menu=$('.gx-reactions-menu');const open=button.getAttribute('aria-expanded')==='true';
-            button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;
-          }
-          if(action==='hand'){
-            if(gxLiveKitRoom?.localParticipant){
-              const previous=gxHandRaised;
-              const next=!previous;
-              gxHandRaised=next;
-              const handButton=$('[data-gx-call="hand"]');
-              if(handButton){handButton.setAttribute('aria-pressed',String(next));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=next?'Bajar la mano':'Levantar la mano';}
-              try{
-                const participantId=String(gxLiveKitRoom.localParticipant.identity||gxLiveKitRoom.localParticipant.sid||'');
-                if(next)grayxonRaisedHands.set(participantId,true);else grayxonRaisedHands.delete(participantId);
-                syncGrayxonLiveKitHandTiles();
-                const result=await sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,participantId,name:profile?.full_name||profile?.username||'Participante',raised:next});
-                if(result?.error)throw result.error;
-                toast(next?'Levantaste la mano':'Bajaste la mano');
-              }catch(error){
-                gxHandRaised=previous;
-                const localIdentity=String(gxLiveKitRoom?.localParticipant?.identity||gxLiveKitRoom?.localParticipant?.sid||'');
-                if(previous)grayxonRaisedHands.set(localIdentity,true);else grayxonRaisedHands.delete(localIdentity);
-                syncGrayxonLiveKitHandTiles();
-                if(handButton){handButton.setAttribute('aria-pressed',String(previous));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=previous?'Bajar la mano':'Levantar la mano';}
-                console.warn('No se pudo enviar la mano por LiveKit:',error);
-                toast('No se pudo avisar a los demás. Inténtalo de nuevo.');
-              }
-              return;
-            }
-            if(!gxJitsiReady){toast('La llamada todavía se está conectando…');return;}
-            gxHandRaised=!gxHandRaised;
-            const handButton=$('[data-gx-call="hand"]');
-            if(handButton){handButton.setAttribute('aria-pressed',String(gxHandRaised));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=gxHandRaised?'Bajar la mano':'Levantar la mano';}
-            let localId=window.__gxLocalParticipantId;
-            if(!localId){try{const ps=await getGrayxonJitsiParticipants(api);const lp=ps.find(p=>p.isLocal);localId=lp?.participantId||lp?.id||null;window.__gxLocalParticipantId=localId;}catch(_){}}
-            if(localId)grayxonRaisedHands.set(localId,gxHandRaised);
-            refreshGrayxonParticipants(api);
-            const handName=profile?.full_name||profile?.username||'Participante';
-            sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,participantId:localId,raised:gxHandRaised,name:handName}).then(result=>{if(result?.error)console.warn('Grayxon LIVE: canal de mano no disponible; se usa chat Jitsi.');});
-            try{api.executeCommand('sendChatMessage','[GXHAND:'+(gxHandRaised?'up':'down')+']');}catch(err){console.warn('No se pudo enviar el estado de la mano por Jitsi:',err);}
-            return;
-          }
-          if(!gxJitsiReady){toast('La llamada todavía se está conectando…');return;}
-          if(callCommand[action]) api.executeCommand(callCommand[action]);
-        } catch(err) { console.warn('No se pudo ejecutar el control de llamada:',action,err); }
-      };
-    });
-    const selfCameraMenu=$('.gx-self-camera-menu');
-    const selfCameraTrigger=$('.gx-self-camera-menu-trigger');
-    selfCameraTrigger?.addEventListener('click',()=>{
-      const open=selfCameraTrigger.getAttribute('aria-expanded')==='true';
-      selfCameraTrigger.setAttribute('aria-expanded',String(!open));
-      if(selfCameraMenu){selfCameraMenu.hidden=open;selfCameraMenu.classList.toggle('hidden',open);}
-    });
-    selfCameraMenu?.querySelectorAll('[data-gx-camera-option]').forEach(button=>button.addEventListener('click',async()=>{
-      const action=button.getAttribute('data-gx-camera-option');
-      try{
-        if(gxLiveKitRoom?.localParticipant){
-          const local=gxLiveKitRoom.localParticipant;
-          if(action==='flip'){
-            const publication=Array.from(local.videoTrackPublications.values()).find(pub=>pub.track);
-            if(!publication?.track)throw new Error('No hay una cámara activa para cambiar.');
-            const current=publication.track.mediaStreamTrack?.getSettings?.().facingMode;
-            await publication.track.restartTrack({facingMode:current==='environment'?'user':'environment'});
-            toast('Cámara cambiada');
-          }else if(action==='mirror'){
-            const localTile=$('#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]');
-            const video=localTile?.querySelector('video');
-            if(!video)throw new Error('No se encontró la vista previa de tu cámara.');
-            video.style.transform=video.style.transform==='scaleX(-1)'?'':'scaleX(-1)';
-            toast('Orientación de la vista actualizada');
-          }else if(action==='background'){
-            toast('El fondo virtual aún no está disponible en LiveKit.');
-          }else if(action==='settings'){
-            toast('Para cambiar permisos, abre los ajustes del navegador o del dispositivo.');
-          }
-        }else{
-          if(!gxJitsiReady)throw new Error('La llamada aún no está conectada.');
-          if(action==='flip')api.executeCommand('toggleCamera');
-          else if(action==='mirror')api.executeCommand('toggleCameraMirror');
-          else if(action==='background')api.executeCommand('toggleVirtualBackgroundDialog');
-          else if(action==='settings')api.executeCommand('openSettings');
-        }
-      }catch(err){console.warn('No se pudo ejecutar la opción de cámara:',action,err);toast(err?.message||'Esta opción no está disponible en este dispositivo.');}
-      if(selfCameraMenu){selfCameraMenu.hidden=true;selfCameraMenu.classList.add('hidden');}
-      selfCameraTrigger?.setAttribute('aria-expanded','false');
-    }));
-    document.addEventListener('click',ev=>{
-      if(!ev.target?.closest?.('.gx-self-camera-menu-wrap')&&selfCameraMenu){
-        selfCameraMenu.hidden=true;selfCameraMenu.classList.add('hidden');
-        selfCameraTrigger?.setAttribute('aria-expanded','false');
-      }
-    });
-    $('.gx-call-more-menu')?.querySelectorAll('[data-gx-more]').forEach(button=>{
-      button.onclick=()=>{
-        const action=button.getAttribute('data-gx-more');
-        try {
-          if(action==='share') api.executeCommand('toggleShareScreen');
-          else if(action==='participants') toggleGrayxonParticipantsPanel();
-          else if(action==='settings') api.executeCommand('openSettings');
-          const menu=$('.gx-call-more-menu'); if(menu){menu.hidden=true;menu.classList.add('hidden');}
-          $('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');
-        } catch(err) { console.warn('No se pudo ejecutar la opción:',action,err); }
-      };
-    });
-    // Diagnóstico temporal de video Jitsi: no registra JWT ni datos sensibles.
-    window.__gxJitsiVideoDiag = {
-      startedAt: new Date().toISOString(),
-      provider,
-      roomName,
-      events: []
-    };
-    const gxLogVideoDiag = (event, data={}) => {
-      const safe = {
-        at: new Date().toISOString(),
-        event,
-        data: data && typeof data === 'object' ? {
-          participantId: data.participantId || data.id || null,
-          type: data.type || data.track?.type || null,
-          videoType: data.videoType || data.track?.videoType || null,
-          muted: typeof data.muted === 'boolean' ? data.muted : null,
-          error: data.error?.message || data.message || null
-        } : {}
-      };
-      window.__gxJitsiVideoDiag.events.push(safe);
-      if (window.__gxJitsiVideoDiag.events.length > 100) window.__gxJitsiVideoDiag.events.shift();
-      console.info('[Grayxon Jitsi video diagnostic]', safe);
-    };
-    // Recalcular el tamaño del iframe tras la inicialización. En Grayxon la sala se
-    // abre dentro de una vista que cambia a pantalla completa; Jitsi puede conservar
-    // las dimensiones previas y dejar el vídeo negro aunque las pistas estén activas.
-    // El contenedor cambia de una tarjeta normal a una sala de pantalla completa.
-    // Mantener el iframe sincronizado con el tamaño REAL del host evita que Jitsi
-    // conserve dimensiones antiguas al abrir/cerrar la sala.
-    let gxJitsiResizeObserver = null;
-    const resizeGrayxonJitsi = () => {
-      if (jaasApi !== api || !host.isConnected) return;
-      const rect = host.getBoundingClientRect();
-      if (rect.width < 2 || rect.height < 2) return;
-      try {
-        const frame = host.querySelector('iframe');
-        if (frame) {
-          frame.style.display = 'block';
-          frame.style.width = '100%';
-          frame.style.height = '100%';
-          frame.style.border = '0';
-          frame.setAttribute('allow', 'camera; microphone; autoplay; fullscreen; display-capture; clipboard-write');
-          frame.setAttribute('allowfullscreen', '');
-          frame.removeAttribute('aria-hidden');
-          frame.tabIndex = 0;
-        }
-        if (typeof api.resize === 'function') api.resize(Math.round(rect.width), Math.round(rect.height));
-      } catch (err) {
-        console.warn('No se pudo recalcular el tamaño de Jitsi:', err);
-      }
-    };
-    const scheduleGrayxonJitsiResize = () => {
-      [0, 100, 300, 700, 1400].forEach(delay => setTimeout(resizeGrayxonJitsi, delay));
-      if (typeof ResizeObserver === 'function') {
-        if (!gxJitsiResizeObserver) {
-          gxJitsiResizeObserver = new ResizeObserver(() => resizeGrayxonJitsi());
-          gxJitsiResizeObserver.observe(host);
-        }
-      }
-    };
-    api.addEventListener?.('ready',()=>{
-      // "ready" solo indica que el iframe/API está lista; la sesión multimedia todavía
-      // puede no existir. No habilitar cámara/micrófono hasta videoConferenceJoined.
-      gxLogVideoDiag('ready');
-      scheduleGrayxonJitsiResize();
-    });
-    api.addEventListener?.('trackAdded', ev=>{gxLogVideoDiag('trackAdded', ev);if(ev?.type==='video'||ev?.track?.type==='video')syncGrayxonHostStage();});
-    api.addEventListener?.('trackRemoved', ev=>{gxLogVideoDiag('trackRemoved', ev);if(ev?.type==='video'||ev?.track?.type==='video')syncGrayxonHostStage();});
-    api.addEventListener?.('connectionQualityChanged', ev=>gxLogVideoDiag('connectionQualityChanged', ev));
-
-    api.addEventListener?.('audioMuteStatusChanged',ev=>{
-      gxAudioMuted=!!ev.muted;
-      const b=$('[data-gx-call="audio"]'); if(!b)return;
-      b.setAttribute('aria-pressed',String(!gxAudioMuted));
-      const label=b.querySelector('span:last-child'); if(label)label.textContent=gxAudioMuted?'Micrófono apagado':'Micrófono encendido';
-    });
-    api.addEventListener?.('videoMuteStatusChanged',ev=>{
-      gxLogVideoDiag('videoMuteStatusChanged', ev);
-
-      gxVideoMuted=!!ev.muted;
-      const b=$('[data-gx-call="video"]'); if(!b)return;
-      b.setAttribute('aria-pressed',String(!gxVideoMuted));
-      const label=b.querySelector('span:last-child'); if(label)label.textContent=gxVideoMuted?'Cámara apagada':'Cámara encendida';
-    });
-    api.addEventListener?.('videoConferenceJoined',async(ev)=>{
-      gxLogVideoDiag('videoConferenceJoined', ev);
-      // El evento de entrada puede aportar el ID local incluso si userContext no está disponible.
-      if(ev?.id)window.__gxLocalParticipantId=String(ev.id);
-      gxJitsiReady=true;
-      // Forzar el diseño de escenario + tira de participantes; evitar la cuadrícula de tarjetas grandes.
-      try{api.executeCommand('setTileView',false);}catch(err){console.warn('Grayxon LIVE: no se pudo activar el diseño de escenario',err);}
-      // Repetir después de unirse: las dimensiones definitivas de la vista ya están aplicadas.
-      scheduleGrayxonJitsiResize();
-      // No activar toggleModeration automáticamente: es un conmutador y al reconectar
-      // podía invertir el estado, bloquear la cámara o disparar solicitudes inesperadas.
-      // El control de permisos se gestiona desde la interfaz de Grayxon.
-      if(!gxLiveStartedAt)gxLiveStartedAt=Date.now();
-      updateGrayxonLiveElapsed();
-      if(!gxElapsedInterval)gxElapsedInterval=setInterval(updateGrayxonLiveElapsed,1000);
-      startGrayxonWakeLock();
-      await recordLiveTrainingJoin(training.id);
-      await refreshGrayxonParticipants(api);
-      try{
-        const roomInfo=await api.getRoomsInfo?.();
-        const rooms=Array.isArray(roomInfo)?roomInfo:(Array.isArray(roomInfo?.rooms)?roomInfo.rooms:[]);
-        const mainRooms=rooms.filter(room=>room?.isMainRoom);
-        const participants=(mainRooms.length?mainRooms:rooms).flatMap(room=>Array.isArray(room?.participants)?room.participants:[]);
-        const local=participants.find(person=>String(person?.userContext?.id||'')===String(session?.user?.id||''))||participants.find(person=>String(person?.id||person?.participantId||'')===String(window.__gxLocalParticipantId||''));
-        if(local?.id||local?.participantId)window.__gxLocalParticipantId=String(local.id||local.participantId);
-        // Jitsi fija la cámara de forma local por defecto. Para que todos vean
-        // el mismo escenario, el creador activa Follow Me y fija su propia cámara.
-        if(isHost){
-          try{api.executeCommand('setFollowMe',true);}catch(err){console.warn('Grayxon LIVE: no se pudo activar la sincronización del escenario',err);}
-          const localHostId=String(window.__gxLocalParticipantId||'');
-          if(localHostId){
-            try{api.executeCommand('pinParticipant',localHostId);}catch(err){console.warn('Grayxon LIVE: no se pudo fijar al anfitrión',err);}
-            try{api.executeCommand('setLargeVideoParticipant',localHostId,'camera');}catch(err){console.warn('Grayxon LIVE: no se pudo mostrar al anfitrión',err);}
-          }
-        }
-        await syncGrayxonHostStage();
-      }catch(err){console.warn('Grayxon LIVE: no se pudo establecer la vista principal inicial',err);}
-      toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
-    });
-
-    api.addEventListener?.('participantJoined',ev=>{
-      gxLogVideoDiag('participantJoined',ev);refreshGrayxonParticipants(api);syncGrayxonHostStage();
-    });
-    api.addEventListener?.('participantRoleChanged',()=>refreshGrayxonParticipants(api));
-    api.addEventListener?.('participantLeft',ev=>{gxLogVideoDiag('participantLeft', ev);refreshGrayxonParticipants(api);syncGrayxonHostStage();});
-    // El estado de la mano se gestiona con el canal de Grayxon y el ID del participante,
-    // evitando que eventos nativos con formatos distintos se asignen a otra persona.
-    api.addEventListener?.('raiseHandUpdated',ev=>gxLogVideoDiag('raiseHandUpdated',ev));
-    api.addEventListener?.('dominantSpeakerChanged',ev=>{
-      window.__grayxonDominantSpeaker=ev?.id||null;
-      // Este evento solo actualiza el indicador de hablante; no volver a fijar
-      // el escenario desde aquí para evitar un ciclo de cambios de cámara.
-      refreshGrayxonParticipants(api);
-    });
-    api.addEventListener?.('largeVideoChanged',ev=>{
-      window.__grayxonLargeVideoParticipant=ev?.id||null;
-      // Si Jitsi cambia el escenario a un invitado, volver a priorizar al anfitrión.
-      // Cuando el propio anfitrión ya está visible, no se genera otra llamada ni un ciclo.
-      const visibleId=String(ev?.id||'');
-      const hostId=String(window.__gxHostParticipantId||'');
-      if(visibleId && hostId && visibleId!==hostId) syncGrayxonHostStage();
-      refreshGrayxonParticipants(api);
-    });
-    api.addEventListener?.('contentSharingParticipantsChanged',ev=>{window.__grayxonSharingParticipants=Array.isArray(ev?.data)?ev.data:[];refreshGrayxonParticipants(api);});
-    api.addEventListener?.('chatUpdated',ev=>{document.body.classList.toggle('gx-chat-open',!!ev?.isOpen);const b=$('[data-gx-call="chat"]');if(b)b.setAttribute('aria-pressed',String(!!ev?.isOpen));});
-    api.addEventListener?.('incomingMessage',ev=>{
-      const message=String(ev?.message||'');const nick=String(ev?.nick||ev?.from||'Participante');
-      const match=message.match(/^\[GXREACTION:(.+?)\]$/);
-      if(match){showGrayxonReaction(nick,match[1]);playGrayxonSound('reaction');return;}
-      const handMessage=message.match(/^\[GXHAND:(up|down)\]$/);
-      if(handMessage){
-        (async()=>{
-          try{
-            const people=await getGrayxonJitsiParticipants(api);
-            const person=people.find(p=>String(p.displayName||p.name||'')===nick&&!p.isLocal);
-            const pid=person?.participantId||person?.id;
-            if(pid)grayxonRaisedHands.set(String(pid),handMessage[1]==='up');
-            refreshGrayxonParticipants(api);
-            if(handMessage[1]==='up'&&(isHost||isAdmin))toast('✋ '+nick+' levantó la mano');
-          }catch(err){console.warn('No se pudo actualizar la mano recibida:',err);}
-        })();
-        return;
-      }
-      const avRequest=message.match(/^\[GXAVREQ:(audio|video):([a-zA-Z0-9_-]{8,80})\]$/);
-      if(avRequest){if(isHost||isAdmin)showGrayxonAVRequest({kind:avRequest[1],token:avRequest[2],name:nick,api});return;}
-      const avResponse=message.match(/^\[GXAVRES:(audio|video):([a-zA-Z0-9_-]{8,80}):(yes|no)\]$/);
-      if(avResponse){
-        if(avResponse[2]===window.__gxAvRequestToken){
-          if(avResponse[3]==='yes'){
-            try{api.executeCommand(avResponse[1]==='video'?'toggleVideo':'toggleAudio');toast(avResponse[1]==='video'?'El anfitrión aprobó tu cámara ✓':'El anfitrión aprobó tu micrófono ✓');}
-            catch(_){toast('No se pudo activar el dispositivo.');}
-          }else toast('El anfitrión rechazó la solicitud de acceso.');
-          window.__gxAvPendingRequest=null;
-        }
-        return;
-      }
-      appendGrayxonChatMessage(nick,message,!!ev?.isPrivate);
-      showGrayxonMessageNotification(nick,message);
-      playGrayxonSound('message');
-    });
-    api.addEventListener?.('cameraError',ev=>{gxLogVideoDiag('cameraError', ev);console.warn('Error de cámara Jitsi:',ev);toast('No se pudo activar la cámara. Revisa los permisos de cámara de meet.grayxongroup.com en el navegador.');});
-    api.addEventListener?.('micError',ev=>{console.warn('Error de micrófono Jitsi:',ev);toast('No se pudo activar el micrófono. Revisa los permisos del navegador.');});
-    api.addEventListener?.('moderationStatusChanged',ev=>console.info('Estado de moderación AV:',ev));
-    api.addEventListener?.('errorOccurred',ev=>{gxLogVideoDiag('errorOccurred', ev);console.warn('Error de Jitsi:',ev?.name,ev?.message);});
-
-    api.addEventListener?.('toolbarButtonClicked',async(ev)=>{
-      if(ev?.key!=='hangup')return;
-      // Salir de la llamada nunca debe finalizar automáticamente la sesión para todos,
-      // incluso para anfitrión/administrador. El cierre global requiere la elección
-      // explícita "Finalizar entrenamiento para todos" en el modal de Grayxon.
-      const modal=$('.gx-call-end-modal');
-      if(modal){modal.hidden=false;modal.classList.remove('hidden');return;}
-      // Fallback defensivo si el modal no está disponible: desconectar solo a este usuario.
-      try { api.executeCommand('hangup'); } catch (_) {}
-    });
-
-    api.addEventListener?.('readyToClose',async()=>{
-      await recordLiveTrainingLeave();
-      // If the host ended the conference, the DB was already marked finished.
-      // A participant closing their own call must not finish the training.
-      destroyJaasMeeting();
-      document.body.classList.remove('grayxon-live-training-call','grayxon-livekit-call');
-      updateCreatorSpaceFloat();
-      const wrap=$('#grayxonTrainingRoomWrap'),meet=$('#grayxonJaasMeet');
-      if(meet)meet.innerHTML='';
-      if(wrap){wrap.classList.add('hidden');wrap.hidden=true;wrap.style.setProperty('display','none','important');}
-      const shouldReturnToPanel = profile?.role==='admin' ? 'admin' : profile?.role==='manager' ? 'manager' : 'space';
-      nav(shouldReturnToPanel,false);
-      liveTrainingEnding=false;
-    });
-  }catch(error){
-    liveTrainingEnding=false;
-    console.error('GRAYXON LIVE TRAINING ERROR:',error);
-    host.innerHTML=`<div class="live-training-error" style="max-width:620px;margin:8vh auto;padding:24px;color:#fff;background:#11141a;border:1px solid rgba(255,255,255,.12);border-radius:18px"><h3>No pudimos abrir el entrenamiento</h3><p>${esc(error?.message||'Ocurrió un error al preparar la videollamada.')}</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="primary" id="retryGrayxonTraining">Intentar nuevamente</button>${provider==='jitsi'?'<button class="secondary" id="fallbackGrayxonJaas">Usar la sala anterior temporalmente</button>':''}</div></div>`;
-    $('#retryGrayxonTraining')?.addEventListener('click',()=>startGrayxonLiveTraining(training,{...options,provider}));
-    $('#fallbackGrayxonJaas')?.addEventListener('click',()=>startGrayxonLiveTraining(training,{...options,provider:'jaas'}));
-  }
-}
-
-async function markLiveTrainingViewed(trainingId){
-  if(!trainingId||!session?.user?.id)return false;
-  const {error}=await sb.from('live_training_views').upsert({training_id:trainingId,user_id:session.user.id,viewed_at:new Date().toISOString()},{onConflict:'training_id,user_id'});
-  if(error){console.warn('No se pudo registrar la visualización:',error.message);return false;}
-  return true;
-}
-
-function showCreatorTrainingDetail(training){
-  const existing=document.querySelector('.grayxon-training-detail-modal'); if(existing) existing.remove();
-  const el=document.createElement('div');
-  el.className='modal-backdrop grayxon-training-detail-modal';
-  el.innerHTML=`<div class="card modal" style="max-width:700px"><div class="row"><div><div class="eyebrow">GRAYXON · ENTRENAMIENTO</div><h2>${esc(training.title)}</h2></div><button class="secondary" id="closeCreatorTrainingDetail">Cerrar</button></div><div class="hr"></div><div class="grid"><div class="item"><b>Instructor</b><div class="muted small">${esc(training.instructor_name||'Grayxon')}</div></div><div class="item"><b>Fecha</b><div class="muted small">${formatDateTime(training.started_at||training.scheduled_at||training.created_at)}</div></div><div class="item"><b>Duración</b><div class="muted small">${liveTrainingDuration(training.started_at,training.ended_at)}</div></div><div class="item"><b>Estado</b><div class="muted small">${training.status==='live'?'EN VIVO':training.status==='scheduled'?'Programado':'Completado'}</div></div></div><div class="item" style="margin-top:18px"><b>Contenido</b><p class="muted" style="margin:8px 0 0;line-height:1.65">${esc(training.description||'Este entrenamiento no tiene una descripción adicional.')}</p></div>${training.status==='live'?'<div style="margin-top:18px"><button class="primary" id="detailEnterLive">Entrar al entrenamiento</button></div>':''}</div>`;
-  document.body.appendChild(el);
-  $('#closeCreatorTrainingDetail').onclick=()=>el.remove();
-  $('#detailEnterLive')?.addEventListener('click',async()=>{el.remove();await enterCreatorLiveTraining(training);});
-}
-
-async function enterCreatorLiveTraining(training){
-  if(!training?.id) return;
-  pendingLiveTrainingAutoStart={id:training.id};
-  currentLiveTraining=training;
-  current='live-training';
-  updateCreatorSpaceFloat();
-  updateCreatorTopNav();
-  document.body.classList.add('grayxon-live-training-active');
-  const pages=['home','benefits','auth','space','manager','training','live-training','missions','profile','admin','announcements','payments','events','force-password'];
-  pages.forEach(id=>{
-    const node=$('#'+id); if(!node)return;
-    const active=id==='live-training';
-    node.classList.toggle('hidden',!active);
-    node.hidden=!active;
-    if(active) node.removeAttribute('aria-hidden'); else node.setAttribute('aria-hidden','true');
-  });
-  const spaceEl=$('#space');
-  if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
-  if(history.state?.page!=='live-training') history.pushState({page:'live-training'},'',`${window.location.pathname}${window.location.search}#live-training`);
-  await liveTrainingTpl(training);
-  $('#enterGrayxonTraining')?.click();
-}
-
-async function creatorTrainingsTpl(){
-  const el=ensureLiveTrainingPage();
-  document.body.classList.add('grayxon-live-training-active');
-  const spaceEl=$('#space'); if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
-  if(!session){el.innerHTML=authTpl();return;}
-  profile=await getProfile();
-  if(!profile?.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2></div>';return;}
-
-  // Para CREADORES, la pantalla de Entrenamientos no es una biblioteca de
-  // entrenamientos programados. Solo debe destacar un LIVE al que realmente
-  // pueda entrar. El resto de la pantalla es un historial compacto de los
-  // entrenamientos a los que efectivamente asistió.
-  const {data:rawLive,error:liveError}=await sb.from('live_trainings')
-    .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
-    .eq('status','live')
-    .order('started_at',{ascending:false});
-  if(liveError){
-    el.innerHTML=`<div class="live-training-page"><div class="live-training-feature"><div class="live-training-feature-inner"><h2>No pudimos cargar tus entrenamientos</h2><p class="muted">${esc(liveError.message)}</p></div></div></div>`;
-    return;
-  }
-
-  const uid=session.user.id;
-  const p=profile||{};
-  const liveIds=(rawLive||[]).map(t=>t.id);
-  const {data:liveAudience}=liveIds.length
-    ? await sb.from('live_training_audience').select('training_id,target_type,target_id').in('training_id',liveIds)
-    : {data:[]};
-
-  // IMPORTANTE: target_type=manager NUNCA da acceso a un creador.
-  const allowedLiveIds=new Set((liveAudience||[]).filter(a =>
-    a.target_type==='all_creators' ||
-    (a.target_type==='creator' && a.target_id===uid) ||
-    (a.target_type==='team' && a.target_id===p.team_id)
-  ).map(a=>a.training_id));
-
-  let liveTrainings=(rawLive||[]).filter(t=>allowedLiveIds.has(t.id));
-
-  // Compatibilidad con LIVE antiguos sin audiencia guardada.
-  // Si el instructor es admin, el comportamiento histórico por defecto era
-  // permitir a todos los creadores entrar; si es manager, se deriva por equipo.
-  if(!liveTrainings.length && rawLive?.length){
-    const adminCreated=(rawLive||[]).filter(t=>t.created_by && !liveAudience?.some(a=>a.training_id===t.id));
-    if(adminCreated.length){
-      const {data:owners}=await sb.from('profiles').select('id,role').in('id',[...new Set(adminCreated.map(t=>t.created_by))]);
-      const adminIds=new Set((owners||[]).filter(o=>o.role==='admin').map(o=>o.id));
-      liveTrainings=adminCreated.filter(t=>adminIds.has(t.created_by));
-    }
-  }
-
-  // Compatibilidad con LIVE antiguos de manager que no tienen audiencia guardada.
-  // Si el creador pertenece a un equipo administrado por el instructor, ese LIVE
-  // sigue siendo válido para él.
-  if(!liveTrainings.length && rawLive?.length && p.team_id){
-    const managerUserIds=[...new Set(rawLive.map(t=>t.created_by).filter(Boolean))];
-    if(managerUserIds.length){
-      const {data:managerRows}=await sb.from('managers').select('id,user_id').in('user_id',managerUserIds).eq('active',true);
-      const managerIds=(managerRows||[]).map(m=>m.id);
-      if(managerIds.length){
-        const {data:managedTeam}=await sb.from('teams').select('id,manager_id').eq('id',p.team_id).in('manager_id',managerIds).maybeSingle();
-        if(managedTeam?.manager_id){
-          const managerByUser=new Map((managerRows||[]).map(m=>[m.user_id,m.id]));
-          liveTrainings=(rawLive||[]).filter(t=>managerByUser.get(t.created_by)===managedTeam.manager_id);
-        }
-      }
-    }
-  }
-  const pendingId=pendingLiveTrainingAutoStart?.id||null;
-  const activeLive=(pendingId && (rawLive||[]).find(t=>t.id===pendingId)) || liveTrainings[0] || null;
-  if(pendingId) pendingLiveTrainingAutoStart=null;
-  currentLiveTraining=activeLive||null;
-
-  // Historial real = entrenamientos donde el creador tiene un registro de
-  // participación. Una simple apertura/visualización no cuenta como asistencia.
-  const {data:participantRows, error:participantError}=await sb.from('live_training_participants')
-    .select('training_id,joined_at,left_at,duration_seconds')
-    .eq('user_id',uid)
-    .order('joined_at',{ascending:false});
-
-  let attended=[];
-  if(!participantError && participantRows?.length){
-    const attendedIds=[...new Set(participantRows.map(r=>r.training_id).filter(Boolean))];
-    const {data:attendedTrainings}=await sb.from('live_trainings')
-      .select('id,title,description,scheduled_at,room_name,status,created_by,instructor_name,created_at,started_at,ended_at')
-      .in('id',attendedIds)
-      .order('started_at',{ascending:false});
-    const tm=new Map((attendedTrainings||[]).map(t=>[t.id,t]));
-    attended=participantRows.map(r=>({training:tm.get(r.training_id),participant:r})).filter(x=>x.training);
-  }
-
-  const uniqueAttended=[];
-  const seenAttended=new Set();
-  for(const item of attended){
-    if(seenAttended.has(item.training.id)) continue;
-    seenAttended.add(item.training.id);
-    uniqueAttended.push(item);
-  }
-
-  const liveCard=activeLive ? `<section class="creator-live-now-section">
-    <div class="eyebrow">ENTRENAMIENTO EN VIVO</div>
-    <div class="creator-live-now-card">
-      <div class="creator-live-now-copy">
-        <div class="creator-live-now-badge"><span></span> EN VIVO</div>
-        <h2>${esc(activeLive.title)}</h2>
-        <p class="muted">Instructor: ${esc(activeLive.instructor_name||'Grayxon')}</p>
-        ${activeLive.description?`<p class="muted small">${esc(activeLive.description)}</p>`:''}
-      </div>
-      <button type="button" class="primary" id="enterCreatorLiveNow">Entrar al entrenamiento</button>
-    </div>
-  </section>` : '';
-
-  const historyItems=uniqueAttended.map(({training:t,participant:r})=>`<div class="creator-attended-item">
-    <div class="creator-attended-main">
-      <span class="creator-training-icon">🎥</span>
-      <span><strong>${esc(t.title)}</strong><small>${esc(t.instructor_name||'Grayxon')} · ${formatDateTime(t.started_at||t.scheduled_at||t.created_at)}</small></span>
-    </div>
-    <span class="creator-attended-duration">${t.started_at ? liveTrainingDuration(r.joined_at,r.left_at||t.ended_at) : 'Asistencia registrada'}</span>
-  </div>`).join('');
-
-  el.innerHTML=`<div class="live-training-page creator-training-library">
-    <div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Tus entrenamientos 🎥</h1><p>Entra directamente cuando un entrenamiento esté EN VIVO y consulta abajo tu historial de asistencia.</p></div></div>
-    ${liveCard}
-    <section class="creator-attended-section">
-      <button type="button" class="creator-attended-toggle" id="creatorAttendedToggle" aria-expanded="false">
-        <span><span class="eyebrow">HISTORIAL</span><strong>Entrenamientos a los que asististe</strong></span>
-        <span class="creator-attended-toggle-right"><b>${uniqueAttended.length}</b><span class="creator-training-chevron">›</span></span>
-      </button>
-      <div id="creatorAttendedPanel" class="creator-attended-panel hidden">
-        ${historyItems || '<div class="creator-training-empty">Todavía no has asistido a ningún entrenamiento.</div>'}
-      </div>
-    </section>
-  </div>`;
-
-  $('#enterCreatorLiveNow')?.addEventListener('click',async()=>{
-    if(!activeLive)return;
-    await enterCreatorLiveTraining(activeLive);
-  });
-  $('#creatorAttendedToggle')?.addEventListener('click',()=>{
-    const panel=$('#creatorAttendedPanel');
-    const btn=$('#creatorAttendedToggle');
-    if(!panel||!btn)return;
-    const open=panel.classList.contains('hidden');
-    panel.classList.toggle('hidden',!open);
-    btn.setAttribute('aria-expanded',open?'true':'false');
-    btn.classList.toggle('open',open);
-  });
-}
-
-async function liveTrainingTpl(trainingOverride=null) {
-  if((profile?.role==='creator' || document.body.classList.contains('grayxon-creator-session')) && !trainingOverride) return creatorTrainingsTpl();
-  const el=ensureLiveTrainingPage();
-  document.body.classList.add('grayxon-live-training-active');
-  const spaceEl=$('#space'); if(spaceEl){spaceEl.hidden=true;spaceEl.classList.add('hidden');spaceEl.style.setProperty('display','none','important');}
-  if(!session){el.innerHTML=authTpl();return;}
-  profile=await getProfile();
-  if(!profile||!profile.active){await sb.auth.signOut();session=null;profile=null;el.innerHTML='<div class="login"><h2>Tu acceso está desactivado</h2></div>';destroyJaasMeeting();return;}
-  const training=trainingOverride || await fetchActiveLiveTraining(); currentLiveTraining=training;
-  const isHost=!!training?.created_by && training.created_by===session?.user?.id;
-  const isModerator=profile.role==='admin'||profile.role==='manager';
-  const backPage=isModerator?(profile.role==='admin'?'admin':'manager'):'space';
-  if(!training){
-    el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamientos en vivo 🎥</h1><p>Cuando Grayxon inicie un entrenamiento, aparecerá aquí automáticamente.</p></div></div><section class="live-training-feature live-training-empty-compact"><div class="live-training-feature-inner live-training-empty-state"><span class="live-training-idle-icon">○</span><h2>No hay un entrenamiento en vivo</h2><p class="live-training-subtitle">En este momento no hay ninguna sesión activa.</p></div></section></div>`;
-    bind();
-    return;
-  }
-  el.innerHTML=`<div class="live-training-page"><div class="live-training-hero"><div><div class="live-training-kicker">GRAYXON · ENTRENAMIENTOS</div><h1>Entrenamiento en vivo 🎥</h1><p>Sesión activa dentro del portal Grayxon.</p></div>${isModerator?`<button class="secondary" data-space-action="${backPage}">← Volver</button>`:''}</div><section class="live-training-feature"><div class="live-training-feature-inner"><div class="live-training-feature-top"><div><span class="live-training-badge"><i class="live-training-badge-dot"></i> EN VIVO</span><h2 class="live-training-title">${esc(training.title)}</h2><p class="live-training-subtitle">${esc(training.description||'Entrenamiento en vivo de Grayxon Group.')}</p></div></div><div class="live-training-meta"><span class="live-training-meta-item">👤 <b>Instructor:</b>&nbsp; ${esc(training.instructor_name||'Grayxon')}</span><span class="live-training-meta-item">🕒 <b>Inició:</b>&nbsp; ${formatDateTime(training.started_at)}</span><span class="live-training-meta-item">🎙️ <b>Rol:</b>&nbsp; ${isHost?'Anfitrión':profile.role==='admin'?'Administrador':'Participante'}</span></div><div class="live-training-actions"><button class="primary live-training-enter" id="enterGrayxonTraining">Entrar</button></div></div></section><div id="grayxonTrainingRoomWrap" class="hidden" hidden style="display:none!important"><div class="live-training-shell"><div class="gx-call-brand"><img src="assets/grayxon-logo.png" alt="Grayxon Group"><span class="gx-live-pill">EN VIVO</span><span class="gx-live-elapsed" id="gx-live-elapsed" aria-live="off">00:00</span></div><div id="grayxonJaasMeet" class="live-training-meet"></div><div class="gx-self-camera-menu-wrap" style="display:none"><button type="button" class="gx-self-camera-menu-trigger" aria-label="Opciones de mi cámara" aria-expanded="false" title="Opciones de mi cámara">•••</button><div class="gx-self-camera-menu hidden" hidden><button type="button" data-gx-camera-option="flip">Cambiar cámara</button><button type="button" data-gx-camera-option="mirror">Voltear imagen</button><button type="button" data-gx-camera-option="background">Fondo virtual</button><button type="button" data-gx-camera-option="settings">Ajustes de cámara</button></div></div><nav class="gx-call-controls" aria-label="Controles de la llamada"><button type="button" data-gx-call="audio" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="13" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"></path></svg></span><span>Micrófono</span></button><button type="button" data-gx-call="video" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="m16 10 5-3v10l-5-3"></path></svg></span><span>Cámara</span></button><button type="button" data-gx-call="hand" aria-pressed="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 12V5a1.5 1.5 0 0 1 3 0v5-7a1.5 1.5 0 0 1 3 0v7-5a1.5 1.5 0 0 1 3 0v7l1-2a1.7 1.7 0 0 1 3 1l-2 7c-.7 2.4-2.3 4-5 4h-2c-2 0-3.3-1-4.5-2.5L4 14a1.8 1.8 0 0 1 2.7-2.3z"></path></svg></span><span data-gx-hand-label>Levantar la mano</span></button><button type="button" data-gx-call="hangup" class="gx-call-end" aria-label="Colgar llamada" title="Colgar llamada"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 16.5c5.5-5 14.5-5 20 0l-2.8 3.2a1.5 1.5 0 0 1-1.8.4l-2.3-1a1.5 1.5 0 0 1-.8-1.7l.3-1.1a13 13 0 0 0-5.2 0l.3 1.1a1.5 1.5 0 0 1-.8 1.7l-2.3 1a1.5 1.5 0 0 1-1.8-.4z"></path></svg></span><span>Colgar</span></button><button type="button" data-gx-call="chat"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v13H9l-5 4z"></path><path d="M8 9h8M8 13h5"></path></svg></span><span>Chat</span></button><button type="button" data-gx-call="reactions"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 3 4 3 4-3 4-3M9 9h.01M15 9h.01"></path></svg></span><span>Reacciones</span></button><button type="button" data-gx-call="more" aria-expanded="false"><span class="gx-ctl-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg></span><span>Más</span></button></nav><div id="gx-reaction-float-layer" aria-live="polite"></div><aside class="gx-chat-panel hidden" hidden aria-label="Chat de la llamada"><div class="gx-chat-head"><div><strong>Chat en vivo</strong><small>Mensajes de la sesión</small></div><button type="button" data-gx-chat-close>✕</button></div><div id="gx-chat-messages" class="gx-chat-messages" aria-live="polite"><p class="gx-chat-empty">Los mensajes aparecerán aquí.</p></div><form id="gx-chat-form" class="gx-chat-form"><input id="gx-chat-input" maxlength="1000" placeholder="Escribe un mensaje…" autocomplete="off"><button type="submit">Enviar</button></form></aside><div class="gx-reactions-menu hidden" hidden aria-label="Reacciones"><button type="button" data-gx-reaction="👏">👏</button><button type="button" data-gx-reaction="❤️">❤️</button><button type="button" data-gx-reaction="😂">😂</button><button type="button" data-gx-reaction="🔥">🔥</button><button type="button" data-gx-reaction="🎉">🎉</button><button type="button" data-gx-reaction="👍">👍</button></div><div class="gx-call-more-menu hidden" hidden><button type="button" data-gx-more="share">Compartir pantalla</button><button type="button" data-gx-more="participants">Participantes</button><button type="button" data-gx-more="settings">Dispositivos y ajustes</button></div><aside class="gx-participants-panel hidden" hidden aria-label="Participantes"><div class="gx-participants-head"><div><strong>Participantes</strong><div class="gx-participants-count">Conectando…</div></div><button type="button" data-gx-close-participants>✕</button></div><div class="gx-participants-list"><p class="gx-participant-status">Cargando participantes…</p></div></aside><div class="gx-call-end-modal hidden" hidden role="dialog" aria-modal="true"><div class="gx-call-end-card"><h3>¿Qué quieres hacer?</h3><p>Elige si quieres salir de tu llamada o finalizar el entrenamiento para todos.</p><div class="gx-call-end-actions"><button type="button" data-gx-end-choice="leave">Salir de la llamada</button><button type="button" class="gx-end-all" data-gx-end-choice="end">Finalizar entrenamiento para todos</button><button type="button" class="gx-end-cancel" data-gx-end-choice="cancel">Cancelar</button></div></div></div></div></div></div>`;
-  bind();
-  $('[data-gx-close-participants]')?.addEventListener('click',toggleGrayxonParticipantsPanel);
-  $('.gx-participants-list')?.addEventListener('click',ev=>{
-    const button=ev.target?.closest?.('[data-gx-participant-action]');if(!button)return;
-    if(!window.__gxCanManageMeeting){toast('No tienes permisos para administrar participantes.');return;}
-    const participantId=button.getAttribute('data-gx-participant-id');const action=button.getAttribute('data-gx-participant-action');if(!participantId||!jaasApi)return;
-    if(action==='kick'&&!window.confirm('¿Expulsar a esta persona del entrenamiento?'))return;
-    button.disabled=true;
-    try{
-      if(action==='promote'){jaasApi.executeCommand('grantModerator',participantId);toast('Solicitud para asignar moderador enviada.');}
-      else if(action==='mute-audio'){jaasApi.executeCommand('muteRemoteParticipant',participantId);toast('Solicitud para silenciar enviada.');}
-      else if(action==='mute-video'){jaasApi.executeCommand('muteRemoteParticipant',participantId,'video');toast('Solicitud para apagar la cámara enviada.');}
-      else if(action==='kick'){jaasApi.executeCommand('kickParticipant',participantId);toast('Solicitud para expulsar enviada.');}
-    }catch(error){console.warn('No se pudo ejecutar la acción de moderación:',action,error);toast('No se pudo completar la acción.');button.disabled=false;}
-  });
-  $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');updateGrayxonChatCounter();});
-  $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;const name=profile?.full_name||profile?.username||'Tú';if(gxLiveKitRoom){sendGrayxonLiveBroadcast('chat',{userId:session?.user?.id||null,name,message,createdAt:new Date().toISOString()}).then(result=>{if(result?.error)toast('No se pudo enviar el mensaje a los demás participantes.');});appendGrayxonChatMessage(name,message);if(input)input.value='';return;}if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(name,message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
-  $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
-    // LiveKit ya registra su propio handler en startGrayxonLiveKitTraining.
-    // No volver a procesar aquí el mismo clic: evita reacción local duplicada.
-    if(gxLiveKitRoom)return;
-    const emoji=button.getAttribute('data-gx-reaction');
-    const name=profile?.full_name||profile?.username||'Participante';
-    showGrayxonReaction(name,emoji);playGrayxonSound('reaction');
-    // LiveKit usa el canal Realtime de Grayxon; Jitsi conserva su fallback de chat.
-    if(gxLiveKitRoom){
-      sendGrayxonLiveBroadcast('reaction',{userId:session?.user?.id||null,name,emoji}).then(result=>{
-        if(result?.error)toast('La reacción solo se mostró en este dispositivo; no se pudo sincronizar.');
-      });
-    }else{
-      sendGrayxonLiveBroadcast('reaction',{userId:session?.user?.id||null,name,emoji}).then(result=>{
-        if(result?.error)console.warn('Grayxon LIVE: no se pudo sincronizar la reacción.',result.error);
-      });
-      try{jaasApi?.executeCommand('sendChatMessage','[GXREACTION:'+emoji+']');}catch(err){console.warn('No se pudo enviar la reacción por Jitsi:',err);}
-    }
-    const menu=$('.gx-reactions-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
-    $('[data-gx-call="reactions"]')?.setAttribute('aria-expanded','false');
-  }));
-  $('.gx-call-end-modal')?.querySelectorAll('[data-gx-end-choice]').forEach(button=>button.addEventListener('click',async()=>{
+    $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
+     // LiveKit ya gestiona las reacciones y evita duplicados.
+     if(gxLiveKitRoom)return;
+   }));
+$('.gx-call-end-modal')?.querySelectorAll('[data-gx-end-choice]').forEach(button=>button.addEventListener('click',async()=>{
     const choice=button.getAttribute('data-gx-end-choice');const modal=$('.gx-call-end-modal');
     if(choice==='cancel'){if(modal){modal.hidden=true;modal.classList.add('hidden');}return;}
-    if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}if(gxLiveKitRoom){await leaveGrayxonLiveKitTraining();return;}try{jaasApi?.executeCommand('hangup');}catch(_){}return;}
+    if(choice==='leave'){if(modal){modal.hidden=true;modal.classList.add('hidden');}await leaveGrayxonLiveKitTraining();return;}
     if(choice==='end'){
       if(!(isHost||profile?.role==='admin')){toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');return;}
-      if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(jaasApi,training.id,true);
+      if(modal){modal.hidden=true;modal.classList.add('hidden');}await endLiveTrainingConference(training.id,true);
     }
   }));
   if(!(isHost||profile?.role==='admin'))$('.gx-end-all')?.setAttribute('hidden','');
   const autoStart=pendingLiveTrainingAutoStart?.id===training.id;if(autoStart)pendingLiveTrainingAutoStart=null;
-  $('#enterGrayxonTraining')?.addEventListener('click',async()=>{const btn=$('#enterGrayxonTraining'),wrap=$('#grayxonTrainingRoomWrap'),hero=$('.live-training-hero'),feature=$('.live-training-feature');document.body.classList.add('grayxon-live-training-call');if(btn){btn.disabled=true;btn.textContent='Entrando…';}if(hero){hero.classList.add('hidden');hero.hidden=true;hero.style.setProperty('display','none','important');}if(feature){feature.classList.add('hidden');feature.hidden=true;feature.style.setProperty('display','none','important');}if(wrap){wrap.classList.remove('hidden');wrap.hidden=false;wrap.style.setProperty('display','block','important');}window.scrollTo(0,0);await startGrayxonLiveTraining(training);});
+  $('#enterGrayxonTraining')?.addEventListener('click',async()=>{const btn=$('#enterGrayxonTraining'),wrap=$('#grayxonTrainingRoomWrap'),hero=$('.live-training-hero'),feature=$('.live-training-feature');document.body.classList.add('grayxon-live-training-call');if(btn){btn.disabled=true;btn.textContent='Entrando…';}if(hero){hero.classList.add('hidden');hero.hidden=true;hero.style.setProperty('display','none','important');}if(feature){feature.classList.add('hidden');feature.hidden=true;feature.style.setProperty('display','none','important');}if(wrap){wrap.classList.remove('hidden');wrap.hidden=false;wrap.style.setProperty('display','block','important');}window.scrollTo(0,0);document.body.classList.add('grayxon-livekit-active');await startGrayxonLiveKitTraining(training);});
   if(autoStart) $('#enterGrayxonTraining')?.click();
 }
 
@@ -5776,9 +4747,7 @@ async function finishLiveTraining(id){
   if(error)return toast('No se pudo consultar el entrenamiento: '+error.message);
   if(!t||t.status!=='live')return toast('Este entrenamiento no está EN VIVO.');
   if(!(profile?.role==='admin'||t.created_by===session?.user?.id))return toast('Solo el anfitrión o un administrador puede finalizar el entrenamiento.');
-  if(jaasApi&&currentLiveTraining?.id===id){
     if(!confirm('¿Finalizar el entrenamiento para todos?'))return;
-    const ok=await endLiveTrainingConference(jaasApi,id,true);if(ok)render();return;
   }
   toast('Para finalizar sin dejar la sala activa, entra al entrenamiento y usa “Finalizar entrenamiento para todos”.');
 }
