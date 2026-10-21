@@ -170,7 +170,7 @@ async function showGrayxonPushPrompt(){
   // database row (for example after clearing account data) and do not bother the creator.
   try{
     if('serviceWorker' in navigator && 'PushManager' in window){
-      const registration=await navigator.serviceWorker.register('./sw.js?v=49',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=51',{scope:'./',updateViaCache:'none'});
       const existing=await registration?.pushManager?.getSubscription();
       if(existing){
         if('Notification' in window && Notification.permission==='granted'){
@@ -246,7 +246,7 @@ async function registerGrayxonPush({requestPermission=false}={}) {
   pushRegistrationPromise = (async () => {
     try {
       ensureGrayxonPwaLinks();
-      const registration = await navigator.serviceWorker.register('./sw.js?v=47', { scope: './', updateViaCache: 'none' });
+      const registration = await navigator.serviceWorker.register('./sw.js?v=51', { scope: './', updateViaCache: 'none' });
       await navigator.serviceWorker.ready;
 
       let permission = Notification.permission;
@@ -689,7 +689,7 @@ async function openNotification(id) {
   await markNotificationRead(id);
   $('#notificationsPanel')?.classList.add('hidden');
   // Batallas: abre el evento y desplaza directamente al cruce asignado.
-  if (n.link_page === 'event-match') {
+  if (n.type === 'event_match' || ['event-match','event_match'].includes(String(n.link_page || ''))) {
     const matchId = String(n.link_target || '');
     if (GRAYXON_UUID_RE.test(matchId)) {
       const { data: match, error } = await sb.from('gx_event_matches').select('event_id').eq('id', matchId).maybeSingle();
@@ -711,6 +711,18 @@ async function openNotification(id) {
     gxPendingEventTarget = GRAYXON_UUID_RE.test(target) ? target : null;
     gxPendingEventTab = n.link_page === 'event-thread' || /hilo oficial|nueva publicación|novedad en un evento/i.test(String(n.title||'')) ? 'thread' : (gxEventsAdmin() && /solicitud de inscripci[oó]n/i.test(String(n.title||'')) ? 'enrollment-requests' : null);
     nav('events');
+    return;
+  }
+  // Las misiones deben resolver su destino antes del fallback genérico de link_target.
+  if (n.link_page === 'missions' || n.link_page === 'mission') {
+    const target = String(n.link_target || '');
+    pendingNotificationTarget = {
+      type: 'missions',
+      missionId: GRAYXON_UUID_RE.test(target) ? target : null,
+      weekStart: n.related_week_start || null,
+      weekEnd: n.related_week_end || null
+    };
+    nav('missions');
     return;
   }
   // Pagos: debe tener prioridad sobre el fallback de comunicados. El destino contiene el UUID del pago.
@@ -6392,7 +6404,7 @@ function showGrayxonPushDiagnostics(){
     if(rows)rows.innerHTML='<div class="item">Comprobando dispositivo…</div>';
     const supported=!!(window.isSecureContext&&('serviceWorker'in navigator)&&('PushManager'in window)&&('Notification'in window));
     let registration=null,localSub=null,dbRows=null,dbError=null;
-    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.register('./sw.js?v=47',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;registration=await navigator.serviceWorker.getRegistration('./');localSub=await registration?.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
+    try{if('serviceWorker'in navigator){registration=await navigator.serviceWorker.register('./sw.js?v=51',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;registration=await navigator.serviceWorker.getRegistration('./');localSub=await registration?.pushManager?.getSubscription();}}catch(e){window.__grayxonLastPushError=e?.message||String(e);}
     try{const r=await sb.from('push_subscriptions').select('endpoint,is_active,last_seen_at,user_agent').eq('user_id',session.user.id).order('last_seen_at',{ascending:false});dbRows=r.data||null;dbError=r.error||null;}catch(e){dbError=e;}
     const permission=('Notification'in window)?Notification.permission:'No disponible';
     const match=localSub&&dbRows?dbRows.find(r=>r.endpoint===localSub.endpoint):null;
@@ -6471,7 +6483,7 @@ function ensureCreatorNotificationMenuAction(){
     (async()=>{
       try{
         if(Notification.permission==='granted'){
-          const registration=await navigator.serviceWorker.register('./sw.js?v=49',{scope:'./',updateViaCache:'none'});
+          const registration=await navigator.serviceWorker.register('./sw.js?v=51',{scope:'./',updateViaCache:'none'});
           const existing=await registration.pushManager.getSubscription();
           if(existing && Notification.permission==='granted'){setState('active');return;}
         }
@@ -6620,10 +6632,28 @@ function bind() {
   if (pendingNotificationTarget?.type === 'missions') {
     const target = pendingNotificationTarget;
     pendingNotificationTarget = null;
-    const btn = $$('[data-mission-week]').find(b => (b.dataset.weekStart || '') === (target.weekStart || '') && (b.dataset.weekEnd || '') === (target.weekEnd || ''));
-    if (btn) {
-      const panel = $('#details-' + btn.dataset.missionWeek);
-      if (panel) { panel.classList.remove('hidden'); btn.classList.add('open'); setTimeout(() => btn.scrollIntoView({ behavior:'smooth', block:'center' }), 60); }
+    if (target.missionId) {
+      const card = document.querySelector('[data-mission-card-id="' + target.missionId + '"]');
+      if (card) {
+        const panel = card.closest('.mission-week-details');
+        if (panel) {
+          panel.classList.remove('hidden');
+          panel.previousElementSibling?.querySelector('[data-mission-week]')?.classList.add('open');
+        }
+        setTimeout(() => {
+          card.scrollIntoView({ behavior:'smooth', block:'center' });
+          const previous = card.style.outline;
+          card.style.outline = '2px solid #c7a35b';
+          card.style.outlineOffset = '4px';
+          setTimeout(() => { card.style.outline = previous; card.style.outlineOffset = ''; }, 3200);
+        }, 80);
+      } else {
+        const btn = $('[data-mission-week]').find(b => (b.dataset.weekStart || '') === (target.weekStart || '') && (b.dataset.weekEnd || '') === (target.weekEnd || ''));
+        if (btn) { const panel = $('#details-' + btn.dataset.missionWeek); if (panel) { panel.classList.remove('hidden'); btn.classList.add('open'); setTimeout(() => btn.scrollIntoView({ behavior:'smooth', block:'center' }), 60); } }
+      }
+    } else {
+      const btn = $('[data-mission-week]').find(b => (b.dataset.weekStart || '') === (target.weekStart || '') && (b.dataset.weekEnd || '') === (target.weekEnd || ''));
+      if (btn) { const panel = $('#details-' + btn.dataset.missionWeek); if (panel) { panel.classList.remove('hidden'); btn.classList.add('open'); setTimeout(() => btn.scrollIntoView({ behavior:'smooth', block:'center' }), 60); } }
     }
   }
   $$('[data-admin]').forEach(b => b.onclick = () => { if(b.dataset.admin==='payments'){nav('payments');return;} adminView = b.dataset.admin; render(); });
@@ -8980,7 +9010,7 @@ function gxEventsRenderTab(d){
       const nestedBattleRounds=admin&&m.metric_key==='battles'?'<details class="gxev-mission-battles"><summary>Ver batallas de esta misión ('+missionRounds.reduce((n,r)=>n+d.matches.filter(x=>x.round_id===r.id).length,0)+')</summary><div style="margin-top:10px">'+(missionRounds.length?missionRounds.map(roundHTML).join(''):'<div class="gxev-muted">Todavía no hay batallas en esta fase.</div>')+'</div></details>':'';
       const myBattleParticipantIds=new Set([myParticipant?.id,d.leaderboard.find(r=>r.user_id===session.user.id)?.participant_id,...d.allParticipantRows.filter(p=>p.user_id===session.user.id).map(p=>p.id)].filter(Boolean));
       const creatorBattleMatches=!admin&&!managerView&&m.metric_key==='battles'?d.matches.filter(match=>myBattleParticipantIds.has(match.participant_a_id)||myBattleParticipantIds.has(match.participant_b_id)||d.allParticipantRows.some(p=>p.user_id===session.user.id&&(p.id===match.participant_a_id||p.id===match.participant_b_id))):[];
-      const battleOpponentHTML=m.metric_key==='battles'&&!admin&&!managerView?'<details '+(creatorBattleMatches.some(match=>match.needs_opponent||match.opponent_mode==='random_tiktok')?'open ':'')+'class="gxev-description gxev-battle-opponent-disclosure" style="margin:10px 0"><summary style="cursor:pointer;color:#c7a35b;font-size:13px;font-weight:800">Ver contrincante</summary><div style="margin-top:9px">'+(creatorBattleMatches.length?creatorBattleMatches.map(match=>{const round=d.rounds.find(r=>r.id===match.round_id);return '<div style="margin:8px 0"><div class="gxev-muted" style="margin-bottom:5px">'+gxEventsEsc(round?.title||'Batalla asignada')+'</div>'+gxEventsMatchCard(match,d)+'</div>';}).join(''):'<div class="gxev-muted">Aún no tienes una batalla asignada.</div>')+'</div></details>':'';
+      const battleOpponentHTML=m.metric_key==='battles'&&!admin&&!managerView?'<details '+(creatorBattleMatches.some(match=>match.needs_opponent||match.opponent_mode==='random_tiktok')?'open ':'')+'class="gxev-description gxev-battle-opponent-disclosure" style="margin:10px 0"><summary style="cursor:pointer;color:#c7a35b;font-size:13px;font-weight:800">Ver contrincante</summary><div style="margin-top:9px">'+(creatorBattleMatches.length?creatorBattleMatches.map(match=>{const round=d.rounds.find(r=>r.id===match.round_id);const roundTitle=!admin&&/manual/i.test(String(round?.title||''))?'Detalles de tu batalla':(round?.title||'Batalla asignada');return '<div style="margin:8px 0"><div class="gxev-muted" style="margin-bottom:5px">'+gxEventsEsc(roundTitle)+'</div>'+gxEventsMatchCard(match,d)+'</div>';}).join(''):'<div class="gxev-muted">Aún no tienes una batalla asignada.</div>')+'</div></details>':'';
       return `<article class="gxev-mission ${m.metric_key==='battles'?'gxev-battle-mission-card':''}"><div class="gxev-mission-top"><div><h4>${gxEventsEsc(m.title)}</h4><div class="gxev-muted">${gxEventsEsc(gxEventsMetricLabel(m.metric_key))}</div></div><span class="gxev-pill">${gxEventsFormatNumber(m.points_per_unit)} pts/u</span></div><p class="gxev-muted">Meta: ${gxEventsFormatNumber(m.target_value)} ${gxEventsEsc(m.unit_label)}${Number(m.completion_bonus)>0?` · Bono ${gxEventsFormatNumber(m.completion_bonus)} pts`:''}${m.score_over_target?' · Se suman excedentes':''}</p>${m.description?`<details class="gxev-description" style="margin:10px 0"><summary style="cursor:pointer;color:#c7a35b;font-size:13px;font-weight:800">Ver descripción y requisitos</summary><p class="gxev-muted" style="white-space:pre-line;margin-top:9px">${gxEventsEsc(m.description)}</p></details>`:''}${nestedBattleRounds}${battleOpponentHTML}${!admin&&!managerView?`<div class="gxev-bar"><span style="width:${pct}%"></span></div><div class="gxev-muted">Tu avance: ${p?gxEventsFormatNumber(p.value)+' '+gxEventsEsc(m.unit_label)+' · '+({pending:'En revisión',approved:'Aprobado',rejected:'Devuelto para ajustar'}[p.status]||p.status):'Sin registro'}${p?.status==='approved'?` · ${gxEventsFormatNumber((m.score_over_target?Number(p.value):Math.min(Number(p.value),Number(m.target_value)))*Number(m.points_per_unit)+(Number(p.value)>=Number(m.target_value)?Number(m.completion_bonus):0))} puntos`:''}</div>`:admin?`<div class="gxev-actions"><button type="button" class="gxev-btn" data-gxev-edit>Editar configuración del evento</button><button type="button" class="gxev-btn" data-gxev-mission-toggle="${m.id}" data-active="1">Desactivar</button></div>`:''}</article>`;
     };
     const roundHTML=(r)=>{
