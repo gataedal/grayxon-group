@@ -8386,7 +8386,12 @@ function gxEnsureEventsMatrixStyles(){
   .gxev-full-ranking-modal>.gxev-top{align-items:flex-start;gap:12px;margin-bottom:0}
   .gxev-full-ranking-modal #gxevFullRankingTitle{margin:0;font-size:clamp(20px,3vw,27px);line-height:1.2}
   .gxev-full-ranking-modal .gxev-ranking-event-name{margin-top:6px;color:#aebbd0;font-size:14px;overflow-wrap:anywhere}
-  .gxev-full-ranking-modal .gxev-ranking-modal-scroll{flex:1;min-height:0;max-height:none;overflow:auto;border:1px solid #2a394b;border-radius:14px;background:#0b1119}
+  .gxev-full-ranking-modal .gxev-ranking-modal-scroll{flex:1;min-height:0;max-height:none;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;border:1px solid #2a394b;border-radius:14px;background:#0b1119}
+  #events .gxev-modal-backdrop:has(.gxev-full-ranking-modal){position:fixed;inset:0;height:100vh;height:100dvh;overflow:hidden;overscroll-behavior:contain;touch-action:pan-y}
+  .gxev-full-ranking-modal{overscroll-behavior:contain;touch-action:pan-y}
+  .gxev-full-ranking-modal .gxev-ranking-mobile-list{touch-action:pan-y;overscroll-behavior:contain}
+  .gxev-full-ranking-modal .gxev-top{flex:0 0 auto}
+  .gxev-full-ranking-modal .gxev-ranking-my-position{flex:0 0 auto}
   .gxev-ranking-mobile-list{display:flex;flex-direction:column;gap:0}
   .gxev-ranking-person{display:grid;grid-template-columns:40px 42px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:68px;padding:10px 14px;border-bottom:1px solid #202d3d;background:#0e1621}
   .gxev-ranking-person:last-child{border-bottom:0}
@@ -9217,11 +9222,13 @@ const importConfirm=e.target.closest('#gxevParticipantImportConfirm');if(importC
     const me=meIndex>=0?d.leaderboard[meIndex]:null;
     const renderAvatar=(userId,username,participantId,person)=>{
       const participant=participantId?d.participantById?.get?.(participantId):null;
-      const resolvedUserId=userId||participant?.user_id||'';
-      const url=d.avatarMap?.get?.(resolvedUserId)||d.avatarMap?.get?.(userId)||person?.avatar_url||person?.photo_url||person?.profile_photo_url||'';
+      const resolvedUserId=String(userId||participant?.user_id||'');
+      const profileDetail=d.profiles?.find?.(p=>String(p.id)===resolvedUserId)||person||{};
+      const url=d.avatarMap?.get?.(resolvedUserId)||d.avatarMap?.get?.(String(userId||''))||profileDetail.avatar_url||profileDetail.photo_url||profileDetail.profile_photo_url||'';
+      const initials=gxEventsEsc(String(username||'U').slice(0,1).toUpperCase());
       return url
-        ? '<img class="gxev-ranking-avatar" src="'+gxEventsEsc(url)+'" alt="Foto de '+gxEventsEsc(username||'participante')+'" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'"><span class="gxev-ranking-avatar" aria-hidden="true" style="display:none;place-items:center;font-weight:800">'+gxEventsEsc(String(username||'U').slice(0,1).toUpperCase())+'</span>'
-        : '<span class="gxev-ranking-avatar" aria-hidden="true" style="display:grid;place-items:center;font-weight:800">'+gxEventsEsc(String(username||'U').slice(0,1).toUpperCase())+'</span>';
+        ? '<img class="gxev-ranking-avatar" src="'+gxEventsEsc(url)+'" alt="Foto de '+gxEventsEsc(username||'participante')+'" loading="lazy" onerror="this.onerror=null;this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'"><span class="gxev-ranking-avatar" aria-hidden="true" style="display:none;place-items:center;font-weight:800">'+initials+'</span>'
+        : '<span class="gxev-ranking-avatar" aria-hidden="true" style="display:grid;place-items:center;font-weight:800">'+initials+'</span>';
     };
     const rows=(d.leaderboard||[]).map((r,i)=>{
       const rank=Number(r.rank_position)||i+1;
