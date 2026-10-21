@@ -3277,7 +3277,9 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   if(!track||track.kind!=='video')return;
   const key=String(track.sid||track.mediaStreamTrack?.id||'');
   if(key&&tile.querySelector('[data-gx-livekit-track="'+CSS.escape(key)+'"]'))return;
-  const video=track.attach();if(key)video.dataset.gxLivekitTrack=key;video.autoplay=true;video.playsInline=true;
+  const video=track.attach();if(key)video.dataset.gxLivekitTrack=key;
+  if(String(track.source||'').toLowerCase().replace(/[_-]/g,'').includes('screenshare'))video.dataset.gxScreenShare='true';
+  video.autoplay=true;video.playsInline=true;
   video.style.cssText='position:absolute;inset:0;width:100%;height:100%;min-height:0;max-height:none;object-fit:contain;background:#000';
   tile.insertBefore(video,avatar);avatar.style.display='none';
 }
@@ -3528,9 +3530,13 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room.on(LK.RoomEvent.LocalTrackPublished,(publication,participant)=>{
       if(publication?.kind==='video'&&publication.track)renderGrayxonLiveKitTrack(publication.track,participant||room.localParticipant,stage);
       if(publication?.source===LK.Track.Source.ScreenShare||publication?.track?.source===LK.Track.Source.ScreenShare)updateShareControl(true);
+      else if(publication?.source===LK.Track.Source.Camera&&mirrorEnabled)void applyMirror(true);
     });
     room.on(LK.RoomEvent.LocalTrackUnpublished,publication=>{
-      if(publication?.source===LK.Track.Source.ScreenShare||publication?.track?.source===LK.Track.Source.ScreenShare)updateShareControl(false);
+      if(publication?.source===LK.Track.Source.ScreenShare||publication?.track?.source===LK.Track.Source.ScreenShare){
+        updateShareControl(false);
+        void restoreLocalCameraAfterShare(publication?.track);
+      }
     });
     room.on(LK.RoomEvent.ParticipantDisconnected,participant=>{const departedId=String(participant?.identity||participant?.sid||'');if(departedId)grayxonRaisedHands.delete(departedId);removeParticipant(participant);syncGrayxonLiveKitHandTiles(stage);});
     room.on(LK.RoomEvent.ParticipantConnected,participant=>{
@@ -3585,6 +3591,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
             try{
               await room.localParticipant.setCameraEnabled(next);
               if(next)room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
+              if(next&&mirrorEnabled)await applyMirror(true);
             }catch(cameraError){
               videoEnabled=previous;
               setButton('video',previous,'Cámara encendida','Cámara apagada');
@@ -3628,7 +3635,125 @@ async function startGrayxonLiveKitTraining(training, options={}){
     const deviceModal=$('.gx-device-settings-modal'),settingsModal=$('.gx-call-settings-modal');
     const openModal=modal=>{if(!modal)return;modal.hidden=false;modal.classList.remove('hidden');};
     const closeModal=modal=>{if(!modal)return;modal.hidden=true;modal.classList.add('hidden');};
-    const applyMirror=enabled=>{const localTile=stage?.querySelector('[data-gx-livekit-tile="gx-livekit-local"]');localTile?.querySelectorAll('video').forEach(video=>{video.style.transform=enabled?'scaleX(-1)':'';});};
+    const mirrorCheckbox=$('[data-gx-device-mirror]');
+    let mirrorEnabled=!!mirrorCheckbox?.checked;
+    const mirrorProcessorName='grayxon-outgoing-mirror';
+    const createGrayxonMirrorProcessor=()=>({
+      name:mirrorProcessorName,
+      processedTrack:undefined,
+      async init({track}){
+        this._active=true;
+        this._video=document.createElement('video');
+        this._video.muted=true;this._video.playsInline=true;this._video.autoplay=true;
+        this._video.style.cssText='position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+        document.body.appendChild(this._video);
+        this._video.srcObject=new MediaStream([track]);
+        const playback=this._video.play();
+        if(this._video.readyState<2)await new Promise((resolve,reject)=>{
+          const ready=()=>{cleanup();resolve();};
+          const failed=()=>{cleanup();reject(new Error('No se pudo preparar el vídeo para reflejarlo.'));};
+          const cleanup=()=>{this._video?.removeEventListener('loadeddata',ready);this._video?.removeEventListener('error',failed);};
+          this._video.addEventListener('loadeddata',ready,{once:true});
+          this._video.addEventListener('error',failed,{once:true});
+        });
+        await playback;
+        const settings=track.getSettings?.()||{};
+        this._canvas=document.createElement('canvas');
+        this._canvas.width=Math.max(2,Number(settings.width)||1280);
+        this._canvas.height=Math.max(2,Number(settings.height)||720);
+        this._context=this._canvas.getContext('2d',{alpha:false});
+        if(!this._context||typeof this._canvas.captureStream!=='function')throw new Error('Este navegador no permite procesar la cámara para transmitirla reflejada.');
+        this._stream=this._canvas.captureStream(30);
+        this.processedTrack=this._stream.getVideoTracks()[0];
+        if(!this.processedTrack)throw new Error('No se pudo crear el vídeo reflejado.');
+        const draw=()=>{
+          if(!this._active)return;
+          if(this._video?.readyState>=2&&this._context){
+            this._context.save();
+            this._context.clearRect(0,0,this._canvas.width,this._canvas.height);
+            this._context.translate(this._canvas.width,0);
+            this._context.scale(-1,1);
+            this._context.drawImage(this._video,0,0,this._canvas.width,this._canvas.height);
+            this._context.restore();
+          }
+          this._frame=requestAnimationFrame(draw);
+        };
+        draw();
+      },
+      async restart(options){await this.destroy();await this.init(options);},
+      async destroy(){
+        this._active=false;
+        if(this._frame)cancelAnimationFrame(this._frame);
+        try{this._video?.pause();if(this._video)this._video.srcObject=null;this._video?.remove();}catch(_){}
+        try{this._stream?.getTracks().forEach(track=>track.stop());}catch(_){}
+        this.processedTrack=undefined;
+      }
+    });
+    const getLocalCameraVideo=(tile,track)=>{
+      if(!tile||!track)return null;
+      const key=String(track.sid||track.mediaStreamTrack?.id||'');
+      return (key&&tile.querySelector('video[data-gx-livekit-track="'+CSS.escape(key)+'"]'))||tile.querySelector('video:not([data-gx-screen-share])');
+    };
+    const applyMirror=async enabled=>{
+      mirrorEnabled=!!enabled;
+      const localTile=stage?.querySelector('[data-gx-livekit-tile="gx-livekit-local"]');
+      const cameraTrack=room.localParticipant.getTrackPublication?.(LK.Track.Source.Camera)?.track;
+      if(!cameraTrack){
+        localTile?.querySelectorAll('video').forEach(video=>{video.style.transform=mirrorEnabled?'scaleX(-1)':'';});
+        return;
+      }
+      const cameraKey=String(cameraTrack.sid||cameraTrack.mediaStreamTrack?.id||'');
+      try{
+        const processor=cameraTrack.getProcessor?.();
+        if(mirrorEnabled&&processor?.name!==mirrorProcessorName){
+          if(processor)throw new Error('La cámara ya tiene otro procesador de vídeo activo.');
+          if(typeof cameraTrack.setProcessor!=='function')throw new Error('Esta versión de LiveKit no admite procesar el vídeo saliente.');
+          await cameraTrack.setProcessor(createGrayxonMirrorProcessor(),true);
+        }else if(!mirrorEnabled&&processor?.name===mirrorProcessorName){
+          await cameraTrack.stopProcessor(true);
+        }
+        const cameraVideo=(cameraKey&&localTile?.querySelector('video[data-gx-livekit-track="'+CSS.escape(cameraKey)+'"]'))||getLocalCameraVideo(localTile,cameraTrack);
+        if(cameraVideo)cameraVideo.style.transform='';
+      }catch(error){
+        console.warn('No se pudo reflejar la cámara transmitida:',error);
+        const cameraVideo=getLocalCameraVideo(localTile,cameraTrack);
+        if(cameraVideo)cameraVideo.style.transform=mirrorEnabled?'scaleX(-1)':'';
+        const note=$('[data-gx-device-note]');
+        if(note)note.textContent='El reflejo para los demás no está disponible en este navegador. '+(error?.message||'');
+        toast('No se pudo aplicar el reflejo a la transmisión.');
+      }
+    };
+    const restoreLocalCameraAfterShare=async shareTrack=>{
+      const localTile=stage?.querySelector('[data-gx-livekit-tile="gx-livekit-local"]');
+      if(!localTile)return;
+      try{shareTrack?.detach?.().forEach(element=>element.remove());}catch(_){}
+      const cameraPublication=room.localParticipant.getTrackPublication?.(LK.Track.Source.Camera);
+      let cameraTrack=cameraPublication?.track;
+      if(room.localParticipant.isCameraEnabled&&(!cameraTrack||cameraTrack.mediaStreamTrack?.readyState==='ended')){
+        try{
+          await room.localParticipant.setCameraEnabled(false);
+          await room.localParticipant.setCameraEnabled(true);
+          cameraTrack=room.localParticipant.getTrackPublication?.(LK.Track.Source.Camera)?.track;
+        }catch(error){console.warn('No se pudo recuperar la cámara al terminar de compartir pantalla:',error);}
+      }
+      const cameraKey=String(cameraTrack?.sid||cameraTrack?.mediaStreamTrack?.id||'');
+      localTile.querySelectorAll('video').forEach(video=>{
+        if(!cameraTrack||!cameraKey||video.dataset.gxLivekitTrack!==cameraKey)video.remove();
+      });
+      const avatar=localTile.querySelector('.gx-livekit-avatar');
+      const cameraOn=!!room.localParticipant.isCameraEnabled&&!!cameraTrack&&cameraTrack.mediaStreamTrack?.readyState!=='ended';
+      if(cameraOn){
+        if(!localTile.querySelector('video[data-gx-livekit-track="'+CSS.escape(cameraKey)+'"]'))renderGrayxonLiveKitTrack(cameraTrack,room.localParticipant,stage);
+        const cameraVideo=(cameraKey&&localTile.querySelector('video[data-gx-livekit-track="'+CSS.escape(cameraKey)+'"]'))||getLocalCameraVideo(localTile,cameraTrack);
+        if(cameraVideo){cameraVideo.style.display='block';cameraVideo.style.visibility='visible';cameraVideo.style.transform='';}
+        if(avatar){avatar.style.display='none';avatar.style.visibility='hidden';}
+        if(mirrorEnabled)await applyMirror(true);
+      }else{
+        localTile.querySelectorAll('video').forEach(video=>video.remove());
+        if(avatar){avatar.style.display='flex';avatar.style.visibility='visible';}
+      }
+    };
+    if(mirrorEnabled&&room.localParticipant.getTrackPublication?.(LK.Track.Source.Camera)?.track)void applyMirror(true);
     const fillDevices=async()=>{
       const cameraSelect=$('[data-gx-device-camera]'),micSelect=$('[data-gx-device-microphone]'),note=$('[data-gx-device-note]');
       if(!cameraSelect||!micSelect)return;
