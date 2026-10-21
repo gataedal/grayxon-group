@@ -92,21 +92,44 @@ function individual(matches,title){
 }
 async function generate(cfg){
   if(busy||typeof gxEventsAdmin!=='function'||!gxEventsAdmin()||!gxEventsSelectedId)return;
+  var info=roundInfo(cfg.phaseId),phase=phaseById(cfg.phaseId),createdRoundId=null,scheduleCommitted=false;
+  // Validate the chosen start before creating any round, so invalid dates never leave orphan matches.
+  var start=cfg.mode==='individual'?null:iso(cfg.date,cfg.time);
+  if(cfg.mode!=='individual'&&!start)throw new Error('Selecciona una fecha y hora válidas.');
+  if(start&&phase){
+    var first=new Date(start),phaseStart=phase.starts_at?new Date(phase.starts_at):null,phaseEnd=phase.ends_at?new Date(phase.ends_at):null;
+    if((phaseStart&&first<phaseStart)||(phaseEnd&&first>phaseEnd))throw new Error('La fecha y hora inicial deben quedar dentro del rango de '+(phase.title||'la fase seleccionada')+'.');
+  }
   busy=true;
   try{
-    var info=roundInfo(cfg.phaseId);
     var r=await sb.rpc('gx_events_generate_round',{p_event_id:gxEventsSelectedId,p_round_number:info.n,p_title:info.title,p_phase_id:info.phaseId});
     if(r.error)throw r.error;
     if(!r.data?.round_id)throw new Error('No se recibió el identificador de la ronda.');
-    var matches=await fetchMatches(r.data.round_id);
+    createdRoundId=r.data.round_id;
+    var matches=await fetchMatches(createdRoundId);
     if(!matches.length){close();if(typeof toast==='function')toast(info.title+' creada, pero no hay batallas para programar.');await refresh();return;}
     if(cfg.mode==='individual'){close();await refresh();individual(matches,info.title);return;}
-    var start=iso(cfg.date,cfg.time);if(!start)throw new Error('Selecciona una fecha y hora válidas.');
     var base=new Date(start).getTime(),rows=matches.map(function(m,i){return {id:m.id,scheduled_at:new Date(base+(cfg.mode==='interval'?i*cfg.interval*60000:0)).toISOString()};});
+    // Validate every generated slot before saving; the schedule RPC validates again server-side.
     validateRows(rows,matches);
-    var result=await save(rows);close();if(typeof toast==='function')toast(notificationSummary(result,rows.length));await refresh();
-  }catch(err){if(typeof toast==='function')toast(err?.message||'No se pudieron generar y programar las batallas.');console.error('[Grayxon battle scheduler]',err);}
-  finally{busy=false;}
+    var result=await save(rows);
+    scheduleCommitted=true;
+    close();
+    if(typeof toast==='function')toast(notificationSummary(result,rows.length));
+    await refresh();
+  }catch(err){
+    // If scheduling failed before notifications/commit, remove only the round created by this click.
+    if(createdRoundId&&!scheduleCommitted){
+      try{
+        var check=await sb.from('gx_event_matches').select('id,scheduled_at,status').eq('round_id',createdRoundId);
+        if(!check.error&&(check.data||[]).every(function(m){return !m.scheduled_at&&m.status==='scheduled';})){
+          await sb.from('gx_event_rounds').delete().eq('id',createdRoundId).eq('event_id',gxEventsSelectedId);
+        }
+      }catch(cleanupErr){console.error('[Grayxon battle scheduler] No se pudo limpiar la ronda fallida:',cleanupErr);}
+    }
+    if(typeof toast==='function')toast(err?.message||'No se pudieron generar y programar las batallas.');
+    console.error('[Grayxon battle scheduler]',err);
+  }finally{busy=false;}
 }
 function openGenerate(phaseId){
   if(busy||typeof gxEventsAdmin!=='function'||!gxEventsAdmin())return;
