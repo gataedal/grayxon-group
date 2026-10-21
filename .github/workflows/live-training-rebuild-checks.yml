@@ -33,8 +33,6 @@ jobs:
         run: |
           deno check supabase/functions/_shared/live-training-policy.ts
           deno check supabase/functions/start-live-training/index.ts
-          deno check supabase/functions/generate-jitsi-jwt/index.ts
           deno check supabase/functions/end-live-training/index.ts
-          deno check supabase/functions/jitsi-event-sync/index.ts
           deno check supabase/functions/end-livekit-training/index.ts
           deno check supabase/functions/generate-livekit-token/index.ts
