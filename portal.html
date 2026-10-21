@@ -1203,3 +1203,34 @@ body{min-height:100dvh!important}
 /* Mantiene el encabezado debajo de la barra de estado cuando el viewport cubre la pantalla completa. */
 header.top{height:calc(68px + env(safe-area-inset-top,0px))!important;padding-top:env(safe-area-inset-top,0px)!important;box-sizing:border-box!important}
 </style>
+
+<style id="gx-event-ranking-symmetry-fix">
+/* Simetría del encabezado de clasificación: bordes internos equidistantes y alineación vertical constante. */
+html body #events .gxev-event-podium .gxev-rank-feature-head {
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  justify-content:initial!important;
+  column-gap:clamp(10px,1.2vw,16px)!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+html body #events .gxev-event-podium .gxev-podium-heading {
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  justify-self:start!important;
+}
+html body #events .gxev-event-podium .gxev-podium-actions {
+  margin:0!important;
+  padding:0!important;
+  align-self:center!important;
+  justify-self:end!important;
+}
+@media(max-width:650px) {
+  html body #events .gxev-event-podium .gxev-rank-feature-head {
+    grid-template-columns:minmax(0,1fr) auto!important;
+    column-gap:10px!important;
+  }
+}
+</style>
