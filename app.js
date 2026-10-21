@@ -4357,6 +4357,9 @@ async function liveTrainingTpl(trainingOverride=null) {
   $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');});
   $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;const name=profile?.full_name||profile?.username||'Tú';if(gxLiveKitRoom){sendGrayxonLiveBroadcast('chat',{userId:session?.user?.id||null,name,message,createdAt:new Date().toISOString()}).then(result=>{if(result?.error)toast('No se pudo enviar el mensaje a los demás participantes.');});appendGrayxonChatMessage(name,message);if(input)input.value='';return;}if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(name,message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
   $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
+    // LiveKit ya registra su propio handler en startGrayxonLiveKitTraining.
+    // No volver a procesar aquí el mismo clic: evita reacción local duplicada.
+    if(gxLiveKitRoom)return;
     const emoji=button.getAttribute('data-gx-reaction');
     const name=profile?.full_name||profile?.username||'Participante';
     showGrayxonReaction(name,emoji);playGrayxonSound('reaction');
