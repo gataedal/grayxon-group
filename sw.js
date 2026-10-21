@@ -15,9 +15,18 @@ function resolveTarget(data) {
   if (page === 'event-thread') return `./portal.html?grayxonPush=1&page=event-thread&target=${encodeURIComponent(value)}#events`;
 
   // Battle IDs are resolved by the portal after restoring the session; never treat them as LIVE IDs.
-  if (page === 'event-match') return `./portal.html?grayxonPush=1&page=event-match&target=${encodeURIComponent(value)}#events`;
+  if (page === 'event-match' || page === 'event_match' || data?.type === 'event_match' || nested?.type === 'event_match') {
+    const matchTarget = String(data?.link_target || data?.linkTarget || nested?.link_target || nested?.linkTarget || value || '');
+    return `./portal.html?grayxonPush=1&page=event-match&target=${encodeURIComponent(matchTarget)}#events`;
+  }
 
   // Payment routes take priority over UUID matching (which used to assume LIVE).
+  // Mission UUIDs are mission IDs, not LIVE IDs. Keep the exact mission destination.
+  if (page === 'missions' || page === 'mission') {
+    const missionTarget = String(data?.link_target || data?.linkTarget || nested?.link_target || nested?.linkTarget || '');
+    const targetQuery = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(missionTarget) ? `&target=${encodeURIComponent(missionTarget)}` : '';
+    return `./portal.html?grayxonPush=1&page=missions${targetQuery}#missions`;
+  }
   if (page === 'payments' || value.toLowerCase() === 'payments' || data?.type === 'payment' || nested?.type === 'payment') {
     const target = uuidMatch ? value : String(data?.link_target || nested?.link_target || data?.target || nested?.target || '');
     const targetQuery = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(target) ? `&target=${encodeURIComponent(target)}` : '';
