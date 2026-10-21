@@ -3525,7 +3525,9 @@ async function startGrayxonLiveKitTraining(training, options={}){
       const isLocal=participant===room.localParticipant;
       const key=isLocal?'gx-livekit-local':'gx-livekit-'+String(participant.identity||participant.sid||'remote').replace(/[^a-zA-Z0-9_-]/g,'_');
       const tile=stage?.querySelector('[data-gx-livekit-tile="'+CSS.escape(key)+'"]');
+      const video=tile?.querySelector('video');
       const avatar=tile?.querySelector('.gx-livekit-avatar');
+      if(video)video.style.display='none';
       if(avatar){avatar.style.display='flex';avatar.style.visibility='visible';}
     });
     room.on(LK.RoomEvent.TrackUnmuted,(publication,participant)=>{
