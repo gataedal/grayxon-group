@@ -1,13 +1,16 @@
-/* Mobile-only LiveKit tile alignment; desktop styles remain unchanged. */
+/* Mobile-only LiveKit layout: fixed host stage and equal secondary tiles. */
 @media (max-width: 600px) {
   #grayxonLiveKitStage {
     display: grid !important;
     width: calc(100vw - 32px) !important;
     max-width: calc(100vw - 32px) !important;
     min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
     box-sizing: border-box !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     grid-auto-flow: row !important;
+    grid-auto-rows: auto !important;
     align-items: stretch !important;
     justify-items: stretch !important;
     gap: 7px !important;
@@ -15,16 +18,30 @@
     margin-right: auto !important;
   }
   #grayxonLiveKitStage [data-gx-livekit-tile] {
+    display: grid !important;
+    position: relative !important;
     width: 100% !important;
+    height: auto !important;
     min-width: 0 !important;
+    min-height: 0 !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
     grid-column: auto !important;
     grid-row: auto !important;
+    align-self: stretch !important;
     aspect-ratio: 4 / 3 !important;
+    overflow: hidden !important;
   }
   #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"] {
     grid-column: 1 / -1 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
     aspect-ratio: 16 / 9 !important;
+  }
+  #grayxonLiveKitStage [data-gx-livekit-tile] video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
   }
 }
