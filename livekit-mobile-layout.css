@@ -1,16 +1,15 @@
-/* Mobile-only LiveKit layout: tall host stage and compact attendee strip above controls. */
+/* Mobile-only LiveKit layout: longer host tile followed immediately by compact attendee rows. */
 @media (max-width: 600px) {
   #grayxonLiveKitStage {
     display: grid !important;
     width: calc(100vw - 32px) !important;
     max-width: calc(100vw - 32px) !important;
     min-width: 0 !important;
-    height: calc(100dvh - 245px) !important;
-    max-height: calc(100dvh - 245px) !important;
-    min-height: 280px !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
     box-sizing: border-box !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    grid-template-rows: minmax(0, 1fr) auto !important;
     grid-auto-flow: row !important;
     grid-auto-rows: auto !important;
     align-items: stretch !important;
@@ -18,9 +17,8 @@
     gap: 7px !important;
     margin-left: auto !important;
     margin-right: auto !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    align-content: stretch !important;
+    overflow: visible !important;
+    align-content: start !important;
   }
   #grayxonLiveKitStage [data-gx-livekit-tile] {
     display: grid !important;
@@ -37,19 +35,14 @@
     aspect-ratio: 4 / 3 !important;
     overflow: hidden !important;
   }
-  /* Host fills the tall reserved area; attendee tiles follow in compact rows. */
+  /* Host is intentionally taller; attendee miniatures start directly below it. */
   #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"] {
     grid-column: 1 / -1 !important;
-    grid-row: 1 !important;
     width: 100% !important;
-    height: 100% !important;
+    height: auto !important;
     min-height: 0 !important;
-    max-height: 100% !important;
-    aspect-ratio: auto !important;
-  }
-  #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]) {
-    grid-row: auto !important;
-    aspect-ratio: 4 / 3 !important;
+    max-height: none !important;
+    aspect-ratio: 5 / 8 !important;
   }
   #grayxonLiveKitStage [data-gx-livekit-tile] video {
     width: 100% !important;
