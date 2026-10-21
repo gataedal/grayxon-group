@@ -1137,13 +1137,14 @@ function ensureLiveTrainingPage() {
       body.grayxon-live-training-call .gx-call-controls button.gx-call-end{background:#fe2c55!important;border-color:#fe2c55!important;border-radius:50%!important;min-width:46px!important;color:white!important}
       body.grayxon-live-training-call .gx-call-controls button:disabled{opacity:.45!important;cursor:wait!important}
       body.grayxon-live-training-call.gx-chat-open #grayxonTrainingRoomWrap .gx-call-controls{background:rgba(8,11,16,.97)!important;box-shadow:0 12px 42px rgba(0,0,0,.55)!important}
-      body.grayxon-live-training-call [data-gx-call="more"]{display:none!important}
+      body.grayxon-live-training-call [data-gx-call="more"],body.grayxon-live-training-call .gx-call-more-menu,body.grayxon-live-training-call button[aria-label*="Más"],body.grayxon-live-training-call button[title*="Más"]{display:none!important}
       body.grayxon-live-training-call .gx-call-more-menu{position:fixed!important;right:16px!important;bottom:calc(84px + env(safe-area-inset-bottom))!important;z-index:100004!important;display:flex!important;flex-direction:column!important;gap:5px!important;min-width:190px!important;padding:8px!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:14px!important;background:rgba(12,15,20,.98)!important;box-shadow:0 12px 40px #0008!important}
       body.grayxon-live-training-call .gx-call-more-menu[hidden],body.grayxon-live-training-call .gx-call-more-menu.hidden{display:none!important}
       body.grayxon-live-training-call .gx-chat-panel{position:fixed!important;right:14px!important;top:calc(62px + env(safe-area-inset-top))!important;bottom:calc(88px + env(safe-area-inset-bottom))!important;width:min(370px,calc(100vw - 28px))!important;max-height:calc(100dvh - 170px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;z-index:100007!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;border:1px solid #ffffff20!important;border-radius:20px!important;background:rgba(10,13,18,.98)!important;color:#fff!important;box-shadow:0 20px 60px #0009!important;backdrop-filter:blur(18px)!important}
       body.grayxon-live-training-call .gx-chat-panel[hidden],body.grayxon-live-training-call .gx-chat-panel.hidden{display:none!important}.gx-chat-head{display:flex!important;justify-content:space-between!important;align-items:center!important;padding:14px 15px!important;border-bottom:1px solid #ffffff16!important}.gx-chat-head strong,.gx-chat-head small{display:block!important}.gx-chat-head small{font-size:11px!important;color:#9ba4b2!important;margin-top:3px!important}.gx-chat-head button{border:0!important;border-radius:9px!important;padding:8px 10px!important;background:#202630!important;color:#fff!important}.gx-chat-messages{flex:1!important;overflow:auto!important;padding:12px!important}.gx-chat-message{padding:9px 10px!important;margin-bottom:8px!important;border-radius:12px!important;background:#ffffff09!important;overflow-wrap:anywhere!important}.gx-chat-message strong{font-size:11px!important;color:#7de8e2!important}.gx-chat-message p{font-size:13px!important;line-height:1.45!important;margin:4px 0 0!important;white-space:pre-wrap!important}.gx-chat-empty{font-size:12px!important;color:#9ba4b2!important;text-align:center!important;padding:18px 8px!important}.gx-chat-form{display:flex!important;gap:7px!important;padding:10px!important;border-top:1px solid #ffffff16!important}.gx-chat-form input{flex:1!important;min-width:0!important;background:#171b22!important;border:1px solid #ffffff18!important;border-radius:11px!important;color:#fff!important;padding:11px!important;font-size:13px!important}.gx-chat-form button{border:0!important;border-radius:11px!important;background:#fe2c55!important;color:#fff!important;font-weight:800!important;padding:0 13px!important}
       @media(max-width:600px){body.grayxon-live-training-call .gx-chat-panel{top:auto!important;left:10px!important;right:10px!important;bottom:calc(6px + env(safe-area-inset-bottom))!important;width:auto!important;height:min(42dvh,340px)!important;max-height:calc(var(--gx-vv-height, 100dvh) - 12px)!important;min-height:120px!important;border-radius:16px!important}.gx-chat-head{padding:8px 11px!important;flex:0 0 auto!important}.gx-chat-messages{padding:8px!important;min-height:0!important}.gx-chat-form{padding:8px!important;flex:0 0 auto!important}.gx-chat-form input{font-size:16px!important;min-height:40px!important}.gx-chat-form button{min-height:40px!important}}
-      #gx-chat-live-toast-layer{position:fixed!important;left:14px!important;right:14px!important;bottom:calc(100px + env(safe-area-inset-bottom))!important;z-index:100009!important;display:flex!important;flex-direction:column-reverse!important;align-items:flex-start!important;gap:7px!important;pointer-events:none!important}
+      #gx-chat-live-toast-layer{position:fixed!important;left:14px!important;right:14px!important;bottom:calc(110px + env(safe-area-inset-bottom))!important;z-index:2147483000!important;display:flex!important;flex-direction:column-reverse!important;align-items:flex-start!important;gap:7px!important;pointer-events:none!important}
+      .gx-chat-count{position:absolute!important;top:-4px!important;right:-5px!important;min-width:17px!important;height:17px!important;padding:0 4px!important;border-radius:9px!important;background:#fe2c55!important;color:#fff!important;font-size:10px!important;font-weight:800!important;line-height:17px!important;text-align:center!important;box-shadow:0 1px 5px #0008!important}.gx-chat-count[hidden]{display:none!important}
       .gx-chat-live-toast{display:flex!important;flex-direction:column!important;gap:3px!important;max-width:min(88vw,360px)!important;padding:9px 12px!important;border:1px solid #ffffff20!important;border-radius:12px!important;background:rgba(14,18,24,.94)!important;color:#fff!important;box-shadow:0 6px 22px #0008!important;overflow-wrap:anywhere!important;animation:gxChatToastIn .18s ease-out!important}
       .gx-chat-live-toast strong{font-size:11px!important;color:#7de8e2!important}.gx-chat-live-toast span{font-size:13px!important;line-height:1.35!important}
       @keyframes gxChatToastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -3269,11 +3270,27 @@ function showGrayxonLiveChatToast(name,message){
   while(layer.children.length>3)layer.firstElementChild.remove();
   setTimeout(()=>item.remove(),5200);
 }
+let gxLiveChatMessageCount=0;
+function updateGrayxonChatCounter(){
+  const button=document.querySelector('[data-gx-call="chat"]');if(!button)return;
+  let badge=button.querySelector('.gx-chat-count');
+  if(!badge){badge=document.createElement('span');badge.className='gx-chat-count';badge.setAttribute('aria-label','Mensajes nuevos');button.style.position='relative';button.appendChild(badge);}
+  const panel=document.querySelector('.gx-chat-panel');
+  const unread=!!panel&&(panel.hidden||panel.classList.contains('hidden'));
+  badge.textContent=gxLiveChatMessageCount>99?'99+':String(gxLiveChatMessageCount);
+  badge.hidden=!unread||gxLiveChatMessageCount===0;
+}
 function appendGrayxonChatMessage(name,message,isPrivate=false){
-  const list=$('#gx-chat-messages');if(!list)return;
-  const item=document.createElement('div');item.className='gx-chat-message';
-  item.innerHTML='<strong>'+esc(name)+(isPrivate?' · Privado':'')+'</strong><p>'+esc(message)+'</p>';
-  list.appendChild(item);list.scrollTop=list.scrollHeight;
+  const list=$('#gx-chat-messages');
+  if(list){
+    list.querySelector('.gx-chat-empty')?.remove();
+    const item=document.createElement('div');item.className='gx-chat-message';
+    item.innerHTML='<strong>'+esc(name)+(isPrivate?' · Privado':'')+'</strong><p>'+esc(message)+'</p>';
+    list.appendChild(item);list.scrollTop=list.scrollHeight;
+  }
+  gxLiveChatMessageCount++;
+  updateGrayxonChatCounter();
+  showGrayxonLiveChatToast(name,message);
 }
 let gxLiveStartedAt=0;
 let gxWakeLock=null;
@@ -3776,7 +3793,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
         try{
           if(action==='hangup'){const modal=$('.gx-call-end-modal');if(modal){modal.hidden=false;modal.classList.remove('hidden');}return;}
           if(action==='more'){const menu=$('.gx-call-more-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;}
-          if(action==='chat'){const panel=$('.gx-chat-panel');if(!panel)return;const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);document.body.classList.toggle('gx-chat-open',open);button.setAttribute('aria-pressed',String(open));if(open)$('#gx-chat-input')?.focus();return;}
+          if(action==='chat'){const panel=$('.gx-chat-panel');if(!panel)return;const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);document.body.classList.toggle('gx-chat-open',open);button.setAttribute('aria-pressed',String(open));if(open){gxLiveChatMessageCount=0;updateGrayxonChatCounter();$('#gx-chat-input')?.focus();}return;}
           if(action==='reactions'){const menu=$('.gx-reactions-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;}
           if(!joined){toast('La llamada todavía se está conectando…');return;}
           if(action==='audio'){audioEnabled=!audioEnabled;await room.localParticipant.setMicrophoneEnabled(audioEnabled);setButton('audio',audioEnabled,'Micrófono encendido','Micrófono apagado');return;}
@@ -3844,7 +3861,6 @@ async function startGrayxonLiveKitTraining(training, options={}){
       const sent=await sendGrayxonLiveBroadcast('chat',payload);
       if(sent?.error){toast('No se pudo enviar el mensaje.');return;}
       appendGrayxonChatMessage(payload.name,payload.message);
-      showGrayxonLiveChatToast(payload.name,payload.message);
       if(input)input.value='';
     };
     $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>{
@@ -3877,7 +3893,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     gxLiveCallRealtimeTrainingId=training.id;
     gxLiveCallRealtimeChannel=sb.channel('grayxon-live-call-'+training.id,{config:{broadcast:{self:false}}})
       .on('broadcast',{event:'reaction'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.emoji){showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));playGrayxonSound('reaction');}})
-      .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){const chatName=String(payload.name||'Participante'),chatMessage=String(payload.message);appendGrayxonChatMessage(chatName,chatMessage);showGrayxonLiveChatToast(chatName,chatMessage);}})
+      .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){const chatName=String(payload.name||'Participante'),chatMessage=String(payload.message);appendGrayxonChatMessage(chatName,chatMessage);}})
       .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.participantId||payload.identity||'');if(!key)return;if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);syncGrayxonLiveKitHandTiles(stage);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
       .on('broadcast',{event:'pin-participant'},({payload})=>{
         if(!payload||String(payload.trainingId||'')!==String(training.id||''))return;
@@ -4611,7 +4627,7 @@ async function liveTrainingTpl(trainingOverride=null) {
       else if(action==='kick'){jaasApi.executeCommand('kickParticipant',participantId);toast('Solicitud para expulsar enviada.');}
     }catch(error){console.warn('No se pudo ejecutar la acción de moderación:',action,error);toast('No se pudo completar la acción.');button.disabled=false;}
   });
-  $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');});
+  $('[data-gx-chat-close]')?.addEventListener('click',()=>{const p=$('.gx-chat-panel');if(p){p.hidden=true;p.classList.add('hidden');}document.body.classList.remove('gx-chat-open');$('[data-gx-call="chat"]')?.setAttribute('aria-pressed','false');updateGrayxonChatCounter();});
   $('#gx-chat-form')?.addEventListener('submit',ev=>{ev.preventDefault();const input=$('#gx-chat-input');const message=String(input?.value||'').trim();if(!message)return;const name=profile?.full_name||profile?.username||'Tú';if(gxLiveKitRoom){sendGrayxonLiveBroadcast('chat',{userId:session?.user?.id||null,name,message,createdAt:new Date().toISOString()}).then(result=>{if(result?.error)toast('No se pudo enviar el mensaje a los demás participantes.');});appendGrayxonChatMessage(name,message);if(input)input.value='';return;}if(!jaasApi){toast('La llamada no está conectada todavía.');return;}try{jaasApi.executeCommand('sendChatMessage',message);appendGrayxonChatMessage(name,message);if(input)input.value='';}catch(e){console.warn('No se pudo enviar el mensaje:',e);toast('No se pudo enviar el mensaje.');}});
   $('.gx-reactions-menu')?.querySelectorAll('[data-gx-reaction]').forEach(button=>button.addEventListener('click',()=>{
     // LiveKit ya registra su propio handler en startGrayxonLiveKitTraining.
