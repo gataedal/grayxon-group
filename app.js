@@ -8400,21 +8400,21 @@ function gxEnsureEventsMatrixStyles(){
   @media(max-width:650px){#events .gxev-rank-compact-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;overflow-x:auto}#events .gxev-rank-compact-row{padding:7px 5px;flex-direction:column;justify-content:center;text-align:center;gap:4px;min-width:0;font-size:11px}#events .gxev-rank-compact-row b{max-width:100%;width:100%}#events .gxev-rank-compact-row strong{font-size:10px}#events .gxev-rank-feature-compact{padding:9px}}
   /* Podio: cabecera alineada y compacta en escritorio, móvil y tablet */
   #events .gxev-event-podium{padding:clamp(12px,1.8vw,20px);overflow:visible}
-  #events .gxev-event-podium .gxev-rank-feature-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin:0 0 clamp(14px,2vw,24px);padding:0}
+  #events .gxev-event-podium .gxev-rank-feature-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 clamp(14px,2vw,24px);padding:0}
   #events .gxev-event-podium .gxev-podium-heading{flex:1 1 auto;min-width:0;margin:0;padding:0}
   #events .gxev-event-podium .gxev-podium-heading .gxev-eyebrow{display:block;margin:0;padding:0;font-size:clamp(12px,1.4vw,16px);line-height:1.3;letter-spacing:.15em}
   #events .gxev-event-podium .gxev-podium-heading h3{display:none!important}
-  #events .gxev-event-podium .gxev-podium-actions{display:flex;flex:0 0 auto;align-items:flex-end;justify-content:flex-start;margin:0;padding:0}
+  #events .gxev-event-podium .gxev-podium-actions{display:flex;flex:0 0 auto;align-items:center;align-self:center;justify-content:flex-end;margin:0;padding:0}
   #events .gxev-event-podium .gxev-podium-top-cta{display:inline-flex;align-items:center;justify-content:center;margin:0;padding:8px 15px;min-height:34px;border:1px solid #286184;border-radius:999px;background:#102a3b;color:#83dfff;font-size:clamp(11px,1.15vw,14px);line-height:1.2;font-weight:850;white-space:nowrap}
   #events .gxev-event-podium .gxev-podium-count{display:none!important}
   #events .gxev-event-podium .gxev-podium-footer{display:none!important}
   #events .gxev-event-top-three{margin-top:0}
   @media(max-width:650px){
     #events .gxev-event-podium{padding:14px 12px 16px}
-    #events .gxev-event-podium .gxev-rank-feature-head{display:flex!important;flex-direction:row!important;align-items:flex-start!important;justify-content:space-between!important;gap:10px!important;margin:0 0 18px!important;padding:0!important}
+    #events .gxev-event-podium .gxev-rank-feature-head{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;margin:0 0 18px!important;padding:0!important}
     #events .gxev-event-podium .gxev-podium-heading{flex:1 1 auto!important;min-width:0!important}
     #events .gxev-event-podium .gxev-podium-heading .gxev-eyebrow{font-size:11px!important;letter-spacing:.1em!important;line-height:1.3!important;white-space:nowrap}
-    #events .gxev-event-podium .gxev-podium-actions{display:flex!important;flex:0 0 auto!important;align-items:flex-start!important;justify-content:flex-end!important;margin:0!important;padding:0!important}
+    #events .gxev-event-podium .gxev-podium-actions{display:flex!important;flex:0 0 auto!important;align-items:center!important;align-self:center!important;justify-content:flex-end!important;margin:0!important;padding:0!important}
     #events .gxev-event-podium .gxev-podium-top-cta{margin:0!important;padding:7px 12px!important;min-height:30px!important;font-size:11px!important;line-height:1.2!important}
     #events .gxev-event-podium .gxev-podium-count{display:none!important}
     #events .gxev-event-top-three{gap:10px!important;padding:0 2px!important;margin:0!important}
