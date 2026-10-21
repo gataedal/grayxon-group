@@ -388,3 +388,25 @@ body.grayxon-live-training-call .gx-self-camera-menu {
   max-width: calc(100vw - 32px) !important;
   box-sizing: border-box !important;
 }
+
+/* Solo el anfitrión: en móvil, conserva la mano arriba a la derecha y apila
+   cámara/micrófono justo debajo, sin alterar las miniaturas de participantes. */
+@media (max-width: 600px) {
+  #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"] [data-gx-livekit-mini-controls] {
+    top: 7px !important;
+    right: 7px !important;
+    bottom: auto !important;
+    left: auto !important;
+    flex-direction: column-reverse !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 7px !important;
+  }
+  #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"] [data-gx-livekit-mini-controls] [data-gx-mini-media] {
+    width: 31px !important;
+    height: 31px !important;
+    min-width: 31px !important;
+    min-height: 31px !important;
+    flex: 0 0 31px !important;
+  }
+}
