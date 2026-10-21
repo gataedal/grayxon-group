@@ -1,0 +1,30 @@
+/* Mobile-only LiveKit tile alignment; desktop styles remain unchanged. */
+@media (max-width: 600px) {
+  #grayxonLiveKitStage {
+    display: grid !important;
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
+    align-items: stretch !important;
+    justify-items: stretch !important;
+    gap: 7px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  #grayxonLiveKitStage [data-gx-livekit-tile] {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    aspect-ratio: 4 / 3 !important;
+  }
+  #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"] {
+    grid-column: 1 / -1 !important;
+    aspect-ratio: 16 / 9 !important;
+  }
+}
