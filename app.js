@@ -5888,7 +5888,52 @@ function gxEnsureEventsMatrixStyles(){
   .gxev-ranking-full-table{width:100%;border-collapse:collapse}
   .gxev-ranking-full-table th,.gxev-ranking-full-table td{padding:12px 15px;text-align:left;border-bottom:1px solid #293546}
   .gxev-ranking-full-table th{position:sticky;top:0;background:#111923;z-index:1;color:#b8c6d9}
-  @media(max-width:650px){#events .gxev-top-three{grid-template-columns:1fr}#events .gxev-prize-podium{grid-template-columns:1fr}#events .gxev-prize-place{grid-column:1!important;grid-row:auto!important}.gxev-ranking-modal-scroll{max-height:calc(100dvh - 220px)}}
+  /* Clasificación responsive: solo cambia la presentación del ranking completo. */
+  .gxev-full-ranking-modal{width:min(900px,100%)!important;height:min(860px,calc(100dvh - 36px))!important;max-height:calc(100dvh - 36px)!important;display:flex!important;flex-direction:column!important;gap:12px!important}
+  .gxev-full-ranking-modal>.gxev-top{flex:0 0 auto!important;display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:12px!important;flex-wrap:nowrap!important;margin:0!important}
+  .gxev-full-ranking-modal>.gxev-top>div:first-child{min-width:0!important;flex:1!important}
+  .gxev-full-ranking-modal>.gxev-top h2{font-size:clamp(22px,3vw,32px)!important;margin:0 0 7px!important}
+  .gxev-full-ranking-modal .gxev-ranking-event-name{margin:0!important;color:#38d8f2!important;font-size:clamp(16px,2vw,23px)!important;font-weight:750!important;overflow-wrap:anywhere}
+  .gxev-full-ranking-modal .gxev-ranking-modal-scroll{flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow:auto!important;border:0!important;border-radius:12px!important}
+  .gxev-ranking-mobile-list{display:grid;gap:8px;padding:2px}
+  .gxev-ranking-person{display:grid;grid-template-columns:42px 44px minmax(0,1fr) minmax(58px,auto);align-items:center;gap:10px;min-height:72px;padding:10px 12px;border:1px solid #243b4e;border-radius:15px;background:linear-gradient(115deg,#0b121c,#0b1018);min-width:0}
+  .gxev-ranking-person.is-first{border-color:#e5b844;box-shadow:inset 0 0 0 1px #e5b84433,0 0 15px #e5b84416;background:linear-gradient(110deg,#201b10,#0c1118 70%)}
+  .gxev-ranking-person.is-second{border-color:#9aa8b7;background:linear-gradient(110deg,#18202a,#0b1118 70%)}
+  .gxev-ranking-person.is-third{border-color:#b8743d;background:linear-gradient(110deg,#24170f,#0b1118 70%)}
+  .gxev-ranking-place{font-weight:850;text-align:center;font-size:17px;white-space:nowrap}
+  .gxev-ranking-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid #71889b;background:#172230;display:block}
+  .gxev-ranking-person.is-first .gxev-ranking-avatar{border-color:#e5b844}
+  .gxev-ranking-person.is-second .gxev-ranking-avatar{border-color:#c3ccd5}
+  .gxev-ranking-person.is-third .gxev-ranking-avatar{border-color:#c9824b}
+  .gxev-ranking-username{font-weight:750;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(13px,1.5vw,17px)}
+  .gxev-ranking-score{font-weight:850;text-align:right;font-size:clamp(15px,1.8vw,21px);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .gxev-ranking-score small{display:block;color:#a7b8ca;font-weight:500;font-size:12px}
+  .gxev-ranking-my-position{flex:0 0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto;align-items:center;gap:12px;padding:12px 15px;border:1px solid #2ce7ff;border-radius:16px;background:linear-gradient(110deg,#09222d,#0a121d 70%);box-shadow:0 0 18px #16d8f52b,inset 0 0 0 1px #2ce7ff26;min-width:0}
+  .gxev-ranking-my-label{color:#9eb4c7;font-size:13px}
+  .gxev-ranking-my-place{color:#2de5ff;font-weight:900;font-size:clamp(25px,4vw,36px);line-height:1.1}
+  .gxev-ranking-my-user{font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gxev-ranking-my-score{text-align:right;font-size:21px;font-weight:900;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .gxev-ranking-my-score small{display:block;color:#a7b8ca;font-size:12px;font-weight:500}
+  @media(max-width:650px){
+    #events .gxev-top-three{grid-template-columns:1fr}#events .gxev-prize-podium{grid-template-columns:1fr}#events .gxev-prize-place{grid-column:1!important;grid-row:auto!important}
+    .gxev-modal-backdrop{padding:8px!important;align-items:stretch!important}
+    .gxev-full-ranking-modal{width:100%!important;height:calc(100dvh - 16px)!important;max-height:calc(100dvh - 16px)!important;margin:auto!important;padding:14px 12px!important;border-radius:20px!important;gap:10px!important}
+    .gxev-full-ranking-modal>.gxev-top{gap:8px!important}
+    .gxev-full-ranking-modal>.gxev-top h2{font-size:23px!important;line-height:1.12!important}
+    .gxev-full-ranking-modal>.gxev-top .gxev-btn{padding:10px 11px!important;font-size:13px!important}
+    .gxev-full-ranking-modal .gxev-ranking-event-name{font-size:17px!important;line-height:1.25!important}
+    .gxev-ranking-person{grid-template-columns:34px 38px minmax(0,1fr) 58px;gap:8px;min-height:66px;padding:9px 8px;border-radius:13px}
+    .gxev-ranking-avatar{width:38px;height:38px}
+    .gxev-ranking-place{font-size:15px}
+    .gxev-ranking-username{font-size:13px}
+    .gxev-ranking-score{font-size:16px}
+    .gxev-ranking-score small{font-size:11px}
+    .gxev-ranking-my-position{grid-template-columns:auto minmax(0,1fr) auto;gap:9px;padding:10px;border-radius:14px}
+    .gxev-ranking-my-place{font-size:25px}
+    .gxev-ranking-my-label{font-size:11px}
+    .gxev-ranking-my-user{font-size:13px}
+    .gxev-ranking-my-score{font-size:17px}
+  }
   /* El modal se inserta en body, por eso su overlay no debe estar limitado a #events. */
   .gxev-modal-backdrop{position:fixed!important;inset:0!important;z-index:10100!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:18px!important;overflow:auto!important;background:rgba(2,5,10,.84)!important;backdrop-filter:blur(10px)!important}
   .gxev-modal{width:min(1120px,100%)!important;max-height:calc(100dvh - 36px)!important;overflow:auto!important;margin:auto!important;padding:clamp(16px,2vw,28px)!important;border:1px solid #33465b!important;border-radius:22px!important;background:radial-gradient(ellipse at 95% 0%,#123449 0,transparent 38%),linear-gradient(145deg,#141b28,#080b10)!important;box-shadow:0 30px 110px #000d!important;color:#f4f7fb!important}
@@ -5997,9 +6042,9 @@ async function gxEventsRenderDashboard(ev,quiet=false){
   if(err){body.innerHTML=`<div class="gxev-error"><b>No se pudo cargar completamente el evento.</b><br>${gxEventsEsc(err.error.message)}<br><small>El módulo Matrix requiere las migraciones de Eventos v1, v2 y v2.2 (fases, premios, audiencias seleccionadas y reacciones). No ejecutes migraciones de pagos.</small></div>`;return;}
   const d={event:ev,missions:missions.data||[],progress:progress.data||[],media:media.data||[],participants:(participants.data||[]).filter(p=>['registered','confirmed'].includes(p.status)),allParticipantRows:participants.data||[],responses:responses.data||[],rounds:rounds.data||[],matches:matches.data||[],posts:posts.data||[],leaderboard:leaderboard.data||[],phases:phases.data||[],prizes:prizes.data||[],audienceTargets:audienceTargets.data||[],reactions:reactions.data||[],ownResponse:gxEventsMyResponses.find(r=>r.event_id===id)||null,admin,profiles:[]};
   const userIds=[...new Set([...d.posts.map(p=>p.user_id),...d.participants.map(p=>p.user_id),...d.responses.map(p=>p.user_id),...d.reactions.map(p=>p.user_id)])];
-  if(userIds.length){const pr=await sb.from('profiles').select('id,username,full_name,role,active,team_id').in('id',userIds);if(!pr.error)d.profiles=pr.data||[];}
+  if(userIds.length){const pr=await sb.from('profiles').select('id,username,full_name,avatar_url,role,active,team_id').in('id',userIds);if(!pr.error)d.profiles=pr.data||[];}
   d.availableCreators=[];d.teams=[];
-  if(admin){const [cr,tr]=await Promise.all([sb.from('profiles').select('id,username,full_name,role,active,team_id').eq('active',true).in('role',['creator','manager']).order('username'),sb.from('teams').select('id,name,manager_id').order('name')]);d.availableCreators=cr.data||[];d.teams=tr.data||[];}
+  if(admin){const [cr,tr]=await Promise.all([sb.from('profiles').select('id,username,full_name,avatar_url,role,active,team_id').eq('active',true).in('role',['creator','manager']).order('username'),sb.from('teams').select('id,name,manager_id').order('name')]);d.availableCreators=cr.data||[];d.teams=tr.data||[];}
   d.profileMap=new Map(d.profiles.map(p=>[p.id,p]));d.participantById=new Map(d.participants.map(p=>[p.id,p]));
   const rankRows=new Map((d.leaderboard||[]).map(r=>[r.user_id,{...r}]));
   for(const participant of d.participants){const profile=d.profileMap.get(participant.user_id)||{};let row=rankRows.get(participant.user_id);
@@ -6249,8 +6294,20 @@ async function gxEventsOpenForm(existing){
 async function gxEventsClick(e){const b=e.target.closest?.('button,a');if(!b)return;
   if(b.hasAttribute('data-gxev-open-full-ranking')){
     const d=gxEventsDashboardData;if(!d)return;document.getElementById('gxevEventModal')?.remove();
-    const rows=d.leaderboard.map(r=>`<tr><td><b>${r.rank_position<=3?(['','🥇','🥈','🥉'][r.rank_position]||'#'+r.rank_position):'#'+r.rank_position}</b></td><td><b>@${gxEventsEsc(r.username||'usuario')}</b></td><td><b>${gxEventsFormatNumber(r.points)} puntos</b></td></tr>`).join('');
-    document.body.insertAdjacentHTML('beforeend',`<div class="gxev-modal-backdrop" id="gxevEventModal"><section class="gxev-modal gxev-full-ranking-modal" role="dialog" aria-modal="true" aria-labelledby="gxevFullRankingTitle"><div class="gxev-top"><div><div class="gxev-eyebrow">EVENT MATRIX / CLASIFICACIÓN</div><h2 id="gxevFullRankingTitle">Ranking completo del evento</h2><p class="gxev-muted">${d.leaderboard.length} participantes · Ordenados de mayor a menor puntuación</p></div><button type="button" class="gxev-btn" data-gxev-close-modal>✕ Cerrar</button></div><div class="gxev-ranking-modal-scroll"><table class="gxev-ranking-full-table"><thead><tr><th>Puesto</th><th>Usuario</th><th>Puntos</th></tr></thead><tbody>${rows||'<tr><td colspan="3">Aún no hay participantes en el ranking.</td></tr>'}</tbody></table></div></section></div>`);
+    const currentUserId=String(session?.user?.id||'');
+    const myRank=d.leaderboard.find(r=>String(r.user_id)===currentUserId);
+    const rows=d.leaderboard.map((r,i)=>{
+      const rank=Number(r.rank_position)||i+1,profile=d.profileMap?.get(r.user_id)||{},username=r.username||profile.username||profile.full_name||'usuario';
+      const avatar=profile.avatar_url?'<img class="gxev-ranking-avatar" src="'+gxEventsEsc(profile.avatar_url)+'" alt="" loading="lazy">':'<span class="gxev-ranking-avatar" aria-hidden="true" style="display:grid;place-items:center;font-weight:800">'+gxEventsEsc(String(username).replace(/^@/,'').slice(0,1).toUpperCase())+'</span>';
+      const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank;
+      const tier=rank<=3?' is-'+(['','first','second','third'][rank]||''):'';
+      return '<article class="gxev-ranking-person'+tier+'"><span class="gxev-ranking-place">'+medal+'</span>'+avatar+'<span class="gxev-ranking-username" title="@'+gxEventsEsc(username.replace(/^@/,''))+'">@'+gxEventsEsc(username.replace(/^@/,''))+'</span><span class="gxev-ranking-score">'+gxEventsFormatNumber(r.points)+'<small>puntos</small></span></article>';
+    }).join('');
+    const myProfile=myRank?(d.profileMap?.get(myRank.user_id)||{}):{};
+    const myUsername=myRank?(myRank.username||myProfile.username||myProfile.full_name||'usuario'):'';
+    const myAvatar=myProfile.avatar_url?'<img class="gxev-ranking-avatar" src="'+gxEventsEsc(myProfile.avatar_url)+'" alt="" loading="lazy">':'<span class="gxev-ranking-avatar" aria-hidden="true" style="display:grid;place-items:center;font-weight:800">'+gxEventsEsc(String(myUsername).replace(/^@/,'').slice(0,1).toUpperCase())+'</span>';
+    const pinnedPosition=myRank&&Number(myRank.rank_position)>8?'<div class="gxev-ranking-my-position"><div><div class="gxev-ranking-my-label">Tu posición</div><div class="gxev-ranking-my-place">#'+Number(myRank.rank_position)+'</div></div>'+myAvatar+'<div style="min-width:0"><div class="gxev-ranking-my-user" title="@'+gxEventsEsc(myUsername.replace(/^@/,''))+'">@'+gxEventsEsc(myUsername.replace(/^@/,''))+'</div><div class="gxev-ranking-my-score">'+gxEventsFormatNumber(myRank.points)+'<small>puntos</small></div></div></div>':'';
+    document.body.insertAdjacentHTML('beforeend',`<div class="gxev-modal-backdrop" id="gxevEventModal"><section class="gxev-modal gxev-full-ranking-modal" role="dialog" aria-modal="true" aria-labelledby="gxevFullRankingTitle"><div class="gxev-top"><div><h2 id="gxevFullRankingTitle">Tabla de clasificación</h2><div class="gxev-ranking-event-name">${gxEventsEsc(d.event?.title||'Evento')}</div></div><button type="button" class="gxev-btn" data-gxev-close-modal>✕ Cerrar</button></div><div class="gxev-ranking-modal-scroll"><div class="gxev-ranking-mobile-list">${rows||'<div class="gxev-empty">Aún no hay participantes en el ranking.</div>'}</div></div>${pinnedPosition}</section></div>`);
     document.body.classList.add('gxev-modal-open');return;
   }
   if(b.hasAttribute('data-gxev-close-modal')){document.getElementById('gxevEventModal')?.remove();document.body.classList.remove('gxev-modal-open');return;}
