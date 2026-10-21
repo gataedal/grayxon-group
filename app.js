@@ -3310,7 +3310,7 @@ function ensureGrayxonLiveKitLayout(){
   #grayxonLiveKitStage .gx-livekit-avatar-fallback{display:flex;align-items:center;justify-content:center;width:clamp(64px,12%,112px);aspect-ratio:1;border-radius:50%;background:#252a32;color:#fff;font-size:clamp(24px,4vw,42px);font-weight:600}
   #grayxonLiveKitStage [data-gx-livekit-label]{position:absolute;left:10px;bottom:9px;z-index:3;background:#08090abf;color:#fff;padding:5px 8px;border-radius:7px;font-size:12px;max-width:85%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   @media(max-width:600px){#grayxonLiveKitStage{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-height:0;height:auto;align-content:start}#grayxonLiveKitStage [data-gx-livekit-tile]{grid-column:auto!important;grid-row:auto!important;aspect-ratio:4/3;min-height:110px;border-radius:10px}#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1!important;aspect-ratio:16/9;min-height:190px}#grayxonLiveKitStage [data-gx-livekit-tile] video{object-fit:cover}#grayxonLiveKitStage .gx-livekit-avatar img,#grayxonLiveKitStage .gx-livekit-avatar-fallback{width:clamp(54px,18vw,86px)}}
-  @media(min-width:601px){#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{min-height:260px}}`;
+  @media(min-width:601px){#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1 / -1;aspect-ratio:16/9;min-height:260px}}`;
   document.head.appendChild(style);
 }
 function renderGrayxonLiveKitTrack(track, participant, host){
@@ -3326,8 +3326,8 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   const tiles=Array.from(host.querySelectorAll('[data-gx-livekit-tile]'));
   const pinnedTile=pinnedId&&tiles.find(item=>item.dataset.gxLivekitIdentity===pinnedId);
   const hostTile=hostId&&tiles.find(item=>item.dataset.gxLivekitIdentity===hostId);
-  const mainTile=pinnedTile||hostTile||tiles.find(item=>item.dataset.gxLivekitMain==='true')||
-    tiles.find(item=>item.dataset.gxLivekitIdentity===String(window.__gxLocalParticipantId||''))||tile;
+  const mainTile=hostTile||tiles.find(item=>item.dataset.gxLivekitIdentity===String(window.__gxLocalParticipantId||''))||tile;
+  if(mainTile&&mainTile!==host.firstChild)host.insertBefore(mainTile,host.firstChild);
   tiles.forEach(item=>{item.dataset.gxLivekitMain=String(item===mainTile);});
   let label=tile.querySelector('[data-gx-livekit-label]');
   if(!label){label=document.createElement('div');label.dataset.gxLivekitLabel='1';label.textContent=isLocal?(profile?.full_name||profile?.username||'Tú')+' · Tú':(participant?.name||participant?.identity||'Participante');tile.appendChild(label);}
@@ -3398,8 +3398,12 @@ async function startGrayxonLiveKitTraining(training, options={}){
       if(!tile||!stage.contains(tile))return;
       const identity=String(tile.dataset.gxLivekitIdentity||'');
       if(!identity)return;
-      window.__gxLiveKitPinnedParticipantId=identity;
-      stage.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item.dataset.gxLivekitIdentity===identity);});
+      // Keep the authenticated session host in the main tile; participant clicks
+      // must never promote a guest over the host.
+      const hostId=String(window.__gxHostParticipantId||'');
+      if(!hostId)return;
+      window.__gxLiveKitPinnedParticipantId=null;
+      stage.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item.dataset.gxLivekitIdentity===hostId);});
     });
   }
   const setButton=(action,enabled,labelOn,labelOff)=>{
@@ -3433,8 +3437,8 @@ async function startGrayxonLiveKitTraining(training, options={}){
       const tiles=Array.from(stage.querySelectorAll('[data-gx-livekit-tile]'));
       const pinned=String(window.__gxLiveKitPinnedParticipantId||'');
       const hostId=String(window.__gxHostParticipantId||'');
-      const main=tiles.find(item=>item.dataset.gxLivekitIdentity===pinned)||
-        tiles.find(item=>item.dataset.gxLivekitIdentity===hostId)||
+      const main=tiles.find(item=>item.dataset.gxLivekitIdentity===hostId)||
+        tiles.find(item=>item.dataset.gxLivekitIdentity===pinned)||
         tiles.find(item=>item.dataset.gxLivekitIdentity===String(window.__gxLocalParticipantId||''))||tiles[0];
       tiles.forEach(item=>{item.dataset.gxLivekitMain=String(item===main);});
     }
