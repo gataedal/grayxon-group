@@ -42,7 +42,7 @@
     if(participants.length<2){toastMsg('Se necesitan al menos dos participantes activos que hayan confirmado su asistencia.');return}
     const rounds=(d.rounds||[]).slice().sort((a,b)=>Number(a.round_number)-Number(b.round_number));
     const phases=(d.phases||[]);
-    const roundOptions=rounds.map(r=>'<option value="'+esc(r.id)+'">'+esc(r.title||('Ronda '+r.round_number))+' · #'+esc(r.round_number)+'</option>').join('');
+    const roundOptions=rounds.map(r=>{const phase=phases.find(p=>p.id===r.phase_id);const phaseTitle=phase?.title||'Sin semana';const phaseNumber=Number(phase?.phase_number);const label=Number.isFinite(phaseNumber)&&phaseNumber>0?'Jornada '+phaseNumber+' · '+phaseTitle:'Jornada · '+phaseTitle;return '<option value="'+esc(r.id)+'">'+esc(label)+'</option>';}).join('');
     const phaseOptions='<option value="">Sin fase asignada</option>'+phases.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+'</option>').join('');
     close();
     const w=document.createElement('div');w.className='gxmb-backdrop';
