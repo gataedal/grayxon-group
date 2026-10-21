@@ -32,8 +32,13 @@ function modal(title,subtitle,body,actions){
   document.body.appendChild(w);w.querySelector('[data-gxbs-close]').onclick=close;w.addEventListener('click',function(e){if(e.target===w)close();});return w;
 }
 function roundInfo(phaseId){
-  var d=state(),n=(d?.rounds||[]).length+1,phase=phaseById(phaseId);
-  return {n:n,title:(d?.event?.battle_format==='single_elimination'?'Ronda ':'Jornada ')+n,phaseId:phase?.id||null,phaseTitle:phase?.title||''};
+  var d=state(),phase=phaseById(phaseId),n=(d?.rounds||[]).reduce(function(max,r){return Math.max(max,Number(r.round_number)||0);},0)+1;
+  var prefix=d?.event?.battle_format==='single_elimination'?'Ronda ':'Jornada ';
+  return {n:n,title:prefix+n+(phase?.title?' · '+phase.title:''),phaseId:phase?.id||null,phaseTitle:phase?.title||''};
+}
+function hasGeneratedRoundForPhase(phaseId){
+  if(!phaseId)return false;
+  return (state()?.rounds||[]).some(function(r){return r.phase_id===phaseId&&/^(Jornada|Ronda)\\s*\\d+/i.test(String(r.title||''));});
 }
 function label(id){
   var d=state(),p=(d?.participants||[]).find(function(x){return x.id===id;});
@@ -93,6 +98,10 @@ function individual(matches,title){
 async function generate(cfg){
   if(busy||typeof gxEventsAdmin!=='function'||!gxEventsAdmin()||!gxEventsSelectedId)return;
   var info=roundInfo(cfg.phaseId),phase=phaseById(cfg.phaseId),createdRoundId=null,scheduleCommitted=false;
+  if(hasGeneratedRoundForPhase(cfg.phaseId)){
+    if(typeof toast==='function')toast('Esta semana ya tiene una jornada generada. No se creará otra para evitar batallas duplicadas.');
+    return;
+  }
   // Validate the chosen start before creating any round, so invalid dates never leave orphan matches.
   var start=cfg.mode==='individual'?null:iso(cfg.date,cfg.time);
   if(cfg.mode!=='individual'&&!start)throw new Error('Selecciona una fecha y hora válidas.');
