@@ -3435,16 +3435,18 @@ async function startGrayxonLiveKitTraining(training, options={}){
   window.__gxCanManageMeeting=isHost||isAdmin;
   let room=null, joined=false, audioEnabled=false, videoEnabled=false, shareTrack=null, elapsedStarted=false;
   const stage=$('#grayxonLiveKitStage');
-  if(stage&&!stage.dataset.gxLiveKitPinHandler){
-    stage.dataset.gxLiveKitPinHandler='1';
-    stage.addEventListener('click',event=>{
-      const tile=event.target.closest('[data-gx-livekit-tile]');
-      if(!tile||!stage.contains(tile))return;
+  if(!document.documentElement.dataset.gxLiveKitParticipantMenuHandler){
+    document.documentElement.dataset.gxLiveKitParticipantMenuHandler='1';
+    const openParticipantMenu=(event)=>{
+      const tile=event.target?.closest?.('[data-gx-livekit-tile]');
+      const activeStage=$('#grayxonLiveKitStage');
+      if(!tile||!activeStage||!activeStage.contains(tile))return;
       const identity=String(tile.dataset.gxLivekitIdentity||'');
       if(!identity)return;
-      // Selecting a participant opens the host/admin action menu; it must not
-      // rearrange tiles or pin anyone merely because the preview was tapped.
-      if(!window.__gxCanManageMeeting||identity===String(gxLiveKitRoom?.localParticipant?.identity||''))return;
+      const canManage=window.__gxCanManageMeeting===true||profile?.role==='admin'||String(training?.created_by||'')===String(session?.user?.id||'');
+      if(!canManage||identity===String(gxLiveKitRoom?.localParticipant?.identity||''))return;
+      event.preventDefault();
+      event.stopPropagation();
       let menu=$('#gx-livekit-participant-menu');
       if(!menu){
         menu=document.createElement('div');
@@ -3457,28 +3459,32 @@ async function startGrayxonLiveKitTraining(training, options={}){
           const button=ev.target.closest('[data-gx-participant-menu-action]');
           if(!button)return;
           const targetId=String(menu.dataset.targetIdentity||'');
-          const targetTile=Array.from(stage.querySelectorAll('[data-gx-livekit-tile]')).find(item=>item.dataset.gxLivekitIdentity===targetId);
-          if(!targetId||!targetTile)return;
           const action=button.dataset.gxParticipantMenuAction;
+          if(!targetId)return;
           if(action==='pin'){
-            // Keep the layout choice explicit; apply it consistently to every
-            // connected client through the meeting broadcast.
-            const sent=await sendGrayxonLiveBroadcast('pin-participant',{userId:session?.user?.id||null,participantId:targetId});
-            if(sent?.error){toast('No se pudo fijar al participante para la reunión.');return;}
-            toast('Solicitud para fijar al participante enviada.');
+            toast('El menú está abierto; la fijación compartida aún requiere sincronizar el estado con todos los participantes.');
           }else{
-            toast('La moderación remota de micrófono y cámara requiere completar el control seguro de LiveKit en el servidor.');
+            toast('La moderación remota de cámara y micrófono aún requiere control seguro en el servidor LiveKit.');
           }
           menu.hidden=true;
         });
-        document.addEventListener('click',ev=>{if(!ev.target.closest('#gx-livekit-participant-menu'))menu.hidden=true;});
       }
       menu.dataset.targetIdentity=identity;
-      menu.querySelector('[data-gx-participant-menu-name]').textContent=tile.querySelector('[data-gx-livekit-label]')?.textContent||'Participante';
+      menu.querySelector('[data-gx-participant-menu-name]').textContent=tile.querySelector('[data-gx-livekit-label]')?.textContent||tile.querySelector('[data-gx-livekit-label]')?.innerText||'Participante';
       const rect=tile.getBoundingClientRect();
       menu.style.left=Math.max(12,Math.min(rect.left,window.innerWidth-236))+'px';
       menu.style.top=Math.max(12,Math.min(rect.top+12,window.innerHeight-190))+'px';
       menu.hidden=false;
+      menu.removeAttribute('hidden');
+    };
+    document.addEventListener('click',openParticipantMenu,true);
+    document.addEventListener('touchend',event=>{
+      if(event.target?.closest?.('#gx-livekit-participant-menu'))return;
+      openParticipantMenu(event);
+    },{capture:true,passive:false});
+    document.addEventListener('click',event=>{
+      const menu=$('#gx-livekit-participant-menu');
+      if(menu&&!event.target?.closest?.('#gx-livekit-participant-menu')&&!event.target?.closest?.('[data-gx-livekit-tile]'))menu.hidden=true;
     });
   }
   if(!document.getElementById('gx-livekit-participant-menu-style')){
