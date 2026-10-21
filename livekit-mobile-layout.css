@@ -369,3 +369,16 @@ body.grayxon-livekit-active .gx-call-controls [data-gx-call="video"] {
     flex: 0 0 30px !important;
   }
 }
+
+
+/* Keep the own-camera menu inside the viewport and above the active local tile. */
+body.grayxon-live-training-call .gx-self-camera-menu-wrap {
+  right: max(12px, env(safe-area-inset-right)) !important;
+  left: auto !important;
+  max-width: calc(100vw - 24px) !important;
+  box-sizing: border-box !important;
+}
+body.grayxon-live-training-call .gx-self-camera-menu {
+  max-width: calc(100vw - 32px) !important;
+  box-sizing: border-box !important;
+}
