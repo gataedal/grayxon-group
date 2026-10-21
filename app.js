@@ -3490,15 +3490,21 @@ async function startGrayxonLiveKitTraining(training, options={}){
     gxLiveKitRoom=room;
     room.on(LK.RoomEvent.TrackSubscribed,(track,publication,participant)=>onTrack(track,participant));
     room.on(LK.RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
+      // Quita únicamente la pista que LiveKit acaba de desuscribir. Al terminar
+      // de compartir pantalla, no debemos borrar también la cámara que sigue activa.
       try{track.detach().forEach(el=>el.remove());}catch(_){}
       if(track.kind==='video'&&participant){
         const isLocal=!!(gxLiveKitRoom&&participant===gxLiveKitRoom.localParticipant);
         const key=isLocal?'gx-livekit-local':'gx-livekit-'+String(participant?.identity||participant?.sid||'remote').replace(/[^a-zA-Z0-9_-]/g,'_');
         const tile=stage?.querySelector('[data-gx-livekit-tile="'+CSS.escape(key)+'"]');
         if(tile){
-          tile.querySelectorAll('video,[data-gx-livekit-track]').forEach(el=>el.remove());
+          const remainingVideo=tile.querySelector('video');
           const avatar=tile.querySelector('.gx-livekit-avatar');
-          if(avatar){avatar.style.display='flex';avatar.style.visibility='visible';}
+          if(remainingVideo){
+            if(avatar){avatar.style.display='none';avatar.style.visibility='hidden';}
+          }else if(avatar){
+            avatar.style.display='flex';avatar.style.visibility='visible';
+          }
         }
       }
     });
