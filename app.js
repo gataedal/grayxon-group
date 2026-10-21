@@ -3473,9 +3473,20 @@ async function startGrayxonLiveKitTraining(training, options={}){
     });
   }
   const setButton=(action,enabled,labelOn,labelOff)=>{
-    const b=$('[data-gx-call="'+action+'"]');if(!b)return;
-    b.setAttribute('aria-pressed',String(enabled));
-    const label=b.querySelector('span:last-child');if(label)label.textContent=enabled?labelOn:labelOff;
+    const b=$('[data-gx-call="'+action+'"]');
+    if(b){
+      b.setAttribute('aria-pressed',String(enabled));
+      const label=b.querySelector('span:last-child');if(label)label.textContent=enabled?labelOn:labelOff;
+    }
+    const kind=action==='audio'?'audio':action==='video'?'video':null;
+    const mini=kind&&document.querySelector('[data-gx-livekit-mini-controls] [data-gx-mini-media="'+kind+'"]');
+    if(mini){
+      mini.dataset.enabled=String(enabled);
+      mini.style.background=enabled?'#101319e8':'#b42336';
+      mini.setAttribute('aria-pressed',String(enabled));
+      mini.setAttribute('aria-label',enabled?'Apagar '+(kind==='audio'?'micrófono':'cámara'):'Activar '+(kind==='audio'?'micrófono':'cámara'));
+      mini.title=enabled?(kind==='audio'?'Micrófono encendido':'Cámara encendida'):(kind==='audio'?'Micrófono apagado':'Cámara apagada');
+    }
   };
   const onTrack=(track,participant)=>{
     if(!track||!stage)return;
