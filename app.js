@@ -3729,12 +3729,15 @@ async function startGrayxonLiveKitTraining(training, options={}){
       try{shareTrack?.detach?.().forEach(element=>element.remove());}catch(_){}
       const cameraPublication=room.localParticipant.getTrackPublication?.(LK.Track.Source.Camera);
       let cameraTrack=cameraPublication?.track;
-      if(room.localParticipant.isCameraEnabled&&(!cameraTrack||cameraTrack.mediaStreamTrack?.readyState==='ended')){
+      // LiveKit puede dejar viva la pista local aunque los demás hayan perdido
+      // la publicación de cámara al cerrar la pantalla compartida. Si la cámara
+      // estaba encendida, forzamos una nueva publicación para todos.
+      if(room.localParticipant.isCameraEnabled){
         try{
           await room.localParticipant.setCameraEnabled(false);
           await room.localParticipant.setCameraEnabled(true);
           cameraTrack=room.localParticipant.getTrackPublication?.(LK.Track.Source.Camera)?.track;
-        }catch(error){console.warn('No se pudo recuperar la cámara al terminar de compartir pantalla:',error);}
+        }catch(error){console.warn('No se pudo volver a publicar la cámara al terminar de compartir pantalla:',error);}
       }
       const cameraKey=String(cameraTrack?.sid||cameraTrack?.mediaStreamTrack?.id||'');
       localTile.querySelectorAll('video').forEach(video=>{
