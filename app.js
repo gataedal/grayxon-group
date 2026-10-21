@@ -3183,6 +3183,38 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = null) {
 }
 
 const grayxonRaisedHands = new Map();
+function syncGrayxonLiveKitHandTiles(stage=document.querySelector('#grayxonLiveKitStage')){
+  if(!stage)return;
+  const tiles=Array.from(stage.querySelectorAll('[data-gx-livekit-tile]'));
+  tiles.forEach(tile=>{
+    const identity=String(tile.dataset.gxLivekitIdentity||'');
+    const raised=!!identity&&grayxonRaisedHands.get(identity)===true;
+    tile.dataset.gxLivekitHandRaised=String(raised);
+    let badge=tile.querySelector('[data-gx-livekit-hand-badge]');
+    if(raised&&!badge){
+      badge=document.createElement('span');
+      badge.dataset.gxLivekitHandBadge='1';
+      badge.textContent='✋';
+      badge.setAttribute('aria-label','Mano levantada');
+      badge.title='Mano levantada';
+      badge.style.cssText='position:absolute;top:8px;right:8px;z-index:9;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#facc15;color:#111;font-size:18px;box-shadow:0 2px 8px #0008;pointer-events:none';
+      tile.appendChild(badge);
+    }
+    if(badge)badge.hidden=!raised;
+  });
+  const main=tiles.find(tile=>tile.dataset.gxLivekitMain==='true')||tiles[0];
+  const minis=tiles.filter(tile=>tile!==main);
+  minis.sort((a,b)=>{
+    const handA=a.dataset.gxLivekitHandRaised==='true'?1:0;
+    const handB=b.dataset.gxLivekitHandRaised==='true'?1:0;
+    if(handA!==handB)return handB-handA;
+    const avA=a.dataset.gxLivekitMicEnabled==='true'&&a.dataset.gxLivekitCameraEnabled==='true'?1:0;
+    const avB=b.dataset.gxLivekitMicEnabled==='true'&&b.dataset.gxLivekitCameraEnabled==='true'?1:0;
+    return avB-avA;
+  });
+  if(main&&main!==stage.firstElementChild)stage.insertBefore(main,stage.firstElementChild);
+  minis.forEach(tile=>stage.appendChild(tile));
+}
 function appendGrayxonChatMessage(name,message,isPrivate=false){
   const list=$('#gx-chat-messages');if(!list)return;
   const item=document.createElement('div');item.className='gx-chat-message';
@@ -3321,6 +3353,10 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   let tile=host.querySelector('[data-gx-livekit-tile="'+CSS.escape(tileId)+'"]');
   if(!tile){tile=document.createElement('div');tile.dataset.gxLivekitTile=tileId;host.appendChild(tile);}
   tile.dataset.gxLivekitIdentity=identity;
+  const micEnabled=isLocal?!!gxLiveKitRoom?.localParticipant?.isMicrophoneEnabled:!!participant?.isMicrophoneEnabled;
+  const cameraEnabled=isLocal?!!gxLiveKitRoom?.localParticipant?.isCameraEnabled:!!participant?.isCameraEnabled;
+  tile.dataset.gxLivekitMicEnabled=String(micEnabled);
+  tile.dataset.gxLivekitCameraEnabled=String(cameraEnabled);
   const pinnedId=String(window.__gxLiveKitPinnedParticipantId||'');
   const hostId=String(window.__gxHostParticipantId||'');
   const tiles=Array.from(host.querySelectorAll('[data-gx-livekit-tile]'));
@@ -3384,6 +3420,7 @@ function renderGrayxonLiveKitTrack(track, participant, host){
       button.title=enabled?label+' encendido':label+' apagado';
     });
   }
+  syncGrayxonLiveKitHandTiles(host);
   if(!track||track.kind!=='video')return;
   const key=String(track.sid||track.mediaStreamTrack?.id||'');
   if(key&&tile.querySelector('[data-gx-livekit-track="'+CSS.escape(key)+'"]'))return;
@@ -3764,7 +3801,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     gxLiveCallRealtimeChannel=sb.channel('grayxon-live-call-'+training.id,{config:{broadcast:{self:false}}})
       .on('broadcast',{event:'reaction'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.emoji){showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));playGrayxonSound('reaction');}})
       .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){appendGrayxonChatMessage(String(payload.name||'Participante'),String(payload.message));}})
-      .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.userId||payload.name||'participant');if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
+      .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.participantId||'');if(!key)return;if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);syncGrayxonLiveKitHandTiles(stage);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
       .on('broadcast',{event:'pin-participant'},({payload})=>{
         if(!payload||String(payload.trainingId||'')!==String(training.id||''))return;
         const participantId=String(payload.participantId||'');
@@ -3962,11 +3999,16 @@ async function startGrayxonLiveTraining(training, options={}){
               if(handButton){handButton.setAttribute('aria-pressed',String(next));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=next?'Bajar la mano':'Levantar la mano';}
               try{
                 const participantId=String(gxLiveKitRoom.localParticipant.identity||gxLiveKitRoom.localParticipant.sid||'');
+                if(next)grayxonRaisedHands.set(participantId,true);else grayxonRaisedHands.delete(participantId);
+                syncGrayxonLiveKitHandTiles();
                 const result=await sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,participantId,name:profile?.full_name||profile?.username||'Participante',raised:next});
                 if(result?.error)throw result.error;
                 toast(next?'Levantaste la mano':'Bajaste la mano');
               }catch(error){
                 gxHandRaised=previous;
+                const localIdentity=String(gxLiveKitRoom?.localParticipant?.identity||gxLiveKitRoom?.localParticipant?.sid||'');
+                if(previous)grayxonRaisedHands.set(localIdentity,true);else grayxonRaisedHands.delete(localIdentity);
+                syncGrayxonLiveKitHandTiles();
                 if(handButton){handButton.setAttribute('aria-pressed',String(previous));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=previous?'Bajar la mano':'Levantar la mano';}
                 console.warn('No se pudo enviar la mano por LiveKit:',error);
                 toast('No se pudo avisar a los demás. Inténtalo de nuevo.');
