@@ -99,8 +99,12 @@ body.grayxon-livekit-active .gx-call-controls [data-gx-call="video"] {
   left: auto !important;
   gap: 0 !important;
 }
-#grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]) [data-gx-livekit-mini-controls] [data-gx-mini-media="video"] {
-  display: none !important;
+/* En escritorio se conservan cámara y micrófono en las miniaturas.
+   En móvil dejamos solo el micrófono para que los controles no se desborden. */
+@media (max-width: 600px) {
+  #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]) [data-gx-livekit-mini-controls] [data-gx-mini-media="video"] {
+    display: none !important;
+  }
 }
 #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]) [data-gx-livekit-mini-controls] [data-gx-mini-media="audio"] {
   width: 30px !important;
