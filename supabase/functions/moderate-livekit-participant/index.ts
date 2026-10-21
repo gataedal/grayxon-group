@@ -127,10 +127,19 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       : null;
     if (!participant) return response({ error: "Ese participante ya no está en la llamada." }, 404);
 
-    const wantedType = action === "audio" ? 0 : 1; // LiveKit TrackType: AUDIO=0, VIDEO=1
+    // LiveKit's protobuf JSON can encode enum values as either numbers or names.
+    // Accept both forms so a valid published track is not mistaken for an absent track.
+    const wantedType = action === "audio" ? 0 : 1;
+    const wantedName = action === "audio" ? "AUDIO" : "VIDEO";
     const tracks = Array.isArray(participant.tracks) ? participant.tracks : [];
-    const track = tracks.find((item: { type?: number; sid?: string; muted?: boolean }) =>
-      Number(item.type) === wantedType && typeof item.sid === "string" && item.sid.length > 0);
+    const track = tracks.find((item: { type?: number | string; sid?: string; muted?: boolean; trackSid?: string }) => {
+      const rawType = item.type;
+      const matchesType = typeof rawType === "string"
+        ? (rawType.toUpperCase() === wantedName || Number(rawType) === wantedType)
+        : Number(rawType) === wantedType;
+      const sid = String(item.sid ?? item.trackSid ?? "");
+      return matchesType && sid.length > 0;
+    });
     if (!track) {
       return response({ ok: true, action, participantId, alreadyMutedOrNotPublished: true });
     }
@@ -139,7 +148,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        room: training.room_name, identity: participantId, trackSid: track.sid, muted: true,
+        room: training.room_name, identity: participantId, trackSid: String(track.sid ?? track.trackSid), muted: true,
       }),
     });
     if (!muteResponse.ok) {
