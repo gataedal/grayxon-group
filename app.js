@@ -9215,28 +9215,30 @@ const importConfirm=e.target.closest('#gxevParticipantImportConfirm');if(importC
       return (!!currentUserId&&(uid===currentUserId||pid===currentUserId))|| (!!currentUsername&&username===currentUsername);
     });
     const me=meIndex>=0?d.leaderboard[meIndex]:null;
-    const renderAvatar=(userId,username)=>{
-      const url=d.avatarMap?.get?.(userId)||'';
+    const renderAvatar=(userId,username,participantId,person)=>{
+      const participant=participantId?d.participantById?.get?.(participantId):null;
+      const resolvedUserId=userId||participant?.user_id||'';
+      const url=d.avatarMap?.get?.(resolvedUserId)||d.avatarMap?.get?.(userId)||person?.avatar_url||person?.photo_url||person?.profile_photo_url||'';
       return url
-        ? '<img class="gxev-ranking-avatar" src="'+gxEventsEsc(url)+'" alt="" loading="lazy">'
+        ? '<img class="gxev-ranking-avatar" src="'+gxEventsEsc(url)+'" alt="Foto de '+gxEventsEsc(username||'participante')+'" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'"><span class="gxev-ranking-avatar" aria-hidden="true" style="display:none;place-items:center;font-weight:800">'+gxEventsEsc(String(username||'U').slice(0,1).toUpperCase())+'</span>'
         : '<span class="gxev-ranking-avatar" aria-hidden="true" style="display:grid;place-items:center;font-weight:800">'+gxEventsEsc(String(username||'U').slice(0,1).toUpperCase())+'</span>';
     };
     const rows=(d.leaderboard||[]).map((r,i)=>{
       const rank=Number(r.rank_position)||i+1;
-      const person=d.profileMap?.get?.(r.user_id)||{};
+      const person=d.profileMap?.get?.(r.user_id)||d.profileMap?.get?.(r.participant_user_id)||{};
       const username=String(r.username||person.username||r.tiktok_username||person.full_name||'usuario').replace(/^@/,'');
       const uid=String(r.user_id||r.participant_user_id||'').trim().toLowerCase();
       const pid=String(r.participant_id||'').trim().toLowerCase();
       const isMe=(!!currentUserId&&(uid===currentUserId||pid===currentUserId))|| (!!currentUsername&&username.toLowerCase()===currentUsername);
       const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank;
       const tier=rank===1?' is-first':rank===2?' is-second':rank===3?' is-third':'';
-      return '<article class="gxev-ranking-person'+tier+(isMe?' gxev-current-user-rank':'')+'"><span class="gxev-ranking-place">'+medal+'</span>'+renderAvatar(r.user_id,username)+'<span class="gxev-ranking-username" title="@'+gxEventsEsc(username)+'">@'+gxEventsEsc(username)+(isMe?' · Tú':'')+'</span><span class="gxev-ranking-score">'+gxEventsFormatNumber(r.points)+'<small>puntos</small></span></article>';
+      return '<article class="gxev-ranking-person'+tier+(isMe?' gxev-current-user-rank':'')+'"><span class="gxev-ranking-place">'+medal+'</span>'+renderAvatar(r.user_id||r.participant_user_id,username,r.participant_id,person)+'<span class="gxev-ranking-username" title="@'+gxEventsEsc(username)+'">@'+gxEventsEsc(username)+(isMe?' · Tú':'')+'</span><span class="gxev-ranking-score">'+gxEventsFormatNumber(r.points)+'<small>puntos</small></span></article>';
     }).join('');
     const meProfile=me?(d.profileMap?.get?.(me.user_id)||{}):{};
     const myUsername=me?String(me.username||meProfile.username||me.tiktok_username||meProfile.full_name||'usuario').replace(/^@/,''):'';
     const myRank=me?(Number(me.rank_position)||meIndex+1):0;
     const pinnedPosition=me&&myRank>8
-      ? '<div class="gxev-ranking-my-position"><div><div class="gxev-ranking-my-label">Tu posición</div><div class="gxev-ranking-my-place">#'+myRank+'</div></div>'+renderAvatar(me.user_id,myUsername)+'<div style="min-width:0"><div class="gxev-ranking-my-user" title="@'+gxEventsEsc(myUsername)+'">@'+gxEventsEsc(myUsername)+'</div><div class="gxev-ranking-my-score">'+gxEventsFormatNumber(me.points)+'<small>puntos</small></div></div></div>'
+      ? '<div class="gxev-ranking-my-position"><div><div class="gxev-ranking-my-label">Tu posición</div><div class="gxev-ranking-my-place">#'+myRank+'</div></div>'+renderAvatar(me.user_id||me.participant_user_id,myUsername,me.participant_id,meProfile)+'<div style="min-width:0"><div class="gxev-ranking-my-user" title="@'+gxEventsEsc(myUsername)+'">@'+gxEventsEsc(myUsername)+'</div><div class="gxev-ranking-my-score">'+gxEventsFormatNumber(me.points)+'<small>puntos</small></div></div></div>'
       : '';
     document.body.insertAdjacentHTML('beforeend','<div class="gxev-modal-backdrop" id="gxevEventModal"><section class="gxev-modal gxev-full-ranking-modal" role="dialog" aria-modal="true" aria-labelledby="gxevFullRankingTitle"><div class="gxev-top"><div><h2 id="gxevFullRankingTitle">Tabla de clasificación</h2><div class="gxev-ranking-event-name">'+gxEventsEsc(d.event?.title||'Evento')+'</div></div><button type="button" class="gxev-btn" data-gxev-close-modal>✕ Cerrar</button></div><div class="gxev-ranking-modal-scroll"><div class="gxev-ranking-mobile-list">'+(rows||'<div class="gxev-empty">Aún no hay participantes en el ranking.</div>')+'</div></div>'+pinnedPosition+'</section></div>');
     const rankingModal=document.getElementById('gxevEventModal');
