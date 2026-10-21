@@ -3442,12 +3442,49 @@ async function startGrayxonLiveKitTraining(training, options={}){
       if(!tile||!stage.contains(tile))return;
       const identity=String(tile.dataset.gxLivekitIdentity||'');
       if(!identity)return;
-      // Al tocar una tarjeta se fija ese participante en la vista principal.
-      window.__gxLiveKitPinnedParticipantId=identity;
-      stage.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item.dataset.gxLivekitIdentity===identity);});
-      const selfMenu=$('.gx-self-camera-menu-wrap');
-      if(selfMenu)selfMenu.style.display=identity===String(gxLiveKitRoom?.localParticipant?.identity||'')?'flex':'none';
+      // Selecting a participant opens the host/admin action menu; it must not
+      // rearrange tiles or pin anyone merely because the preview was tapped.
+      if(!window.__gxCanManageMeeting||identity===String(gxLiveKitRoom?.localParticipant?.identity||''))return;
+      let menu=$('#gx-livekit-participant-menu');
+      if(!menu){
+        menu=document.createElement('div');
+        menu.id='gx-livekit-participant-menu';
+        menu.className='gx-livekit-participant-menu';
+        menu.setAttribute('role','menu');
+        menu.innerHTML='<div class="gx-livekit-participant-menu-title" data-gx-participant-menu-name>Participante</div><button type="button" data-gx-participant-menu-action="pin">Fijar participante</button><button type="button" data-gx-participant-menu-action="audio">Silenciar micrófono</button><button type="button" data-gx-participant-menu-action="video">Apagar cámara</button>';
+        document.body.appendChild(menu);
+        menu.addEventListener('click',async ev=>{
+          const button=ev.target.closest('[data-gx-participant-menu-action]');
+          if(!button)return;
+          const targetId=String(menu.dataset.targetIdentity||'');
+          const targetTile=Array.from(stage.querySelectorAll('[data-gx-livekit-tile]')).find(item=>item.dataset.gxLivekitIdentity===targetId);
+          if(!targetId||!targetTile)return;
+          const action=button.dataset.gxParticipantMenuAction;
+          if(action==='pin'){
+            // Keep the layout choice explicit; apply it consistently to every
+            // connected client through the meeting broadcast.
+            const sent=await sendGrayxonLiveBroadcast('pin-participant',{userId:session?.user?.id||null,participantId:targetId});
+            if(sent?.error){toast('No se pudo fijar al participante para la reunión.');return;}
+            toast('Solicitud para fijar al participante enviada.');
+          }else{
+            toast('La moderación remota de micrófono y cámara requiere completar el control seguro de LiveKit en el servidor.');
+          }
+          menu.hidden=true;
+        });
+        document.addEventListener('click',ev=>{if(!ev.target.closest('#gx-livekit-participant-menu'))menu.hidden=true;});
+      }
+      menu.dataset.targetIdentity=identity;
+      menu.querySelector('[data-gx-participant-menu-name]').textContent=tile.querySelector('[data-gx-livekit-label]')?.textContent||'Participante';
+      const rect=tile.getBoundingClientRect();
+      menu.style.left=Math.max(12,Math.min(rect.left,window.innerWidth-236))+'px';
+      menu.style.top=Math.max(12,Math.min(rect.top+12,window.innerHeight-190))+'px';
+      menu.hidden=false;
     });
+  }
+  if(!document.getElementById('gx-livekit-participant-menu-style')){
+    const menuStyle=document.createElement('style');menuStyle.id='gx-livekit-participant-menu-style';
+    menuStyle.textContent='.gx-livekit-participant-menu{position:fixed;z-index:100200;min-width:210px;max-width:calc(100vw - 24px);padding:8px;border:1px solid #ffffff24;border-radius:14px;background:#11151cf5;box-shadow:0 16px 42px #0009;color:#fff;font:500 13px/1.35 system-ui,sans-serif}.gx-livekit-participant-menu[hidden]{display:none}.gx-livekit-participant-menu-title{padding:8px 10px 10px;color:#aeb7c5;font-weight:700;border-bottom:1px solid #ffffff18;margin-bottom:5px}.gx-livekit-participant-menu button{display:block;width:100%;padding:11px 10px;border:0;border-radius:8px;background:transparent;color:#fff;text-align:left;font:inherit}.gx-livekit-participant-menu button:hover{background:#ffffff12}';
+    document.head.appendChild(menuStyle);
   }
   const setButton=(action,enabled,labelOn,labelOff)=>{
     const b=$('[data-gx-call="'+action+'"]');
