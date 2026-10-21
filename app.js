@@ -3670,7 +3670,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room.on(LK.RoomEvent.LocalTrackPublished,(publication,participant)=>{
       if(publication?.kind==='video'&&publication.track)renderGrayxonLiveKitTrack(publication.track,participant||room.localParticipant,stage);
     });
-    room.on(LK.RoomEvent.ParticipantDisconnected,participant=>removeParticipant(participant));
+    room.on(LK.RoomEvent.ParticipantDisconnected,participant=>{const departedId=String(participant?.identity||participant?.sid||'');if(departedId)grayxonRaisedHands.delete(departedId);removeParticipant(participant);syncGrayxonLiveKitHandTiles(stage);});
     room.on(LK.RoomEvent.ParticipantConnected,participant=>{
       try{
         const metadata=JSON.parse(String(participant?.metadata||'{}'));
@@ -3741,11 +3741,17 @@ async function startGrayxonLiveKitTraining(training, options={}){
             const name=profile?.full_name||profile?.username||'Participante';
             const participantId=String(room.localParticipant?.identity||room.localParticipant?.sid||'');
             try{
+              if(!participantId)throw new Error('No se pudo identificar al participante en LiveKit.');
+              if(next)grayxonRaisedHands.set(participantId,true);else grayxonRaisedHands.delete(participantId);
+              syncGrayxonLiveKitHandTiles(stage);
               const result=await sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,participantId,name,raised:next});
               if(result?.error)throw result.error;
               toast(next?'Levantaste la mano':'Bajaste la mano');
             }catch(handError){
               gxHandRaised=previous;
+              const localIdentity=String(room.localParticipant?.identity||room.localParticipant?.sid||'');
+              if(previous&&localIdentity)grayxonRaisedHands.set(localIdentity,true);else grayxonRaisedHands.delete(localIdentity);
+              syncGrayxonLiveKitHandTiles(stage);
               setButton('hand',previous,'Bajar la mano','Levantar la mano');
               console.warn('No se pudo sincronizar la mano levantada:',handError);
               toast('No se pudo avisar a los demás. Inténtalo de nuevo.');
@@ -3801,7 +3807,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     gxLiveCallRealtimeChannel=sb.channel('grayxon-live-call-'+training.id,{config:{broadcast:{self:false}}})
       .on('broadcast',{event:'reaction'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.emoji){showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));playGrayxonSound('reaction');}})
       .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){appendGrayxonChatMessage(String(payload.name||'Participante'),String(payload.message));}})
-      .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.participantId||'');if(!key)return;if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);syncGrayxonLiveKitHandTiles(stage);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
+      .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.participantId||payload.identity||'');if(!key)return;if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);syncGrayxonLiveKitHandTiles(stage);const panel=$('.gx-participants-panel');if(panel&&!panel.hidden){const row=document.createElement('div');row.className='gx-participant-status';row.textContent=String(payload.name||'Participante')+(payload.raised?' levantó la mano':' bajó la mano');panel.querySelector('.gx-participants-list')?.prepend(row);}})
       .on('broadcast',{event:'pin-participant'},({payload})=>{
         if(!payload||String(payload.trainingId||'')!==String(training.id||''))return;
         const participantId=String(payload.participantId||'');
