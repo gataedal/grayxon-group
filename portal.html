@@ -413,7 +413,7 @@ body:not(.gx-bottom-nav-authenticated){padding-bottom:0!important}
 #gxProfileSectionPersonal,
 #gxProfileSectionPersonal .gx-profile-editor,
 #gxProfileSectionPersonal .field { width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
-#gxProfileSectionPersonal input#pBirthDate { display:block; width:100%; max-width:100%; min-width:0; box-sizing:border-box; padding:11px; background:#090a0b; border:1px solid #373a40; color:#fff; border-radius:9px; }
+#gxProfileSectionPersonal input#pBirthDate { display:block; width:100% !important; max-width:100% !important; min-width:0 !important; inline-size:100%; box-sizing:border-box; margin:0; padding:11px; -webkit-appearance:none; appearance:none; font-family:inherit; font-size:16px; background:#090a0b; border:1px solid #373a40; color:#fff; border-radius:9px; }
 </style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
@@ -500,7 +500,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
 <link rel="stylesheet" href="livekit-mobile-layout.css?v=14">
-<script src="app.js?v=304"></script>
+<script src="app.js?v=305"></script>
 <script src="event-battle-scheduler.js?v=6"></script>
 <script src="event-battle-manual.js?v=3"></script>
 <style id="grayxon-bottom-nav-final-overrides">
