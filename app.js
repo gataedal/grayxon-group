@@ -3340,6 +3340,72 @@ function renderGrayxonLiveKitTrack(track, participant, host){
     else{const fb=document.createElement('span');fb.className='gx-livekit-avatar-fallback';fb.textContent=String(isLocal?(profile?.full_name||profile?.username||'Tú'):(participant?.name||participant?.identity||'G')).trim().charAt(0).toUpperCase()||'G';avatar.appendChild(fb);}
     tile.insertBefore(avatar,label);
   }
+  if(isLocal){
+    let controls=tile.querySelector('[data-gx-livekit-mini-controls]');
+    if(!controls){
+      controls=document.createElement('div');
+      controls.dataset.gxLivekitMiniControls='1';
+      controls.style.cssText='position:absolute;left:6px;right:6px;bottom:6px;z-index:5;display:flex;justify-content:space-between;align-items:center;pointer-events:none';
+      const makeControl=(kind,label,iconOn,iconOff)=>{
+        const button=document.createElement('button');
+        button.type='button';
+        button.dataset.gxMiniMedia=kind;
+        button.setAttribute('aria-label',label);
+        button.style.cssText='width:30px;height:30px;border:1px solid #ffffff35;border-radius:50%;background:#101319e8;color:#fff;display:grid;place-items:center;padding:0;pointer-events:auto;box-shadow:0 2px 8px #0008';
+        button.innerHTML=kind==='audio'
+          ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="13" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"></path></svg>'
+          : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="m16 10 5-3v10l-5-3"></path></svg>';
+        button.addEventListener('click',async ev=>{
+          ev.preventDefault();ev.stopPropagation();
+          const liveRoom=gxLiveKitRoom;
+          const local=liveRoom?.localParticipant;
+          if(!local){toast('La llamada no está conectada.');return;}
+          button.disabled=true;
+          try{
+            if(kind==='audio'){
+              const enabled=!(local.isMicrophoneEnabled??false);
+              await local.setMicrophoneEnabled(enabled);
+              button.dataset.enabled=String(enabled);
+              button.style.background=enabled?'#101319e8':'#b42336';
+              button.setAttribute('aria-pressed',String(enabled));
+              button.setAttribute('aria-label',enabled?'Apagar micrófono':'Activar micrófono');
+              button.title=enabled?'Micrófono encendido':'Micrófono apagado';
+              const mainButton=$('[data-gx-call="audio"]');
+              if(mainButton){mainButton.setAttribute('aria-pressed',String(enabled));const text=mainButton.querySelector('span:last-child');if(text)text.textContent=enabled?'Micrófono encendido':'Micrófono apagado';}
+            }else{
+              const enabled=!(local.isCameraEnabled??false);
+              await local.setCameraEnabled(enabled);
+              button.dataset.enabled=String(enabled);
+              button.style.background=enabled?'#101319e8':'#b42336';
+              button.setAttribute('aria-pressed',String(enabled));
+              button.setAttribute('aria-label',enabled?'Apagar cámara':'Activar cámara');
+              button.title=enabled?'Cámara encendida':'Cámara apagada';
+              const mainButton=$('[data-gx-call="video"]');
+              if(mainButton){mainButton.setAttribute('aria-pressed',String(enabled));const text=mainButton.querySelector('span:last-child');if(text)text.textContent=enabled?'Cámara encendida':'Cámara apagada';}
+            }
+          }catch(err){console.warn('No se pudo cambiar dispositivo desde miniatura:',kind,err);toast('No se pudo cambiar el dispositivo. Revisa los permisos.');}
+          finally{button.disabled=false;}
+        });
+        return button;
+      };
+      controls.appendChild(makeControl('audio','Micrófono','mic','mic-off'));
+      controls.appendChild(makeControl('video','Cámara','video','video-off'));
+      tile.appendChild(controls);
+    }
+    const local=gxLiveKitRoom?.localParticipant;
+    const micOn=!!local?.isMicrophoneEnabled;
+    const camOn=!!local?.isCameraEnabled;
+    const micButton=controls.querySelector('[data-gx-mini-media="audio"]');
+    const camButton=controls.querySelector('[data-gx-mini-media="video"]');
+    [[micButton,micOn,'Micrófono'],[camButton,camOn,'Cámara']].forEach(([button,enabled,label])=>{
+      if(!button)return;
+      button.dataset.enabled=String(enabled);
+      button.style.background=enabled?'#101319e8':'#b42336';
+      button.setAttribute('aria-pressed',String(enabled));
+      button.setAttribute('aria-label',enabled?'Apagar '+label.toLowerCase():'Activar '+label.toLowerCase());
+      button.title=enabled?label+' encendido':label+' apagado';
+    });
+  }
   if(!track||track.kind!=='video')return;
   const key=String(track.sid||track.mediaStreamTrack?.id||'');
   if(key&&tile.querySelector('[data-gx-livekit-track="'+CSS.escape(key)+'"]'))return;
@@ -3407,9 +3473,20 @@ async function startGrayxonLiveKitTraining(training, options={}){
     });
   }
   const setButton=(action,enabled,labelOn,labelOff)=>{
-    const b=$('[data-gx-call="'+action+'"]');if(!b)return;
-    b.setAttribute('aria-pressed',String(enabled));
-    const label=b.querySelector('span:last-child');if(label)label.textContent=enabled?labelOn:labelOff;
+    const b=$('[data-gx-call="'+action+'"]');
+    if(b){
+      b.setAttribute('aria-pressed',String(enabled));
+      const label=b.querySelector('span:last-child');if(label)label.textContent=enabled?labelOn:labelOff;
+    }
+    const kind=action==='audio'?'audio':action==='video'?'video':null;
+    const mini=kind&&document.querySelector('[data-gx-livekit-mini-controls] [data-gx-mini-media="'+kind+'"]');
+    if(mini){
+      mini.dataset.enabled=String(enabled);
+      mini.style.background=enabled?'#101319e8':'#b42336';
+      mini.setAttribute('aria-pressed',String(enabled));
+      mini.setAttribute('aria-label',enabled?'Apagar '+(kind==='audio'?'micrófono':'cámara'):'Activar '+(kind==='audio'?'micrófono':'cámara'));
+      mini.title=enabled?(kind==='audio'?'Micrófono encendido':'Cámara encendida'):(kind==='audio'?'Micrófono apagado':'Cámara apagada');
+    }
   };
   const onTrack=(track,participant)=>{
     if(!track||!stage)return;
