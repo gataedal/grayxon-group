@@ -277,3 +277,76 @@ body.grayxon-livekit-active .gx-call-controls [data-gx-call="video"] {
     gap: 1px !important;
   }
 }
+
+
+/* Final responsive polish: keep both local media controls visible and equal-sized. */
+#grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] {
+  gap: 8px !important;
+}
+#grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] [data-gx-mini-media="audio"],
+#grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] [data-gx-mini-media="video"] {
+  display: grid !important;
+  place-items: center !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  flex: 0 0 30px !important;
+}
+@media (max-width: 600px) {
+  #grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] {
+    left: 6px !important;
+    right: 6px !important;
+    top: 6px !important;
+    bottom: auto !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 5px !important;
+  }
+  body.grayxon-live-training-call .gx-call-controls {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    gap: 3px !important;
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    padding: 8px 6px !important;
+    box-sizing: border-box !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+  }
+  body.grayxon-live-training-call .gx-call-controls > button {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: 0 !important;
+    min-height: 54px !important;
+    padding: 4px 0 !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+  }
+  body.grayxon-live-training-call .gx-call-controls > button[data-gx-call="hand"] { order: 1 !important; }
+  body.grayxon-live-training-call .gx-call-controls > button[data-gx-call="chat"] { order: 2 !important; }
+  body.grayxon-live-training-call .gx-call-controls > button.gx-call-end { order: 3 !important; }
+  body.grayxon-live-training-call .gx-call-controls > button[data-gx-call="reactions"] { order: 4 !important; }
+  body.grayxon-live-training-call .gx-call-controls > button[data-gx-call="more"] { order: 5 !important; }
+  body.grayxon-live-training-call .gx-call-controls > button.gx-call-end {
+    flex: 0 0 48px !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+  }
+  body.grayxon-live-training-call .gx-call-controls > button > span:last-child {
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+}
