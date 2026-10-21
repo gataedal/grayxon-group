@@ -187,3 +187,93 @@ body.grayxon-livekit-active .gx-call-controls [data-gx-call="video"] {
     overflow: visible !important;
   }
 }
+
+
+/* LiveKit controls: identical button sizes, positions vary only by viewport. */
+#grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] {
+  top: 6px !important;
+  right: 6px !important;
+  bottom: auto !important;
+  left: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 5px !important;
+}
+#grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] [data-gx-mini-media] {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  flex: 0 0 30px !important;
+  margin: 0 !important;
+}
+#grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] [data-gx-mini-media="video"] {
+  display: grid !important;
+}
+@media (max-width: 600px) {
+  #grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] {
+    top: 6px !important;
+    right: 6px !important;
+    left: 6px !important;
+    bottom: auto !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 5px !important;
+  }
+  #grayxonLiveKitStage [data-gx-livekit-tile] [data-gx-livekit-mini-controls] [data-gx-mini-media] {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    flex-basis: 30px !important;
+  }
+  body.grayxon-live-training-call .gx-call-controls {
+    display: grid !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    box-sizing: border-box !important;
+    gap: 3px !important;
+    padding: 8px 7px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+  }
+  body.grayxon-live-training-call .gx-call-controls > button {
+    min-width: 0 !important;
+    width: 100% !important;
+    min-height: 52px !important;
+    padding: 4px 1px !important;
+    gap: 4px !important;
+    overflow: visible !important;
+  }
+  body.grayxon-live-training-call .gx-call-controls > button > span:last-child {
+    display: block !important;
+    max-width: 100% !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  body.grayxon-live-training-call .gx-call-controls > button.gx-call-end {
+    grid-column: 4 !important;
+    justify-self: center !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 1px !important;
+  }
+}
