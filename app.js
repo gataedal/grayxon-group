@@ -7129,6 +7129,9 @@ async function init() {
     const uuidTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pushTarget);
     if (pushPage === 'events' || pushPage === 'event-thread') gxPendingEventTarget = uuidTarget ? pushTarget : null;
     if (pushPage === 'event-thread') gxPendingEventTab = 'thread';
+    if (session && (pushPage === 'missions' || pushPage === 'mission')) {
+      pendingNotificationTarget = { type:'missions', missionId:uuidTarget?pushTarget:null, weekStart:null, weekEnd:null };
+    }
     if(session&&pushPage==='event-post'&&uuidTarget){const {data:post}=await sb.from('gx_event_posts').select('id,event_id').eq('id',pushTarget).maybeSingle();if(post?.event_id){gxPendingEventTarget=post.event_id;gxPendingEventPostTarget=post.id;gxPendingEventTab='thread';}}
     if (pushPages.includes(pushPage)) {
       if (!session) saveGrayxonPushIntent(pushPage, pushTarget);
@@ -7531,6 +7534,12 @@ async function handleGrayxonDeepLinkUrl(urlValue) {
       const desiredHash = '#events';
       if (window.location.hash !== desiredHash) window.history.replaceState({page:'events'}, '', `${window.location.pathname}${window.location.search}${desiredHash}`);
       if (current !== 'events') nav('events', false); else await gxEventsPage();
+      return true;
+    }
+    if (session && (page === 'missions' || parsed.searchParams.get('page') === 'missions' || parsed.searchParams.get('page') === 'mission')) {
+      const target = parsed.searchParams.get('target') || '';
+      pendingNotificationTarget = { type:'missions', missionId:GRAYXON_UUID_RE.test(target)?target:null, weekStart:null, weekEnd:null };
+      nav('missions', false);
       return true;
     }
     if (session && (page === 'events' || parsed.searchParams.get('page') === 'events')) {
