@@ -40,8 +40,14 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       return response({ error: "Debes indicar un trainingId válido." }, 400);
     }
     const { data: rows, error: te } = await ctx.supabaseAdmin.from("live_trainings")
-      .select("id, room_name, status, created_by").eq("id", trainingId).limit(1);
-    if (te) { console.error("Training lookup failed", te); return response({ error: "No se pudo consultar el entrenamiento." }, 500); }
+      .select("id, room_name, status, created_by, livekit_host_user_id").eq("id", trainingId).limit(1);
+    if (te) {
+      console.error("Training lookup failed", te);
+      if (te.code === "42703" || /livekit_host_user_id/i.test(String(te.message || ""))) {
+        return response({ error: "Falta aplicar la migración de identidad de LiveKit." }, 503);
+      }
+      return response({ error: "No se pudo consultar el entrenamiento." }, 500);
+    }
     const training = rows?.[0] ?? null;
     if (!training?.room_name) return response({ error: "Entrenamiento no encontrado." }, 404);
     if (["finished", "cancelled", "canceled"].includes(String(training.status).toLowerCase())) {
@@ -91,8 +97,11 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       return response({ error: "No se pudo cargar la foto de perfil." }, 500);
     }
 
+    // Set by the trusted start endpoint; do not infer the host from created_by.
+    const sessionHostUserId = String(training.livekit_host_user_id || "");
     const participantMetadata = JSON.stringify({
       avatar_url: typeof profileDetails?.avatar_url === "string" ? profileDetails.avatar_url : "",
+      session_host_user_id: sessionHostUserId,
     });
     const token = new AccessToken(API_KEY, API_SECRET, {
       identity,
@@ -114,6 +123,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       serverUrl: LIVEKIT_URL,
       roomName: training.room_name,
       moderator,
+      sessionHostUserId,
       user: { id: profile.id, username: profile.username, full_name: profile.full_name, role: profile.role },
     });
   } catch (error) {

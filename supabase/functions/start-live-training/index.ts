@@ -43,7 +43,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
 
     const { data: training, error: trainingError } = await ctx.supabaseAdmin
       .from("live_trainings")
-      .select("id, title, description, room_name, created_by, instructor_name, scheduled_at, status, started_at, ended_at")
+      .select("id, title, description, room_name, created_by, instructor_name, scheduled_at, status, started_at, ended_at, livekit_host_user_id")
       .eq("id", trainingId)
       .maybeSingle();
     if (trainingError) {
@@ -81,10 +81,10 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     const startedAt = new Date().toISOString();
     const { data: started, error: updateError } = await ctx.supabaseAdmin
       .from("live_trainings")
-      .update({ status: "live", started_at: startedAt, ended_at: null })
+      .update({ status: "live", started_at: startedAt, ended_at: null, livekit_host_user_id: userId })
       .eq("id", trainingId)
       .eq("status", "scheduled")
-      .select("id, title, description, room_name, created_by, instructor_name, scheduled_at, status, started_at, ended_at")
+      .select("id, title, description, room_name, created_by, instructor_name, scheduled_at, status, started_at, ended_at, livekit_host_user_id")
       .maybeSingle();
 
     if (updateError) {

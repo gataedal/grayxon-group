@@ -3320,15 +3320,15 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   const tileId=isLocal?'gx-livekit-local':'gx-livekit-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_');
   let tile=host.querySelector('[data-gx-livekit-tile="'+CSS.escape(tileId)+'"]');
   if(!tile){tile=document.createElement('div');tile.dataset.gxLivekitTile=tileId;host.appendChild(tile);}
+  tile.dataset.gxLivekitIdentity=identity;
   const pinnedId=String(window.__gxLiveKitPinnedParticipantId||'');
-  const isTrainingHost=String(participant?.identity||'')===String(window.__gxHostParticipantId||'');
-  if(pinnedId){
-    host.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item.dataset.gxLivekitTile===pinnedId);});
-  }else if(isTrainingHost){
-    host.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item===tile);});
-  }else if(!host.querySelector('[data-gx-livekit-main="true"]')){
-    tile.dataset.gxLivekitMain=String(!isLocal);
-  }
+  const hostId=String(window.__gxHostParticipantId||'');
+  const tiles=Array.from(host.querySelectorAll('[data-gx-livekit-tile]'));
+  const pinnedTile=pinnedId&&tiles.find(item=>item.dataset.gxLivekitIdentity===pinnedId);
+  const hostTile=hostId&&tiles.find(item=>item.dataset.gxLivekitIdentity===hostId);
+  const mainTile=pinnedTile||hostTile||tiles.find(item=>item.dataset.gxLivekitMain==='true')||
+    tiles.find(item=>item.dataset.gxLivekitIdentity===String(window.__gxLocalParticipantId||''))||tile;
+  tiles.forEach(item=>{item.dataset.gxLivekitMain=String(item===mainTile);});
   let label=tile.querySelector('[data-gx-livekit-label]');
   if(!label){label=document.createElement('div');label.dataset.gxLivekitLabel='1';label.textContent=isLocal?(profile?.full_name||profile?.username||'Tú')+' · Tú':(participant?.name||participant?.identity||'Participante');tile.appendChild(label);}
   let avatar=tile.querySelector('.gx-livekit-avatar');
@@ -3382,7 +3382,10 @@ async function startGrayxonLiveKitTraining(training, options={}){
   if(gxLiveKitCleanup){try{gxLiveKitCleanup();}catch(_){}gxLiveKitCleanup=null;}
   host.innerHTML='<div id="grayxonLiveKitStage" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px;width:100%;height:100%;min-height:280px;align-content:center"><div class="live-training-loading" aria-hidden="true"></div></div>';
   liveTrainingHostUserId=training.created_by||null;liveTrainingEnding=false;
-  window.__gxHostParticipantId=String(training.created_by||'');window.__gxLocalParticipantId=null;window.__gxLiveKitPinnedParticipantId=null;
+  // Trust the server-confirmed actual initiator, not the training record owner.
+  window.__gxHostParticipantId='';
+  window.__gxLocalParticipantId=null;
+  window.__gxLiveKitPinnedParticipantId=null;
   const isHost=!!session?.user?.id&&training.created_by===session.user.id;
   const isAdmin=profile?.role==='admin';
   window.__gxCanManageMeeting=isHost||isAdmin;
@@ -3393,8 +3396,10 @@ async function startGrayxonLiveKitTraining(training, options={}){
     stage.addEventListener('click',event=>{
       const tile=event.target.closest('[data-gx-livekit-tile]');
       if(!tile||!stage.contains(tile))return;
-      stage.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item===tile);});
-      window.__gxLiveKitPinnedParticipantId=tile.dataset.gxLivekitTile;
+      const identity=String(tile.dataset.gxLivekitIdentity||'');
+      if(!identity)return;
+      window.__gxLiveKitPinnedParticipantId=identity;
+      stage.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item.dataset.gxLivekitIdentity===identity);});
     });
   }
   const setButton=(action,enabled,labelOn,labelOff)=>{
@@ -3422,7 +3427,17 @@ async function startGrayxonLiveKitTraining(training, options={}){
     const identity=String(participant?.identity||participant?.sid||'');
     const key=identity.replace(/[^a-zA-Z0-9_-]/g,'_');
     stage?.querySelector('[data-gx-livekit-tile="gx-livekit-'+key+'"]')?.remove();
+    if(String(window.__gxLiveKitPinnedParticipantId||'')===identity)window.__gxLiveKitPinnedParticipantId=null;
     stage?.querySelectorAll('[data-gx-livekit-audio]').forEach(el=>{if(el.dataset.gxLivekitAudio===identity)el.remove();});
+    if(stage){
+      const tiles=Array.from(stage.querySelectorAll('[data-gx-livekit-tile]'));
+      const pinned=String(window.__gxLiveKitPinnedParticipantId||'');
+      const hostId=String(window.__gxHostParticipantId||'');
+      const main=tiles.find(item=>item.dataset.gxLivekitIdentity===pinned)||
+        tiles.find(item=>item.dataset.gxLivekitIdentity===hostId)||
+        tiles.find(item=>item.dataset.gxLivekitIdentity===String(window.__gxLocalParticipantId||''))||tiles[0];
+      tiles.forEach(item=>{item.dataset.gxLivekitMain=String(item===main);});
+    }
   };
   try{
     const [LK,response]=await Promise.all([
@@ -3445,14 +3460,24 @@ async function startGrayxonLiveKitTraining(training, options={}){
       }
     });
     room.on(LK.RoomEvent.ParticipantDisconnected,participant=>removeParticipant(participant));
-    room.on(LK.RoomEvent.ParticipantConnected,participant=>{renderGrayxonLiveKitTrack(null,participant,stage);if(participant.videoTrackPublications)participant.videoTrackPublications.forEach(pub=>{if(pub.track)onTrack(pub.track,participant);});});
+    room.on(LK.RoomEvent.ParticipantConnected,participant=>{
+      try{
+        const metadata=JSON.parse(String(participant?.metadata||'{}'));
+        const announcedHost=String(metadata.session_host_user_id||'');
+        if(!window.__gxHostParticipantId&&announcedHost)window.__gxHostParticipantId=announcedHost;
+      }catch(_){}
+      renderGrayxonLiveKitTrack(null,participant,stage);
+      if(participant.videoTrackPublications)participant.videoTrackPublications.forEach(pub=>{if(pub.track)onTrack(pub.track,participant);});
+    });
     room.on(LK.RoomEvent.Disconnected,()=>{if(joined&&!liveTrainingEnding)toast('La conexión del entrenamiento se cerró.');});
     await room.connect(data.serverUrl,data.token,{autoSubscribe:true});
     joined=true;
     window.__gxLocalParticipantId=room.localParticipant.identity;
+    window.__gxHostParticipantId=String(data.sessionHostUserId||'');
     stage.innerHTML='';
     const localTile=document.createElement('div');
     localTile.dataset.gxLivekitTile='gx-livekit-local';
+    localTile.dataset.gxLivekitIdentity=String(room.localParticipant.identity||'');
     localTile.style.cssText='position:relative;min-width:0;min-height:180px;background:#090a0c;border:1px solid #30343b;border-radius:12px;overflow:hidden;display:grid;place-items:center';
     stage.appendChild(localTile);
     renderGrayxonLiveKitTrack(null,room.localParticipant,stage);
@@ -3473,7 +3498,28 @@ async function startGrayxonLiveKitTraining(training, options={}){
           if(action==='reactions'){const menu=$('.gx-reactions-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;}
           if(!joined){toast('La llamada todavía se está conectando…');return;}
           if(action==='audio'){audioEnabled=!audioEnabled;await room.localParticipant.setMicrophoneEnabled(audioEnabled);setButton('audio',audioEnabled,'Micrófono encendido','Micrófono apagado');return;}
-          if(action==='video'){videoEnabled=!videoEnabled;await room.localParticipant.setCameraEnabled(videoEnabled);setButton('video',videoEnabled,'Cámara encendida','Cámara apagada');const localTile=stage?.querySelector('[data-gx-livekit-tile="gx-livekit-local"]');const localAvatar=localTile?.querySelector('.gx-livekit-avatar');if(!videoEnabled){localTile?.querySelectorAll('video,[data-gx-livekit-track]').forEach(el=>el.remove());if(localAvatar)localAvatar.style.display='flex';}else{room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});}return;}
+          if(action==='video'){
+            const previous=videoEnabled,next=!previous;
+            const localTile=stage?.querySelector('[data-gx-livekit-tile="gx-livekit-local"]');
+            const localAvatar=localTile?.querySelector('.gx-livekit-avatar');
+            videoEnabled=next;
+            setButton('video',next,'Cámara encendida','Cámara apagada');
+            if(!next){
+              localTile?.querySelectorAll('video,[data-gx-livekit-track]').forEach(el=>el.remove());
+              if(localAvatar)localAvatar.style.display='flex';
+            }
+            try{
+              await room.localParticipant.setCameraEnabled(next);
+              if(next)room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
+            }catch(cameraError){
+              videoEnabled=previous;
+              setButton('video',previous,'Cámara encendida','Cámara apagada');
+              if(previous)room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
+              else if(localAvatar)localAvatar.style.display='flex';
+              throw cameraError;
+            }
+            return;
+          }
           if(action==='share'){if(shareTrack){await room.localParticipant.setScreenShareEnabled(false);shareTrack=null;}else{await room.localParticipant.setScreenShareEnabled(true);shareTrack=true;}return;}
           if(action==='hand'){
             gxHandRaised=!gxHandRaised;
