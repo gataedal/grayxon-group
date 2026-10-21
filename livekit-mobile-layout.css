@@ -1,14 +1,16 @@
-/* Mobile-only LiveKit layout: portrait host zone + compact three-column attendee grid. */
+/* Mobile-only LiveKit layout: tall host stage and compact attendee strip above controls. */
 @media (max-width: 600px) {
   #grayxonLiveKitStage {
     display: grid !important;
     width: calc(100vw - 32px) !important;
     max-width: calc(100vw - 32px) !important;
     min-width: 0 !important;
-    height: auto !important;
-    min-height: 0 !important;
+    height: calc(100dvh - 245px) !important;
+    max-height: calc(100dvh - 245px) !important;
+    min-height: 280px !important;
     box-sizing: border-box !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: minmax(0, 1fr) auto !important;
     grid-auto-flow: row !important;
     grid-auto-rows: auto !important;
     align-items: stretch !important;
@@ -16,6 +18,9 @@
     gap: 7px !important;
     margin-left: auto !important;
     margin-right: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    align-content: stretch !important;
   }
   #grayxonLiveKitStage [data-gx-livekit-tile] {
     display: grid !important;
@@ -32,13 +37,19 @@
     aspect-ratio: 4 / 3 !important;
     overflow: hidden !important;
   }
-  /* The host always owns the full-width portrait area, regardless of camera state. */
+  /* Host fills the tall reserved area; attendee tiles follow in compact rows. */
   #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"] {
     grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
     width: 100% !important;
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
-    aspect-ratio: 3 / 4 !important;
+    max-height: 100% !important;
+    aspect-ratio: auto !important;
+  }
+  #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]) {
+    grid-row: auto !important;
+    aspect-ratio: 4 / 3 !important;
   }
   #grayxonLiveKitStage [data-gx-livekit-tile] video {
     width: 100% !important;
