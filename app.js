@@ -3326,7 +3326,9 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   const tiles=Array.from(host.querySelectorAll('[data-gx-livekit-tile]'));
   const pinnedTile=pinnedId&&tiles.find(item=>item.dataset.gxLivekitIdentity===pinnedId);
   const hostTile=hostId&&tiles.find(item=>item.dataset.gxLivekitIdentity===hostId);
-  const mainTile=hostTile||tiles.find(item=>item.dataset.gxLivekitIdentity===String(window.__gxLocalParticipantId||''))||tile;
+  const mainTile=pinnedTile||hostTile||tiles.find(item=>item.dataset.gxLivekitIdentity===String(gxLiveKitRoom?.localParticipant?.identity||''))||tile;
+  const selfMenu=$('.gx-self-camera-menu-wrap');
+  if(selfMenu)selfMenu.style.display=mainTile?.dataset.gxLivekitIdentity===String(gxLiveKitRoom?.localParticipant?.identity||'')?'flex':'none';
   if(mainTile&&mainTile!==host.firstChild)host.insertBefore(mainTile,host.firstChild);
   tiles.forEach(item=>{item.dataset.gxLivekitMain=String(item===mainTile);});
   let label=tile.querySelector('[data-gx-livekit-label]');
@@ -3440,12 +3442,11 @@ async function startGrayxonLiveKitTraining(training, options={}){
       if(!tile||!stage.contains(tile))return;
       const identity=String(tile.dataset.gxLivekitIdentity||'');
       if(!identity)return;
-      // Keep the authenticated session host in the main tile; participant clicks
-      // must never promote a guest over the host.
-      const hostId=String(window.__gxHostParticipantId||'');
-      if(!hostId)return;
-      window.__gxLiveKitPinnedParticipantId=null;
-      stage.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item.dataset.gxLivekitIdentity===hostId);});
+      // Al tocar una tarjeta se fija ese participante en la vista principal.
+      window.__gxLiveKitPinnedParticipantId=identity;
+      stage.querySelectorAll('[data-gx-livekit-tile]').forEach(item=>{item.dataset.gxLivekitMain=String(item.dataset.gxLivekitIdentity===identity);});
+      const selfMenu=$('.gx-self-camera-menu-wrap');
+      if(selfMenu)selfMenu.style.display=identity===String(gxLiveKitRoom?.localParticipant?.identity||'')?'flex':'none';
     });
   }
   const setButton=(action,enabled,labelOn,labelOff)=>{
@@ -3851,8 +3852,27 @@ async function startGrayxonLiveTraining(training, options={}){
             const menu=$('.gx-reactions-menu');const open=button.getAttribute('aria-expanded')==='true';
             button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;
           }
-          if(!gxJitsiReady){toast('La llamada todavía se está conectando…');return;}
           if(action==='hand'){
+            if(gxLiveKitRoom?.localParticipant){
+              const previous=gxHandRaised;
+              const next=!previous;
+              gxHandRaised=next;
+              const handButton=$('[data-gx-call="hand"]');
+              if(handButton){handButton.setAttribute('aria-pressed',String(next));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=next?'Bajar la mano':'Levantar la mano';}
+              try{
+                const participantId=String(gxLiveKitRoom.localParticipant.identity||gxLiveKitRoom.localParticipant.sid||'');
+                const result=await sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,participantId,name:profile?.full_name||profile?.username||'Participante',raised:next});
+                if(result?.error)throw result.error;
+                toast(next?'Levantaste la mano':'Bajaste la mano');
+              }catch(error){
+                gxHandRaised=previous;
+                if(handButton){handButton.setAttribute('aria-pressed',String(previous));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=previous?'Bajar la mano':'Levantar la mano';}
+                console.warn('No se pudo enviar la mano por LiveKit:',error);
+                toast('No se pudo avisar a los demás. Inténtalo de nuevo.');
+              }
+              return;
+            }
+            if(!gxJitsiReady){toast('La llamada todavía se está conectando…');return;}
             gxHandRaised=!gxHandRaised;
             const handButton=$('[data-gx-call="hand"]');
             if(handButton){handButton.setAttribute('aria-pressed',String(gxHandRaised));const label=handButton.querySelector('[data-gx-hand-label]');if(label)label.textContent=gxHandRaised?'Bajar la mano':'Levantar la mano';}
@@ -3862,10 +3882,10 @@ async function startGrayxonLiveTraining(training, options={}){
             refreshGrayxonParticipants(api);
             const handName=profile?.full_name||profile?.username||'Participante';
             sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,participantId:localId,raised:gxHandRaised,name:handName}).then(result=>{if(result?.error)console.warn('Grayxon LIVE: canal de mano no disponible; se usa chat Jitsi.');});
-            // Respaldo entre clientes dentro de la misma sala, independiente de Realtime.
             try{api.executeCommand('sendChatMessage','[GXHAND:'+(gxHandRaised?'up':'down')+']');}catch(err){console.warn('No se pudo enviar el estado de la mano por Jitsi:',err);}
             return;
           }
+          if(!gxJitsiReady){toast('La llamada todavía se está conectando…');return;}
           if(callCommand[action]) api.executeCommand(callCommand[action]);
         } catch(err) { console.warn('No se pudo ejecutar el control de llamada:',action,err); }
       };
