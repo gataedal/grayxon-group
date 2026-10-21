@@ -3183,6 +3183,43 @@ async function endLiveTrainingConference(api, trainingId, canEndAll = null) {
 }
 
 const grayxonRaisedHands = new Map();
+// Manejo delegado en fase de captura: evita que el controlador heredado de Jitsi
+// sobrescriba o deje sin efecto el botón cuando la sala activa usa LiveKit.
+if(!window.__gxLiveKitHandCaptureBound){
+  window.__gxLiveKitHandCaptureBound=true;
+  document.addEventListener('click',async event=>{
+    const button=event.target?.closest?.('[data-gx-call="hand"]');
+    const room=gxLiveKitRoom;
+    if(!button||!room?.localParticipant||!document.body.classList.contains('grayxon-livekit-active'))return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const previous=gxHandRaised;
+    const next=!previous;
+    const participantId=String(room.localParticipant.identity||room.localParticipant.sid||'');
+    if(!participantId){toast('No se pudo identificar al participante en LiveKit.');return;}
+    const label=button.querySelector('[data-gx-hand-label]');
+    const name=profile?.full_name||profile?.username||'Participante';
+    const stage=document.querySelector('#grayxonLiveKitStage');
+    gxHandRaised=next;
+    button.setAttribute('aria-pressed',String(next));
+    if(label)label.textContent=next?'Bajar la mano':'Levantar la mano';
+    if(next)grayxonRaisedHands.set(participantId,true);else grayxonRaisedHands.delete(participantId);
+    syncGrayxonLiveKitHandTiles(stage);
+    try{
+      const result=await sendGrayxonLiveBroadcast('hand',{userId:session?.user?.id||null,participantId,name,raised:next});
+      if(result?.error)throw result.error;
+      toast(next?'Levantaste la mano':'Bajaste la mano');
+    }catch(error){
+      gxHandRaised=previous;
+      if(previous)grayxonRaisedHands.set(participantId,true);else grayxonRaisedHands.delete(participantId);
+      button.setAttribute('aria-pressed',String(previous));
+      if(label)label.textContent=previous?'Bajar la mano':'Levantar la mano';
+      syncGrayxonLiveKitHandTiles(stage);
+      console.warn('No se pudo sincronizar la mano levantada:',error);
+      toast('No se pudo avisar a los demás. Inténtalo de nuevo.');
+    }
+  },true);
+}
 function syncGrayxonLiveKitHandTiles(stage=document.querySelector('#grayxonLiveKitStage')){
   if(!stage)return;
   const tiles=Array.from(stage.querySelectorAll('[data-gx-livekit-tile]'));
