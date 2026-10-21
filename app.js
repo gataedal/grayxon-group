@@ -933,8 +933,8 @@ async function gxOpenPaymentReceiptInApp(payment){
     overlay.addEventListener('keydown',e=>{if(e.key==='Escape'){close();}});
   }catch(e){toast(e?.message||'No se pudo abrir el comprobante.');}
 }
-async function gxPaymentsPage(){
- const el=ensurePaymentsPage();
+async function gxPaymentsPage(targetElement=null){
+ const el=targetElement||ensurePaymentsPage();
  if(!session?.user?.id){el.innerHTML='<div class="card"><h2>Pagos</h2><p>Inicia sesión para consultar esta sección.</p></div>';return;}
  const isAdmin=profile?.role==='admin';
  el.innerHTML=`<div class="gx-payments-wrap"><div class="gx-payments-head"><div class="eyebrow">GRAYXON GROUP · PAGOS</div><h1>${isAdmin?'Gestión de pagos':'Mis pagos'}</h1><p class="muted">${isAdmin?'Registra pagos con conceptos múltiples, TRM, métricas y comprobantes.':'Consulta tus liquidaciones y comprobantes privados.'}</p></div><div id="gxPaymentsContent"><div class="card">Cargando pagos…</div></div></div>`;
@@ -1517,9 +1517,9 @@ function profileTpl(){
   return '<div class="profile-page gx-profile-settings">'+
     (profile.role==='creator' ? '<section class="card creator-profile-manager-card" id="creatorProfileManagerCard"><h2><span style="color:#25F4EE">♙</span> Tu manager</h2><div class="creator-profile-manager-row"><div class="creator-profile-manager-avatar creator-profile-manager-fallback">♙</div><div class="creator-profile-manager-info"><strong>Consultando tu equipo…</strong><small>Un momento</small></div></div></section>' : '')+
     '<section class="gx-profile-settings-heading"><h2>Tu información</h2><p>Administra los datos asociados a tu cuenta.</p></section>'+
-    '<div><button type="button" class="gx-profile-setting-row" data-profile-section="personal" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"/></svg></span><span class="gx-profile-setting-copy"><strong>Datos personales</strong><small>Correo, teléfono y ubicación</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPersonal"></div></div>'+
+    '<div><button type="button" class="gx-profile-setting-row" data-profile-section="personal" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"/></svg></span><span class="gx-profile-setting-copy"><strong>Datos personales</strong><small>Correo, teléfono, fecha de nacimiento y ubicación</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPersonal"></div></div>'+
     '<div><button type="button" class="gx-profile-setting-row" data-profile-section="payments" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="gx-profile-setting-copy"><strong>Información para pagos</strong><small>Cuenta bancaria y método de pago</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPayments"></div></div>'+
-    '<div><button type="button" class="gx-profile-setting-row gx-profile-history-row" data-page="payments"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="gx-profile-setting-copy"><strong>Mis pagos</strong><small>Historial, liquidaciones y comprobantes</small></span><span class="gx-profile-setting-chevron">›</span></button></div>'+
+    '<div><button type="button" class="gx-profile-setting-row gx-profile-history-row" data-profile-section="history" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="gx-profile-setting-copy"><strong>Mis pagos</strong><small>Historial, liquidaciones y comprobantes</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionHistory"></div></div>'+
     '<div><button type="button" class="gx-profile-setting-row" data-profile-section="security" aria-expanded="false"><span class="gx-profile-setting-icon security"><svg viewBox="0 0 24 24"><path d="M12 3 19 6v5c0 5-3.2 8.2-7 10-3.8-1.8-7-5-7-10V6Z"/><rect x="9" y="10" width="6" height="5" rx="1"/><path d="M10 10V8a2 2 0 0 1 4 0v2"/></svg></span><span class="gx-profile-setting-copy"><strong>Seguridad</strong><small>Acceso y contraseña</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionSecurity"></div></div>'+
     '<div class="gx-profile-actions-row" id="gxProfileActions">'+(profile.role==='creator'?'<button type="button" id="grayxonMenuPush" class="gx-profile-action-btn gx-profile-notifications-btn">🔔 Activar notificaciones</button>':'')+'<button type="button" id="profileLogout" class="gx-profile-action-btn gx-profile-logout"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg><span>Cerrar sesión</span></button></div></div>';
 }
@@ -1532,16 +1532,21 @@ function openProfileSection(section){
   const target=document.getElementById('gxProfileSection'+section[0].toUpperCase()+section.slice(1));
   if(!target)return;
   const wasOpen=!!target.innerHTML.trim();
-  ['personal','payments','security'].forEach(key=>{const node=document.getElementById('gxProfileSection'+key[0].toUpperCase()+key.slice(1));if(node)node.innerHTML='';document.querySelector('[data-profile-section="'+key+'"]')?.setAttribute('aria-expanded','false');});
+  ['personal','payments','history','security'].forEach(key=>{const node=document.getElementById('gxProfileSection'+key[0].toUpperCase()+key.slice(1));if(node)node.innerHTML='';document.querySelector('[data-profile-section="'+key+'"]')?.setAttribute('aria-expanded','false');});
   if(wasOpen)return;
   document.querySelector('[data-profile-section="'+section+'"]')?.setAttribute('aria-expanded','true');
   const d=profileDetails||{},pm=paymentMethod||{};
   const countries=profileCountries.map(([c,n])=>'<option value="'+esc(c)+'" '+(d.country===c?'selected':'')+'>'+esc(n)+'</option>').join('');
   const bankCountry=normalizeCountryCode(pm.bank_country||d.country||'CO');
   const banks=(bankSeed[bankCountry]||[]).map(b=>'<option value="'+esc(b)+'" '+(pm.bank_name===b?'selected':'')+'>'+esc(b)+'</option>').join('');
-  if(section==='personal'){
+  if(section==='history'){
+    ensureGrayxonPaymentStyles();
+    gxPaymentsPage(target);
+    return;
+  }else if(section==='personal'){
     target.innerHTML='<div class="gx-profile-editor"><h3>Datos personales</h3>'+
       field('pEmail','Correo electrónico',d.email||'')+field('pPhone','Número de teléfono',d.phone||'')+
+      '<label class="field"><span>Fecha de nacimiento</span><input id="pBirthDate" type="date" value="'+esc(d.birth_date||'')+'" max="'+new Date().toISOString().slice(0,10)+'" autocomplete="bday"></label>'+
       '<label class="field"><span>País</span><select id="pCountry">'+countries+'</select></label>'+
       field('pState','Estado / Departamento / Provincia',d.state_region||'')+field('pCity','Ciudad',d.city||'')+field('pAddress','Dirección',d.address||'',true)+
       '<div id="gxProfilePersonalError" class="error" aria-live="polite"></div><div class="gx-profile-editor-actions"><button type="button" class="secondary gx-profile-btn gx-profile-btn-secondary" data-profile-cancel="personal">Cancelar</button><button type="button" class="primary gx-profile-btn gx-profile-btn-primary" id="gxSavePersonal">Guardar cambios</button></div></div>';
@@ -1572,7 +1577,7 @@ function openProfileSection(section){
 }
 async function saveProfilePersonal(){
   const err=document.getElementById('gxProfilePersonalError'),btn=document.getElementById('gxSavePersonal');if(err)err.textContent='';if(!session?.user?.id)return;if(btn)btn.disabled=true;
-  try{const uid=session.user.id;const data={user_id:uid,email:document.getElementById('pEmail')?.value.trim()||null,phone:document.getElementById('pPhone')?.value.trim()||null,country:document.getElementById('pCountry')?.value||null,state_region:document.getElementById('pState')?.value.trim()||null,city:document.getElementById('pCity')?.value.trim()||null,address:document.getElementById('pAddress')?.value.trim()||null,updated_at:new Date().toISOString()};const {error}=await sb.from('profile_details').upsert(data);if(error)throw error;await loadProfileDetails();updateProfileBadge();closeProfileSection('personal');toast('Cambio exitoso ✓');}
+  try{const uid=session.user.id;const data={user_id:uid,email:document.getElementById('pEmail')?.value.trim()||null,phone:document.getElementById('pPhone')?.value.trim()||null,country:document.getElementById('pCountry')?.value||null,state_region:document.getElementById('pState')?.value.trim()||null,city:document.getElementById('pCity')?.value.trim()||null,address:document.getElementById('pAddress')?.value.trim()||null,birth_date:document.getElementById('pBirthDate')?.value||null,updated_at:new Date().toISOString()};const {error}=await sb.from('profile_details').upsert(data);if(error)throw error;await loadProfileDetails();updateProfileBadge();closeProfileSection('personal');toast('Cambio exitoso ✓');}
   catch(e){if(err)err.textContent=e?.message||'No se pudieron guardar los datos personales.';}finally{if(btn)btn.disabled=false;}
 }
 async function saveProfilePayments(){
