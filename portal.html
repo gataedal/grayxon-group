@@ -1234,3 +1234,20 @@ html body #events .gxev-event-podium .gxev-podium-actions {
   }
 }
 </style>
+
+<style id="gx-event-ranking-desktop-layout-fix">
+/* Solo escritorio: el podio ocupa su propia fila completa debajo del encabezado. No afecta móvil. */
+@media(min-width:651px) {
+  html body #events .gxev-event-podium {
+    display:block!important;
+  }
+  html body #events .gxev-event-podium > .gxev-event-top-three {
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    width:100%!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    margin:0!important;
+  }
+}
+</style>
