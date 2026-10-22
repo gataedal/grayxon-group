@@ -481,7 +481,25 @@ nav.addEventListener('click',function(e){
   return;
  }
  if(action==='calendar'){
-  if(typeof window.grayxonOpenCalendar==='function')window.grayxonOpenCalendar();
+  const calendarModal=document.getElementById('gxCalendarModal');
+  if(calendarModal&&!calendarModal.hidden){
+   calendarModal.hidden=true;
+   calendarModal.setAttribute('aria-hidden','true');
+   document.body.style.overflow='';
+   return;
+  }
+  if(calendarModal){
+   calendarModal.hidden=false;
+   calendarModal.setAttribute('aria-hidden','false');
+   document.body.style.overflow='hidden';
+  }
+  if(typeof window.grayxonOpenCalendar==='function'){
+   try{window.grayxonOpenCalendar();}
+   catch(err){console.error('No se pudo abrir el calendario de Grayxon:',err);const status=document.getElementById('gxcalLoading');if(status)status.textContent='No se pudo cargar el calendario';}
+  }else{
+   console.error('El módulo del calendario no está disponible.');
+   const status=document.getElementById('gxcalLoading');if(status)status.textContent='Calendario no disponible. Recarga la página.';
+  }
   setTimeout(syncActive,100);
   return;
  }
