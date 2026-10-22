@@ -418,10 +418,11 @@ body:not(.gx-bottom-nav-authenticated){padding-bottom:0!important}
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
 <header class="top"><div class="brand" id="homeBrand" role="img" aria-label="Grayxon Group"><img class="logo" src="assets/grayxon-logo.png" alt=""><b>GRAYXON</b><span class="brand-live">LIVE</span></div><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir perfil">G</button><button id="notificationsBtn" class="notifications-btn" aria-label="Notificaciones"><span class="notification-bell">🔔</span><span id="notificationsBadge" class="notification-badge hidden">0</span></button><div id="notificationsPanel" class="notification-panel hidden"></div><div id="profileMenu" class="profile-menu hidden" aria-hidden="true"></div></div></div></header>
-<main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="space" class="page hidden"></section><section id="manager" class="page hidden"></section><section id="training" class="page hidden"></section><section id="missions" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section><section id="announcements" class="page hidden"></section><section id="force-password" class="page hidden"></section></main>
+<main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="space" class="page hidden"></section><section id="manager" class="page hidden"></section><section id="training" class="page hidden"></section><section id="missions" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section><section id="announcements" class="page hidden"></section><section id="force-password" class="page hidden"></section><section id="calendar" class="page hidden"></section></main>
 <nav class="gx-bottom-nav" id="grayxonBottomNav" aria-label="Navegación principal">
 <button type="button" data-gx-bottom="home" aria-label="Inicio"><span class="gx-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M9 20v-6h6v6"/></svg></span><span>Inicio</span></button>
 <button type="button" data-gx-bottom="notifications" aria-label="Notificaciones"><span class="gx-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></span><span>Notificaciones</span><span id="gxBottomNotificationsBadge" class="gx-nav-badge hidden">0</span></button>
+<button type="button" data-gx-bottom="calendar" aria-label="Calendario"><span class="gx-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg></span><span>Calendario</span></button>
 <button type="button" data-gx-bottom="profile" aria-label="Perfil"><span class="gx-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span>Perfil</span></button>
 </nav>
 <script>
@@ -479,6 +480,14 @@ nav.addEventListener('click',function(e){
   setTimeout(syncActive,100);
   return;
  }
+ if(action==='calendar'){
+  /* Fase visual: abre la vista del calendario sin activar notificaciones ni acciones de eventos. */
+  const pages=document.querySelectorAll('main > .page');
+  pages.forEach(page=>page.classList.toggle('hidden',page.id!=='calendar'));
+  renderGrayxonCalendarVisual();
+  setTimeout(syncActive,100);
+  return;
+ }
  if(action==='profile'){
   /* El acceso Perfil navega a la página de perfil; no abre el antiguo menú flotante. */
   const directProfileButton=document.getElementById('mobileProfile');
@@ -496,6 +505,93 @@ const sourceBadge=document.getElementById('notificationsBadge');if(sourceBadge)n
 document.addEventListener('click',e=>{if(e.target.closest('[data-page]'))setTimeout(syncActive,100)});
 setTimeout(()=>{updateBadge();syncActive()},250);
 })();
+</script>
+
+<style id="grayxon-calendar-visual-styles">
+#grayxonBottomNav{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+#grayxonBottomNav button{min-width:0!important}
+#grayxonBottomNav button>span:last-child{white-space:nowrap;font-size:11px}
+#calendar .gx-calendar-shell{max-width:1100px;margin:0 auto;padding:10px 0 28px;color:#f3f4f6}
+#calendar .gx-calendar-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin:8px 0 20px}
+#calendar .gx-calendar-kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#aeb4bf;margin-bottom:8px}
+#calendar .gx-calendar-title{font-size:clamp(26px,4vw,36px);font-weight:800;letter-spacing:-.04em;margin:0}
+#calendar .gx-calendar-subtitle{color:#9299a5;font-size:13px;margin:8px 0 0;line-height:1.5}
+#calendar .gx-calendar-legend{display:flex;gap:10px 14px;flex-wrap:wrap;margin:0 0 14px;color:#b9bec8;font-size:11px}
+#calendar .gx-calendar-legend span{display:inline-flex;align-items:center;gap:6px}
+#calendar .gx-calendar-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+#calendar .gx-calendar-card{border:1px solid #282d35;border-radius:17px;overflow:hidden;background:linear-gradient(145deg,#101216,#0b0c0f)}
+#calendar .gx-calendar-month{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #282d35}
+#calendar .gx-calendar-month strong{font-size:17px;font-weight:750}
+#calendar .gx-calendar-month small{color:#9299a5;font-size:11px}
+#calendar .gx-calendar-weekdays,#calendar .gx-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+#calendar .gx-calendar-weekdays{background:#0c0e11}
+#calendar .gx-calendar-weekdays div{text-align:center;padding:12px 2px;color:#7f8794;font-size:10px;font-weight:700;text-transform:uppercase}
+#calendar .gx-calendar-day{min-height:90px;padding:9px 8px;border-top:1px solid #20242b;border-right:1px solid #20242b;min-width:0}
+#calendar .gx-calendar-day:nth-child(7n){border-right:0}
+#calendar .gx-calendar-day.is-outside{background:#0a0b0e;color:#555c67}
+#calendar .gx-calendar-day.is-today .gx-calendar-date{background:#e5e7eb;color:#08090b}
+#calendar .gx-calendar-date{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:12px;font-weight:650;margin-bottom:7px}
+#calendar .gx-calendar-event{font-size:10px;line-height:1.35;margin-top:5px;padding:4px 5px;border-radius:5px;overflow:hidden;overflow-wrap:anywhere;color:#e8eaf0;background:#252a33;border-left:2px solid #8b93a2}
+#calendar .gx-calendar-event.mission{background:#291b29;border-left-color:#d879c8}
+#calendar .gx-calendar-event.battle{background:#2c2114;border-left-color:#e8ad62}
+#calendar .gx-calendar-event.training{background:#102b2b;border-left-color:#55d8cf}
+#calendar .gx-calendar-event.birthday{background:#29243b;border-left-color:#b6a0ff}
+#calendar .gx-calendar-mobile-note{display:none;color:#858d9a;font-size:11px;margin:12px 2px 0}
+#calendar .gx-calendar-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+#calendar .gx-calendar-stat{border:1px solid #252a32;border-radius:12px;padding:13px;background:#0d0f12;min-width:0}
+#calendar .gx-calendar-stat small{display:block;color:#9299a5;font-size:10px;margin-bottom:8px}
+#calendar .gx-calendar-stat strong{font-size:20px;display:block}
+@media(max-width:640px){
+ #calendar .gx-calendar-shell{padding:4px 0 24px}
+ #calendar .gx-calendar-month{padding:13px 12px}
+ #calendar .gx-calendar-day{min-height:64px;padding:5px 2px}
+ #calendar .gx-calendar-date{width:23px;height:23px;font-size:11px;margin:0 auto 5px}
+ #calendar .gx-calendar-event{height:5px;padding:0;margin:3px auto 0;width:70%;font-size:0;border:0;border-radius:5px}
+ #calendar .gx-calendar-weekdays div{font-size:9px;padding:10px 0}
+ #calendar .gx-calendar-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #calendar .gx-calendar-stat{padding:11px}
+ #calendar .gx-calendar-mobile-note{display:block}
+ #grayxonBottomNav button>span:last-child{font-size:10px}
+}
+</style>
+<script id="grayxon-calendar-visual-script">
+function renderGrayxonCalendarVisual(){
+ const root=document.getElementById('calendar');if(!root||root.dataset.rendered==='1')return;
+ root.dataset.rendered='1';
+ const now=new Date(),year=now.getFullYear(),month=now.getMonth();
+ const first=new Date(year,month,1),startOffset=(first.getDay()+6)%7;
+ const daysInMonth=new Date(year,month+1,0).getDate();
+ const total=Math.ceil((startOffset+daysInMonth)/7)*7;
+ const monthLabel=new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric'}).format(now);
+ const pad=n=>String(n).padStart(2,'0');
+ const samples={};
+ /* Indicadores puramente visuales de ejemplo; no crean ni modifican actividades reales. */
+ const candidates=[
+  {day:3,type:'training',label:'Entrenamiento en vivo'},
+  {day:7,type:'mission',label:'Misión asignada'},
+  {day:12,type:'battle',label:'Batalla'},
+  {day:18,type:'birthday',label:'Cumpleaños'},
+  {day:22,type:'training',label:'Entrenamiento en vivo'},
+  {day:26,type:'mission',label:'Misión asignada'}
+ ];
+ candidates.forEach(e=>{if(e.day<=daysInMonth)(samples[e.day]??=[]).push(e)});
+ let cells='';
+ for(let i=0;i<total;i++){
+  const dateNum=i-startOffset+1,inside=dateNum>=1&&dateNum<=daysInMonth;
+  const date=new Date(year,month,dateNum),day=inside?dateNum:date.getDate();
+  const isToday=inside&&day===now.getDate();
+  const events=inside?(samples[day]||[]):[];
+  cells+=`<div class="gx-calendar-day ${inside?'':'is-outside'} ${isToday?'is-today':''}"><div class="gx-calendar-date">${day}</div>${events.map(e=>`<div class="gx-calendar-event ${e.type}" title="${e.label}">${e.label}</div>`).join('')}</div>`;
+ }
+ root.innerHTML=`<div class="gx-calendar-shell">
+  <div class="gx-calendar-head"><div><div class="gx-calendar-kicker">Grayxon Group · Organización</div><h1 class="gx-calendar-title">Calendario</h1><p class="gx-calendar-subtitle">Tus fechas importantes, organizadas en un solo lugar.</p></div></div>
+  <div class="gx-calendar-legend"><span><i class="gx-calendar-dot" style="background:#d879c8"></i>Misiones</span><span><i class="gx-calendar-dot" style="background:#e8ad62"></i>Batallas</span><span><i class="gx-calendar-dot" style="background:#55d8cf"></i>Entrenamientos en vivo</span><span><i class="gx-calendar-dot" style="background:#b6a0ff"></i>Cumpleaños</span><span><i class="gx-calendar-dot" style="background:#8b93a2"></i>Eventos</span></div>
+  <div class="gx-calendar-card"><div class="gx-calendar-month"><div><strong>${monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1)}</strong><br><small>Vista mensual</small></div><small>Vista previa visual</small></div>
+   <div class="gx-calendar-weekdays"><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div><div class="gx-calendar-grid">${cells}</div></div>
+  <p class="gx-calendar-mobile-note">Los puntos de color indican ejemplos de actividades. Esta versión es únicamente visual.</p>
+  <div class="gx-calendar-summary"><div class="gx-calendar-stat"><small>Misiones</small><strong>—</strong></div><div class="gx-calendar-stat"><small>Batallas</small><strong>—</strong></div><div class="gx-calendar-stat"><small>Entrenamientos</small><strong>—</strong></div><div class="gx-calendar-stat"><small>Cumpleaños</small><strong>—</strong></div></div>
+ </div>`;
+}
 </script>
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
