@@ -573,7 +573,12 @@ setTimeout(()=>{updateBadge();syncActive()},250);
    const profileIds=birthdays.map(b=>b.user_id).filter(Boolean);
    let names=[];
    if(profileIds.length)names=await safe(sb.from('profiles').select('id,username,full_name,role,manager_id,active').in('id',profileIds).eq('active',true));
-   const allowedNames=names.filter(p=>role==='admin'||(role==='manager'&&(p.manager_id===profile?.manager_id||p.manager_id===profile?.id))||(role==='creator'&&p.id===uid));
+   const allowedNames=names.filter(p=>role==='admin'||(role==='manager'&&(managerIds.includes(p.manager_id)||p.manager_id===profile?.manager_id))||(role==='creator'&&p.id===uid));
+   let managerIds=[];
+   if(role==='manager'){
+    const managerRows=await safe(sb.from('managers').select('id').eq('user_id',uid).eq('active',true));
+    managerIds=managerRows.map(m=>m.id);
+   }
    const byId=new Map(allowedNames.map(p=>[p.id,p]));
    birthdays.forEach(b=>{const p=byId.get(b.user_id);if(!p||!b.birth_date)return;const parts=String(b.birth_date).slice(0,10).split('-');if(parts.length!==3)return;const date=new Date(view.getFullYear(),Number(parts[1])-1,Number(parts[2]),12);if(date.getMonth()===view.getMonth())add(result,'Cumpleaños · '+(p.full_name||p.username),date,'birthday','Cumpleaños')});
    items=result;loadedKey=key;$('gxcalLoading').textContent='';
