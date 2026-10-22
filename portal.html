@@ -538,6 +538,9 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 .gxcal-weekdays span{text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#89919e;padding:9px 0}
 .gxcal-cell{min-height:63px;border:1px solid #20242b;border-right:0;border-bottom:0;background:#0e1014;padding:5px 3px;text-align:center;cursor:pointer;color:#dce0e6;min-width:0}
 .gxcal-cell:nth-child(7n){border-right:1px solid #20242b}
+.gxcal-cell.has-activity{background:color-mix(in srgb,var(--gxcal-activity) 17%,#0e1014);border-color:color-mix(in srgb,var(--gxcal-activity) 42%,#20242b);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gxcal-activity) 12%,transparent)}
+.gxcal-cell.has-activity .gxcal-date{font-weight:750}
+.gxcal-cell.has-activity.selected{background:color-mix(in srgb,var(--gxcal-activity) 26%,#191d23);outline-color:var(--gxcal-activity)}
 .gxcal-cell.outside{color:#555c67;background:#0a0b0e}
 .gxcal-cell.selected{outline:2px solid #c3c8d1;outline-offset:-2px;background:#191d23}
 .gxcal-cell.today .gxcal-date{background:#e6e8ec;color:#090a0c}
@@ -581,14 +584,28 @@ setTimeout(()=>{updateBadge();syncActive()},250);
    const tasks=[
     missionQuery?safe(missionQuery):Promise.resolve([]),
     safe(sb.from('gx_events').select('id,title,event_type,starts_at,ends_at,status,audience').in('status',['published','in_progress','scheduled','upcoming']).gte('starts_at',from).lte('starts_at',to)),
-    safe(sb.from('gx_event_matches').select('id,event_id,scheduled_at,status,round_id').gte('scheduled_at',from).lte('scheduled_at',to)),
+    safe(sb.from('gx_event_matches').select('id,event_id,participant_a_id,participant_b_id,scheduled_at,status,round_id').gte('scheduled_at',from).lte('scheduled_at',to)),
     safe(sb.from('live_trainings').select('id,title,scheduled_at,status,instructor_name').eq('status','scheduled').gte('scheduled_at',from).lte('scheduled_at',to)),
     safe(sb.from('profile_details').select('user_id,birth_date').not('birth_date','is',null))
    ];
    const [missions,events,matches,trainings,birthdays]=await Promise.all(tasks);
    missions.forEach(m=>{const date=m.week_start||m.created_at;if(date&&String(date).slice(0,10)>=isoDay(start)&&String(date).slice(0,10)<=isoDay(end))add(result,m.title,date,'mission','Misión asignada')});
    events.forEach(e=>add(result,e.title,e.starts_at,'event',e.event_type||'Evento'));
-   matches.forEach(m=>add(result,'Batalla',m.scheduled_at,'battle',m.status||'Programada'));
+   const participantIds=[...new Set(matches.flatMap(m=>[m.participant_a_id,m.participant_b_id]).filter(Boolean))];
+   let participants=[],participantProfiles=[];
+   if(participantIds.length){
+    participants=await safe(sb.from('gx_event_participants').select('id,user_id,display_name,username').in('id',participantIds));
+    const participantUserIds=[...new Set(participants.map(p=>p.user_id).filter(Boolean))];
+    if(participantUserIds.length)participantProfiles=await safe(sb.from('profiles').select('id,full_name,username').in('id',participantUserIds));
+   }
+   const participantProfileMap=new Map(participantProfiles.map(p=>[p.id,p]));
+   const participantMap=new Map(participants.map(p=>{const profileName=participantProfileMap.get(p.user_id);return [p.id,p.display_name||p.username||profileName?.full_name||profileName?.username||'Participante']}));
+   const matchStatusLabel=s=>({'scheduled':'Programada','in_progress':'En curso','completed':'Finalizada','cancelled':'Cancelada','pending':'Pendiente'}[String(s||'').toLowerCase()]||'Programada');
+   matches.forEach(m=>{
+    const a=participantMap.get(m.participant_a_id),b=participantMap.get(m.participant_b_id);
+    const title=a&&b?(a+' vs '+b):a?('Batalla de '+a):'Batalla por programar';
+    add(result,title,m.scheduled_at,'battle',matchStatusLabel(m.status));
+   });
    trainings.forEach(t=>add(result,t.title,t.scheduled_at,'training',t.instructor_name||'Entrenamiento en vivo'));
    const profileIds=birthdays.map(b=>b.user_id).filter(Boolean);
    let names=[];
@@ -611,7 +628,8 @@ setTimeout(()=>{updateBadge();syncActive()},250);
   let html='';
   for(let i=0;i<total;i++){
    const n=i-offset+1,d=new Date(view.getFullYear(),view.getMonth(),n),inside=d.getMonth()===view.getMonth(),day=isoDay(d),dayItems=items.filter(x=>x.day===day),sel=selected===day;
-   html+='<button type="button" class="gxcal-cell '+(!inside?'outside ':'')+(day===today?'today ':'')+(sel?'selected':'')+'" data-gxcal-day="'+day+'"><span class="gxcal-date">'+d.getDate()+'</span><span class="gxcal-dots">'+[...new Set(dayItems.map(x=>x.type))].slice(0,4).map(t=>'<i class="gxcal-dot" style="background:'+colors[t]+'"></i>').join('')+'</span></button>';
+   const activityColor=dayItems.length?colors[dayItems[0].type]:'#0e1014';
+   html+='<button type="button" class="gxcal-cell '+(!inside?'outside ':'')+(dayItems.length?'has-activity ':'')+(day===today?'today ':'')+(sel?'selected':'')+'" style="--gxcal-activity:'+activityColor+'" data-gxcal-day="'+day+'"><span class="gxcal-date">'+d.getDate()+'</span><span class="gxcal-dots">'+[...new Set(dayItems.map(x=>x.type))].slice(0,4).map(t=>'<i class="gxcal-dot" style="background:'+colors[t]+'"></i>').join('')+'</span></button>';
   }
   $('gxcalGrid').innerHTML=html;
  }
