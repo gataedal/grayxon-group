@@ -528,7 +528,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 #grayxonBottomNav button>span:last-child{white-space:nowrap;font-size:11px}
 .gxcal-overlay{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.72);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:16px}
 .gxcal-overlay[hidden]{display:none!important}
-.gxcal-modal{width:min(820px,100%);max-height:min(90dvh,900px);overflow:auto;background:#0b0d10;border:1px solid #303640;border-radius:18px;box-shadow:0 25px 90px #000b;color:#f4f5f7;padding:18px}
+.gxcal-modal{width:min(820px,100%);max-height:min(90dvh,900px);overflow:auto;background:linear-gradient(#0b0d10,#0b0d10) padding-box,linear-gradient(135deg,#25f4ee 0%,#303640 24%,#fe2c55 58%,#a855f7 82%,#25f4ee 100%) border-box;border:1px solid transparent;border-radius:18px;box-shadow:0 0 0 1px #25f4ee12,0 0 28px #fe2c5518,0 25px 90px #000b;color:#f4f5f7;padding:18px}
 .gxcal-header{display:grid;grid-template-columns:38px 1fr 38px 38px;gap:8px;align-items:center;margin-bottom:15px}
 .gxcal-header h2{font-size:20px;text-transform:capitalize;margin:0;font-weight:750}
 #gxcalLoading{display:block;min-height:14px;color:#8f98a6;font-size:11px;margin-top:4px}
@@ -594,12 +594,12 @@ setTimeout(()=>{updateBadge();syncActive()},250);
    const participantIds=[...new Set(matches.flatMap(m=>[m.participant_a_id,m.participant_b_id]).filter(Boolean))];
    let participants=[],participantProfiles=[];
    if(participantIds.length){
-    participants=await safe(sb.from('gx_event_participants').select('id,user_id,display_name,username').in('id',participantIds));
+    participants=await safe(sb.from('gx_event_participants').select('id,user_id,tiktok_username').in('id',participantIds));
     const participantUserIds=[...new Set(participants.map(p=>p.user_id).filter(Boolean))];
     if(participantUserIds.length)participantProfiles=await safe(sb.from('profiles').select('id,full_name,username').in('id',participantUserIds));
    }
    const participantProfileMap=new Map(participantProfiles.map(p=>[p.id,p]));
-   const participantMap=new Map(participants.map(p=>{const profileName=participantProfileMap.get(p.user_id);return [p.id,p.display_name||p.username||profileName?.full_name||profileName?.username||'Participante']}));
+   const participantMap=new Map(participants.map(p=>{const profileName=participantProfileMap.get(p.user_id);return [p.id,p.tiktok_username||profileName?.full_name||profileName?.username||'Participante']}));
    const matchStatusLabel=s=>({'scheduled':'Programada','in_progress':'En curso','completed':'Finalizada','cancelled':'Cancelada','pending':'Pendiente'}[String(s||'').toLowerCase()]||'Programada');
    matches.forEach(m=>{
     const a=participantMap.get(m.participant_a_id),b=participantMap.get(m.participant_b_id);
