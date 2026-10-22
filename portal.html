@@ -551,6 +551,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 .gxcal-day-panel h3{font-size:14px;margin:0 0 10px;font-weight:700}
 .gxcal-item{display:flex;align-items:flex-start;gap:10px;padding:10px 11px;margin:7px 0;background:#12151a;border:1px solid #262b33;border-radius:10px}
 .gxcal-item-mark{width:3px;min-height:31px;border-radius:4px;flex-shrink:0}
+.gxcal-item-content{min-width:0;flex:1}.gxcal-item-type{display:inline-flex;align-items:center;padding:3px 7px;margin:0 0 5px;border-radius:5px;font-size:9px;line-height:1.2;letter-spacing:.035em;text-transform:uppercase;font-weight:800;background:#242830;color:#d8dde5;border:1px solid #373d47}.gxcal-type-battle{background:#382b1b;color:#ffc36f;border-color:#74532d}.gxcal-type-mission{background:#342238;color:#e5a4ec;border-color:#704678}.gxcal-type-training{background:#173536;color:#76efea;border-color:#2b7375}.gxcal-type-birthday{background:#2b2442;color:#c8b4ff;border-color:#5d4b8a}.gxcal-type-event{background:#252a32;color:#d5dce6;border-color:#454c59}
 .gxcal-item-title{font-size:12px;font-weight:650;line-height:1.45}
 .gxcal-item-meta{font-size:10px;color:#929aa7;margin-top:3px}
 .gxcal-empty{color:#8f98a6;font-size:12px;padding:8px 0}
@@ -637,7 +638,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
   if(!selected){$('gxcalSelectedTitle').textContent='Selecciona un día';$('gxcalDayItems').innerHTML='<div class="gxcal-empty">Elige una fecha para ver sus actividades.</div>';return}
   const d=new Date(selected+'T12:00:00');$('gxcalSelectedTitle').textContent=fmtDate(d);
   const dayItems=items.filter(x=>x.day===selected).sort((a,b)=>a.date-b.date);
-  $('gxcalDayItems').innerHTML=dayItems.length?dayItems.map(e=>'<div class="gxcal-item"><i class="gxcal-item-mark" style="background:'+colors[e.type]+'"></i><div><div class="gxcal-item-title">'+esc(e.title)+'</div><div class="gxcal-item-meta">'+esc(e.meta||e.type)+' · '+esc(new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit'}).format(e.date))+'</div></div></div>').join(''):'<div class="gxcal-empty">No hay actividades registradas para este día.</div>';
+  $('gxcalDayItems').innerHTML=dayItems.length?dayItems.map(e=>'<div class="gxcal-item"><i class="gxcal-item-mark" style="background:'+colors[e.type]+'"></i><div class="gxcal-item-content"><span class="gxcal-item-type gxcal-type-'+esc(e.type)+'">'+esc(({mission:'Misión',battle:'Batalla',training:'Entrenamiento en vivo',birthday:'Cumpleaños',event:'Evento'})[e.type]||'Actividad')+'</span><div class="gxcal-item-title">'+esc(e.title)+'</div><div class="gxcal-item-meta">'+esc(e.meta||'')+' · '+esc(new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit'}).format(e.date))+'</div></div></div>').join(''):'<div class="gxcal-empty">No hay actividades registradas para este día.</div>';
  }
  window.grayxonOpenCalendar=function(){modal.hidden=false;modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';selected=isoDay(new Date());view=new Date();view.setDate(1);loadMonth()};
  function close(){modal.hidden=true;modal.setAttribute('aria-hidden','true');document.body.style.overflow='';}
