@@ -553,6 +553,8 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 .gxcal-empty{color:#8f98a6;font-size:12px;padding:8px 0}
 @media(max-width:600px){.gxcal-overlay{padding:8px;align-items:center}.gxcal-modal{padding:12px;border-radius:15px;max-height:88dvh}.gxcal-header h2{font-size:17px}.gxcal-cell{min-height:48px;padding:3px 0}.gxcal-date{width:22px;height:22px;font-size:11px;margin-bottom:5px}.gxcal-dot{width:4px;height:4px}.gxcal-header{grid-template-columns:32px 1fr 32px 32px;gap:5px}.gxcal-header button{width:32px;height:32px}}
 </style>
+
+<div id="gxCalendarModal" class="gxcal-overlay" hidden aria-hidden="true"><section class="gxcal-modal" role="dialog" aria-modal="true" aria-label="Calendario"><header class="gxcal-header"><button type="button" id="gxcalPrev" aria-label="Mes anterior">‹</button><div><h2 id="gxcalMonth"></h2><span id="gxcalLoading" aria-live="polite"></span></div><button type="button" id="gxcalNext" aria-label="Mes siguiente">›</button><button type="button" id="gxcalClose" class="gxcal-close" aria-label="Cerrar calendario">×</button></header><div class="gxcal-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div><div id="gxcalGrid" class="gxcal-grid"></div><div class="gxcal-day-panel"><h3 id="gxcalSelectedTitle">Selecciona un día</h3><div id="gxcalDayItems"></div></div></section></div>
 <script id="grayxon-calendar-script">
 (function(){
  const modal=document.getElementById('gxCalendarModal');if(!modal||modal.dataset.bound)return;modal.dataset.bound='1';
@@ -630,7 +632,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
  window.addEventListener('grayxon:calendar-open',window.grayxonOpenCalendar);
 })();
 </script>
-<div id="gxCalendarModal" class="gxcal-overlay" hidden aria-hidden="true"><section class="gxcal-modal" role="dialog" aria-modal="true" aria-label="Calendario"><header class="gxcal-header"><button type="button" id="gxcalPrev" aria-label="Mes anterior">‹</button><div><h2 id="gxcalMonth"></h2><span id="gxcalLoading" aria-live="polite"></span></div><button type="button" id="gxcalNext" aria-label="Mes siguiente">›</button><button type="button" id="gxcalClose" class="gxcal-close" aria-label="Cerrar calendario">×</button></header><div class="gxcal-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div><div id="gxcalGrid" class="gxcal-grid"></div><div class="gxcal-day-panel"><h3 id="gxcalSelectedTitle">Selecciona un día</h3><div id="gxcalDayItems"></div></div></section></div><div id="toast" class="toast hidden"></div>
+<div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
 <link rel="stylesheet" href="livekit-mobile-layout.css?v=14">
 <script src="app.js?v=305"></script>
