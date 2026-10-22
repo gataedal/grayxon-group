@@ -547,7 +547,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
  const dateFor=value=>{if(!value)return null;const d=new Date(value);return Number.isNaN(d.getTime())?null:d};
  function monthKey(){return view.getFullYear()+'-'+String(view.getMonth()+1).padStart(2,'0')}
  function add(list,title,date,type,meta=''){const d=dateFor(date);if(!d)return;list.push({title:String(title||'Actividad'),date:d,day:isoDay(d),type,meta})}
- async function safe(query){const r=await query;if(r.error)throw r.error;return r.data||[]}
+ async function safe(query){try{const r=await query;if(r.error){console.warn('Grayxon calendar query:',r.error.message);return []}return r.data||[]}catch(err){console.warn('Grayxon calendar query:',err?.message||err);return []}}
  async function loadMonth(){
   if(busy)return;busy=true;$('gxcalLoading').textContent='Cargando…';
   const key=monthKey(),start=new Date(view.getFullYear(),view.getMonth(),1),end=new Date(view.getFullYear(),view.getMonth()+1,0,23,59,59);
@@ -557,11 +557,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
    const result=[];
    let missionQuery=sb.from('missions').select('id,title,week_start,week_end,created_at,assigned_to,published').eq('published',true);
    if(role==='creator')missionQuery=missionQuery.eq('assigned_to',uid);
-   else if(role==='manager'){
-    const teamProfiles=await safe(sb.from('profiles').select('id').eq('manager_id',profile?.manager_id||profile?.id).eq('active',true));
-    const ids=teamProfiles.map(p=>p.id);
-    if(ids.length)missionQuery=missionQuery.in('assigned_to',ids);else missionQuery=null;
-   }
+   /* En managers se deja que RLS aplique el alcance de su equipo; no se consulta toda la agencia desde el navegador. */
    const tasks=[
     missionQuery?safe(missionQuery):Promise.resolve([]),
     safe(sb.from('gx_events').select('id,title,event_type,starts_at,ends_at,status,audience').in('status',['published','in_progress','scheduled','upcoming']).gte('starts_at',from).lte('starts_at',to)),
