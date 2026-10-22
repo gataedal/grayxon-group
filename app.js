@@ -8211,6 +8211,20 @@ function gxEventsEsc(value){return esc(String(value??''));}
 let gxEventsThreadRecorder=null;
 let gxEventsThreadAudioChunks=[];
 let gxEventsThreadAudioFile=null;
+// Eventos: abrir las imágenes adjuntas en el visor interno de Comunicados, sin salir del portal.
+if(!window.__gxEventThreadImagePreviewBound){
+  window.__gxEventThreadImagePreviewBound=true;
+  document.addEventListener('click',function(e){
+    const image=e.target?.closest?.('#events .gxev-thread-attachments a img');
+    if(!image)return;
+    const link=image.closest('a');
+    if(!link)return;
+    e.preventDefault();
+    e.stopPropagation();
+    gxOpenAnnouncementPreview(link.href,'image',image.alt||'Imagen del evento');
+  },true);
+}
+
 function gxEventsRenderThreadAttachments(items){
   if(!Array.isArray(items)||!items.length)return '';
   return '<div class="gxev-thread-attachments" style="display:grid;gap:10px;margin:10px 0">'+items.map(item=>{
