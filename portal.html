@@ -1584,3 +1584,67 @@ html body #events .gxev-event-podium .gxev-podium-actions {
   else start();
 })();
 </script>
+
+<!-- Ajuste visual acotado: intro redundante de Comunicados y posición de pestañas -->
+<style id="gx-event-communications-intro-cleanup">
+@media (max-width: 700px) {
+  #events .gxev-event-tabs-raised { margin-top: -18px !important; }
+}
+</style>
+<script id="gx-event-communications-intro-cleanup-script">
+(function () {
+  'use strict';
+  if (window.__gxEventCommunicationsIntroCleanup) return;
+  window.__gxEventCommunicationsIntroCleanup = true;
+  function norm(el) { return String(el && el.textContent || '').replace(/\s+/g, ' ').trim(); }
+
+  function apply() {
+    var root = document.getElementById('events');
+    if (!root) return;
+
+    // Remove only the redundant explanatory card, never the actual posts/feed.
+    Array.from(root.querySelectorAll('h1,h2,h3,h4')).forEach(function (heading) {
+      if (!/^Comunicados del evento$/i.test(norm(heading))) return;
+      var card = heading.closest('.gxev-panel, article, section');
+      if (!card) return;
+      var text = norm(card);
+      var isIntro = /Solo lectura/.test(text) &&
+        /reacciones habilitadas/i.test(text) &&
+        /Aquí aparecen las publicaciones oficiales del evento/i.test(text) &&
+        /Los managers pueden enviar texto, archivos o notas de voz para revisión/i.test(text);
+      if (isIntro) card.remove();
+    });
+
+    // Raise the tab bar on mobile by removing excessive top spacing from its own container.
+    if (window.matchMedia('(max-width: 700px)').matches) {
+      var buttons = Array.from(root.querySelectorAll('button,[role="tab"]'));
+      var mission = buttons.find(function (b) { return /^Misiones$/i.test(norm(b)); });
+      var notices = buttons.find(function (b) { return /^Comunicados$/i.test(norm(b)); });
+      if (mission && notices) {
+        var holder = mission.parentElement;
+        while (holder && holder !== root && !holder.contains(notices)) holder = holder.parentElement;
+        if (holder && holder !== root) {
+          holder.classList.add('gxev-event-tabs-raised');
+          holder.style.setProperty('position', 'relative', 'important');
+          holder.style.setProperty('top', '-18px', 'important');
+          holder.style.setProperty('margin-bottom', '-18px', 'important');
+        }
+      }
+    }
+  }
+
+  var queued = false;
+  function schedule() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; apply(); });
+  }
+  function start() {
+    apply();
+    if (document.body) new MutationObserver(schedule).observe(document.body, {childList:true, subtree:true});
+    window.addEventListener('resize', schedule, {passive:true});
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true});
+  else start();
+})();
+</script>
