@@ -1511,3 +1511,86 @@ html body #events .gxev-event-podium .gxev-podium-actions {
   else start();
 })();
 </script>
+
+<!-- Grayxon: corrección específica del CTA y panel de resumen móvil -->
+<style id="gx-event-summary-mobile-panel-fix">
+@media (max-width: 700px) {
+  #gxevWorkspace .gxev-panel.gxev-mobile-summary-hidden { display: none !important; }
+}
+</style>
+<script id="gx-event-summary-mobile-panel-fix-script">
+(function () {
+  'use strict';
+  if (window.__gxEventSummaryMobilePanelFixInstalled) return;
+  window.__gxEventSummaryMobilePanelFixInstalled = true;
+  function clean(s) { return String(s || '').replace(/\\s+/g, ' ').trim(); }
+  function isMobile() { return window.matchMedia('(max-width: 700px)').matches; }
+
+  function apply() {
+    var events = document.getElementById('events');
+    if (!events) return;
+
+    // Rename the exact event-card CTA while preserving its click handler and arrow.
+    Array.from(events.querySelectorAll('button,a,[role="button"]')).forEach(function (button) {
+      var label = clean(button.textContent);
+      if (/^Ver resumen del evento\\s*[↗→]?$/i.test(label)) {
+        button.textContent = 'Ver info ↗';
+      }
+    });
+
+    // On phones, hide only the overview/rules panel shown beneath the event tabs.
+    // This does not affect the event card or the admin tracking modal.
+    var workspace = document.getElementById('gxevWorkspace') || document.getElementById('gxevPageBody');
+    if (workspace) {
+      Array.from(workspace.querySelectorAll('.gxev-panel')).forEach(function (panel) {
+        var heading = panel.querySelector('.gxev-panel-head h3, .gxev-panel-head h2, h3, h2');
+        var isSummary = heading && /^Resumen del evento$/i.test(clean(heading.textContent));
+        if (isSummary) panel.classList.toggle('gxev-mobile-summary-hidden', isMobile());
+      });
+    }
+
+    // Keep the TikTok LIVE pill on the left and the info CTA at the right edge
+    // in the event card's hero row, with equal internal edge spacing.
+    Array.from(events.querySelectorAll('.gxev-card, article')).forEach(function (card) {
+      var live = Array.from(card.querySelectorAll('.gxev-pill')).find(function (el) {
+        return /^🎥?\\s*TikTok LIVE$/i.test(clean(el.textContent));
+      });
+      var info = Array.from(card.querySelectorAll('button,a,[role="button"]')).find(function (el) {
+        return /^Ver info\\s*[↗→]?$/i.test(clean(el.textContent));
+      });
+      if (!live || !info) return;
+      var row = live.parentElement;
+      if (!row || !row.contains(info)) {
+        var parent = info.parentElement;
+        while (parent && parent !== card && !parent.contains(live)) parent = parent.parentElement;
+        if (parent && parent.contains(live)) row = parent;
+      }
+      if (!row || !row.contains(live) || !row.contains(info)) return;
+      row.style.setProperty('display', 'flex', 'important');
+      row.style.setProperty('align-items', 'center', 'important');
+      row.style.setProperty('justify-content', 'space-between', 'important');
+      row.style.setProperty('width', '100%', 'important');
+      row.style.setProperty('box-sizing', 'border-box', 'important');
+      row.style.setProperty('gap', '12px', 'important');
+      live.style.setProperty('margin-right', 'auto', 'important');
+      info.style.setProperty('margin-left', 'auto', 'important');
+      info.style.setProperty('flex-shrink', '0', 'important');
+      Array.from(live.classList).forEach(function (cls) { info.classList.add(cls); });
+    });
+  }
+
+  var queued = false;
+  function schedule() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; apply(); });
+  }
+  function start() {
+    apply();
+    if (document.body) new MutationObserver(schedule).observe(document.body, {childList:true, subtree:true});
+    window.addEventListener('resize', schedule, {passive:true});
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true});
+  else start();
+})();
+</script>
