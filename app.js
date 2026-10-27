@@ -8175,6 +8175,8 @@ function gxEnsureEventsBaseStyles(){
   .gxev-summary-dialog{position:relative;display:flex;flex-direction:column;width:min(920px,100%);max-height:min(88dvh,900px);overflow:hidden;background:#0b111c;border:1px solid #344256;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
   .gxev-summary-dialog-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid #283447;background:#101a29}
   .gxev-summary-dialog-head h2{margin:0;font-size:17px;color:#f3f6fb}
+  .gxev-summary-close{width:36px;height:36px;min-width:36px;display:grid;place-items:center;padding:0;border:1px solid #34485c;border-radius:10px;background:linear-gradient(145deg,#172536,#0b111c);color:#dffaff;font-size:25px;line-height:1;box-shadow:inset 0 0 0 1px rgba(37,244,238,.08)}
+  .gxev-summary-close:hover{border-color:#25f4ee;color:#fff;background:#13242d}
   .gxev-summary-dialog-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px;-webkit-overflow-scrolling:touch}
   .gxev-summary-dialog-body>.gxev-panel{margin:0}
   .gxev-summary-dialog-body .gxev-panel{max-width:100%;box-sizing:border-box}
