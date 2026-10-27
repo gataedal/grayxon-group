@@ -1656,68 +1656,54 @@ html body #events .gxev-event-podium .gxev-podium-actions {
 <script id="gx-event-detail-header-cleanup-script">
 (function () {
   'use strict';
-  if (window.__gxEventDetailHeaderCleanupInstalled) return;
-  window.__gxEventDetailHeaderCleanupInstalled = true;
+  if (window.__gxEventDetailHeaderCleanupV2Installed) return;
+  window.__gxEventDetailHeaderCleanupV2Installed = true;
 
-  function text(el) {
-    return String(el && el.textContent || '').replace(/\\s+/g, ' ').trim();
+  function norm(el) {
+    return String(el && el.textContent || '').replace(/\s+/g, ' ').trim();
   }
-  function visible(el) {
-    return !!(el && el.getClientRects && el.getClientRects().length);
+  function containsCard(el) {
+    return !!(el && el.querySelector && (
+      el.querySelector('img') ||
+      el.querySelector('button') ||
+      el.querySelector('[class*="gxev-card"],[class*="event-card"],[class*="event-hero"]')
+    ));
   }
-  function hasEventCard(el) {
-    return !!(el && el.querySelector && el.querySelector('.gxev-card, .gxev-event-card, .gxev-event-hero, .gxev-event-cover'));
-  }
-  function hideHeadingBlock(root, headingText, subtitleText) {
-    var headings = Array.from(root.querySelectorAll('h1,h2,h3,h4')).filter(function (el) {
-      return text(el) === headingText;
-    });
-    headings.forEach(function (heading) {
-      var block = heading;
-      var candidate = heading.parentElement;
-      while (candidate && candidate !== root) {
-        var content = text(candidate);
-        if (hasEventCard(candidate)) break;
-        if (content.indexOf(headingText) >= 0 &&
-            (!subtitleText || content.indexOf(subtitleText) >= 0) &&
-            content.length < 260) {
-          block = candidate;
-          // Choose the outermost compact wrapper that still contains only this intro.
-          candidate = candidate.parentElement;
-          continue;
-        }
-        break;
-      }
-      if (block && block !== root && !hasEventCard(block)) {
-        block.classList.add('gx-event-detail-intro-hidden');
-      }
-    });
-  }
-  function hideStandaloneStatus(root) {
-    Array.from(root.querySelectorAll('span,div,p,strong')).forEach(function (el) {
-      if (!visible(el) || text(el) !== 'Publicado') return;
-      if (el.closest('.gxev-card, .gxev-event-card, .gxev-event-hero, .gxev-event-cover')) return;
-      var block = el;
-      var parent = el.parentElement;
-      while (parent && parent !== root && !hasEventCard(parent) &&
-             text(parent).length < 100 && /Publicado/.test(text(parent))) {
-        block = parent;
-        parent = parent.parentElement;
-      }
-      if (block && block !== root) block.classList.add('gx-event-detail-intro-hidden');
-    });
+  function hideIntro(heading, requiredText) {
+    var node = heading;
+    var parent = heading.parentElement;
+    while (parent && parent !== document.body) {
+      var content = norm(parent);
+      if (containsCard(parent) || content.length > 260) break;
+      if (content.indexOf(requiredText) !== -1) node = parent;
+      else if (node !== heading) break;
+      parent = parent.parentElement;
+    }
+    if (node && node !== document.body) node.classList.add('gx-event-detail-intro-hidden');
   }
   function apply() {
-    var root = document.getElementById('events');
-    if (!root) return;
-    // Hide only the generic Events heading and the separate per-event title/subtitle
-    // shown above the actual event card; leave the card and all tabs/content intact.
-    var eventCard = root.querySelector('.gxev-card, .gxev-event-card, .gxev-event-hero, .gxev-event-cover');
-    if (!eventCard) return;
-    hideHeadingBlock(root, 'Eventos Grayxon', 'Tu centro de eventos');
-    hideHeadingBlock(root, 'GRAYLLOWEEN👻', 'Panel individual del evento');
-    hideHeadingBlock(root, 'GRAYLLOWEEN 👻', 'Panel individual del evento');
-    hideStandaloneStatus(root);
+    // Search the rendered document rather than relying on a guessed event-card class.
+    Array.from(document.querySelectorAll('h1,h2,h3,h4')).forEach(function (heading) {
+      var value = norm(heading);
+      if (value === 'Eventos Grayxon') {
+        hideIntro(heading, 'Tu centro de eventos, misiones y clasificación compartida.');
+      } else if (/^🎃?\s*GRAYLLOWEEN\s*👻?$/i.test(value)) {
+        hideIntro(heading, 'Panel individual del evento');
+      }
+    });
+
+    // Remove only the standalone status badge above the event card, not status inside it.
+    Array.from(document.querySelectorAll('span,div,p,strong')).forEach(function (el) {
+      if (norm(el) !== 'Publicado' || !el.getClientRects().length) return;
+      var parent = el.parentElement;
+      if (!parent || containsCard(parent)) return;
+      var text = norm(parent);
+      if (text.length <= 30 && /Publicado/.test(text)) {
+        parent.classList.add('gx-event-detail-intro-hidden');
+      } else {
+        el.classList.add('gx-event-detail-intro-hidden');
+      }
+    });
   }
   var queued = false;
   function schedule() {
