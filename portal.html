@@ -1813,3 +1813,131 @@ html body #events .gxev-event-podium .gxev-podium-actions {
   }
 }
 </style>
+
+<!-- Grayxon Events: jerarquía y composición responsive. No modifica navegación global ni lógica. -->
+<style id="gx-events-layout-polish-v2">
+/* Ámbito estricto: solo el módulo Eventos. */
+#events {
+  --gxev-bg:#090b11;
+  --gxev-surface:#111620;
+  --gxev-surface-raised:#171c28;
+  --gxev-border:#30394a;
+  --gxev-cyan:#25f4ee;
+  --gxev-pink:#ff36b7;
+  --gxev-gold:#f5c85b;
+  color:#f4f6fb;
+}
+#events .gxev-card {
+  overflow:hidden !important;
+  border-radius:22px !important;
+  border:1px solid #344052 !important;
+  background:linear-gradient(145deg,#111b29 0%,#0b1019 65%,#17101d 100%) !important;
+  box-shadow:0 14px 36px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+#events .gxev-card img {
+  display:block;
+  max-width:100%;
+}
+#events .gxev-card button,
+#events .gxev-card a[role="button"] {
+  border-radius:14px !important;
+}
+#events .gxev-panel {
+  min-width:0 !important;
+  box-sizing:border-box !important;
+}
+#events .gxev-event-podium {
+  margin-top:18px !important;
+  overflow:hidden !important;
+  background:
+    radial-gradient(ellipse at 90% 0%,rgba(245,200,91,.10),transparent 45%),
+    linear-gradient(145deg,#171923 0%,#0c1018 100%) !important;
+  border-color:rgba(245,200,91,.34) !important;
+}
+#events .gxev-event-podium .gxev-podium-heading {
+  font-size:clamp(16px,2vw,21px) !important;
+  line-height:1.25 !important;
+}
+#events .gxev-event-podium .gxev-podium-actions a,
+#events .gxev-event-podium .gxev-podium-actions button {
+  min-height:40px !important;
+  padding:9px 16px !important;
+  white-space:nowrap !important;
+}
+#events .gxev-event-podium .gxev-event-top-three {
+  align-items:stretch !important;
+  gap:clamp(8px,1.4vw,16px) !important;
+  margin-top:14px !important;
+}
+#events .gxev-event-podium .gxev-event-top-three > * {
+  min-width:0 !important;
+  box-sizing:border-box !important;
+  background:linear-gradient(160deg,#171d29,#0c1119) !important;
+  border-color:#384255 !important;
+}
+#events .gxev-event-podium .gxev-event-top-three > *:first-child,
+#events .gxev-event-podium .gxev-event-top-three > *:last-child {
+  border-color:#526176 !important;
+}
+#events .gxev-event-podium .gxev-event-top-three > *:nth-child(2) {
+  border-color:rgba(245,200,91,.8) !important;
+  background:linear-gradient(160deg,rgba(245,200,91,.12),#11141d 60%) !important;
+  box-shadow:0 0 22px rgba(245,200,91,.07),inset 0 1px 0 rgba(255,255,255,.04) !important;
+}
+#events .gxev-pill {
+  font-weight:750 !important;
+  letter-spacing:.01em !important;
+}
+#events button:focus-visible,
+#events a:focus-visible {
+  outline:2px solid var(--gxev-cyan) !important;
+  outline-offset:3px !important;
+}
+@media (min-width:900px) {
+  #events .gxev-card {
+    border-radius:24px !important;
+  }
+  #events .gxev-event-podium {
+    padding:clamp(20px,2vw,30px) !important;
+  }
+}
+@media (max-width:650px) {
+  #events .gxev-card {
+    border-radius:18px !important;
+  }
+  #events .gxev-card img {
+    max-height:none;
+  }
+  #events .gxev-event-podium {
+    padding:14px !important;
+    margin-top:14px !important;
+    border-radius:18px !important;
+  }
+  #events .gxev-event-podium .gxev-rank-feature-head {
+    grid-template-columns:minmax(0,1fr) auto !important;
+    align-items:center !important;
+    gap:8px !important;
+  }
+  #events .gxev-event-podium .gxev-podium-actions a,
+  #events .gxev-event-podium .gxev-podium-actions button {
+    min-height:36px !important;
+    padding:7px 11px !important;
+    font-size:12px !important;
+  }
+  #events .gxev-event-podium .gxev-event-top-three {
+    gap:7px !important;
+  }
+  #events .gxev-event-podium .gxev-event-top-three > * {
+    border-radius:14px !important;
+    padding:10px 7px !important;
+  }
+  #events .gxev-event-podium .gxev-event-top-three img {
+    max-width:100% !important;
+    height:auto;
+    object-fit:cover;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  #events * { scroll-behavior:auto !important; transition:none !important; }
+}
+</style>
