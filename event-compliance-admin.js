@@ -87,22 +87,27 @@
     var eventId = selectedEventId();
     if (!eventId) throw new Error('Selecciona primero un evento.');
     var eventData = (typeof gxEventsDashboardData !== 'undefined' && gxEventsDashboardData) || {};
-    var matches = eventData.matches || [];
-    var participants = eventData.participants || [];
-    var phases = eventData.phases || [];
-    var rounds = eventData.rounds || [];
-    var missionResult = await sb.from('gx_event_missions').select('id,event_id,title,description,metric_key,unit_label,target_value,is_active,phase_id,sort_order').eq('event_id',eventId).order('sort_order');
-    if (missionResult.error) throw missionResult.error;
-    var progressResult = await sb.from('gx_event_mission_progress').select('id,event_id,mission_id,user_id,value,status,note,admin_note,evidence_url,reviewed_at,created_at,updated_at').eq('event_id',eventId);
-    if (progressResult.error) throw progressResult.error;
-    var matchIds = matches.map(function(m){return m.id;});
-    var attendance = [];
-    if (matchIds.length) {
-      var attendanceResult = await sb.from('gx_event_match_attendance').select('id,event_id,match_id,participant_id,user_id,status,note,recorded_by,updated_at').eq('event_id',eventId);
-      if (attendanceResult.error) throw attendanceResult.error;
-      attendance = attendanceResult.data || [];
-    }
-    var userIds = Array.from(new Set(participants.map(function(p){return p.user_id;}).concat(progressResult.data.map(function(p){return p.user_id;}))));
+
+    // Read fresh, complete event records instead of relying on possibly stale dashboard state.
+    var results = await Promise.all([
+      sb.from('gx_event_matches').select('id,event_id,round_id,participant_a_id,participant_b_id,winner_participant_id,status,score_a,score_b,result_note,scheduled_at,created_at').eq('event_id',eventId).order('created_at'),
+      sb.from('gx_event_participants').select('id,event_id,user_id,status,tiktok_username,team_id,registered_at').eq('event_id',eventId).order('registered_at'),
+      sb.from('gx_event_phases').select('id,event_id,phase_number,title,starts_at,ends_at').eq('event_id',eventId).order('phase_number'),
+      sb.from('gx_event_rounds').select('id,event_id,round_number,title,status,phase_id').eq('event_id',eventId).order('round_number'),
+      sb.from('gx_event_missions').select('id,event_id,title,description,metric_key,unit_label,target_value,is_active,phase_id,sort_order').eq('event_id',eventId).order('sort_order'),
+      sb.from('gx_event_mission_progress').select('id,event_id,mission_id,user_id,value,status,note,admin_note,evidence_url,reviewed_at,created_at,updated_at').eq('event_id',eventId)
+    ]);
+    results.forEach(function(r){ if (r.error) throw r.error; });
+    var matches = results[0].data || [];
+    var participants = results[1].data || [];
+    var phases = results[2].data || [];
+    var rounds = results[3].data || [];
+    var missions = results[4].data || [];
+    var progress = results[5].data || [];
+
+    var attendanceResult = await sb.from('gx_event_match_attendance').select('id,event_id,match_id,participant_id,user_id,status,note,recorded_by,updated_at').eq('event_id',eventId);
+    if (attendanceResult.error) throw attendanceResult.error;
+    var userIds = Array.from(new Set(participants.map(function(p){return p.user_id;}).concat(progress.map(function(p){return p.user_id;}))));
     var profiles = [];
     if (userIds.length) {
       var profileResult = await sb.from('profiles').select('id,username,full_name,tiktok_username,role,active').in('id',userIds);
@@ -114,8 +119,8 @@
     currentUserId = authResult.data && authResult.data.user ? authResult.data.user.id : null;
     snapshot = {
       eventId:eventId, event:eventData.event || {}, matches:matches, participants:participants,
-      phases:phases, rounds:rounds, missions:missionResult.data || [],
-      progress:progressResult.data || [], attendance:attendance, profiles:profiles
+      phases:phases, rounds:rounds, missions:missions, progress:progress,
+      attendance:attendanceResult.data || [], profiles:profiles
     };
   }
   function renderBattles(term) {
@@ -152,7 +157,7 @@
     if (users.length > 1) return '<div class="gxec-empty">Escribe el usuario que quieres consultar. Coincidencias: '+users.length+'.</div>';
     var participant = users[0];
     var userId = participant.user_id;
-    var missions = (snapshot.missions || []).filter(function(m){return m.is_active !== false;});
+    var missions = snapshot.missions || [];
     var missionRows = missions.filter(function(m) {
       if (!m.phase_id) return true;
       var phase = (snapshot.phases || []).find(function(p){return p.id===m.phase_id;});
