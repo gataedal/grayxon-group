@@ -1521,61 +1521,51 @@ html body #events .gxev-event-podium .gxev-podium-actions {
 <script id="gx-event-summary-mobile-panel-fix-script">
 (function () {
   'use strict';
-  if (window.__gxEventSummaryMobilePanelFixInstalled) return;
-  window.__gxEventSummaryMobilePanelFixInstalled = true;
-  function clean(s) { return String(s || '').replace(/\\s+/g, ' ').trim(); }
-  function isMobile() { return window.matchMedia('(max-width: 700px)').matches; }
+  if (window.__gxEventSummaryMobilePanelFixV2Installed) return;
+  window.__gxEventSummaryMobilePanelFixV2Installed = true;
+  function clean(s) { return String(s || '').replace(/\s+/g, ' ').trim(); }
+  function mobile() { return window.matchMedia('(max-width: 700px)').matches; }
 
   function apply() {
-    var events = document.getElementById('events');
-    if (!events) return;
+    var root = document.getElementById('events');
+    if (!root) return;
 
-    // Rename the exact event-card CTA while preserving its click handler and arrow.
-    Array.from(events.querySelectorAll('button,a,[role="button"]')).forEach(function (button) {
-      var label = clean(button.textContent);
-      if (/^Ver resumen del evento\\s*[↗→]?$/i.test(label)) {
-        button.textContent = 'Ver info ↗';
-      }
-    });
+    // Find the actual event card CTA, preserve its attributes/listeners, and rename it.
+    Array.from(root.querySelectorAll('button,a,[role="button"]')).forEach(function (button) {
+      if (!/^Ver resumen del evento(?:\s*[↗→])?$/i.test(clean(button.textContent))) return;
+      button.textContent = 'Ver info ↗';
 
-    // On phones, hide only the overview/rules panel shown beneath the event tabs.
-    // This does not affect the event card or the admin tracking modal.
-    var workspace = document.getElementById('gxevWorkspace') || document.getElementById('gxevPageBody');
-    if (workspace) {
-      Array.from(workspace.querySelectorAll('.gxev-panel')).forEach(function (panel) {
-        var heading = panel.querySelector('.gxev-panel-head h3, .gxev-panel-head h2, h3, h2');
-        var isSummary = heading && /^Resumen del evento$/i.test(clean(heading.textContent));
-        if (isSummary) panel.classList.toggle('gxev-mobile-summary-hidden', isMobile());
-      });
-    }
-
-    // Keep the TikTok LIVE pill on the left and the info CTA at the right edge
-    // in the event card's hero row, with equal internal edge spacing.
-    Array.from(events.querySelectorAll('.gxev-card, article')).forEach(function (card) {
+      var card = button.closest('.gxev-card, article') || button.parentElement;
+      while (card && card !== root && !card.querySelector('.gxev-pill')) card = card.parentElement;
+      if (!card || card === root) return;
       var live = Array.from(card.querySelectorAll('.gxev-pill')).find(function (el) {
-        return /^🎥?\\s*TikTok LIVE$/i.test(clean(el.textContent));
+        return /TikTok LIVE/i.test(clean(el.textContent));
       });
-      var info = Array.from(card.querySelectorAll('button,a,[role="button"]')).find(function (el) {
-        return /^Ver info\\s*[↗→]?$/i.test(clean(el.textContent));
-      });
-      if (!live || !info) return;
+      if (!live) return;
+
+      // Move the same button into the LIVE pill row so the two controls sit at opposite edges.
       var row = live.parentElement;
-      if (!row || !row.contains(info)) {
-        var parent = info.parentElement;
-        while (parent && parent !== card && !parent.contains(live)) parent = parent.parentElement;
-        if (parent && parent.contains(live)) row = parent;
-      }
-      if (!row || !row.contains(live) || !row.contains(info)) return;
+      if (!row) return;
+      if (button.parentElement !== row) row.appendChild(button);
       row.style.setProperty('display', 'flex', 'important');
       row.style.setProperty('align-items', 'center', 'important');
       row.style.setProperty('justify-content', 'space-between', 'important');
+      row.style.setProperty('gap', '12px', 'important');
       row.style.setProperty('width', '100%', 'important');
       row.style.setProperty('box-sizing', 'border-box', 'important');
-      row.style.setProperty('gap', '12px', 'important');
+      row.style.setProperty('flex-wrap', 'nowrap', 'important');
       live.style.setProperty('margin-right', 'auto', 'important');
-      info.style.setProperty('margin-left', 'auto', 'important');
-      info.style.setProperty('flex-shrink', '0', 'important');
-      Array.from(live.classList).forEach(function (cls) { info.classList.add(cls); });
+      button.style.setProperty('margin-left', 'auto', 'important');
+      button.style.setProperty('flex-shrink', '0', 'important');
+      Array.from(live.classList).forEach(function (cls) { button.classList.add(cls); });
+    });
+
+    // The unwanted mobile panel is the full panel with the exact "Resumen del evento" heading.
+    Array.from(root.querySelectorAll('h1,h2,h3,h4')).forEach(function (heading) {
+      if (!/^Resumen del evento$/i.test(clean(heading.textContent))) return;
+      var panel = heading.closest('.gxev-panel');
+      if (!panel) return;
+      panel.classList.toggle('gxev-mobile-summary-hidden', mobile());
     });
   }
 
