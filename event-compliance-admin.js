@@ -416,6 +416,7 @@
   },true);
   function injectButton() {
     if (!adminAllowed() || !selectedEventId()) return;
+    var workspace = document.querySelector('#gxevWorkspace');
     var existing = document.querySelector('[data-gxmt-open]');
     var candidates = Array.from(document.querySelectorAll('h1,h2,h3,h4,summary,button,[role="heading"],.gxev-panel-head'));
     var heading = candidates.find(function(el) {
