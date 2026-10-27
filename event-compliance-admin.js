@@ -10,6 +10,7 @@
   var busy = false;
   var currentUserId = null;
   var historySelectedUserId = null;
+  var activePhaseId = null;
 
   function esc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
@@ -130,6 +131,10 @@
     var matches = (snapshot.matches || []).filter(function(m) {
       if (m.winner_participant_id || m.status === 'cancelled' || m.status === 'bye') return false;
       if (!m.scheduled_at || new Date(m.scheduled_at).getTime() > now) return false;
+      if (activePhaseId) {
+        var phaseRound = (snapshot.rounds || []).find(function(r){return r.id===m.round_id;});
+        if (!phaseRound || phaseRound.phase_id !== activePhaseId) return false;
+      }
       if (term && !matchParticipants(m).some(function(p){ return userMatches(p.user_id,term); })) return false;
       return true;
     }).sort(function(a,b) {
@@ -196,8 +201,7 @@
     if (!modal || !snapshot) return;
     var body = modal.querySelector('[data-gxec-body]');
     var term = modal.querySelector('[data-gxec-search]').value || '';
-    if (activeTab !== 'history') historySelectedUserId = null;
-    body.innerHTML = activeTab === 'battles' ? renderBattles(term) : renderHistory(term);
+    body.innerHTML = renderBattles(term);
     modal.querySelectorAll('[data-gxec-tab]').forEach(function(b){
       b.classList.toggle('active',b.getAttribute('data-gxec-tab')===activeTab);
     });
@@ -206,16 +210,17 @@
     var modal = document.getElementById(MODAL_ID);
     if (modal) modal.remove();
   }
-  async function openModal(tab) {
+  async function openModal(tab, phaseId) {
     if (!adminAllowed()) return;
     if (!selectedEventId()) return toast('Selecciona primero un evento.');
     ensureStyles();
-    activeTab = tab || 'battles';
+    activeTab = 'battles';
+    activePhaseId = phaseId || null;
     closeModal();
     var backdrop = document.createElement('div');
     backdrop.id = MODAL_ID;
     backdrop.className = 'gxec-backdrop';
-    backdrop.innerHTML = '<section class="gxec-modal" role="dialog" aria-modal="true" aria-labelledby="gxec-title"><div class="gxec-head"><div><h2 id="gxec-title">Control interno de cumplimiento</h2><p class="gxec-sub">Solo administración · No visible para creadores. La asistencia se registra por participante y nunca se infiere automáticamente.</p></div><button class="gxec-close" data-gxec-close aria-label="Cerrar">✕</button></div><div class="gxec-tabs"><button class="gxec-tab" data-gxec-tab="battles">Batallas y asistencia</button><button class="gxec-tab" data-gxec-tab="history">Historial por creador</button></div><input class="gxec-search" data-gxec-search type="search" placeholder="Buscar creador por usuario de TikTok…"><div data-gxec-body><div class="gxec-empty">Cargando registros del evento…</div></div></section>';
+    backdrop.innerHTML = '<section class="gxec-modal" role="dialog" aria-modal="true" aria-labelledby="gxec-title"><div class="gxec-head"><div><h2 id="gxec-title">Control interno de cumplimiento</h2><p class="gxec-sub">Revisión de la semana seleccionada · Las batallas canceladas y las que aún no han ocurrido no generan pendientes.</p></div><button class="gxec-close" data-gxec-close aria-label="Cerrar">✕</button></div><div class="gxec-tabs"><span class="gxec-tab active">⚔️ Batallas por revisar</span><span class="gxec-tab" data-gxec-phase-label>Todas las semanas</span></div><input class="gxec-search" data-gxec-search type="search" placeholder="Buscar creador por usuario de TikTok…"><div data-gxec-body><div class="gxec-empty">Cargando registros del evento…</div></div></section>';
     document.body.appendChild(backdrop);
     backdrop.querySelector('[data-gxec-close]').addEventListener('click',closeModal);
     backdrop.addEventListener('click',function(e){if(e.target===backdrop)closeModal();});
@@ -223,6 +228,9 @@
     backdrop.querySelectorAll('[data-gxec-tab]').forEach(function(b){b.addEventListener('click',function(){activeTab=b.getAttribute('data-gxec-tab');render();});});
     try {
       await loadSnapshot();
+      var phaseName = activePhaseId && (snapshot.phases || []).find(function(p){return p.id===activePhaseId;});
+      var phaseChip = backdrop.querySelector('[data-gxec-phase-label]');
+      if (phaseChip) phaseChip.textContent = phaseName ? phaseName.title : 'Todas las semanas';
       render();
     } catch (e) {
       console.error('[Grayxon cumplimiento] No se pudo cargar el control',e);
@@ -262,46 +270,51 @@
     } finally { busy=false; }
   }
   document.addEventListener('click',function(e){
-    var open = e.target && e.target.closest ? e.target.closest('[data-gxec-open]') : null;
-    if (open) { e.preventDefault(); openModal('battles'); return; }
-    var historyUser = e.target && e.target.closest ? e.target.closest('[data-history-user]') : null;
-    if (historyUser) { historySelectedUserId=historyUser.getAttribute('data-history-user'); render(); return; }
-    var historyBack = e.target && e.target.closest ? e.target.closest('[data-history-back]') : null;
-    if (historyBack) { historySelectedUserId=null; render(); return; }
-    var tab = e.target && e.target.closest ? e.target.closest('[data-gxec-tab]') : null;
-    if (tab) { activeTab=tab.getAttribute('data-gxec-tab'); render(); return; }
-    var save = e.target && e.target.closest ? e.target.closest('[data-save-match]') : null;
+    var open = e.target && e.target.closest ? e.target.closest('[data-gxec-open-battles]') : null;
+    if (open) { e.preventDefault(); openModal('battles',open.getAttribute('data-gxec-open-battles') || null); return; }
+        var save = e.target && e.target.closest ? e.target.closest('[data-save-match]') : null;
     if (save) { e.preventDefault(); saveMatch(save.getAttribute('data-save-match')); }
   },true);
   function injectButton() {
     if (!adminAllowed() || !selectedEventId()) return;
     var workspace = document.querySelector('#gxevWorkspace');
     if (!workspace) return;
-    var battleHead = Array.from(workspace.querySelectorAll('.gxev-panel-head')).find(function(h) {
-      return h.textContent.includes('Misiones y batallas por fase');
+    var phases = (typeof gxEventsDashboardData !== 'undefined' && gxEventsDashboardData && gxEventsDashboardData.phases) || (snapshot && snapshot.phases) || [];
+    phases.forEach(function(phase) {
+      var phaseName = String(phase.title || '').trim();
+      if (!phase.id || !phaseName) return;
+      var headings = Array.from(workspace.querySelectorAll('*')).filter(function(el) {
+        return el.children.length === 0 && String(el.textContent || '').trim() === phaseName;
+      });
+      headings.forEach(function(heading) {
+        var host = heading.parentElement;
+        if (!host || host.querySelector('[data-gxec-open-battles="'+phase.id+'"]')) return;
+        var button = document.createElement('button');
+        button.type = 'button'; button.className = 'gxev-btn';
+        button.setAttribute('data-gxec-open-battles', phase.id);
+        button.textContent = '✓ Revisar cumplimiento';
+        button.style.cssText = 'margin:6px 0 8px 8px;padding:7px 10px;font-size:12px;vertical-align:middle';
+        button.addEventListener('click', function(){ openModal('battles', phase.id); });
+        heading.insertAdjacentElement('afterend', button);
+      });
     });
-    if (battleHead && !battleHead.querySelector('[data-gxec-open-battles]')) {
-      var battleBtn = document.createElement('button');
-      battleBtn.type='button'; battleBtn.className='gxev-btn'; battleBtn.setAttribute('data-gxec-open-battles','1');
-      battleBtn.textContent='Revisar batallas pendientes'; battleBtn.style.marginLeft='8px'; battleBtn.style.flexShrink='0';
-      battleBtn.addEventListener('click',function(){openModal('battles');});
-      battleHead.appendChild(battleBtn); battleHead.style.flexWrap='wrap';
-    }
-    var candidates = Array.from(workspace.querySelectorAll('*')).filter(function(el) {
-      return el.children.length < 4 && /Revisión de avances/i.test(el.textContent || '');
+    Array.from(workspace.querySelectorAll('details')).forEach(function(outer) {
+      var summary = outer.querySelector(':scope > summary');
+      if (!summary || !/Ver batallas de esta misión/i.test(summary.textContent || '')) return;
+      var nested = Array.from(outer.querySelectorAll('details')).find(function(inner) {
+        var innerSummary = inner.querySelector(':scope > summary');
+        return innerSummary && /Batallas de esta fase/i.test(innerSummary.textContent || '');
+      });
+      if (!nested || nested.dataset.gxSingleOpen === '1') return;
+      nested.dataset.gxSingleOpen = '1';
+      nested.open = outer.open;
+      var innerSummary = nested.querySelector(':scope > summary');
+      if (innerSummary) innerSummary.style.display = 'none';
+      outer.addEventListener('toggle', function(){ nested.open = outer.open; });
     });
-    var reviewTitle = candidates.sort(function(a,b){return a.textContent.length-b.textContent.length;})[0];
-    var reviewPanel = reviewTitle && (reviewTitle.closest('.gxev-panel') || reviewTitle.closest('.gxev-card') || reviewTitle.parentElement);
-    if (reviewTitle && reviewPanel && !reviewPanel.querySelector('[data-gxec-open-history]')) {
-      var historyBtn = document.createElement('button');
-      historyBtn.type='button'; historyBtn.className='gxev-btn'; historyBtn.setAttribute('data-gxec-open-history','1');
-      historyBtn.textContent='Buscar historial por creador'; historyBtn.style.margin='8px 0';
-      historyBtn.addEventListener('click',function(){openModal('history');});
-      reviewTitle.insertAdjacentElement('afterend',historyBtn);
-    }
   }
   var observer = new MutationObserver(function(){injectButton();});
-  observer.observe(document.documentElement,{childList:true,subtree:true});
+  observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['open']});
   document.addEventListener('click',function(){setTimeout(injectButton,0);},true);
   setTimeout(injectButton,300);
 })();
