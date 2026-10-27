@@ -129,8 +129,16 @@
     term = (term || '').trim().toLowerCase();
     var now = Date.now();
     var matches = (snapshot.matches || []).filter(function(m) {
-      if (m.winner_participant_id || m.status === 'cancelled' || m.status === 'bye') return false;
+      if (m.status === 'cancelled' || m.status === 'bye') return false;
       if (!m.scheduled_at || new Date(m.scheduled_at).getTime() > now) return false;
+      if (m.winner_participant_id) {
+        var matchPeople = matchParticipants(m);
+        var winnerRecord = matchPeople.find(function(p){return p.id===m.winner_participant_id;});
+        var otherPeople = matchPeople.filter(function(p){return p.id!==m.winner_participant_id;});
+        var winnerAttendance = winnerRecord && attendanceFor(m.id,winnerRecord.id);
+        var needsInference = winnerAttendance && winnerAttendance.status==='attended' && otherPeople.some(function(p){var a=attendanceFor(m.id,p.id);return !a || a.status==='pending';});
+        if (!needsInference) return false;
+      }
       if (activePhaseId) {
         var phaseRound = (snapshot.rounds || []).find(function(r){return r.id===m.round_id;});
         if (!phaseRound || phaseRound.phase_id !== activePhaseId) return false;
@@ -143,12 +151,18 @@
     if (!matches.length) return '<div class="gxec-empty">No hay batallas que coincidan con la búsqueda.</div>';
     return '<div class="gxec-list">' + matches.map(function(m) {
       var people = matchParticipants(m);
-      var resultLabel = m.status === 'completed' ? 'Sin ganador registrado' : 'Batalla pendiente de revisión';
+      var resultLabel = m.winner_participant_id ? 'Ganador registrado · revisar asistencia' : m.status === 'completed' ? 'Sin ganador registrado' : 'Batalla pendiente de revisión';
       var round = (snapshot.rounds || []).find(function(r){return r.id===m.round_id;});
       var title = people.map(function(p){return '@'+esc(labelForUser(p.user_id));}).join(' vs ');
       var personHtml = people.map(function(p) {
         var record = attendanceFor(m.id,p.id);
         var status = record ? record.status : 'pending';
+        var matchWinner = (snapshot.matches || []).find(function(x){return x.id===m.id;});
+        var matchPeople = matchParticipants(m);
+        var winnerPerson = matchPeople.find(function(x){return x.id===m.winner_participant_id;});
+        var winnerRecord = winnerPerson && attendanceFor(m.id,winnerPerson.id);
+        var inferredAbsent = !!(matchWinner && matchWinner.winner_participant_id && winnerRecord && winnerRecord.status==='attended' && p.id!==matchWinner.winner_participant_id && (!record || record.status==='pending'));
+        if (inferredAbsent) status = 'absent';
         return '<div class="gxec-person"><strong>@'+esc(labelForUser(p.user_id))+'</strong><label for="gxec-'+esc(m.id)+'-'+esc(p.id)+'">Asistencia</label><select id="gxec-'+esc(m.id)+'-'+esc(p.id)+'" data-attendance-match="'+esc(m.id)+'" data-attendance-participant="'+esc(p.id)+'" data-attendance-user="'+esc(p.user_id)+'"><option value="pending" '+(status==='pending'?'selected':'')+'>Pendiente de confirmar</option><option value="attended" '+(status==='attended'?'selected':'')+'>Asistió</option><option value="absent" '+(status==='absent'?'selected':'')+'>No asistió</option></select><input class="gxec-note" type="text" maxlength="500" data-attendance-note="'+esc(m.id)+'-'+esc(p.id)+'" value="'+esc(record && record.note || '')+'" placeholder="Nota interna (opcional)"></div>';
       }).join('');
       return '<article class="gxec-card" data-gxec-match="'+esc(m.id)+'"><div class="gxec-card-head"><div><div class="gxec-title">'+title+'</div><div class="gxec-meta">'+esc(dateLabel(m.scheduled_at))+(phaseLabel(m)?' · '+esc(phaseLabel(m)):'')+' · '+esc(round && round.title || '')+'</div></div><span class="gxec-pill '+(m.status==='completed'?'ok':'pending')+'">'+esc(resultLabel)+'</span></div><div class="gxec-people">'+personHtml+'</div><div class="gxec-card-foot"><button class="gxec-btn primary" data-save-match="'+esc(m.id)+'">Guardar asistencia</button></div></article>';
@@ -258,6 +272,14 @@
     var button = card.querySelector('[data-save-match]');
     if (button) { button.disabled=true; button.textContent='Guardando…'; }
     try {
+      var matchRow = (snapshot.matches || []).find(function(m){return m.id===matchId;});
+      if (matchRow && matchRow.winner_participant_id) {
+        var winnerPayload = payload.find(function(x){return x.participant_id===matchRow.winner_participant_id;});
+        var winnerExisting = attendanceFor(matchId,matchRow.winner_participant_id);
+        if (winnerPayload && winnerPayload.status==='attended') {
+          payload.forEach(function(x){if(x.participant_id!==matchRow.winner_participant_id && x.status==='pending')x.status='absent';});
+        }
+      }
       var result = await sb.from('gx_event_match_attendance').upsert(payload,{onConflict:'match_id,participant_id'}).select('id,event_id,match_id,participant_id,user_id,status,note,recorded_by,updated_at');
       if (result.error) throw result.error;
       snapshot.attendance = (snapshot.attendance || []).filter(function(a){return a.match_id!==matchId;}).concat(result.data || payload);
