@@ -294,7 +294,6 @@
         button.setAttribute('data-gxec-open-battles', phase.id);
         button.textContent = '✓ Revisar cumplimiento';
         button.style.cssText = 'margin:6px 0 8px 8px;padding:7px 10px;font-size:12px;vertical-align:middle';
-        button.addEventListener('click', function(){ openModal('battles', phase.id); });
         heading.insertAdjacentElement('afterend', button);
       });
     });
