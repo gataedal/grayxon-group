@@ -417,10 +417,23 @@
   function injectButton() {
     if (!adminAllowed() || !selectedEventId()) return;
     var workspace = document.querySelector('#gxevWorkspace');
-    if (!workspace) return;
-    if (!workspace.querySelector('[data-gxmt-open]')) {
-      var trackingButton=document.createElement('button');trackingButton.type='button';trackingButton.className='gxev-btn';trackingButton.setAttribute('data-gxmt-open','1');trackingButton.textContent='👤 Seguimiento por creador';trackingButton.style.cssText='margin:8px 8px 12px 0;padding:10px 14px;font-weight:800;border-color:#287f91;background:linear-gradient(135deg,#10252b,#11171c);color:#d8fbff';
-      var first=workspace.firstElementChild;if(first)workspace.insertBefore(trackingButton,first);else workspace.appendChild(trackingButton);
+    var existing = document.querySelector('[data-gxmt-open]');
+    var candidates = Array.from(document.querySelectorAll('h1,h2,h3,h4,summary,button,[role="heading"],.gxev-panel-head'));
+    var heading = candidates.find(function(el) {
+      return el.children.length < 3 && /misiones configurables/i.test(String(el.textContent || '').trim());
+    });
+    if (!heading) return;
+    var host = heading.closest('.gxev-panel, section, article, .gxev-card, [data-section]') || heading.parentElement;
+    if (!host) return;
+    if (!existing || !host.contains(existing)) {
+      if (existing) existing.remove();
+      var trackingButton = document.createElement('button');
+      trackingButton.type = 'button';
+      trackingButton.className = 'gxev-btn';
+      trackingButton.setAttribute('data-gxmt-open','1');
+      trackingButton.textContent = '👤 Seguimiento por creador';
+      trackingButton.style.cssText = 'margin:8px 8px 12px 0;padding:10px 14px;font-weight:800;border-color:#287f91;background:linear-gradient(135deg,#10252b,#11171c);color:#d8fbff';
+      heading.insertAdjacentElement('afterend', trackingButton);
     }
     var phases = (typeof gxEventsDashboardData !== 'undefined' && gxEventsDashboardData && gxEventsDashboardData.phases) || (snapshot && snapshot.phases) || [];
     phases.forEach(function(phase) {
