@@ -380,7 +380,7 @@
     busy=true;if(button){button.disabled=true;button.textContent='Guardando…';}
     try {
       var now=new Date().toISOString();
-      var payload={value:value,status:status,admin_note:note,reviewed_at:status==='approved'||status==='rejected'?now:null,updated_at:now};
+      var payload={value:value,status:status,admin_note:note,reviewed_by:status==='approved'||status==='rejected'?currentUserId:null,reviewed_at:status==='approved'||status==='rejected'?now:null,updated_at:now};
       var result;
       if(existing && existing.id) {
         result=await sb.from('gx_event_mission_progress').update(payload).eq('id',existing.id).select('id,event_id,mission_id,user_id,value,status,note,admin_note,evidence_url,reviewed_at,created_at,updated_at').single();
