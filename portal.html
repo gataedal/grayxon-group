@@ -1719,3 +1719,97 @@ html body #events .gxev-event-podium .gxev-podium-actions {
   else start();
 })();
 </script>
+
+<!-- Grayxon Events: refinamiento visual responsive. Solo estilos; no altera lógica ni navegación global. -->
+<style id="gx-events-premium-visual-v1">
+#events {
+  --gx-event-bg:#080a10;
+  --gx-event-surface:#11151f;
+  --gx-event-surface-2:#171b27;
+  --gx-event-line:#30394a;
+  --gx-event-cyan:#25f4ee;
+  --gx-event-pink:#ff36b7;
+  --gx-event-gold:#ffc857;
+}
+#events .gxev-card,
+#events .gxev-panel,
+#events .gxev-event-podium {
+  background:
+    radial-gradient(ellipse at 0% 0%,rgba(255,54,183,.055),transparent 42%),
+    radial-gradient(ellipse at 100% 100%,rgba(37,244,238,.045),transparent 42%),
+    linear-gradient(145deg,#121722 0%,#0b0e15 100%) !important;
+  border:1px solid var(--gx-event-line) !important;
+  border-radius:20px !important;
+  box-shadow:0 12px 32px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+#events .gxev-pill {
+  border-radius:999px !important;
+  border-color:rgba(37,244,238,.28) !important;
+  background:linear-gradient(110deg,rgba(37,244,238,.10),rgba(37,244,238,.035)) !important;
+  color:#a9ffff !important;
+}
+#events .gxev-event-podium .gxev-podium-heading {
+  color:#e8f2ff !important;
+  letter-spacing:-.025em;
+}
+#events .gxev-event-podium .gxev-podium-actions a,
+#events .gxev-event-podium .gxev-podium-actions button {
+  border:1px solid rgba(37,244,238,.38) !important;
+  border-radius:999px !important;
+  background:linear-gradient(110deg,rgba(37,244,238,.12),rgba(255,54,183,.12)) !important;
+  color:#8efbff !important;
+  box-shadow:0 0 16px rgba(37,244,238,.07) !important;
+}
+#events .gxev-event-top-three > *,
+#events .gxev-event-podium .gxev-event-top-three > * {
+  border-radius:18px !important;
+  overflow:hidden;
+  transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+#events .gxev-event-top-three > *:hover,
+#events .gxev-event-podium .gxev-event-top-three > *:hover {
+  border-color:rgba(37,244,238,.42) !important;
+  box-shadow:0 0 22px rgba(37,244,238,.08) !important;
+}
+#events button:not(.gx-events-keep-native),
+#events a[role="button"] {
+  transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+#events button:focus-visible,
+#events a:focus-visible {
+  outline:2px solid var(--gx-event-cyan) !important;
+  outline-offset:3px !important;
+}
+@media (min-width: 900px) {
+  #events .gxev-card,
+  #events .gxev-panel,
+  #events .gxev-event-podium {
+    border-radius:22px !important;
+  }
+  #events .gxev-event-podium {
+    padding:clamp(20px,2vw,30px) !important;
+  }
+}
+@media (max-width: 650px) {
+  #events .gxev-card,
+  #events .gxev-panel,
+  #events .gxev-event-podium {
+    border-radius:17px !important;
+    box-shadow:0 8px 24px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.025) !important;
+  }
+  #events .gxev-event-podium {
+    padding:14px !important;
+  }
+  #events .gxev-event-podium .gxev-event-top-three {
+    gap:8px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #events .gxev-event-top-three > *,
+  #events .gxev-event-podium .gxev-event-top-three > *,
+  #events button,
+  #events a[role="button"] {
+    transition:none !important;
+  }
+}
+</style>
