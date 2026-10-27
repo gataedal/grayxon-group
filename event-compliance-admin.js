@@ -96,7 +96,7 @@
       sb.from('gx_event_participants').select('id,event_id,user_id,status,tiktok_username,team_id,registered_at').eq('event_id',eventId).order('registered_at'),
       sb.from('gx_event_phases').select('id,event_id,phase_number,title,starts_at,ends_at').eq('event_id',eventId).order('phase_number'),
       sb.from('gx_event_rounds').select('id,event_id,round_number,title,status,phase_id').eq('event_id',eventId).order('round_number'),
-      sb.from('gx_event_missions').select('id,event_id,title,description,metric_key,unit_label,target_value,is_active,phase_id,sort_order').eq('event_id',eventId).order('sort_order'),
+      sb.from('gx_event_missions').select('id,event_id,title,description,metric_key,unit_label,target_value,is_active,phase_id,sort_order,points_per_unit,completion_bonus,score_over_target').eq('event_id',eventId).order('sort_order'),
       sb.from('gx_event_mission_progress').select('id,event_id,mission_id,user_id,value,status,note,admin_note,evidence_url,reviewed_at,created_at,updated_at').eq('event_id',eventId)
     ]);
     results.forEach(function(r){ if (r.error) throw r.error; });
@@ -291,7 +291,124 @@
       if (button) {button.disabled=false;button.textContent='Guardar asistencia';}
     } finally { busy=false; }
   }
+
+  var MISSION_MODAL_ID = 'gx-admin-event-mission-tracking';
+  function missionScore(mission, value) {
+    value = Math.max(0, Number(value) || 0);
+    var counted = mission.score_over_target ? value : Math.min(value, Number(mission.target_value) || 0);
+    return counted * (Number(mission.points_per_unit) || 0) + (value >= Number(mission.target_value) ? (Number(mission.completion_bonus) || 0) : 0);
+  }
+  function missionProgress(missionId, userId) {
+    return (snapshot.progress || []).find(function(p){return p.mission_id===missionId && p.user_id===userId;}) || null;
+  }
+  function missionPhaseMissions(phaseId) {
+    return (snapshot.missions || []).filter(function(m){return phaseId ? m.phase_id===phaseId : !m.phase_id;});
+  }
+  function renderMissionTracking() {
+    var modal = document.getElementById(MISSION_MODAL_ID);
+    if (!modal || !snapshot) return;
+    var search = String(modal.querySelector('[data-gxmt-search]').value || '').trim().toLowerCase();
+    var participants = (snapshot.participants || []).filter(function(p){
+      return p.user_id && p.status !== 'removed' && userMatches(p.user_id, search);
+    });
+    var phases = snapshot.phases || [];
+    var body = modal.querySelector('[data-gxmt-body]');
+    body.innerHTML = participants.length ? participants.map(function(participant){
+      var uid = participant.user_id;
+      var label = '@'+esc(labelForUser(uid));
+      var userProgress = (snapshot.progress || []).filter(function(p){return p.user_id===uid;});
+      var total = (snapshot.missions || []).filter(function(m){return m.is_active;}).reduce(function(sum,m){
+        var p = userProgress.find(function(x){return x.mission_id===m.id;});
+        return sum + (p && p.status==='approved' ? missionScore(m,p.value) : 0);
+      },0);
+      var segments = phases.map(function(phase){
+        var missions = missionPhaseMissions(phase.id).filter(function(m){return m.is_active;});
+        if (!missions.length) return '';
+        var segmentPoints = missions.reduce(function(sum,m){var p=missionProgress(m.id,uid);return sum+(p&&p.status==='approved'?missionScore(m,p.value):0);},0);
+        return '<details class="gxmt-segment"><summary><span>'+esc(phase.title || ('Semana '+phase.phase_number))+'</span><strong>'+segmentPoints.toLocaleString('es-CO')+' pts</strong></summary><div class="gxmt-missions">'+missions.map(function(m){return renderMissionEditor(m,uid);}).join('')+'</div></details>';
+      }).join('');
+      var general = missionPhaseMissions(null).filter(function(m){return m.is_active;});
+      var generalPoints = general.reduce(function(sum,m){var p=missionProgress(m.id,uid);return sum+(p&&p.status==='approved'?missionScore(m,p.value):0);},0);
+      var generalBlock = general.length ? '<details class="gxmt-segment"><summary><span>Misiones generales del evento</span><strong>'+generalPoints.toLocaleString('es-CO')+' pts</strong></summary><div class="gxmt-missions">'+general.map(function(m){return renderMissionEditor(m,uid);}).join('')+'</div></details>' : '';
+      return '<details class="gxmt-creator"><summary><span class="gxmt-avatar">'+esc(labelForUser(uid).slice(0,1).toUpperCase())+'</span><span class="gxmt-person"><strong>'+label+'</strong><small>'+userProgress.length+' registros · '+(userProgress.filter(function(p){return p.status==='approved';}).length)+' aprobados</small></span><strong class="gxmt-total">'+total.toLocaleString('es-CO')+' pts</strong></summary><div class="gxmt-segments">'+(segments || '<p class="gxmt-empty">Este evento no tiene semanas o segmentos configurados.</p>')+generalBlock+'</div></details>';
+    }).join('') : '<div class="gxmt-empty">No encontramos creadores inscritos que coincidan con la búsqueda.</div>';
+    body.querySelectorAll('[data-gxmt-save]').forEach(function(button){
+      button.addEventListener('click',function(){ saveMissionProgress(button.getAttribute('data-gxmt-save'),button.getAttribute('data-user-id'),button.closest('.gxmt-editor')); });
+    });
+  }
+  function renderMissionEditor(mission,userId) {
+    var p = missionProgress(mission.id,userId) || {};
+    var value = Math.max(0,Number(p.value)||0);
+    var status = p.status || 'pending';
+    var earned = status==='approved' ? missionScore(mission,value) : 0;
+    var possible = missionScore(mission,value);
+    return '<div class="gxmt-editor" data-mission-id="'+esc(mission.id)+'"><div class="gxmt-editor-head"><div><strong>'+esc(mission.title)+'</strong><small>'+esc(mission.description || mission.metric_key || 'Misión configurada en el evento')+'</small></div><span class="gxmt-points">'+earned.toLocaleString('es-CO')+' pts</span></div><div class="gxmt-fields"><label>Avance <span>('+esc(mission.unit_label || 'unidades')+')</span><input type="number" min="0" step="any" data-gxmt-value value="'+esc(value)+'"></label><label>Estado<select data-gxmt-status><option value="pending"'+(status==='pending'?' selected':'')+'>Pendiente</option><option value="approved"'+(status==='approved'?' selected':'')+'>Aprobado</option><option value="rejected"'+(status==='rejected'?' selected':'')+'>Rechazado</option></select></label><label class="gxmt-note">Nota interna<input type="text" data-gxmt-note value="'+esc(p.admin_note || '')+'" placeholder="Observación opcional"></label></div><div class="gxmt-editor-foot"><small>Estimado al aprobar: '+possible.toLocaleString('es-CO')+' pts · Meta: '+esc(mission.target_value == null ? 'Sin meta' : mission.target_value)+' '+esc(mission.unit_label || '')+'</small><button type="button" class="gxec-btn primary" data-gxmt-save="'+esc(mission.id)+'" data-user-id="'+esc(userId)+'">Guardar avance</button></div></div>';
+  }
+  function openMissionTracking() {
+    ensureMissionTrackingStyles();
+    if (!adminAllowed()) { toast('Esta herramienta es exclusiva de administración.'); return; }
+    if (document.getElementById(MISSION_MODAL_ID)) return;
+    ensureStyles();
+    var backdrop = document.createElement('div');
+    backdrop.id = MISSION_MODAL_ID;
+    backdrop.className = 'gxec-backdrop';
+    backdrop.innerHTML = '<section class="gxec-modal gxmt-modal"><header class="gxec-head"><div><h2>Seguimiento por creador</h2><p class="gxec-sub">Abre un creador y despliega sus semanas y misiones existentes. Los puntos se calculan con la configuración del evento.</p></div><button type="button" class="gxec-close" data-gxmt-close>Cerrar</button></header><div class="gxmt-toolbar"><input type="search" data-gxmt-search placeholder="Buscar creador por usuario o nombre"><span data-gxmt-count></span></div><div data-gxmt-body class="gxmt-body"><div class="gxmt-empty">Cargando información del evento…</div></div></section>';
+    document.body.appendChild(backdrop);
+    backdrop.querySelector('[data-gxmt-close]').addEventListener('click',function(){backdrop.remove();});
+    backdrop.addEventListener('click',function(e){if(e.target===backdrop)backdrop.remove();});
+    backdrop.querySelector('[data-gxmt-search]').addEventListener('input',renderMissionTracking);
+    loadSnapshot().then(function(){
+      var count=backdrop.querySelector('[data-gxmt-count]');
+      if(count) count.textContent=(snapshot.participants||[]).length+' creadores';
+      renderMissionTracking();
+    }).catch(function(e){
+      console.error('[Grayxon misiones] No se pudo cargar seguimiento',e);
+      var body=backdrop.querySelector('[data-gxmt-body]');
+      if(body) body.innerHTML='<div class="gxmt-empty">No se pudo cargar la información. '+esc(e.message || '')+'</div>';
+    });
+  }
+  async function saveMissionProgress(missionId,userId,editor) {
+    if (busy || !snapshot || !editor) return;
+    var mission=(snapshot.missions||[]).find(function(m){return m.id===missionId;});
+    var participant=(snapshot.participants||[]).find(function(p){return p.user_id===userId;});
+    if (!mission || !participant) {toast('No se encontró la misión o el creador.');return;}
+    var value=Number(editor.querySelector('[data-gxmt-value]').value);
+    var status=editor.querySelector('[data-gxmt-status]').value;
+    var note=String(editor.querySelector('[data-gxmt-note]').value||'').trim();
+    if (!Number.isFinite(value) || value<0) {toast('El avance debe ser un número igual o mayor que cero.');return;}
+    var existing=missionProgress(missionId,userId);
+    var button=editor.querySelector('[data-gxmt-save]');
+    busy=true;if(button){button.disabled=true;button.textContent='Guardando…';}
+    try {
+      var now=new Date().toISOString();
+      var payload={value:value,status:status,admin_note:note,reviewed_by:status==='approved'||status==='rejected'?currentUserId:null,reviewed_at:status==='approved'||status==='rejected'?now:null,updated_at:now};
+      var result;
+      if(existing && existing.id) {
+        result=await sb.from('gx_event_mission_progress').update(payload).eq('id',existing.id).select('id,event_id,mission_id,user_id,value,status,note,admin_note,evidence_url,reviewed_at,created_at,updated_at').single();
+      } else {
+        payload.event_id=snapshot.eventId;payload.mission_id=missionId;payload.user_id=userId;
+        result=await sb.from('gx_event_mission_progress').insert(payload).select('id,event_id,mission_id,user_id,value,status,note,admin_note,evidence_url,reviewed_at,created_at,updated_at').single();
+      }
+      if(result.error) throw result.error;
+      snapshot.progress=(snapshot.progress||[]).filter(function(p){return !(p.mission_id===missionId&&p.user_id===userId);}).concat([result.data]);
+      toast('Avance guardado. Los puntos se recalcularon con las reglas de la misión.');
+      renderMissionTracking();
+    } catch(e) {
+      console.error('[Grayxon misiones] Error guardando avance',e);
+      toast('No se pudo guardar el avance: '+(e&&e.message?e.message:'error desconocido'));
+      if(button){button.disabled=false;button.textContent='Guardar avance';}
+    } finally {busy=false;}
+  }
+  function ensureMissionTrackingStyles() {
+    if(document.getElementById('gxmt-style'))return;
+    var style=document.createElement('style');style.id='gxmt-style';
+    style.textContent='.gxmt-modal{max-width:1050px!important}.gxmt-toolbar{display:flex;gap:10px;align-items:center;margin:16px 0}.gxmt-toolbar input,.gxmt-fields input,.gxmt-fields select{box-sizing:border-box;width:100%;background:#090d12;border:1px solid #35404c;color:#f5f7fa;border-radius:9px;padding:10px}.gxmt-toolbar input{flex:1}.gxmt-toolbar span{font-size:11px;color:#a8b3c1}.gxmt-body{display:grid;gap:10px}.gxmt-creator,.gxmt-segment{border:1px solid #303945;border-radius:12px;background:#10151c;overflow:hidden}.gxmt-creator>summary,.gxmt-segment>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:13px}.gxmt-creator>summary::-webkit-details-marker,.gxmt-segment>summary::-webkit-details-marker{display:none}.gxmt-creator>summary:after,.gxmt-segment>summary:after{content:"⌄";color:#25d9f2;margin-left:4px}.gxmt-avatar{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:#152e38;border:1px solid #246071;color:#25d9f2;font-weight:900}.gxmt-person{display:grid;gap:3px;flex:1;min-width:0}.gxmt-person small,.gxmt-editor-head small{font-size:11px;color:#9ba7b5}.gxmt-total,.gxmt-segment>summary strong{color:#25d9f2;white-space:nowrap}.gxmt-segments{padding:0 12px 12px 48px;display:grid;gap:8px}.gxmt-segment>summary{padding:11px}.gxmt-segment>summary span{flex:1}.gxmt-missions{padding:0 10px 10px;display:grid;gap:9px}.gxmt-editor{border:1px solid #2d3742;background:#151c25;border-radius:10px;padding:12px}.gxmt-editor-head,.gxmt-editor-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}.gxmt-editor-head>div{display:grid;gap:4px}.gxmt-points{color:#25d9f2;font-weight:900;white-space:nowrap}.gxmt-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.gxmt-fields label{display:grid;gap:6px;font-size:11px;color:#c4ceda;font-weight:800}.gxmt-fields label span{font-weight:400;color:#9ba7b5}.gxmt-fields .gxmt-note{grid-column:1/-1}.gxmt-editor-foot{margin-top:12px}.gxmt-editor-foot small{font-size:10px;color:#9ba7b5}.gxmt-empty{padding:24px;text-align:center;color:#a5afbc}.gxmt-segment[open]>summary,.gxmt-creator[open]>summary{border-bottom:1px solid #2c3540}@media(max-width:650px){.gxmt-toolbar{align-items:stretch;flex-direction:column}.gxmt-segments{padding-left:12px}.gxmt-fields{grid-template-columns:1fr}.gxmt-fields .gxmt-note{grid-column:auto}.gxmt-editor-foot{align-items:stretch;flex-direction:column}.gxmt-editor-foot .gxec-btn{width:100%}.gxmt-total{font-size:12px}}';
+    document.head.appendChild(style);
+  }
+
   document.addEventListener('click',function(e){
+    var openMissions = e.target && e.target.closest ? e.target.closest('[data-gxmt-open]') : null;
+    if (openMissions) { e.preventDefault(); openMissionTracking(); return; }
     var open = e.target && e.target.closest ? e.target.closest('[data-gxec-open-battles]') : null;
     if (open) { e.preventDefault(); openModal('battles',open.getAttribute('data-gxec-open-battles') || null); return; }
         var save = e.target && e.target.closest ? e.target.closest('[data-save-match]') : null;
@@ -301,6 +418,10 @@
     if (!adminAllowed() || !selectedEventId()) return;
     var workspace = document.querySelector('#gxevWorkspace');
     if (!workspace) return;
+    if (!workspace.querySelector('[data-gxmt-open]')) {
+      var trackingButton=document.createElement('button');trackingButton.type='button';trackingButton.className='gxev-btn';trackingButton.setAttribute('data-gxmt-open','1');trackingButton.textContent='👤 Seguimiento por creador';trackingButton.style.cssText='margin:8px 8px 12px 0;padding:10px 14px;font-weight:800;border-color:#287f91;background:linear-gradient(135deg,#10252b,#11171c);color:#d8fbff';
+      var first=workspace.firstElementChild;if(first)workspace.insertBefore(trackingButton,first);else workspace.appendChild(trackingButton);
+    }
     var phases = (typeof gxEventsDashboardData !== 'undefined' && gxEventsDashboardData && gxEventsDashboardData.phases) || (snapshot && snapshot.phases) || [];
     phases.forEach(function(phase) {
       var phaseName = String(phase.title || '').trim();
