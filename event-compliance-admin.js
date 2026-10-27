@@ -9,6 +9,7 @@
   var snapshot = null;
   var busy = false;
   var currentUserId = null;
+  var historySelectedUserId = null;
 
   function esc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
@@ -125,7 +126,10 @@
   }
   function renderBattles(term) {
     term = (term || '').trim().toLowerCase();
+    var now = Date.now();
     var matches = (snapshot.matches || []).filter(function(m) {
+      if (m.winner_participant_id || m.status === 'cancelled' || m.status === 'bye') return false;
+      if (!m.scheduled_at || new Date(m.scheduled_at).getTime() > now) return false;
       if (term && !matchParticipants(m).some(function(p){ return userMatches(p.user_id,term); })) return false;
       return true;
     }).sort(function(a,b) {
@@ -134,7 +138,7 @@
     if (!matches.length) return '<div class="gxec-empty">No hay batallas que coincidan con la búsqueda.</div>';
     return '<div class="gxec-list">' + matches.map(function(m) {
       var people = matchParticipants(m);
-      var resultLabel = m.status === 'completed' ? (m.winner_participant_id ? 'Ganador registrado' : 'Resultado sin ganador') : m.status === 'cancelled' ? 'Cancelada' : m.status === 'bye' ? 'Pase automático' : 'Pendiente de resultado';
+      var resultLabel = m.status === 'completed' ? 'Sin ganador registrado' : 'Batalla pendiente de revisión';
       var round = (snapshot.rounds || []).find(function(r){return r.id===m.round_id;});
       var title = people.map(function(p){return '@'+esc(labelForUser(p.user_id));}).join(' vs ');
       var personHtml = people.map(function(p) {
@@ -154,8 +158,14 @@
   function renderHistory(term) {
     var users = (snapshot.participants || []).filter(function(p){return userMatches(p.user_id,term);});
     if (!users.length) return '<div class="gxec-empty">No encontramos creadores con esa búsqueda en este evento.</div>';
-    if (users.length > 1) return '<div class="gxec-empty">Escribe el usuario que quieres consultar. Coincidencias: '+users.length+'.</div>';
-    var participant = users[0];
+    if (!historySelectedUserId) {
+      return '<div class="gxec-list">' + users.map(function(p) {
+        return '<button type="button" class="gxec-card" data-history-user="'+esc(p.user_id)+'" style="text-align:left;color:inherit;cursor:pointer"><strong>@'+esc(labelForUser(p.user_id))+'</strong><div class="gxec-meta">Abrir avances, misiones y asistencia</div></button>';
+      }).join('') + '</div>';
+    }
+    var participant = users.find(function(p){return p.user_id===historySelectedUserId;});
+    if (!participant) { historySelectedUserId=null; return renderHistory(term); }
+    var back = '<button type="button" class="gxec-btn" data-history-back style="margin-bottom:12px">← Volver a creadores</button>';
     var userId = participant.user_id;
     var missions = snapshot.missions || [];
     var missionRows = missions.filter(function(m) {
@@ -173,19 +183,20 @@
       var attendance = attendanceFor(m.id,p.id);
       var round = (snapshot.rounds || []).find(function(r){return r.id===m.round_id;});
       var result = m.status==='cancelled'?'Batalla cancelada':m.status==='completed'?(m.winner_participant_id===p.id?'Ganó':m.winner_participant_id?'Perdió':'Resultado sin ganador'):'Pendiente de resultado';
-      var att = attendance ? statusLabel(attendance.status) : 'Pendiente de confirmar';
+      var att = attendance ? statusLabel(attendance.status) : (m.winner_participant_id ? 'Asistió (ganador registrado)' : 'Pendiente de confirmar');
       return '<div class="gxec-history-row"><div><strong>Batalla</strong><div class="gxec-meta">'+esc(dateLabel(m.scheduled_at))+' · '+esc(round && round.title || phaseLabel(m) || 'Sin ronda')+'</div></div><div>'+esc(result)+'</div><div><span class="gxec-pill '+(attendance && attendance.status==='attended'?'ok':attendance && attendance.status==='absent'?'bad':'pending')+'">'+esc(att)+'</span></div><div>'+esc(attendance && attendance.updated_at ? dateLabel(attendance.updated_at) : 'Sin registro')+'</div></div>';
     }).join('');
     var approved = missions.filter(function(m){var p=progressFor(m.id,userId);return p && p.status==='approved';}).length;
-    var absent = (snapshot.matches || []).filter(function(m){var p=matchParticipants(m).find(function(x){return x.user_id===userId;});var a=p&&attendanceFor(m.id,p.id);return a&&a.status==='absent';}).length;
-    var pending = (snapshot.matches || []).filter(function(m){var p=matchParticipants(m).find(function(x){return x.user_id===userId;});var a=p&&attendanceFor(m.id,p.id);return !a||a.status==='pending';}).length;
-    return '<div class="gxec-summary"><span>Misiones aprobadas: '+approved+'</span><span>Inasistencias confirmadas: '+absent+'</span><span>Batallas pendientes de revisar: '+pending+'</span></div><div class="gxec-section-title">Misiones del evento</div><div class="gxec-history">'+(missionRows||'<div class="gxec-empty">No hay misiones activas para este evento.</div>')+'</div><div class="gxec-section-title">Batallas y asistencia</div><div class="gxec-history">'+(battleRows||'<div class="gxec-empty">Este creador no tiene batallas registradas.</div>')+'</div>';
+    var absent = (snapshot.matches || []).filter(function(m){var p=matchParticipants(m).find(function(x){return x.user_id===userId;});var a=p&&attendanceFor(m.id,p.id);return !m.winner_participant_id && a&&a.status==='absent';}).length;
+    var pending = (snapshot.matches || []).filter(function(m){var p=matchParticipants(m).find(function(x){return x.user_id===userId;});var a=p&&attendanceFor(m.id,p.id);return !m.winner_participant_id && m.scheduled_at && new Date(m.scheduled_at).getTime()<=Date.now() && m.status!=='cancelled' && m.status!=='bye' && (!a||a.status==='pending');}).length;
+    return back + '<div class="gxec-summary"><span>Misiones aprobadas: '+approved+'</span><span>Inasistencias confirmadas: '+absent+'</span><span>Batallas pendientes de revisar: '+pending+'</span></div><div class="gxec-section-title">Misiones del evento</div><div class="gxec-history">'+(missionRows||'<div class="gxec-empty">No hay misiones activas para este evento.</div>')+'</div><div class="gxec-section-title">Batallas y asistencia</div><div class="gxec-history">'+(battleRows||'<div class="gxec-empty">Este creador no tiene batallas registradas.</div>')+'</div>';
   }
   function render() {
     var modal = document.getElementById(MODAL_ID);
     if (!modal || !snapshot) return;
     var body = modal.querySelector('[data-gxec-body]');
     var term = modal.querySelector('[data-gxec-search]').value || '';
+    if (activeTab !== 'history') historySelectedUserId = null;
     body.innerHTML = activeTab === 'battles' ? renderBattles(term) : renderHistory(term);
     modal.querySelectorAll('[data-gxec-tab]').forEach(function(b){
       b.classList.toggle('active',b.getAttribute('data-gxec-tab')===activeTab);
@@ -208,7 +219,7 @@
     document.body.appendChild(backdrop);
     backdrop.querySelector('[data-gxec-close]').addEventListener('click',closeModal);
     backdrop.addEventListener('click',function(e){if(e.target===backdrop)closeModal();});
-    backdrop.querySelector('[data-gxec-search]').addEventListener('input',render);
+    backdrop.querySelector('[data-gxec-search]').addEventListener('input',function(){historySelectedUserId=null;render();});
     backdrop.querySelectorAll('[data-gxec-tab]').forEach(function(b){b.addEventListener('click',function(){activeTab=b.getAttribute('data-gxec-tab');render();});});
     try {
       await loadSnapshot();
@@ -253,6 +264,10 @@
   document.addEventListener('click',function(e){
     var open = e.target && e.target.closest ? e.target.closest('[data-gxec-open]') : null;
     if (open) { e.preventDefault(); openModal('battles'); return; }
+    var historyUser = e.target && e.target.closest ? e.target.closest('[data-history-user]') : null;
+    if (historyUser) { historySelectedUserId=historyUser.getAttribute('data-history-user'); render(); return; }
+    var historyBack = e.target && e.target.closest ? e.target.closest('[data-history-back]') : null;
+    if (historyBack) { historySelectedUserId=null; render(); return; }
     var tab = e.target && e.target.closest ? e.target.closest('[data-gxec-tab]') : null;
     if (tab) { activeTab=tab.getAttribute('data-gxec-tab'); render(); return; }
     var save = e.target && e.target.closest ? e.target.closest('[data-save-match]') : null;
@@ -260,12 +275,30 @@
   },true);
   function injectButton() {
     if (!adminAllowed() || !selectedEventId()) return;
-    var host = document.querySelector('#gxevPageBody');
-    if (!host || host.querySelector('[data-gxec-open]')) return;
-    var btn = document.createElement('button');
-    btn.type='button';btn.className='gxec-open';btn.setAttribute('data-gxec-open','1');
-    btn.textContent='✓ Control de cumplimiento';
-    host.insertBefore(btn,host.firstChild);
+    var workspace = document.querySelector('#gxevWorkspace');
+    if (!workspace) return;
+    var battleHead = Array.from(workspace.querySelectorAll('.gxev-panel-head')).find(function(h) {
+      return h.textContent.includes('Misiones y batallas por fase');
+    });
+    if (battleHead && !battleHead.querySelector('[data-gxec-open-battles]')) {
+      var battleBtn = document.createElement('button');
+      battleBtn.type='button'; battleBtn.className='gxev-btn'; battleBtn.setAttribute('data-gxec-open-battles','1');
+      battleBtn.textContent='Revisar batallas pendientes'; battleBtn.style.marginLeft='8px'; battleBtn.style.flexShrink='0';
+      battleBtn.addEventListener('click',function(){openModal('battles');});
+      battleHead.appendChild(battleBtn); battleHead.style.flexWrap='wrap';
+    }
+    var candidates = Array.from(workspace.querySelectorAll('*')).filter(function(el) {
+      return el.children.length < 4 && /Revisión de avances/i.test(el.textContent || '');
+    });
+    var reviewTitle = candidates.sort(function(a,b){return a.textContent.length-b.textContent.length;})[0];
+    var reviewPanel = reviewTitle && (reviewTitle.closest('.gxev-panel') || reviewTitle.closest('.gxev-card') || reviewTitle.parentElement);
+    if (reviewTitle && reviewPanel && !reviewPanel.querySelector('[data-gxec-open-history]')) {
+      var historyBtn = document.createElement('button');
+      historyBtn.type='button'; historyBtn.className='gxev-btn'; historyBtn.setAttribute('data-gxec-open-history','1');
+      historyBtn.textContent='Buscar historial por creador'; historyBtn.style.margin='8px 0';
+      historyBtn.addEventListener('click',function(){openModal('history');});
+      reviewTitle.insertAdjacentElement('afterend',historyBtn);
+    }
   }
   var observer = new MutationObserver(function(){injectButton();});
   observer.observe(document.documentElement,{childList:true,subtree:true});
