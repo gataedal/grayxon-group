@@ -260,7 +260,6 @@
     var btn = document.createElement('button');
     btn.type='button';btn.className='gxec-open';btn.setAttribute('data-gxec-open','1');
     btn.textContent='✓ Control de cumplimiento';
-    btn.addEventListener('click',function(){openModal('battles');});
     host.insertBefore(btn,host.firstChild);
   }
   var observer = new MutationObserver(function(){injectButton();});
