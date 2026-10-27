@@ -8170,15 +8170,15 @@ function gxEnsureEventsBaseStyles(){
   #events .gxev-layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:15px;margin-top:16px;align-items:start}
   #events .gxev-hero-summary-action{display:flex;justify-content:flex-start;margin-top:12px}
   #events .gxev-hero-summary-action .gxev-btn{min-height:38px}
-  #events .gxev-summary-modal{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:clamp(10px,3vw,28px);box-sizing:border-box}
-  #events .gxev-summary-backdrop{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;border-radius:0;background:rgba(3,7,14,.82);backdrop-filter:blur(5px);cursor:default}
-  #events .gxev-summary-dialog{position:relative;display:flex;flex-direction:column;width:min(920px,100%);max-height:min(88dvh,900px);overflow:hidden;background:#0b111c;border:1px solid #344256;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
-  #events .gxev-summary-dialog-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid #283447;background:#101a29}
-  #events .gxev-summary-dialog-head h2{margin:0;font-size:17px;color:#f3f6fb}
-  #events .gxev-summary-dialog-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px;-webkit-overflow-scrolling:touch}
-  #events .gxev-summary-dialog-body>.gxev-panel{margin:0}
-  #events .gxev-summary-dialog-body .gxev-panel{max-width:100%;box-sizing:border-box}
-  @media(max-width:600px){#events .gxev-summary-modal{padding:8px}#events .gxev-summary-dialog{max-height:92dvh;border-radius:14px}#events .gxev-summary-dialog-body{padding:9px}}
+  .gxev-summary-modal{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:clamp(10px,3vw,28px);box-sizing:border-box}
+  .gxev-summary-backdrop{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;border-radius:0;background:rgba(3,7,14,.82);backdrop-filter:blur(5px);cursor:default}
+  .gxev-summary-dialog{position:relative;display:flex;flex-direction:column;width:min(920px,100%);max-height:min(88dvh,900px);overflow:hidden;background:#0b111c;border:1px solid #344256;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+  .gxev-summary-dialog-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid #283447;background:#101a29}
+  .gxev-summary-dialog-head h2{margin:0;font-size:17px;color:#f3f6fb}
+  .gxev-summary-dialog-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px;-webkit-overflow-scrolling:touch}
+  .gxev-summary-dialog-body>.gxev-panel{margin:0}
+  .gxev-summary-dialog-body .gxev-panel{max-width:100%;box-sizing:border-box}
+  @media(max-width:600px){.gxev-summary-modal{padding:8px}.gxev-summary-dialog{max-height:92dvh;border-radius:14px}.gxev-summary-dialog-body{padding:9px}}
 
   #events .gxev-localnav{position:sticky;top:12px;padding:10px;border:1px solid #283447;border-radius:15px;background:#0a0e15;display:grid;gap:5px}
   #events .gxev-localnav button{display:flex;text-align:left;align-items:center;gap:9px;padding:11px 10px;border:1px solid transparent;border-radius:10px;background:transparent;color:#a9b4c7;font-weight:800;font-size:12px;cursor:pointer}
