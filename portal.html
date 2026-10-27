@@ -1406,3 +1406,108 @@ html body #events .gxev-event-podium .gxev-podium-actions {
   }
 }
 </style>
+
+<!-- Grayxon: ajuste puntual de la tarjeta de eventos (alineación y texto móvil) -->
+<style id="gx-event-card-info-alignment">
+@media (max-width: 700px) {
+  #events .gx-event-legacy-creator-followup { display: none !important; }
+}
+</style>
+<script id="gx-event-card-info-alignment-script">
+(function () {
+  'use strict';
+  if (window.__gxEventCardInfoAlignmentInstalled) return;
+  window.__gxEventCardInfoAlignmentInstalled = true;
+
+  function textOf(el) {
+    return String(el && el.textContent || '').replace(/\\s+/g, ' ').trim();
+  }
+  function isVisibleElement(el) {
+    return !!(el && el.getClientRects && el.getClientRects().length);
+  }
+  function findTextLeaf(root, exact) {
+    return Array.from(root.querySelectorAll('*')).find(function (el) {
+      return textOf(el) === exact &&
+        !Array.from(el.children).some(function (child) { return textOf(child) === exact; });
+    }) || null;
+  }
+  function renameButton(button) {
+    var label = findTextLeaf(button, 'Ver resumen');
+    if (label && label !== button) label.textContent = 'Ver info';
+    else button.textContent = 'Ver info';
+  }
+  function alignCardActions(root) {
+    var infoButtons = Array.from(root.querySelectorAll('button,a,[role="button"]')).filter(function (el) {
+      return /^ver resumen$/i.test(textOf(el));
+    });
+    infoButtons.forEach(function (infoButton) {
+      renameButton(infoButton);
+      var card = infoButton.closest('.gxev-card, .event-card, article, .card') || root;
+      var liveButton = Array.from(card.querySelectorAll('button,a,[role="button"]')).find(function (el) {
+        return /^tiktok live$/i.test(textOf(el));
+      }) || null;
+      var liveLabel = liveButton || findTextLeaf(card, 'TikTok LIVE');
+      if (!liveLabel || liveLabel === infoButton) return;
+
+      // Only adjust a shared action row, never the whole event card.
+      var candidate = infoButton.parentElement;
+      var row = null;
+      while (candidate && candidate !== card) {
+        if (candidate.contains(liveLabel)) {
+          var branches = Array.from(candidate.children).filter(function (child) {
+            return child.contains(infoButton) || child.contains(liveLabel) ||
+              child === infoButton || child === liveLabel;
+          });
+          if (branches.length >= 2) { row = candidate; break; }
+        }
+        candidate = candidate.parentElement;
+      }
+      if (!row) return;
+      row.style.setProperty('display', 'flex', 'important');
+      row.style.setProperty('align-items', 'center', 'important');
+      row.style.setProperty('justify-content', 'space-between', 'important');
+      row.style.setProperty('gap', '12px', 'important');
+      row.style.setProperty('width', '100%', 'important');
+      row.style.setProperty('box-sizing', 'border-box', 'important');
+      liveLabel.style.setProperty('margin-right', 'auto', 'important');
+      infoButton.style.setProperty('margin-left', 'auto', 'important');
+      infoButton.style.setProperty('flex-shrink', '0', 'important');
+      if (liveButton) Array.from(liveButton.classList).forEach(function (cls) {
+        infoButton.classList.add(cls);
+      });
+    });
+  }
+  function removeMobileOrphanLabel(root) {
+    if (window.matchMedia('(min-width: 701px)').matches) return;
+    Array.from(root.querySelectorAll('h1,h2,h3,h4,p,small,span,div,label')).forEach(function (el) {
+      if (!isVisibleElement(el)) return;
+      if (!/^(resumen y seguimiento por creador|seguimiento por creador)$/i.test(textOf(el))) return;
+      if (el.querySelector('button,a,input,select,textarea')) return;
+      // Hide only the orphan label; preserve the administrative tracking feature.
+      el.classList.add('gx-event-legacy-creator-followup');
+    });
+  }
+  function apply() {
+    var root = document.getElementById('events');
+    if (!root) return;
+    alignCardActions(root);
+    removeMobileOrphanLabel(root);
+  }
+  var scheduled = false;
+  var observer = new MutationObserver(function () {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(function () {
+      scheduled = false;
+      apply();
+    });
+  });
+  function start() {
+    apply();
+    if (document.body) observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener('resize', apply, { passive: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
+})();
+</script>
