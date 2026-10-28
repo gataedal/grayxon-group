@@ -8690,21 +8690,57 @@ async function gxEventsMarkPostRead(postId,eventId){
   if(!session?.user?.id||!postId||!eventId)return;
   const {error}=await sb.from('gx_event_post_reads').upsert(
     {user_id:session.user.id,post_id:postId,event_id:eventId,read_at:new Date().toISOString()},
-    {onConflict:'user_id,post_id'}
+    {onConflict:'user_id,post_id',ignoreDuplicates:true}
   );
   if(error)console.warn('Eventos: marcar publicación leída',error.message);
   gxEventsRefreshUnreadCount().catch(()=>{});gxEventsRefreshEventUnreadBadge(eventId).catch(()=>{});
 }
 async function gxEventsMarkThreadRead(eventId){
-  if(!session?.user?.id||!eventId)return;
+  if(!session?.user?.id||!eventId||current!=='events'||gxEventsSelectedId!==eventId)return;
+  const host=document.querySelector('#events #gxevWorkspace');
+  if(!host)return;
+  if(window.__gxEventPostReadObserver){try{window.__gxEventPostReadObserver.disconnect();}catch(_){}}
+  if(window.__gxEventPostReadTimers){for(const timer of window.__gxEventPostReadTimers.values())clearTimeout(timer);}
+  const timers=new Map();
+  window.__gxEventPostReadTimers=timers;
   const {data:posts,error}=await sb.from('gx_event_posts').select('id,user_id').eq('event_id',eventId);
-  if(error){console.warn('Eventos: cargar publicaciones leídas',error.message);return;}
-  const rows=(posts||[]).filter(p=>p.user_id!==session.user.id).map(p=>({user_id:session.user.id,post_id:p.id,event_id:eventId,read_at:new Date().toISOString()}));
-  if(rows.length){
-    const {error:writeError}=await sb.from('gx_event_post_reads').upsert(rows,{onConflict:'user_id,post_id'});
-    if(writeError)console.warn('Eventos: marcar hilo leído',writeError.message);
+  if(error){console.warn('Eventos: cargar publicaciones para registrar visualizaciones',error.message);return;}
+  if(current!=='events'||gxEventsSelectedId!==eventId||!host.isConnected)return;
+  const eligible=new Set((posts||[]).filter(p=>p.user_id!==session.user.id).map(p=>p.id));
+  const seen=new Set();
+  const markVisiblePost=postId=>{
+    if(seen.has(postId)||!eligible.has(postId))return;
+    seen.add(postId);
+    gxEventsMarkPostRead(postId,eventId).catch(err=>console.warn('Eventos: registrar visualización',err));
+  };
+  if(!('IntersectionObserver' in window)){
+    console.warn('Eventos: este navegador no admite el registro de visualizaciones por visibilidad.');
+    return;
   }
-  gxEventsRefreshUnreadCount().catch(()=>{});gxEventsRefreshEventUnreadBadge(eventId).catch(()=>{});
+  const sufficientlyVisible=card=>{
+    const rect=card.getBoundingClientRect();
+    const visibleHeight=Math.max(0,Math.min(rect.bottom,window.innerHeight)-Math.max(rect.top,0));
+    return rect.height>0&&visibleHeight/Math.min(rect.height,window.innerHeight)>=0.5;
+  };
+  const observer=new IntersectionObserver(entries=>{
+    for(const entry of entries){
+      const card=entry.target,postId=card.dataset.gxevPostId;
+      if(!postId||!eligible.has(postId)||seen.has(postId))continue;
+      if(entry.isIntersecting&&sufficientlyVisible(card)){
+        if(!timers.has(postId)){
+          timers.set(postId,setTimeout(()=>{
+            timers.delete(postId);
+            if(card.isConnected&&current==='events'&&gxEventsSelectedId===eventId&&sufficientlyVisible(card))markVisiblePost(postId);
+          },800));
+        }
+      }else if(timers.has(postId)){
+        clearTimeout(timers.get(postId));
+        timers.delete(postId);
+      }
+    }
+  },{threshold:[0,0.1]});
+  window.__gxEventPostReadObserver=observer;
+  host.querySelectorAll('[data-gxev-post-id]').forEach(card=>observer.observe(card));
 }
 
 function gxEventsRenderPostAuthor(p,u,d){
