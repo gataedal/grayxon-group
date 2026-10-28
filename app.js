@@ -8052,13 +8052,14 @@ async function gxLoadAnnouncements({silent=false}={}){
   const items=data||[]; if(!items.length){feed.innerHTML='<div class="gx-ann-empty"><strong>Aún no hay comunicados.</strong><span>Cuando se publique uno para tu audiencia, aparecerá aquí.</span></div>';await gxRefreshAnnouncementUnreadCount();return;}
   const ids=items.map(x=>x.id);
   const authorIds=[...new Set(items.map(x=>x.author_id).filter(Boolean))];
-  const [{data:reads},{data:reactions},{data:mineReads},{data:mineReactions},{data:authorIdentity,error:authorIdentityError}]=await Promise.all([
-    profile?.role==='admin'?sb.rpc('grayxon_announcement_read_status',{p_announcement_ids:ids}):Promise.resolve({data:[]}),
+  const [{data:reads,error:readStatusError},{data:reactions},{data:mineReads},{data:mineReactions},{data:authorIdentity,error:authorIdentityError}]=await Promise.all([
+    profile?.role==='admin'?sb.rpc('grayxon_announcement_read_status',{p_announcement_ids:ids}):Promise.resolve({data:[],error:null}),
     sb.from('announcement_reactions').select('announcement_id,emoji,user_id').in('announcement_id',ids),
     sb.from('announcement_reads').select('announcement_id').eq('user_id',session.user.id).in('announcement_id',ids),
     sb.from('announcement_reactions').select('announcement_id,emoji').eq('user_id',session.user.id).in('announcement_id',ids),
     sb.rpc('gx_announcement_author_profiles',{p_author_ids:authorIds})
   ]);
+  if(readStatusError) console.warn('No se pudo cargar el historial de lecturas de comunicados:',readStatusError.message);
   if(authorIdentityError) console.warn('No se pudo recuperar la identidad de los autores de comunicados:',authorIdentityError.message);
   const reactorIds=[...new Set((reactions||[]).map(r=>r.user_id).filter(Boolean))];
   let reactorProfiles=[];
