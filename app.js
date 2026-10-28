@@ -8060,14 +8060,19 @@ async function gxLoadAnnouncements({silent=false}={}){
     sb.rpc('gx_announcement_author_profiles',{p_author_ids:authorIds})
   ]);
   let reads=initialReads||[],readStatusError=initialReadStatusError;
-  // If the batched RPC unexpectedly returns no rows, retry by announcement ID.
-  // This avoids showing a false "0/0 recipients" when the batch response fails.
-  if(profile?.role==='admin'&&ids.length&&(!readStatusError&&!reads.length||readStatusError)){
-    const retryResults=await Promise.all(ids.map(announcementId=>sb.rpc('grayxon_announcement_read_status',{p_announcement_ids:[announcementId]})));
-    const retryErrors=retryResults.filter(x=>x.error).map(x=>x.error.message);
-    const retryRows=retryResults.flatMap(x=>x.data||[]);
-    if(retryRows.length){reads=retryRows;readStatusError=null;}
-    else if(retryErrors.length){readStatusError=new Error(retryErrors[0]);}
+  // PostgREST can cap large RPC responses. Retry every announcement missing
+  // from the batch, not only when the entire batch is empty.
+  if(profile?.role==='admin'&&ids.length){
+    const idsToRetry=readStatusError?ids:ids.filter(announcementId=>!reads.some(row=>row.announcement_id===announcementId));
+    if(idsToRetry.length){
+      const retryResults=await Promise.all(idsToRetry.map(announcementId=>sb.rpc('grayxon_announcement_read_status',{p_announcement_ids:[announcementId]})));
+      const retryErrors=retryResults.filter(x=>x.error).map(x=>x.error.message);
+      const retryRows=retryResults.flatMap(x=>x.data||[]);
+      const retriedIds=new Set(retryRows.map(row=>row.announcement_id));
+      reads=readStatusError?retryRows:[...reads,...retryRows];
+      if(retryErrors.length&&idsToRetry.some(id=>!retriedIds.has(id)))readStatusError=new Error(retryErrors[0]);
+      else readStatusError=null;
+    }
   }
   if(readStatusError) console.warn('No se pudo cargar el historial de lecturas de comunicados:',readStatusError.message);
   if(authorIdentityError) console.warn('No se pudo recuperar la identidad de los autores de comunicados:',authorIdentityError.message);
