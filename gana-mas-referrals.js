@@ -214,13 +214,12 @@
       }
       const settingsResult=await client.from('gx_referral_settings').select('hero_background_url').eq('id',1).maybeSingle();
       if(!settingsResult.error)heroBackgroundUrl=settingsResult.data?.hero_background_url||null;
+      const programQuery=client.from('gx_earning_programs').select('*').order('created_at',{ascending:false});
+      const programResult=isAdmin()?await programQuery:await programQuery.eq('status','active');
+      if(programResult.error)throw programResult.error;
+      earningPrograms=programResult.data||[];
       if(isAdmin()){
-        const [programResult,profileResult]=await Promise.all([
-          client.from('gx_earning_programs').select('*').order('created_at',{ascending:false}),
-          client.from('profiles').select('id,username,full_name,role,active,tiktok_username').eq('active',true).order('username',{ascending:true})
-        ]);
-        if(programResult.error)throw programResult.error;
-        earningPrograms=programResult.data||[];
+        const profileResult=await client.from('profiles').select('id,username,full_name,role,active,tiktok_username').eq('active',true).order('username',{ascending:true});
         if(!profileResult.error)adminProfiles=profileResult.data||[];
       }
       loaded=true;
@@ -241,6 +240,7 @@
     const refMap=new Map(referrals.map(r=>[r.id,r]));
     page.innerHTML='<div class="gx-referrals-shell">'+
       '<section class="gx-ref-hero"><div class="gx-ref-hero-copy"><span class="gx-ref-kicker"><i></i> CRECE CON GRAYXON</span><h1>Gana más<span>.</span></h1><p>Invita a nuevos talentos a unirse a Grayxon y recibe una comisión mensual por los creadores que refieras y permanezcan activos en la agencia.</p><div class="gx-ref-hero-note"><span>✦</span><div><strong>Tu recomendación puede convertirse en un ingreso recurrente.</strong><small>La comisión se calcula sobre el ingreso neto que genere el creador para la agencia y se valida al cierre de cada mes.</small></div></div><button type="button" class="gx-ref-requirements-btn" id="gxRefOpenRequirements">Ver requisitos del programa <span>↗</span></button></div><div class="gx-ref-hero-art" aria-hidden="true"><div class="gx-ref-orbit gx-ref-orbit-one"></div><div class="gx-ref-orbit gx-ref-orbit-two"></div><div class="gx-ref-coin">G<span>+</span></div><div class="gx-ref-art-tag">REFERIR · CRECER · GANAR</div></div></section>'+(isAdmin()?'<section class="gx-ref-hero-settings"><div><strong>Imagen de fondo de “Crece con Grayxon”</strong><small>Solo visible para administradores. JPG, PNG o WEBP · máximo 10 MB.</small></div><label class="gx-ref-upload-btn" for="gxRefHeroImage">Elegir imagen</label><input id="gxRefHeroImage" type="file" accept="image/jpeg,image/png,image/webp"><span id="gxRefHeroImageStatus" aria-live="polite"></span></section>':'')+
+      (earningPrograms.length?'<section class="gx-ref-program-catalog"><div class="gx-ref-section-head"><div><span class="gx-ref-eyebrow">OPORTUNIDADES PARA TI</span><h2>Programas activos</h2><p>Conoce las iniciativas disponibles para crecer y ganar más con Grayxon.</p></div></div><div class="gx-ref-program-grid">'+earningPrograms.map(p=>'<button type="button" class="gx-ref-program-card" data-program-detail="'+p.id+'"><span class="gx-ref-program-type">'+esc(({referrals:'REFERIDOS',monthly_bonus:'BONIFICACIÓN MENSUAL',missions:'MISIONES',events:'EVENTOS',other:'PROGRAMA ESPECIAL'})[p.program_type]||'PROGRAMA')+'</span><strong>'+esc(p.name)+'</strong><p>'+esc(p.description||'Consulta las condiciones de este programa.')+'</p><span class="gx-ref-program-cta">Ver información ↗</span></button>').join('')+'</div></section>':'')+
       '<section class="gx-ref-stats" aria-label="Resumen del programa"><button type="button" data-gx-detail="registered"><span class="gx-ref-stat-icon">↗</span><div><small>Referidos registrados</small><strong>'+referrals.length+'</strong><span class="gx-ref-stat-link">Ver detalle ↗</span></div></button><button type="button" data-gx-detail="approved"><span class="gx-ref-stat-icon">✓</span><div><small>Referidos validados</small><strong>'+approved+'</strong><span class="gx-ref-stat-link">Ver detalle ↗</span></div></button><button type="button" data-gx-detail="pending"><span class="gx-ref-stat-icon">◷</span><div><small>Por validar</small><strong>'+pending+'</strong><span class="gx-ref-stat-link">Ver detalle ↗</span></div></button><button type="button" data-gx-detail="paid"><span class="gx-ref-stat-icon">＄</span><div><small>Comisiones pagadas</small><strong>'+money(totalPaid)+'</strong><span class="gx-ref-stat-link">Ver detalle ↗</span></div></button></section>'+
       '<div class="gx-ref-main-grid"><section class="gx-ref-panel gx-ref-share"><div class="gx-ref-section-head"><div><span class="gx-ref-eyebrow">TU ENLACE PERSONAL</span><h2>Comparte tu invitación</h2></div><span class="gx-ref-panel-icon">↗</span></div><p>Comparte tu código con alguien que todavía no pertenezca a Grayxon. El equipo revisará la atribución cuando la persona ingrese a la agencia.</p><div class="gx-ref-code-box"><div><small>Tu código de referido</small><strong id="gxRefCode">'+esc(code)+'</strong></div><button type="button" id="gxCopyCode" aria-label="Copiar código">Copiar</button></div><button type="button" id="gxShareWhatsApp" class="gx-ref-share-btn"><span aria-hidden="true">↗</span> Compartir por WhatsApp</button><div class="gx-ref-hint">El código identifica tu invitación; la validación de cada referido la realiza el equipo de Grayxon.</div></section>'+
       '</div>'+
@@ -251,6 +251,7 @@
     $('gxRefModalClose')?.addEventListener('click',closeDetailModal);
     $('gxRefModal')?.querySelector('[data-gx-modal-close]')?.addEventListener('click',closeDetailModal);
     page.querySelectorAll('[data-gx-detail]').forEach(btn=>btn.addEventListener('click',()=>showDetail(btn.dataset.gxDetail)));
+    page.querySelectorAll('[data-program-detail]').forEach(btn=>btn.addEventListener('click',()=>showParticipantProgram(btn.dataset.programDetail)));
     $('gxRefHeroImage')?.addEventListener('change',uploadHeroImage);
     if(heroBackgroundUrl){const hero=page.querySelector('.gx-ref-hero');if(hero){hero.style.backgroundImage='linear-gradient(90deg,rgba(8,10,13,.94) 0%,rgba(8,10,13,.78) 52%,rgba(8,10,13,.35) 100%),url("'+heroBackgroundUrl.replace(/"/g,'%22')+'")';hero.style.backgroundSize='cover';hero.style.backgroundPosition='center';}}
     if(isAdmin() && $('gxRefHeroImageStatus'))$('gxRefHeroImageStatus').textContent=heroBackgroundUrl?'Imagen de fondo configurada.':'Aún no hay imagen de fondo.';
@@ -270,6 +271,14 @@
     $('gxRefModalClose')?.focus();
   }
   function closeDetailModal(){const modal=$('gxRefModal');if(modal)modal.classList.add('hidden');document.body.classList.remove('gx-ref-modal-open');}
+
+  function showParticipantProgram(id){
+    const p=earningPrograms.find(x=>x.id===id);if(!p)return;
+    const type=({referrals:'Referidos',monthly_bonus:'Bonificación mensual',missions:'Misiones',events:'Eventos',other:'Programa especial'})[p.program_type]||'Programa';
+    const reward=({percentage:'Porcentaje',fixed_amount:'Monto fijo',points:'Puntos',custom:'Según condiciones'})[p.reward_type]||'Recompensa';
+    openDetailModal(p.name,'<span class="gx-ref-program-type">'+esc(type.toUpperCase())+'</span><p class="gx-ref-detail-intro">'+esc(p.description||'Programa de Grayxon para impulsar tu crecimiento.')+'</p><div class="gx-ref-program-detail-kpi"><small>Tipo de recompensa</small><strong>'+esc(reward)+(p.reward_type==='percentage'?' · '+esc(p.reward_value)+'%':p.reward_type==='fixed_amount'?' · '+money(p.reward_value):p.reward_type==='points'?' · '+esc(p.reward_value)+' puntos':'')+'</strong></div><h3 class="gx-ref-program-detail-heading">Requisitos y condiciones</h3><div class="gx-ref-program-requirements">'+esc(p.requirements||'Consulta con el equipo de Grayxon las condiciones específicas de este programa.')+'</div>'+(p.starts_on||p.ends_on?'<p class="gx-ref-detail-note">Vigencia: '+esc(p.starts_on||'Sin fecha de inicio')+' — '+esc(p.ends_on||'Sin fecha de finalización')+'</p>':''));
+  }
+
   function showRequirements(){
     openDetailModal('Requisitos del programa',
       '<div class="gx-ref-detail-intro">Para que una invitación pueda generar comisiones, debe cumplir estas condiciones:</div>'+
