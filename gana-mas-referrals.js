@@ -96,12 +96,18 @@
       let cq=client.from('gx_referral_commissions').select('id,referral_id,period_month,agency_net_amount,commission_rate,commission_amount,status,paid_at,notes');
       if(!isAdmin()){
         const ids=referrals.map(r=>r.id);
-        if(!ids.length){commissions=[];loaded=true;return;}
-        cq=cq.in('referral_id',ids);
+        if(!ids.length)commissions=[];
+        else {
+          cq=cq.in('referral_id',ids);
+          const cr=await cq.order('period_month',{ascending:false});
+          if(cr.error)throw cr.error;
+          commissions=cr.data||[];
+        }
+      } else {
+        const cr=await cq.order('period_month',{ascending:false});
+        if(cr.error)throw cr.error;
+        commissions=cr.data||[];
       }
-      const cr=await cq.order('period_month',{ascending:false});
-      if(cr.error)throw cr.error;
-      commissions=cr.data||[];
       const settingsResult=await client.from('gx_referral_settings').select('hero_background_url').eq('id',1).maybeSingle();
       if(!settingsResult.error)heroBackgroundUrl=settingsResult.data?.hero_background_url||null;
       loaded=true;
