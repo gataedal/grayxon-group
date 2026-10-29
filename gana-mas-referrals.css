@@ -135,3 +135,7 @@ header.top .gx-referral-header-btn:hover,header.top .gx-referral-header-btn.is-a
  .gx-ref-rules{padding:14px}
 }
 @media(max-width:380px){header.top .gx-referral-header-btn{gap:5px;padding:0 8px;font-size:10px}.gx-ref-stats article{padding:10px 8px}.gx-ref-stats small{font-size:8px}.gx-ref-stats strong{font-size:16px}.gx-ref-hero-copy{padding-left:16px;padding-right:16px}}
+
+.gx-ref-commission-status{margin-top:2px;padding:6px 8px;border:1px solid #51452d;border-radius:8px;background:#211b10;color:#e2c77e;font-size:9px;font-weight:850;white-space:nowrap}
+.gx-ref-commission-status:hover{border-color:#c7a35b;background:#2b2314}
+@media(max-width:800px){.gx-commission-value{max-width:48%;}.gx-ref-commission-status{font-size:8px;padding:6px 7px;white-space:normal}}
