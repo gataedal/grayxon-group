@@ -80,7 +80,7 @@
 
   function closePage(){
     const page=$('gxReferralsPage');if(!page)return;
-    page.classList.add('hidden');page.style.removeProperty('display');isOpen=false;document.body.classList.remove('gx-referrals-mode');
+    page.classList.add('hidden');page.style.removeProperty('display');isOpen=false;document.body.classList.remove('gx-referrals-mode','gx-program-fullscreen');
     const visible=previousPage && document.contains(previousPage) ? previousPage : null;
     document.querySelectorAll('main.wrap > .page').forEach(p=>p.classList.add('hidden'));
     if(visible)visible.classList.remove('hidden');
