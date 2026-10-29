@@ -207,8 +207,76 @@ body.gx-referrals-mode .gx-referrals-shell{padding-top:0!important;margin-top:0!
 .gx-ref-requirements-btn{align-self:center;margin-left:auto!important;margin-right:auto!important}
 .gx-ref-hero-copy{display:flex;flex-direction:column;align-items:stretch}
 .gx-ref-hero-copy>.gx-ref-requirements-btn{align-self:center}
-body.gx-referrals-mode #grayxonBottomNav{display:flex!important;z-index:1200}
+body.gx-referrals-mode #grayxonBottomNav{z-index:10000}
 @media(max-width:800px){
  body.gx-referrals-mode main.wrap > #gxReferralsPage{padding-bottom:calc(120px + env(safe-area-inset-bottom))!important}
  .gx-ref-requirements-btn{margin-top:18px}
+}
+
+
+/* Centro administrativo de Programas para ganar más */
+.gx-admin-center{width:100%;max-width:1180px;margin:0 auto;padding:0 0 20px;display:flex;flex-direction:column;gap:18px;color:#f4f5f7}
+.gx-admin-center-hero{padding:26px;border:1px solid #292d34;border-radius:18px;background:linear-gradient(120deg,#101114,#17141d);display:flex;flex-direction:column;gap:8px}
+.gx-admin-center-hero h1{margin:0;font-size:clamp(25px,3vw,34px);letter-spacing:-.04em}
+.gx-admin-center-hero p{margin:0;color:#a7b0bf;font-size:13px;line-height:1.6}
+.gx-admin-tabs{display:flex;gap:7px;flex-wrap:wrap;padding:6px;border:1px solid #292d34;border-radius:14px;background:#0c0e11}
+.gx-admin-tab{appearance:none;border:1px solid transparent;border-radius:10px;padding:10px 15px;background:transparent;color:#a7b0bf;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.gx-admin-tab.active{border-color:#66552f;background:#211b10;color:#e8cf87}
+.gx-admin-tab-content{display:flex;flex-direction:column;gap:16px;min-width:0}
+.gx-admin-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.gx-admin-kpis article{display:flex;flex-direction:column;gap:9px;padding:17px;border:1px solid #292d34;border-radius:14px;background:linear-gradient(145deg,#111316,#0b0d0f);min-width:0}
+.gx-admin-kpis small{font-size:11px;color:#9da7b6}
+.gx-admin-kpis strong{font-size:25px;color:#f5d986;overflow-wrap:anywhere}
+.gx-admin-quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.gx-admin-quick-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:132px;padding:17px;border:1px solid #292d34;border-radius:15px;background:#0e1013;color:#f3f4f6;text-align:left;cursor:pointer;font:inherit}
+.gx-admin-quick-grid button:hover{border-color:#a88b4b;background:#15140f}
+.gx-admin-quick-grid button>span{color:#e5c977;font-size:22px}
+.gx-admin-quick-grid button strong{font-size:13px}
+.gx-admin-quick-grid button small{font-size:11px;line-height:1.5;color:#98a1b0}
+.gx-admin-block{display:flex;flex-direction:column;gap:15px;padding:20px;border:1px solid #292d34;border-radius:16px;background:linear-gradient(145deg,#101215,#0b0d0f);min-width:0}
+.gx-admin-block-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.gx-admin-block-head h3{margin:5px 0 0;font-size:19px;letter-spacing:-.025em}
+.gx-admin-block-head p{margin:7px 0 0;color:#98a1b0;font-size:12px;line-height:1.5}
+.gx-admin-text-btn{border:1px solid #51452d;border-radius:9px;background:#19150e;color:#e3c979;padding:9px 12px;font-size:11px;font-weight:800;cursor:pointer}
+.gx-admin-form{display:flex;flex-direction:column;gap:12px}
+.gx-admin-form label{display:block;margin-bottom:6px;color:#b8c0cd;font-size:11px;font-weight:750}
+.gx-admin-form input,.gx-admin-form select,.gx-admin-form textarea,.gx-admin-filter select{box-sizing:border-box;width:100%;min-width:0;border:1px solid #303640;border-radius:10px;background:#090b0e;color:#f3f4f6;padding:11px 12px;font:inherit;font-size:12px}
+.gx-admin-form textarea{resize:vertical;line-height:1.6}
+.gx-admin-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.gx-admin-form-grid>div{min-width:0}
+.gx-admin-form-actions{display:flex;gap:10px;flex-wrap:wrap}
+.gx-admin-secondary-btn{border:1px solid #343941;border-radius:10px;background:#191b20;color:#e0e4eb;padding:11px 15px;font-size:12px;font-weight:800;cursor:pointer}
+.gx-admin-list{display:flex;flex-direction:column;gap:9px}
+.gx-admin-list-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:14px;border:1px solid #282c33;border-radius:12px;background:#0c0e11;min-width:0}
+.gx-admin-list-main{display:flex;flex-direction:column;gap:5px;min-width:0}
+.gx-admin-list-main strong{font-size:13px;overflow-wrap:anywhere}
+.gx-admin-list-main small,.gx-admin-list-main p{margin:0;color:#98a1b0;font-size:11px;line-height:1.5}
+.gx-admin-list-actions{display:flex;gap:7px;flex-wrap:wrap;flex-shrink:0}
+.gx-admin-list-actions button{border:1px solid #3a3f47;border-radius:8px;background:#181b20;color:#e7eaf0;padding:8px 10px;font-size:10px;font-weight:800;cursor:pointer}
+.gx-admin-list-actions button:hover{border-color:#a88b4b}
+.gx-admin-empty{padding:24px;border:1px dashed #30343b;border-radius:12px;text-align:center}
+.gx-admin-empty strong{font-size:13px}
+.gx-admin-empty p{margin:7px 0 0;color:#98a1b0;font-size:11px;line-height:1.5}
+.gx-admin-filter{display:flex;align-items:center;gap:8px}
+.gx-admin-filter label{font-size:11px;color:#a7b0bf}
+.gx-admin-filter select{width:auto}
+.gx-admin-calculated{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px;border:1px solid #55472d;border-radius:11px;background:#17140e}
+.gx-admin-calculated span{font-size:11px;color:#c2b48b}
+.gx-admin-calculated strong{font-size:19px;color:#f0d486}
+.gx-admin-center .gx-ref-submit{width:100%}
+/* Dejar que el menú global conserve sus reglas originales dentro de esta vista */
+body.gx-referrals-mode #grayxonBottomNav{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;align-items:center!important}
+body.gx-referrals-mode #grayxonBottomNav button{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;min-height:56px!important;padding:5px 2px!important}
+body.gx-referrals-mode #grayxonBottomNav button .gx-nav-icon{display:block!important;line-height:1!important}
+@media(max-width:760px){
+ .gx-admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .gx-admin-quick-grid{grid-template-columns:1fr}
+ .gx-admin-form-grid{grid-template-columns:1fr}
+ .gx-admin-block{padding:15px}
+ .gx-admin-list-row{align-items:flex-start;flex-direction:column}
+ .gx-admin-list-actions{width:100%}
+ .gx-admin-list-actions button{flex:1}
+ .gx-admin-filter{width:100%;align-items:flex-start;flex-direction:column}
+ .gx-admin-filter select{width:100%}
+ .gx-admin-center-hero{padding:20px}
 }
