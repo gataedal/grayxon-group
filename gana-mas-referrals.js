@@ -50,8 +50,28 @@
       host.insertBefore(button,host.firstChild);
     }
     const loggedIn=!!userId() && !!currentProfile()?.active;
-    button.classList.toggle('gx-referral-hidden',!loggedIn);
+    // El administrador accede al programa desde su panel, no desde el botón global.
+    button.classList.toggle('gx-referral-hidden',!loggedIn || isAdmin());
+    ensureAdminProgramCard();
   }
+
+  function ensureAdminProgramCard(){
+    if(!isAdmin() || !currentProfile()?.active)return;
+    const adminPage=$('admin');
+    const grid=adminPage?.querySelector('.admin-dashboard-grid');
+    if(!grid)return;
+    let card=$('gxAdminReferralProgramCard');
+    if(card && card.parentElement!==grid)card.remove();
+    if($('gxAdminReferralProgramCard'))return;
+    card=document.createElement('button');
+    card.type='button';
+    card.id='gxAdminReferralProgramCard';
+    card.className='admin-dashboard-card';
+    card.innerHTML='<span class="admin-dashboard-card-icon" aria-hidden="true">🎁</span><span class="admin-dashboard-card-copy"><strong>Programa de referidos</strong><small>Administra el programa, valida referidos y gestiona las liquidaciones mensuales.</small></span><span class="admin-dashboard-card-arrow" aria-hidden="true">›</span>';
+    card.addEventListener('click',openPage);
+    grid.appendChild(card);
+  }
+
   function closePage(){
     const page=$('gxReferralsPage');if(!page)return;
     page.classList.add('hidden');page.style.removeProperty('display');isOpen=false;document.body.classList.remove('gx-referrals-mode');
@@ -256,8 +276,8 @@
   }
   function watchAuth(){
     ensureButton();
-    const observer=new MutationObserver(()=>ensureButton());
-    observer.observe(document.body,{attributes:true,attributeFilter:['class'],childList:false});
+    const observer=new MutationObserver(()=>{ensureButton();ensureAdminProgramCard();});
+    observer.observe(document.body,{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
     const main=document.querySelector('main.wrap');
     if(main)new MutationObserver(()=>{ensureButton();if(isOpen&&$('gxReferralsPage')?.classList.contains('hidden')){isOpen=false;}}).observe(main,{childList:true,subtree:false});
     setInterval(()=>{ensureButton();},1800);
