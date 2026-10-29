@@ -333,3 +333,26 @@ body.gx-referrals-mode #grayxonBottomNav button .gx-nav-icon{display:block!impor
 .gx-admin-danger-btn{border:1px solid #713d43;border-radius:9px;background:#281417;color:#ffb4b4;padding:10px 13px;font-size:11px;font-weight:850;cursor:pointer}
 @media(max-width:850px){.gx-admin-program-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.gx-admin-program-grid{grid-template-columns:1fr}.gx-admin-program-card{min-height:0}.gx-admin-programs-header{align-items:stretch;flex-direction:column}.gx-admin-create-btn{width:100%!important}.gx-admin-danger-zone{align-items:stretch;flex-direction:column}.gx-admin-danger-btn{width:100%}}
+
+
+/* Edición de programas: portada, contenido multimedia y recompensa por persona */
+.gx-admin-media-editor{display:flex;flex-direction:column;align-items:stretch;gap:11px;margin:20px 0 0;padding:17px;border:1px solid #2b3037;border-radius:13px;background:linear-gradient(145deg,#111316,#0b0d10)}
+.gx-admin-media-editor h4{font-size:14px;margin:5px 0}
+.gx-admin-media-editor p,.gx-admin-field-help{display:block;margin:5px 0 0;color:#98a1af;font-size:11px;line-height:1.6}
+.gx-admin-media-editor [hidden]{display:none!important}
+.gx-admin-upload-preview{display:block;width:100%;max-height:220px;object-fit:cover;border:1px solid #30343b;border-radius:10px}
+.gx-admin-upload-placeholder{display:grid;place-items:center;min-height:100px;border:1px dashed #414650;border-radius:10px;background:#0a0c0f;color:#8992a1;font-size:12px}
+.gx-admin-upload-control{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:15px;border:1px dashed #796238;border-radius:10px;background:#17140e;color:#e8cb80;font-size:12px;font-weight:800;text-align:center;cursor:pointer}
+.gx-admin-upload-control input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.gx-admin-upload-control small{color:#a9a092;font-size:10px;font-weight:500}
+.gx-admin-media-drop{min-height:115px}
+.gx-admin-existing-media{color:#e6c879;font-size:11px;font-weight:800;text-decoration:none}
+.gx-admin-rate-override{display:flex;flex-direction:column;gap:7px;margin:12px 0;padding:14px;border:1px solid #59482a;border-radius:11px;background:#17140e}
+.gx-admin-rate-override label{font-size:12px;font-weight:800}
+.gx-admin-rate-override label span{margin-left:5px;color:#d8bd75;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+.gx-admin-rate-override small{color:#a9a092;font-size:11px;line-height:1.55}
+.gx-ref-program-card-cover,.gx-admin-program-card-cover{display:block;width:calc(100% + 34px);max-width:none;height:100px;object-fit:cover;margin:-17px -17px 2px;border-radius:14px 14px 0 0;border-bottom:1px solid #30343b}
+.gx-ref-program-media{display:block;width:100%;max-height:440px;object-fit:contain;margin:14px 0;border:1px solid #30343b;border-radius:12px;background:#050607}
+.gx-ref-program-cover{display:block;width:100%;max-height:220px;object-fit:cover;margin:0 0 14px;border-radius:12px}
+.gx-ref-program-file{display:flex;align-items:center;gap:8px;margin:14px 0;padding:14px;border:1px solid #59482a;border-radius:10px;background:#17140e;color:#e6c879;font-size:12px;font-weight:800;text-decoration:none}
+@media(max-width:600px){.gx-admin-media-editor{padding:13px}.gx-ref-program-media{max-height:300px}}
