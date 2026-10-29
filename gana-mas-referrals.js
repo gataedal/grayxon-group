@@ -81,7 +81,7 @@
   function commissionCard(c, refMap){
     const r=refMap.get(c.referral_id);
     const [label,klass]=statusInfo(c.status);
-    return '<article class="gx-commission-row"><div><strong>@'+esc(r?.referred_tiktok_username||'Creador referido')+'</strong><span>Periodo '+esc(new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(c.period_month+'T12:00:00Z')))+' · '+esc(Number(c.commission_rate).toLocaleString('es-CO'))+'%</span></div><div class="gx-commission-value"><strong>'+money(c.commission_amount)+'</strong><span class="gx-ref-status '+klass+'">'+label+'</span></div></article>';
+    return '<article class="gx-commission-row"><div><strong>@'+esc(r?.referred_tiktok_username||'Creador referido')+'</strong><span>Periodo '+esc(new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(c.period_month+'T12:00:00Z')))+' · '+esc(Number(c.commission_rate).toLocaleString('es-CO'))+'%</span></div><div class="gx-commission-value"><strong>'+money(c.commission_amount)+'</strong><span class="gx-ref-status '+klass+'">'+label+'</span>'+(isAdmin()&&c.status!=='paid'?'<button type="button" class="gx-ref-commission-status" data-commission-action="'+(c.status==='pending'?'approve':'paid')+'" data-commission-id="'+c.id+'">'+(c.status==='pending'?'Aprobar comisión':'Marcar pagada')+'</button>':'')+'</div></article>';
   }
   async function loadData(){
     const client=db(),uid=userId();if(!client||!uid){referrals=[];commissions=[];return;}
@@ -135,6 +135,7 @@
     const updatePreview=()=>{const net=Number($('gxRefCommissionNet')?.value)||0,rate=Number($('gxRefCommissionRate')?.value)||0;if($('gxRefCommissionPreview'))$('gxRefCommissionPreview').textContent=money(net*rate/100);};
     $('gxRefCommissionNet')?.addEventListener('input',updatePreview);$('gxRefCommissionRate')?.addEventListener('input',updatePreview);
     page.querySelectorAll('[data-ref-action]').forEach(btn=>btn.addEventListener('click',()=>handleAdminAction(btn.dataset.refAction,btn.dataset.refId)));
+    page.querySelectorAll('[data-commission-action]').forEach(btn=>btn.addEventListener('click',()=>updateCommissionStatus(btn.dataset.commissionId,btn.dataset.commissionAction)));
   }
   async function submitReferral(event){
     event.preventDefault();const form=event.currentTarget,client=db(),uid=userId(),message=$('gxRefFormMessage'),button=form.querySelector('button[type="submit"]');
@@ -169,6 +170,18 @@
       notify('Liquidación mensual guardada.');
       await loadData();render();
     }catch(error){console.error('Gana más: error al guardar liquidación',error);if(message)message.textContent='No se pudo guardar la liquidación. Comprueba los datos y los permisos.';button.disabled=false;button.querySelector('span').textContent='Guardar liquidación';}
+  }
+  async function updateCommissionStatus(id,next){
+    if(!isAdmin()||!id)return;
+    const client=db();if(!client)return;
+    const label=next==='paid'?'marcar como pagada':'aprobar';
+    if(!confirm('¿Confirmas '+label+' esta comisión?'))return;
+    const patch={status:next,updated_at:new Date().toISOString()};
+    if(next==='paid')patch.paid_at=new Date().toISOString();
+    const result=await client.from('gx_referral_commissions').update(patch).eq('id',id);
+    if(result.error){console.error('Gana más: no se pudo actualizar comisión',result.error);notify('No se pudo actualizar la comisión.',true);return;}
+    notify(next==='paid'?'Comisión marcada como pagada.':'Comisión aprobada.');
+    await loadData();render();
   }
   async function handleAdminAction(action,id){
     if(!isAdmin())return;
