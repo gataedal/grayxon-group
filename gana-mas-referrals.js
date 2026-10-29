@@ -286,6 +286,7 @@
     }
   }
   function render(){
+    document.body.classList.remove('gx-program-fullscreen');
     const page=ensurePage();if(!page)return;
     if(isAdmin()){renderAdminDashboard(page);return;}
     const typeLabels={referrals:'PROGRAMA ACTIVO',monthly_bonus:'BONIFICACIÓN ACTIVA',missions:'MISIÓN ACTIVA',events:'EVENTO ACTIVO',other:'PROGRAMA ACTIVO'};
@@ -308,6 +309,7 @@
 
   function showParticipantProgram(id){
     const p=earningPrograms.find(x=>x.id===id);if(!p)return;const page=ensurePage();if(!page)return;
+    document.body.classList.add('gx-program-fullscreen');
     const type=({referrals:'Referidos',monthly_bonus:'Bonificación mensual',missions:'Misiones',events:'Eventos',other:'Programa especial'})[p.program_type]||'Programa';
     const reward=({percentage:'Porcentaje',fixed_amount:'Monto fijo',points:'Puntos',custom:'Según condiciones'})[p.reward_type]||'Recompensa';
     const refs=referrals.filter(r=>r.program_id===p.id||(p.program_type==='referrals'&&!r.program_id));
@@ -315,10 +317,9 @@
     const paid=related.filter(c=>c.status==='paid').reduce((sum,c)=>sum+Number(c.commission_amount||0),0);
     const earned=related.reduce((sum,c)=>sum+Number(c.commission_amount||0),0);
     const media=p.content_media_url?(p.content_media_type?.startsWith('video/')?'<video class="gx-ref-program-media" controls playsinline preload="metadata" src="'+esc(p.content_media_url)+'"></video>':p.content_media_type?.startsWith('image/')?'<img class="gx-ref-program-media" src="'+esc(p.content_media_url)+'" alt="'+esc(p.content_media_name||p.name)+'">':'<a class="gx-ref-program-file" href="'+esc(p.content_media_url)+'" target="_blank" rel="noopener">📄 Abrir archivo · '+esc(p.content_media_name||'Ver archivo')+' ↗</a>'):'';
-    const hero='<section class="gx-program-detail-hero gx-program-event-style">'+(p.hero_image_url?'<img class="gx-program-detail-banner" src="'+esc(p.hero_image_url)+'" alt="'+esc(p.name)+'">':'<div class="gx-program-detail-banner gx-program-no-banner"><span>✦ GRAYXON GROUP</span></div>')+'<div class="gx-program-detail-overlay"><div class="gx-program-detail-topline"><span class="gx-program-live-tag">'+esc(type.toUpperCase())+'</span><span class="gx-program-detail-validity">'+esc(p.ends_on?'Hasta '+dateFmt(p.ends_on):'Programa disponible')+'</span></div><div class="gx-program-detail-main"><div class="gx-program-detail-titleblock"><h1>'+esc(p.name)+'</h1><p class="gx-program-hero-description">'+esc(p.description||'Consulta la información de este programa.')+'</p></div><div class="gx-program-detail-reward"><small>RECOMPENSA</small><strong>'+esc(reward)+(p.reward_type==='percentage'?' · '+esc(p.reward_value)+'%':p.reward_type==='fixed_amount'?' · '+money(p.reward_value):p.reward_type==='points'?' · '+esc(p.reward_value)+' puntos':'')+'</strong></div></div><div class="gx-program-hero-actions"><button type="button" class="gx-ref-program-cta-btn" id="gxProgramSummaryBtn">Ver resumen ↗</button><button type="button" class="gx-admin-secondary-btn" id="gxProgramRequirementsBtn">Ver requisitos</button></div></div></section>';
+    const hero='<section class="gx-program-detail-hero gx-program-event-style">'+(p.hero_image_url?'<img class="gx-program-detail-banner" src="'+esc(p.hero_image_url)+'" alt="'+esc(p.name)+'">':'<div class="gx-program-detail-banner gx-program-no-banner"><span>✦ GRAYXON GROUP</span></div>')+'<div class="gx-program-detail-overlay"><div class="gx-program-detail-topline"><span class="gx-program-live-tag">'+esc(type.toUpperCase())+'</span><span class="gx-program-detail-validity">'+esc(p.ends_on?'Hasta '+dateFmt(p.ends_on):'Programa disponible')+'</span></div><div class="gx-program-detail-main"><div class="gx-program-detail-titleblock"><h1>'+esc(p.name)+'</h1><p class="gx-program-hero-description">'+esc(p.description||'Consulta la información de este programa.')+'</p></div><div class="gx-program-detail-reward"><small>RECOMPENSA</small><strong>'+esc(reward)+(p.reward_type==='percentage'?' · '+esc(p.reward_value)+'%':p.reward_type==='fixed_amount'?' · '+money(p.reward_value):p.reward_type==='points'?' · '+esc(p.reward_value)+' puntos':'')+'</strong></div></div><div class="gx-program-hero-actions"><button type="button" class="gx-ref-program-cta-btn" id="gxProgramSummaryBtn">Ver resumen</button><button type="button" class="gx-admin-secondary-btn" id="gxProgramRequirementsBtn">Ver requisitos</button></div></div></section>';
     const activity=p.program_type==='referrals'?'<section class="gx-program-activity-section"><div class="gx-program-section-heading"><span class="gx-ref-eyebrow">TU ACTIVIDAD</span><h2>Tu actividad</h2></div><div class="gx-program-activity-grid gx-program-activity-grid-two"><button type="button" data-open-program-referrals><span class="gx-program-activity-icon">↗</span><span class="gx-program-activity-card-copy"><small>Referidos</small><strong>'+refs.length+'</strong><em>'+refs.filter(r=>r.status==='approved').length+' validados · '+refs.filter(r=>r.status==='pending').length+' por validar</em></span><span class="gx-program-card-chevron">›</span></button><button type="button" data-open-program-earnings><span class="gx-program-activity-icon">$</span><span class="gx-program-activity-card-copy"><small>Tus ganancias</small><strong>'+money(earned)+'</strong><em>'+money(paid)+' pagados</em></span><span class="gx-program-card-chevron">›</span></button></div><section class="gx-program-personal-code"><div><span class="gx-ref-eyebrow">TU CÓDIGO PERSONAL</span><p>Compártelo con alguien que todavía no pertenezca a Grayxon.</p><strong>'+esc(codeFor(currentProfile()?.username))+'</strong></div><div class="gx-program-code-actions"><button type="button" id="gxCopyCode">Copiar código</button><button type="button" id="gxShareWhatsApp">WhatsApp ↗</button></div></section></section>':'';
-    page.innerHTML='<div class="gx-referrals-shell gx-program-detail-page"><div class="gx-program-detail-toolbar"><button type="button" class="gx-admin-secondary-btn" id="gxBackToPrograms">← Todos los programas</button></div>'+hero+media+activity+'<div class="gx-ref-modal hidden" id="gxRefModal" role="dialog" aria-modal="true" aria-labelledby="gxRefModalTitle"><div class="gx-ref-modal-backdrop" data-gx-modal-close></div><section class="gx-ref-modal-card"><button type="button" class="gx-ref-modal-close" id="gxRefModalClose" aria-label="Cerrar ventana">×</button><span class="gx-ref-eyebrow">GRAYXON GROUP · PROGRAMAS</span><h2 id="gxRefModalTitle">Resumen del programa</h2><div id="gxRefModalBody"></div></section></div></div>';
-    $('gxBackToPrograms')?.addEventListener('click',render);
+    page.innerHTML='<div class="gx-referrals-shell gx-program-detail-page">'+hero+media+activity+'<div class="gx-ref-modal hidden" id="gxRefModal" role="dialog" aria-modal="true" aria-labelledby="gxRefModalTitle"><div class="gx-ref-modal-backdrop" data-gx-modal-close></div><section class="gx-ref-modal-card"><button type="button" class="gx-ref-modal-close" id="gxRefModalClose" aria-label="Cerrar ventana">×</button><span class="gx-ref-eyebrow">GRAYXON GROUP · PROGRAMAS</span><h2 id="gxRefModalTitle">Resumen del programa</h2><div id="gxRefModalBody"></div></section></div></div>';
     $('gxProgramSummaryBtn')?.addEventListener('click',()=>openDetailModal('Resumen del programa','<div class="gx-program-description-popup"><div class="gx-program-description-text">'+esc(p.description||'Este programa no tiene un resumen adicional.')+'</div>'+(media||'')+'</div>'));
     $('gxProgramRequirementsBtn')?.addEventListener('click',()=>openDetailModal('Requisitos y condiciones','<section class="gx-program-description-popup"><div class="gx-ref-program-requirements">'+esc(p.requirements||'Consulta con el equipo de Grayxon las condiciones específicas de este programa.')+'</div></section>'));
     $('gxRefModalClose')?.addEventListener('click',closeDetailModal);$('gxRefModal')?.querySelector('[data-gx-modal-close]')?.addEventListener('click',closeDetailModal);
@@ -328,6 +329,7 @@
     $('gxShareWhatsApp')?.addEventListener('click',()=>{const code=codeFor(currentProfile()?.username);window.open('https://wa.me/?text='+encodeURIComponent('¡Te invito a Grayxon Group para crecer en TikTok LIVE! Mi código de referido es '+code+'. Compártelo con el equipo al registrarte.'),'_blank','noopener,noreferrer');});
   }
   function showProgramActivity(programId,statusFilter='all'){
+    document.body.classList.remove('gx-program-fullscreen');
     const p=earningPrograms.find(x=>x.id===programId);if(!p)return;const page=ensurePage();if(!page)return;
     const allRefs=referrals.filter(r=>r.program_id===p.id||(p.program_type==='referrals'&&!r.program_id));
     const counts={all:allRefs.length,pending:0,approved:0,rejected:0};allRefs.forEach(r=>{if(counts[r.status]!==undefined)counts[r.status]++;});
@@ -340,6 +342,7 @@
     page.querySelectorAll('[data-referral-history]').forEach(btn=>btn.addEventListener('click',()=>showReferralEarnings(programId,btn.dataset.referralHistory)));
   }
   function showProgramEarnings(programId){
+    document.body.classList.remove('gx-program-fullscreen');
     const p=earningPrograms.find(x=>x.id===programId);if(!p)return;const page=ensurePage();if(!page)return;
     const refs=referrals.filter(r=>r.program_id===p.id||(p.program_type==='referrals'&&!r.program_id)),ids=refs.map(r=>r.id);
     const items=commissions.filter(c=>ids.includes(c.referral_id)).sort((a,b)=>String(b.period_month).localeCompare(String(a.period_month)));
@@ -350,6 +353,7 @@
     page.querySelectorAll('[data-earnings-ref]').forEach(btn=>btn.addEventListener('click',()=>showReferralEarnings(programId,btn.dataset.earningsRef)));
   }
   function showReferralEarnings(programId,referralId){
+    document.body.classList.remove('gx-program-fullscreen');
     const p=earningPrograms.find(x=>x.id===programId),r=referrals.find(x=>x.id===referralId);if(!p||!r)return;const page=ensurePage();if(!page)return;
     const items=commissions.filter(c=>c.referral_id===r.id).sort((a,b)=>String(b.period_month).localeCompare(String(a.period_month)));
     const total=items.reduce((sum,c)=>sum+Number(c.commission_amount||0),0),paid=items.filter(c=>c.status==='paid').reduce((sum,c)=>sum+Number(c.commission_amount||0),0);
