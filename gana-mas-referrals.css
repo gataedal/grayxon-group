@@ -474,3 +474,13 @@ body.gx-program-fullscreen .gx-program-activity-icon{align-self:center!important
  body.gx-program-fullscreen .gx-program-detail-reward strong{font-size:18px!important}
  body.gx-program-fullscreen .gx-program-activity-grid-two>button{min-height:100px!important}
 }
+
+/* Administración financiera: liquidaciones agrupadas por referente */
+.gx-commission-search{display:grid;gap:7px;margin:0 0 14px}.gx-commission-search label,.gx-commission-status-label{color:#b8c0cb;font-size:11px;font-weight:700}
+.gx-commission-search input,.gx-commission-status-label select{width:100%;min-width:0;min-height:40px;border:1px solid #343943;border-radius:10px;background:#090b0e;color:#f5f6f8;padding:9px 11px;font:inherit}
+.gx-commission-groups{display:grid;gap:10px}.gx-commission-person{border:1px solid #30343c;border-radius:13px;background:linear-gradient(145deg,#101114,#0b0c0f);overflow:hidden}
+.gx-commission-person>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px;cursor:pointer}.gx-commission-person>summary::-webkit-details-marker{display:none}.gx-commission-person>summary:after{content:'＋';color:#d8bc76;font-size:17px;font-weight:800}.gx-commission-person[open]>summary:after{content:'−'}
+.gx-commission-person>summary>span:first-child{display:grid;gap:5px;min-width:0}.gx-commission-person>summary strong{font-size:14px;color:#f6f7f8;overflow-wrap:anywhere}.gx-commission-person>summary small{font-size:11px;color:#9fa8b5}.gx-commission-person-total{font-size:12px;font-weight:800;color:#70e4bf;white-space:nowrap}
+.gx-commission-person-rows{display:grid;gap:8px;padding:0 10px 10px}.gx-commission-row{margin:0!important;align-items:center;gap:12px}.gx-commission-row .gx-admin-list-main{min-width:0}.gx-commission-row .gx-admin-list-main strong{overflow-wrap:anywhere}.gx-commission-row .gx-admin-list-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gx-commission-status-label{display:grid;gap:5px;min-width:145px}.gx-commission-status-label select{font-size:11px;padding:7px 9px;min-height:36px}.gx-commission-person[hidden]{display:none!important}.gx-ref-status.cancelled{color:#f0a0a0;border-color:rgba(240,130,130,.35);background:rgba(125,30,30,.14)}
+@media(max-width:620px){.gx-commission-person>summary{padding:12px;gap:8px}.gx-commission-person-total{font-size:10px}.gx-commission-row{align-items:flex-start!important;flex-direction:column}.gx-commission-row .gx-admin-list-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end}.gx-commission-status-label{min-width:0}}
