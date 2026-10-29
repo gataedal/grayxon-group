@@ -16,6 +16,10 @@
   let referrals = [];
   let commissions = [];
   let heroBackgroundUrl = null;
+  let earningPrograms = [];
+  let adminProfiles = [];
+  let adminTab = 'overview';
+  let editingProgramId = null;
 
   function currentProfile(){ try { return typeof profile !== 'undefined' ? profile : window.profile || null; } catch (_) { return window.profile || null; } }
   function currentSession(){ try { return typeof session !== 'undefined' ? session : window.session || null; } catch (_) { return window.session || null; } }
@@ -67,7 +71,7 @@
     card.type='button';
     card.id='gxAdminReferralProgramCard';
     card.className='admin-dashboard-card';
-    card.innerHTML='<span class="admin-dashboard-card-icon" aria-hidden="true">🎁</span><span class="admin-dashboard-card-copy"><strong>Programa de referidos</strong><small>Administra el programa, valida referidos y gestiona las liquidaciones mensuales.</small></span><span class="admin-dashboard-card-arrow" aria-hidden="true">›</span>';
+    card.innerHTML='<span class="admin-dashboard-card-icon" aria-hidden="true">🎁</span><span class="admin-dashboard-card-copy"><strong>Programas para ganar más</strong><small>Crea programas, define beneficios y administra referidos, estados y liquidaciones.</small></span><span class="admin-dashboard-card-arrow" aria-hidden="true">›</span>';
     card.addEventListener('click',openPage);
     grid.appendChild(card);
   }
@@ -96,6 +100,85 @@
     await loadData();
     render();
   }
+
+  function renderAdminDashboard(page){
+    const pending=referrals.filter(r=>r.status==='pending').length, approved=referrals.filter(r=>r.status==='approved').length;
+    const activePrograms=earningPrograms.filter(p=>p.status==='active').length, paid=commissions.filter(c=>c.status==='paid').reduce((s,c)=>s+Number(c.commission_amount||0),0);
+    const tabs=[['overview','Resumen'],['programs','Programas'],['referrals','Referidos'],['commissions','Liquidaciones']];
+    const tabButtons=tabs.map(([id,label])=>'<button type="button" class="gx-admin-tab '+(adminTab===id?'active':'')+'" data-admin-tab="'+id+'">'+label+'</button>').join('');
+    let content='';
+    if(adminTab==='overview'){
+      content='<div class="gx-admin-kpis"><article><small>Programas activos</small><strong>'+activePrograms+'</strong></article><article><small>Referidos por validar</small><strong>'+pending+'</strong></article><article><small>Referidos aprobados</small><strong>'+approved+'</strong></article><article><small>Comisiones pagadas</small><strong>'+money(paid)+'</strong></article></div><div class="gx-admin-quick-grid"><button type="button" data-admin-tab="programs" data-admin-create="1"><span>✦</span><strong>Crear programa</strong><small>Define nombre, tipo, recompensa y requisitos.</small></button><button type="button" data-admin-tab="referrals" data-admin-create="1"><span>↗</span><strong>Registrar referido</strong><small>Asigna un creador a quien lo invitó y controla su estado.</small></button><button type="button" data-admin-tab="commissions"><span>＄</span><strong>Gestionar liquidaciones</strong><small>Registra, aprueba y marca pagos como pagados.</small></button></div><section class="gx-admin-block"><div class="gx-admin-block-head"><div><span class="gx-ref-eyebrow">ACTIVIDAD RECIENTE</span><h3>Referidos recientes</h3></div><button type="button" class="gx-admin-text-btn" data-admin-tab="referrals">Ver todos ↗</button></div>'+renderAdminReferralRows(referrals.slice(0,5))+'</section>';
+    }else if(adminTab==='programs'){
+      const e=earningPrograms.find(p=>p.id===editingProgramId)||null;
+      content='<section class="gx-admin-block"><div class="gx-admin-block-head"><div><span class="gx-ref-eyebrow">CATÁLOGO DE BENEFICIOS</span><h3>'+(e?'Editar programa':'Crear un programa')+'</h3><p>Administra distintos mecanismos para que los creadores ganen más.</p></div></div><form id="gxAdminProgramForm" class="gx-admin-form"><input type="hidden" id="gxAdminProgramId" value="'+esc(e?.id||'')+'"><div class="gx-admin-form-grid"><div><label for="gxAdminProgramName">Nombre del programa</label><input id="gxAdminProgramName" required maxlength="120" value="'+esc(e?.name||'')+'" placeholder="Ej. Programa de referidos"></div><div><label for="gxAdminProgramType">Tipo de programa</label><select id="gxAdminProgramType"><option value="referrals" '+(e?.program_type==='referrals'?'selected':'')+'>Referidos</option><option value="monthly_bonus" '+(e?.program_type==='monthly_bonus'?'selected':'')+'>Bonificación mensual</option><option value="missions" '+(e?.program_type==='missions'?'selected':'')+'>Misiones</option><option value="events" '+(e?.program_type==='events'?'selected':'')+'>Eventos</option><option value="other" '+(e?.program_type==='other'?'selected':'')+'>Otro</option></select></div><div><label for="gxAdminRewardType">Tipo de recompensa</label><select id="gxAdminRewardType"><option value="percentage" '+(e?.reward_type==='percentage'?'selected':'')+'>Porcentaje</option><option value="fixed_amount" '+(e?.reward_type==='fixed_amount'?'selected':'')+'>Monto fijo (COP)</option><option value="points" '+(e?.reward_type==='points'?'selected':'')+'>Puntos</option><option value="custom" '+(e?.reward_type==='custom'?'selected':'')+'>Definida en requisitos</option></select></div><div><label for="gxAdminRewardValue">Valor de recompensa</label><input id="gxAdminRewardValue" type="number" min="0" step="0.01" required value="'+esc(e?.reward_value??0)+'"></div><div><label for="gxAdminProgramStatus">Estado</label><select id="gxAdminProgramStatus"><option value="draft" '+(e?.status==='draft'?'selected':'')+'>Borrador</option><option value="active" '+(e?.status==='active'?'selected':'')+'>Activo</option><option value="paused" '+(e?.status==='paused'?'selected':'')+'>Pausado</option><option value="archived" '+(e?.status==='archived'?'selected':'')+'>Archivado</option></select></div><div><label for="gxAdminProgramStart">Fecha de inicio</label><input id="gxAdminProgramStart" type="date" value="'+esc(e?.starts_on||'')+'"></div><div><label for="gxAdminProgramEnd">Fecha de finalización</label><input id="gxAdminProgramEnd" type="date" value="'+esc(e?.ends_on||'')+'"></div></div><label for="gxAdminProgramDescription">Descripción para los participantes</label><textarea id="gxAdminProgramDescription" rows="3" maxlength="2000" placeholder="Explica en qué consiste el programa">'+esc(e?.description||'')+'</textarea><label for="gxAdminProgramRequirements">Requisitos y condiciones</label><textarea id="gxAdminProgramRequirements" rows="4" maxlength="4000" placeholder="Especifica elegibilidad, condiciones y cómo se calcula la recompensa">'+esc(e?.requirements||'')+'</textarea><div class="gx-admin-form-actions"><button class="gx-ref-submit" type="submit">'+(e?'Guardar cambios':'Crear programa')+' →</button>'+(e?'<button type="button" class="gx-admin-secondary-btn" id="gxAdminCancelEdit">Cancelar</button>':'')+'</div></form></section><section class="gx-admin-block"><div class="gx-admin-block-head"><div><span class="gx-ref-eyebrow">PROGRAMAS CREADOS</span><h3>Todos los programas</h3></div></div>'+renderAdminPrograms()+'</section>';
+    }else if(adminTab==='referrals'){
+      content='<section class="gx-admin-block"><div class="gx-admin-block-head"><div><span class="gx-ref-eyebrow">ATRIBUCIÓN Y SEGUIMIENTO</span><h3>Registrar referido</h3><p>Registra quién invitó al creador y asigna el programa correspondiente.</p></div></div><form id="gxAdminReferralForm" class="gx-admin-form"><div class="gx-admin-form-grid"><div><label for="gxAdminReferrer">Persona que refiere</label><select id="gxAdminReferrer" required><option value="">Selecciona usuario de Grayxon</option>'+adminProfiles.map(p=>'<option value="'+p.id+'">'+esc(p.full_name||p.username||p.id)+' · '+esc(p.username||p.role)+'</option>').join('')+'</select></div><div><label for="gxAdminReferredUsername">Usuario de TikTok referido</label><input id="gxAdminReferredUsername" required maxlength="80" placeholder="@usuario"></div><div><label for="gxAdminReferredName">Nombre visible (opcional)</label><input id="gxAdminReferredName" maxlength="120" placeholder="Nombre del creador"></div><div><label for="gxAdminReferralProgram">Programa</label><select id="gxAdminReferralProgram"><option value="">Sin programa asociado</option>'+earningPrograms.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('')+'</select></div></div><label for="gxAdminReferralNote">Nota administrativa (opcional)</label><input id="gxAdminReferralNote" maxlength="500" placeholder="Contexto o comprobación de la atribución"><button class="gx-ref-submit" type="submit">Registrar referido →</button></form></section><section class="gx-admin-block"><div class="gx-admin-block-head"><div><span class="gx-ref-eyebrow">BASE DE REFERIDOS</span><h3>Todos los referidos</h3></div><div class="gx-admin-filter"><label for="gxAdminReferralFilter">Filtrar por estado</label><select id="gxAdminReferralFilter"><option value="all">Todos</option><option value="pending">Por validar</option><option value="approved">Validados</option><option value="rejected">Rechazados</option></select></div></div><div id="gxAdminReferralRows">'+renderAdminReferralRows(referrals)+'</div></section>';
+    }else{
+      content='<section class="gx-admin-block"><div class="gx-admin-block-head"><div><span class="gx-ref-eyebrow">CONTROL FINANCIERO</span><h3>Liquidaciones mensuales</h3><p>Registra la comisión acordada y controla su estado de pago.</p></div></div><form id="gxAdminCommissionForm" class="gx-admin-form"><div class="gx-admin-form-grid"><div><label for="gxAdminCommissionReferral">Referido validado</label><select id="gxAdminCommissionReferral" required><option value="">Selecciona un referido aprobado</option>'+referrals.filter(r=>r.status==='approved').map(r=>'<option value="'+r.id+'">@'+esc(r.referred_tiktok_username)+' · '+esc(adminProfiles.find(p=>p.id===r.referrer_user_id)?.username||'')+'</option>').join('')+'</select></div><div><label for="gxAdminCommissionMonth">Mes liquidado</label><input id="gxAdminCommissionMonth" type="month" required></div><div><label for="gxAdminCommissionNet">Ingreso neto para la agencia (COP)</label><input id="gxAdminCommissionNet" type="number" min="0" step="1" required placeholder="0"></div><div><label for="gxAdminCommissionRate">Porcentaje acordado (%)</label><input id="gxAdminCommissionRate" type="number" min="0" max="100" step="0.01" required placeholder="0"></div></div><div class="gx-admin-calculated"><span>Comisión calculada</span><strong id="gxAdminCommissionPreview">'+money(0)+'</strong></div><label for="gxAdminCommissionNotes">Notas</label><input id="gxAdminCommissionNotes" maxlength="250" placeholder="Observaciones de la liquidación"><button class="gx-ref-submit" type="submit">Guardar liquidación →</button></form></section><section class="gx-admin-block"><div class="gx-admin-block-head"><div><span class="gx-ref-eyebrow">HISTORIAL</span><h3>Todas las liquidaciones</h3></div></div>'+renderAdminCommissionRows()+'</section>';
+    }
+    page.innerHTML='<div class="gx-admin-center"><header class="gx-admin-center-hero"><span class="gx-ref-eyebrow">GRAYXON GROUP · ADMINISTRACIÓN</span><h1>Programas para ganar más</h1><p>Crea incentivos y administra las recompensas de los creadores desde un solo lugar.</p></header><nav class="gx-admin-tabs" aria-label="Administración de programas">'+tabButtons+'</nav><div class="gx-admin-tab-content">'+content+'</div></div>';
+    page.querySelectorAll('[data-admin-tab]').forEach(btn=>btn.addEventListener('click',()=>{adminTab=btn.dataset.adminTab;if(btn.dataset.adminCreate==='1'&&adminTab==='programs')editingProgramId=null;render();if(btn.dataset.adminCreate==='1')page.querySelector('.gx-admin-block')?.scrollIntoView({behavior:'smooth',block:'start'});}));
+    $('gxAdminProgramForm')?.addEventListener('submit',saveAdminProgram);$('gxAdminCancelEdit')?.addEventListener('click',()=>{editingProgramId=null;render();});
+    $('gxAdminReferralForm')?.addEventListener('submit',saveAdminReferral);
+    $('gxAdminReferralFilter')?.addEventListener('change',e=>{const rows=referrals.filter(r=>e.target.value==='all'||r.status===e.target.value);$('gxAdminReferralRows').innerHTML=renderAdminReferralRows(rows);bindAdminReferralActions();});
+    $('gxAdminCommissionForm')?.addEventListener('submit',saveAdminCommission);
+    const updatePreview=()=>{const net=Number($('gxAdminCommissionNet')?.value)||0,rate=Number($('gxAdminCommissionRate')?.value)||0;if($('gxAdminCommissionPreview'))$('gxAdminCommissionPreview').textContent=money(net*rate/100);};
+    $('gxAdminCommissionNet')?.addEventListener('input',updatePreview);$('gxAdminCommissionRate')?.addEventListener('input',updatePreview);
+    page.querySelectorAll('[data-program-edit]').forEach(btn=>btn.addEventListener('click',()=>{editingProgramId=btn.dataset.programEdit;adminTab='programs';render();window.scrollTo({top:0,behavior:'smooth'});}));
+    page.querySelectorAll('[data-program-status]').forEach(btn=>btn.addEventListener('click',()=>changeProgramStatus(btn.dataset.programStatus,btn.dataset.programId)));
+    bindAdminReferralActions();
+  }
+  function renderAdminPrograms(){
+    if(!earningPrograms.length)return '<div class="gx-admin-empty"><strong>Aún no hay programas</strong><p>Crea el primero para organizar los incentivos.</p></div>';
+    return '<div class="gx-admin-list">'+earningPrograms.map(p=>'<article class="gx-admin-list-row"><div class="gx-admin-list-main"><strong>'+esc(p.name)+'</strong><small>'+esc(({referrals:'Referidos',monthly_bonus:'Bonificación mensual',missions:'Misiones',events:'Eventos',other:'Otro'})[p.program_type]||p.program_type)+' · '+esc(({draft:'Borrador',active:'Activo',paused:'Pausado',archived:'Archivado'})[p.status]||p.status)+' · '+esc(({percentage:'Porcentaje',fixed_amount:'Monto fijo',points:'Puntos',custom:'Personalizado'})[p.reward_type]||p.reward_type)+'</small><p>'+esc(p.description||'Sin descripción')+'</p></div><div class="gx-admin-list-actions"><button type="button" data-program-edit="'+p.id+'">Editar</button><button type="button" data-program-status="'+(p.status==='active'?'paused':'active')+'" data-program-id="'+p.id+'">'+(p.status==='active'?'Pausar':'Activar')+'</button></div></article>').join('')+'</div>';
+  }
+  function renderAdminReferralRows(rows){
+    if(!rows.length)return '<div class="gx-admin-empty"><strong>No hay referidos en esta lista</strong><p>Cuando registres invitaciones, aparecerán aquí.</p></div>';
+    return '<div class="gx-admin-list">'+rows.map(r=>'<article class="gx-admin-list-row"><div class="gx-admin-list-main"><strong>@'+esc(r.referred_tiktok_username)+'</strong><small>'+esc(adminProfiles.find(p=>p.id===r.referrer_user_id)?.full_name||adminProfiles.find(p=>p.id===r.referrer_user_id)?.username||'Usuario no encontrado')+' · '+esc(dateFmt(r.created_at))+'</small><p>Estado: '+esc(({pending:'Por validar',approved:'Validado',rejected:'Rechazado'})[r.status]||r.status)+'</p></div><div class="gx-admin-list-actions">'+(r.status==='pending'?'<button type="button" data-ref-action="approve" data-ref-id="'+r.id+'">Validar</button><button type="button" data-ref-action="reject" data-ref-id="'+r.id+'">Rechazar</button>':'<button type="button" data-ref-action="pending" data-ref-id="'+r.id+'">Volver a pendiente</button>')+'</div></article>').join('')+'</div>';
+  }
+  function renderAdminCommissionRows(){
+    if(!commissions.length)return '<div class="gx-admin-empty"><strong>No hay liquidaciones registradas</strong><p>Registra la primera liquidación para que quede en el historial.</p></div>';
+    const refMap=new Map(referrals.map(r=>[r.id,r]));
+    return '<div class="gx-admin-list">'+commissions.map(c=>{const r=refMap.get(c.referral_id);return '<article class="gx-admin-list-row"><div class="gx-admin-list-main"><strong>@'+esc(r?.referred_tiktok_username||'Referido')+' · '+money(c.commission_amount)+'</strong><small>'+esc(c.period_month)+' · '+esc(Number(c.commission_rate).toLocaleString('es-CO'))+'% sobre '+money(c.agency_net_amount)+'</small><p>Estado: '+esc(({pending:'Pendiente de aprobación',approved:'Aprobada, por pagar',paid:'Pagada'})[c.status]||c.status)+'</p></div><div class="gx-admin-list-actions">'+(c.status==='pending'?'<button type="button" data-commission-action="approve" data-commission-id="'+c.id+'">Aprobar</button>':c.status==='approved'?'<button type="button" data-commission-action="paid" data-commission-id="'+c.id+'">Marcar pagada</button>':'')+'</div></article>';}).join('')+'</div>';
+  }
+  function bindAdminReferralActions(){
+    $('gxReferralsPage')?.querySelectorAll('[data-ref-action]').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>handleAdminAction(btn.dataset.refAction,btn.dataset.refId));});
+    $('gxReferralsPage')?.querySelectorAll('[data-commission-action]').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>updateCommissionStatus(btn.dataset.commissionId,btn.dataset.commissionAction));});
+  }
+  async function saveAdminProgram(event){
+    event.preventDefault();const client=db();if(!client||!isAdmin())return;
+    const name=$('gxAdminProgramName')?.value.trim();if(!name)return;
+    const payload={name,description:$('gxAdminProgramDescription')?.value.trim()||'',program_type:$('gxAdminProgramType')?.value||'other',reward_type:$('gxAdminRewardType')?.value||'custom',reward_value:Number($('gxAdminRewardValue')?.value)||0,status:$('gxAdminProgramStatus')?.value||'draft',starts_on:$('gxAdminProgramStart')?.value||null,ends_on:$('gxAdminProgramEnd')?.value||null,requirements:$('gxAdminProgramRequirements')?.value.trim()||'',created_by:userId(),updated_at:new Date().toISOString()};
+    const id=$('gxAdminProgramId')?.value;
+    const result=id?await client.from('gx_earning_programs').update(payload).eq('id',id):await client.from('gx_earning_programs').insert(payload);
+    if(result.error){console.error(result.error);notify('No se pudo guardar el programa.',true);return;}
+    notify(id?'Programa actualizado.':'Programa creado.');editingProgramId=null;await loadData();render();
+  }
+  async function saveAdminReferral(event){
+    event.preventDefault();const client=db();if(!client||!isAdmin())return;
+    const username=String($('gxAdminReferredUsername')?.value||'').trim().replace(/^@/,'');const referrer=$('gxAdminReferrer')?.value;
+    if(!username||!referrer)return;
+    const payload={referrer_user_id:referrer,referred_tiktok_username:username,referred_display_name:$('gxAdminReferredName')?.value.trim()||null,program_id:$('gxAdminReferralProgram')?.value||null,status:'pending',admin_note:$('gxAdminReferralNote')?.value.trim()||null};
+    const result=await client.from('gx_referrals').insert(payload);
+    if(result.error){console.error(result.error);notify(result.error.code==='23505'?'Ese usuario de TikTok ya está registrado.':'No se pudo registrar el referido.',true);return;}
+    notify('Referido registrado y pendiente de validación.');await loadData();render();
+  }
+  async function saveAdminCommission(event){
+    event.preventDefault();const client=db();if(!client||!isAdmin())return;
+    const referralId=$('gxAdminCommissionReferral')?.value,month=$('gxAdminCommissionMonth')?.value,net=Number($('gxAdminCommissionNet')?.value),rate=Number($('gxAdminCommissionRate')?.value);
+    if(!referralId||!month||net<0||rate<0||rate>100)return;
+    const result=await client.from('gx_referral_commissions').insert({referral_id:referralId,period_month:month+'-01',agency_net_amount:net,commission_rate:rate,commission_amount:Math.round(net*rate)/100,status:'pending',notes:$('gxAdminCommissionNotes')?.value.trim()||null});
+    if(result.error){console.error(result.error);notify('No se pudo registrar la liquidación.',true);return;}
+    notify('Liquidación registrada.');await loadData();render();
+  }
+  async function changeProgramStatus(id,status){
+    if(!isAdmin())return;const client=db();if(!client)return;
+    const result=await client.from('gx_earning_programs').update({status,updated_at:new Date().toISOString()}).eq('id',id);
+    if(result.error){notify('No se pudo actualizar el estado del programa.',true);return;}
+    await loadData();render();
+  }
+
   function referralCard(r){
     const [label,klass]=statusInfo(r.status);
     return '<article class="gx-referral-row"><div class="gx-referral-avatar" aria-hidden="true">↗</div><div class="gx-referral-row-main"><strong>@'+esc(r.referred_tiktok_username)+'</strong><span>'+esc(r.referred_display_name||'Referido registrado')+' · '+esc(dateFmt(r.created_at))+'</span></div><span class="gx-ref-status '+klass+'">'+label+'</span>'+(isAdmin()?'<div class="gx-ref-admin-actions">'+(r.status==='pending'?'<button type="button" data-ref-action="approve" data-ref-id="'+r.id+'">Validar</button><button type="button" data-ref-action="reject" data-ref-id="'+r.id+'">Rechazar</button>':'')+'<button type="button" data-ref-action="commission" data-ref-id="'+r.id+'">Liquidar mes</button></div>':'')+'</article>';
@@ -131,6 +214,15 @@
       }
       const settingsResult=await client.from('gx_referral_settings').select('hero_background_url').eq('id',1).maybeSingle();
       if(!settingsResult.error)heroBackgroundUrl=settingsResult.data?.hero_background_url||null;
+      if(isAdmin()){
+        const [programResult,profileResult]=await Promise.all([
+          client.from('gx_earning_programs').select('*').order('created_at',{ascending:false}),
+          client.from('profiles').select('id,username,full_name,role,active,tiktok_username').eq('active',true).order('username',{ascending:true})
+        ]);
+        if(programResult.error)throw programResult.error;
+        earningPrograms=programResult.data||[];
+        if(!profileResult.error)adminProfiles=profileResult.data||[];
+      }
       loaded=true;
     }catch(error){
       console.error('Gana más: no se pudieron cargar los datos',error);
@@ -139,6 +231,7 @@
   }
   function render(){
     const page=ensurePage();if(!page)return;
+    if(isAdmin()){renderAdminDashboard(page);return;}
     const p=currentProfile()||{};
     const code=codeFor(p.username);
     const shareUrl='https://www.grayxongroup.com/portal.html?ref='+encodeURIComponent(code);
