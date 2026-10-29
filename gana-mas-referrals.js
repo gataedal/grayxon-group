@@ -1,0 +1,206 @@
+/* Grayxon Gana más · módulo de referidos */
+(function () {
+  'use strict';
+  if (window.gxReferralsBooted) return;
+  window.gxReferralsBooted = true;
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const money = value => new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(value)||0);
+  const dateFmt = value => value ? new Intl.DateTimeFormat('es-CO',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(value)) : '—';
+  const statusInfo = status => ({pending:['Pendiente','pending'],approved:['Activo','approved'],rejected:['No aprobado','rejected'],paid:['Pagado','paid']})[status] || [status || 'Pendiente','pending'];
+  const codeFor = username => 'GX-' + String(username || 'GRAYXON').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,18);
+  let previousPage = null;
+  let isOpen = false;
+  let loaded = false;
+  let referrals = [];
+  let commissions = [];
+
+  function currentProfile(){ try { return typeof profile !== 'undefined' ? profile : window.profile || null; } catch (_) { return window.profile || null; } }
+  function currentSession(){ try { return typeof session !== 'undefined' ? session : window.session || null; } catch (_) { return window.session || null; } }
+  function db(){ try { return typeof sb !== 'undefined' ? sb : window.sb || null; } catch (_) { return window.sb || null; } }
+  function userId(){ return currentSession()?.user?.id || currentProfile()?.id || null; }
+  function isAdmin(){ return currentProfile()?.role === 'admin'; }
+  function notify(message, isError=false){
+    const toast=$('toast');
+    if(toast){toast.textContent=message;toast.classList.remove('hidden');toast.style.background=isError?'#ff8585':'#f0f1f3';toast.style.color='#08090a';setTimeout(()=>toast.classList.add('hidden'),3500);}
+    else alert(message);
+  }
+  function ensurePage(){
+    let page=$('gxReferralsPage');
+    if(!page){
+      page=document.createElement('section');
+      page.id='gxReferralsPage';page.className='page hidden';page.setAttribute('aria-label','Gana más');
+      const main=document.querySelector('main.wrap');
+      if(!main) return null;
+      main.appendChild(page);
+    }
+    return page;
+  }
+  function ensureButton(){
+    let button=$('gxOpenReferrals');
+    const host=document.querySelector('header.top .header-actions');
+    if(!host) return;
+    if(!button){
+      button=document.createElement('button');button.id='gxOpenReferrals';button.type='button';
+      button.className='gx-referral-header-btn';
+      button.innerHTML='<span aria-hidden="true">✦</span><span>Gana más</span>';
+      button.addEventListener('click',openPage);
+      host.insertBefore(button,host.firstChild);
+    }
+    const loggedIn=!!userId() && !!currentProfile()?.active;
+    button.classList.toggle('gx-referral-hidden',!loggedIn);
+  }
+  function closePage(){
+    const page=$('gxReferralsPage');if(!page)return;
+    page.classList.add('hidden');isOpen=false;
+    const visible=previousPage && document.contains(previousPage) ? previousPage : null;
+    document.querySelectorAll('main.wrap > .page').forEach(p=>p.classList.add('hidden'));
+    if(visible)visible.classList.remove('hidden');
+    else if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
+    else { const home=$('home'); if(home)home.classList.remove('hidden'); }
+    const button=$('gxOpenReferrals');if(button)button.classList.remove('is-active');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  async function openPage(){
+    const page=ensurePage();if(!page)return;
+    if(!userId()){notify('Inicia sesión para acceder a Gana más.',true);return;}
+    previousPage=document.querySelector('main.wrap > .page:not(.hidden)');
+    if(previousPage===page)previousPage=null;
+    document.querySelectorAll('main.wrap > .page').forEach(p=>p.classList.add('hidden'));
+    page.classList.remove('hidden');isOpen=true;
+    const button=$('gxOpenReferrals');if(button)button.classList.add('is-active');
+    window.scrollTo({top:0,behavior:'instant'});
+    await loadData();
+    render();
+  }
+  function referralCard(r){
+    const [label,klass]=statusInfo(r.status);
+    return '<article class="gx-referral-row"><div class="gx-referral-avatar" aria-hidden="true">↗</div><div class="gx-referral-row-main"><strong>@'+esc(r.referred_tiktok_username)+'</strong><span>'+esc(r.referred_display_name||'Referido registrado')+' · '+esc(dateFmt(r.created_at))+'</span></div><span class="gx-ref-status '+klass+'">'+label+'</span>'+(isAdmin()?'<div class="gx-ref-admin-actions">'+(r.status==='pending'?'<button type="button" data-ref-action="approve" data-ref-id="'+r.id+'">Validar</button><button type="button" data-ref-action="reject" data-ref-id="'+r.id+'">Rechazar</button>':'')+'<button type="button" data-ref-action="commission" data-ref-id="'+r.id+'">Liquidar mes</button></div>':'')+'</article>';
+  }
+  function commissionCard(c, refMap){
+    const r=refMap.get(c.referral_id);
+    const [label,klass]=statusInfo(c.status);
+    return '<article class="gx-commission-row"><div><strong>@'+esc(r?.referred_tiktok_username||'Creador referido')+'</strong><span>Periodo '+esc(new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(c.period_month+'T12:00:00Z')))+' · '+esc(Number(c.commission_rate).toLocaleString('es-CO'))+'%</span></div><div class="gx-commission-value"><strong>'+money(c.commission_amount)+'</strong><span class="gx-ref-status '+klass+'">'+label+'</span></div></article>';
+  }
+  async function loadData(){
+    const client=db(),uid=userId();if(!client||!uid){referrals=[];commissions=[];return;}
+    const page=$('gxReferralsPage');if(page)page.innerHTML='<div class="gx-ref-loading"><span class="gx-ref-spinner"></span><p>Cargando tu programa de referidos…</p></div>';
+    try{
+      let query=client.from('gx_referrals').select('id,referrer_user_id,referred_tiktok_username,referred_display_name,referred_user_id,status,created_at,reviewed_at,admin_note');
+      if(!isAdmin())query=query.eq('referrer_user_id',uid);
+      const result=await query.order('created_at',{ascending:false});
+      if(result.error)throw result.error;
+      referrals=result.data||[];
+      let cq=client.from('gx_referral_commissions').select('id,referral_id,period_month,agency_net_amount,commission_rate,commission_amount,status,paid_at,notes');
+      if(!isAdmin()){
+        const ids=referrals.map(r=>r.id);
+        if(!ids.length){commissions=[];loaded=true;return;}
+        cq=cq.in('referral_id',ids);
+      }
+      const cr=await cq.order('period_month',{ascending:false});
+      if(cr.error)throw cr.error;
+      commissions=cr.data||[];loaded=true;
+    }catch(error){
+      console.error('Gana más: no se pudieron cargar los datos',error);
+      notify('No pudimos cargar los referidos. Revisa la conexión e inténtalo de nuevo.',true);
+    }
+  }
+  function render(){
+    const page=ensurePage();if(!page)return;
+    const p=currentProfile()||{};
+    const code=codeFor(p.username);
+    const shareUrl='https://www.grayxongroup.com/portal.html?ref='+encodeURIComponent(code);
+    const approved=referrals.filter(r=>r.status==='approved').length;
+    const pending=referrals.filter(r=>r.status==='pending').length;
+    const totalPaid=commissions.filter(c=>c.status==='paid' && referrals.some(r=>r.id===c.referral_id)).reduce((s,c)=>s+Number(c.commission_amount||0),0);
+    const refMap=new Map(referrals.map(r=>[r.id,r]));
+    page.innerHTML='<div class="gx-referrals-shell">'+
+      '<div class="gx-referrals-topline"><button type="button" class="gx-ref-back" id="gxRefBack"><span aria-hidden="true">←</span> Volver al portal</button><span class="gx-ref-eyebrow">GRAYXON GROUP · PROGRAMA DE REFERIDOS</span></div>'+
+      '<section class="gx-ref-hero"><div class="gx-ref-hero-copy"><span class="gx-ref-kicker"><i></i> CRECE CON GRAYXON</span><h1>Gana más<span>.</span></h1><p>Invita a nuevos talentos a unirse a Grayxon y recibe una comisión mensual por los creadores que refieras y permanezcan activos en la agencia.</p><div class="gx-ref-hero-note"><span>✦</span><div><strong>Tu recomendación puede convertirse en un ingreso recurrente.</strong><small>La comisión se calcula sobre el ingreso neto que genere el creador para la agencia y se valida al cierre de cada mes.</small></div></div></div><div class="gx-ref-hero-art" aria-hidden="true"><div class="gx-ref-orbit gx-ref-orbit-one"></div><div class="gx-ref-orbit gx-ref-orbit-two"></div><div class="gx-ref-coin">G<span>+</span></div><div class="gx-ref-art-tag">REFERIR · CRECER · GANAR</div></div></section>'+
+      '<section class="gx-ref-stats"><article><span class="gx-ref-stat-icon">↗</span><div><small>Referidos registrados</small><strong>'+referrals.length+'</strong></div></article><article><span class="gx-ref-stat-icon">✓</span><div><small>Referidos validados</small><strong>'+approved+'</strong></div></article><article><span class="gx-ref-stat-icon">◷</span><div><small>Por validar</small><strong>'+pending+'</strong></div></article><article><span class="gx-ref-stat-icon">＄</span><div><small>Comisiones pagadas</small><strong>'+money(totalPaid)+'</strong></div></article></section>'+
+      '<div class="gx-ref-main-grid"><section class="gx-ref-panel gx-ref-share"><div class="gx-ref-section-head"><div><span class="gx-ref-eyebrow">TU ENLACE PERSONAL</span><h2>Comparte tu invitación</h2></div><span class="gx-ref-panel-icon">↗</span></div><p>Comparte tu código con alguien que todavía no pertenezca a Grayxon. Cuando ingrese a la agencia, registra su usuario de TikTok aquí para solicitar la validación.</p><div class="gx-ref-code-box"><div><small>Tu código de referido</small><strong id="gxRefCode">'+esc(code)+'</strong></div><button type="button" id="gxCopyCode" aria-label="Copiar código">Copiar</button></div><button type="button" id="gxShareWhatsApp" class="gx-ref-share-btn"><span aria-hidden="true">↗</span> Compartir por WhatsApp</button><div class="gx-ref-hint">El registro queda pendiente hasta que Grayxon confirme que el creador ingresó por tu recomendación.</div></section>'+
+      '<section class="gx-ref-panel gx-ref-register"><div class="gx-ref-section-head"><div><span class="gx-ref-eyebrow">NUEVO REFERIDO</span><h2>Registra un creador</h2></div><span class="gx-ref-panel-icon">＋</span></div><form id="gxRefForm"><label for="gxRefUsername">Usuario de TikTok <span>*</span></label><div class="gx-ref-input-wrap"><span>@</span><input id="gxRefUsername" name="username" type="text" minlength="2" maxlength="80" autocomplete="off" placeholder="usuario_tiktok" required></div><label for="gxRefDisplayName">Nombre (opcional)</label><input id="gxRefDisplayName" name="display_name" type="text" maxlength="100" placeholder="Nombre del creador"><p class="gx-ref-form-note">Registra solo personas que hayas invitado directamente. Un mismo usuario solo puede quedar atribuido a un referido.</p><button class="gx-ref-submit" type="submit"><span>Registrar referido</span><span aria-hidden="true">→</span></button><div id="gxRefFormMessage" class="gx-ref-form-message" aria-live="polite"></div></form></section></div>'+
+      '<section class="gx-ref-panel gx-ref-list-panel"><div class="gx-ref-section-head"><div><span class="gx-ref-eyebrow">'+(isAdmin()?'GESTIÓN DEL PROGRAMA':'TU ACTIVIDAD')+'</span><h2>'+(isAdmin()?'Referidos de la agencia':'Mis referidos')+'</h2></div><button type="button" class="gx-ref-refresh" id="gxRefRefresh">↻ Actualizar</button></div><div class="gx-ref-list">'+(referrals.length?referrals.map(referralCard).join(''):'<div class="gx-ref-empty"><span>↗</span><strong>Aquí empieza tu red</strong><p>Cuando registres tu primer referido, podrás consultar su estado desde esta sección.</p></div>')+'</div></section>'+
+      '<section class="gx-ref-panel gx-ref-list-panel"><div class="gx-ref-section-head"><div><span class="gx-ref-eyebrow">SEGUIMIENTO MENSUAL</span><h2>Mis comisiones</h2></div><span class="gx-ref-period-label">Liquidación mensual</span></div><div class="gx-ref-commission-list">'+(commissions.filter(c=>isAdmin()||refMap.has(c.referral_id)).length?commissions.filter(c=>isAdmin()||refMap.has(c.referral_id)).map(c=>commissionCard(c,refMap)).join(''):'<div class="gx-ref-empty gx-ref-empty-compact"><span>＄</span><strong>Aún no hay liquidaciones</strong><p>Cuando una comisión mensual sea validada por Grayxon, el detalle aparecerá aquí.</p></div>')+'</div><p class="gx-ref-footnote">Las comisiones se muestran cuando el equipo de Grayxon registra y valida la liquidación del mes. No se estiman ingresos antes del cierre.</p></section>'+
+      (isAdmin()?'<section class="gx-ref-panel gx-ref-admin-panel"><div class="gx-ref-section-head"><div><span class="gx-ref-eyebrow">ADMINISTRACIÓN</span><h2>Registrar liquidación mensual</h2></div><span class="gx-ref-panel-icon">⚙</span></div><form id="gxRefCommissionForm" class="gx-ref-admin-form"><label for="gxRefCommissionReferral">Referido validado</label><select id="gxRefCommissionReferral" required><option value="">Selecciona un referido aprobado</option>'+referrals.filter(r=>r.status==='approved').map(r=>'<option value="'+r.id+'">@'+esc(r.referred_tiktok_username)+'</option>').join('')+'</select><div class="gx-ref-admin-fields"><div><label for="gxRefCommissionMonth">Mes liquidado</label><input id="gxRefCommissionMonth" type="month" required></div><div><label for="gxRefCommissionNet">Ingreso neto agencia (COP)</label><input id="gxRefCommissionNet" type="number" min="0" step="1" required placeholder="0"></div><div><label for="gxRefCommissionRate">Porcentaje acordado (%)</label><input id="gxRefCommissionRate" type="number" min="0" max="100" step="0.01" required placeholder="0"></div></div><div class="gx-ref-calculated"><span>Comisión a registrar</span><strong id="gxRefCommissionPreview">$ 0</strong></div><label for="gxRefCommissionNotes">Nota (opcional)</label><input id="gxRefCommissionNotes" type="text" maxlength="250" placeholder="Observaciones de la liquidación"><button class="gx-ref-submit" type="submit"><span>Guardar liquidación</span><span aria-hidden="true">→</span></button><div id="gxRefCommissionMessage" class="gx-ref-form-message" aria-live="polite"></div></form></section>':'')+
+      '<div class="gx-ref-rules"><span class="gx-ref-rules-icon">i</span><div><strong>¿Cómo funciona?</strong><p>1. Invita a una persona que aún no pertenezca a Grayxon. 2. Cuando ingrese a la agencia, registra su usuario de TikTok. 3. Grayxon valida la atribución. 4. Mientras el creador referido permanezca en la agencia, la comisión se liquida mensualmente sobre el ingreso neto que genere para Grayxon, según el porcentaje aprobado. Los pagos se reflejan aquí cuando quedan registrados.</p></div></div>'+
+      '</div>';
+    $('gxRefBack')?.addEventListener('click',closePage);
+    $('gxRefRefresh')?.addEventListener('click',async()=>{await loadData();render();});
+    $('gxCopyCode')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(code);notify('Código copiado.');}catch(_){const t=document.createElement('textarea');t.value=code;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();notify('Código copiado.');}});
+    $('gxShareWhatsApp')?.addEventListener('click',()=>{const msg='¡Hola! Te invito a conocer Grayxon Group para crecer en TikTok LIVE. Mi código de referido es '+code+'. Cuando hables con el equipo, compártelo para que puedan registrar mi recomendación.';window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener,noreferrer');});
+    $('gxRefForm')?.addEventListener('submit',submitReferral);
+    $('gxRefCommissionForm')?.addEventListener('submit',submitCommission);
+    const updatePreview=()=>{const net=Number($('gxRefCommissionNet')?.value)||0,rate=Number($('gxRefCommissionRate')?.value)||0;if($('gxRefCommissionPreview'))$('gxRefCommissionPreview').textContent=money(net*rate/100);};
+    $('gxRefCommissionNet')?.addEventListener('input',updatePreview);$('gxRefCommissionRate')?.addEventListener('input',updatePreview);
+    page.querySelectorAll('[data-ref-action]').forEach(btn=>btn.addEventListener('click',()=>handleAdminAction(btn.dataset.refAction,btn.dataset.refId)));
+  }
+  async function submitReferral(event){
+    event.preventDefault();const form=event.currentTarget,client=db(),uid=userId(),message=$('gxRefFormMessage'),button=form.querySelector('button[type="submit"]');
+    if(!client||!uid){if(message)message.textContent='Tu sesión no está disponible. Inicia sesión de nuevo.';return;}
+    const username=String($('gxRefUsername')?.value||'').trim().replace(/^@/,'').toLowerCase();
+    const displayName=String($('gxRefDisplayName')?.value||'').trim();
+    if(username.length<2){if(message)message.textContent='Escribe un usuario de TikTok válido.';return;}
+    if(username===String(currentProfile()?.tiktok_username||currentProfile()?.username||'').replace(/^@/,'').toLowerCase()){if(message)message.textContent='No puedes registrarte a ti mismo como referido.';return;}
+    button.disabled=true;button.querySelector('span').textContent='Registrando…';if(message)message.textContent='';
+    try{
+      const result=await client.from('gx_referrals').insert({referrer_user_id:uid,referred_tiktok_username:username,referred_display_name:displayName||null}).select('id').single();
+      if(result.error)throw result.error;
+      notify('Referido registrado. Queda pendiente de validación.');
+      await loadData();render();
+    }catch(error){
+      console.error('Gana más: error al registrar referido',error);
+      const duplicate=/duplicate|unique/i.test(error?.message||'');
+      if(message)message.textContent=duplicate?'Ese usuario ya está registrado en el programa.':'No se pudo registrar. Verifica que el usuario no esté registrado y vuelve a intentarlo.';
+      button.disabled=false;button.querySelector('span').textContent='Registrar referido';
+    }
+  }
+  async function submitCommission(event){
+    event.preventDefault();if(!isAdmin())return;
+    const client=db(),message=$('gxRefCommissionMessage'),button=event.currentTarget.querySelector('button[type="submit"]');
+    const referralId=$('gxRefCommissionReferral')?.value,month=$('gxRefCommissionMonth')?.value,net=Number($('gxRefCommissionNet')?.value),rate=Number($('gxRefCommissionRate')?.value),notes=String($('gxRefCommissionNotes')?.value||'').trim();
+    if(!referralId||!month||net<0||rate<0||rate>100){if(message)message.textContent='Revisa los datos de la liquidación.';return;}
+    const commission=Math.round((net*rate/100)*100)/100;
+    button.disabled=true;button.querySelector('span').textContent='Guardando…';
+    try{
+      const result=await client.from('gx_referral_commissions').upsert({referral_id:referralId,period_month:month+'-01',agency_net_amount:net,commission_rate:rate,commission_amount:commission,status:'pending',notes:notes||null,created_by:userId(),updated_at:new Date().toISOString()},{onConflict:'referral_id,period_month'}).select('id').single();
+      if(result.error)throw result.error;
+      notify('Liquidación mensual guardada.');
+      await loadData();render();
+    }catch(error){console.error('Gana más: error al guardar liquidación',error);if(message)message.textContent='No se pudo guardar la liquidación. Comprueba los datos y los permisos.';button.disabled=false;button.querySelector('span').textContent='Guardar liquidación';}
+  }
+  async function handleAdminAction(action,id){
+    if(!isAdmin())return;
+    const client=db();if(!client)return;
+    if(action==='commission'){
+      const sel=$('gxRefCommissionReferral');if(sel){sel.value=id;document.getElementById('gxRefCommissionForm')?.scrollIntoView({behavior:'smooth',block:'center'});sel.focus();}
+      return;
+    }
+    const next=action==='approve'?'approved':'rejected';
+    if(!confirm(next==='approved'?'¿Confirmas que este referido fue validado?':'¿Quieres rechazar este referido?'))return;
+    const result=await client.from('gx_referrals').update({status:next,reviewed_at:new Date().toISOString(),reviewed_by:userId()}).eq('id',id);
+    if(result.error){console.error(result.error);notify('No se pudo actualizar el referido.',true);return;}
+    notify(next==='approved'?'Referido validado.':'Referido rechazado.');
+    await loadData();render();
+  }
+  function watchAuth(){
+    ensureButton();
+    const observer=new MutationObserver(()=>ensureButton());
+    observer.observe(document.body,{attributes:true,attributeFilter:['class'],childList:false});
+    const main=document.querySelector('main.wrap');
+    if(main)new MutationObserver(()=>{ensureButton();if(isOpen&&$('gxReferralsPage')?.classList.contains('hidden')){isOpen=false;}}).observe(main,{childList:true,subtree:false});
+    setInterval(()=>{ensureButton();},1800);
+  }
+  function boot(){
+    ensurePage();ensureButton();watchAuth();
+    document.addEventListener('click',event=>{
+      if(isOpen && !event.target.closest('#gxReferralsPage') && !event.target.closest('#gxOpenReferrals')){
+        const current=document.querySelector('main.wrap > .page:not(.hidden)');
+        if(current && current.id!=='gxReferralsPage')isOpen=false;
+      }
+    },true);
+    window.addEventListener('pageshow',ensureButton);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
