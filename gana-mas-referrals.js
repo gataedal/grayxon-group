@@ -176,6 +176,18 @@
     if(!rows.length)return '<div class="gx-admin-empty"><strong>No hay referidos en esta lista</strong><p>Cuando registres invitaciones, aparecerán aquí.</p></div>';
     return '<div class="gx-admin-list">'+rows.map(r=>'<article class="gx-admin-list-row"><div class="gx-admin-list-main"><strong>@'+esc(r.referred_tiktok_username)+'</strong><small>'+esc(adminProfiles.find(p=>p.id===r.referrer_user_id)?.full_name||adminProfiles.find(p=>p.id===r.referrer_user_id)?.username||'Usuario no encontrado')+' · '+esc(dateFmt(r.created_at))+'</small><p>Estado: '+esc(({pending:'Por validar',approved:'Validado',rejected:'Rechazado'})[r.status]||r.status)+'</p></div><div class="gx-admin-list-actions">'+(r.status==='pending'?'<button type="button" data-ref-action="approve" data-ref-id="'+r.id+'">Validar</button><button type="button" data-ref-action="reject" data-ref-id="'+r.id+'">Rechazar</button>':'<button type="button" data-ref-action="pending" data-ref-id="'+r.id+'">Volver a pendiente</button>')+'<button type="button" data-ref-action="delete" data-ref-id="'+r.id+'">Eliminar</button></div></article>').join('')+'</div>';
   }
+  function captureCommissionViewState(){
+    const root=$('gxReferralsPage');
+    return {query:root?.querySelector('#gxCommissionSearch')?.value||'',openIds:Array.from(root?.querySelectorAll('[data-commission-person][open]')||[]).map(el=>el.dataset.personId)};
+  }
+  function restoreCommissionViewState(state){
+    if(!state)return;const root=$('gxReferralsPage'),input=root?.querySelector('#gxCommissionSearch');
+    if(input&&state.query){input.value=state.query;const q=state.query.trim().toLocaleLowerCase('es');root.querySelectorAll('[data-commission-person]').forEach(group=>{group.hidden=!(group.dataset.search||'').includes(q);});}
+    root?.querySelectorAll('[data-commission-person]').forEach(group=>{group.open=(state.openIds||[]).includes(group.dataset.personId);});
+  }
+  async function refreshCommissionView(){
+    const state=captureCommissionViewState();await loadData();render();restoreCommissionViewState(state);
+  }
   function renderAdminCommissionRows(rows=commissions){
     const refMap=new Map(referrals.map(r=>[r.id,r]));
     const people=new Map();
@@ -184,7 +196,7 @@
     const statusLabels={pending:'Pendiente',approved:'Aprobada · por pagar',paid:'Pagada',cancelled:'Cancelada'};
     const statusOptions=[['pending','Pendiente'],['approved','Aprobada · por pagar'],['paid','Pagada'],['cancelled','Cancelada']];
     const card=c=>{const r=refMap.get(c.referral_id);return '<article class="gx-admin-list-row gx-commission-row"><div class="gx-admin-list-main"><strong>@'+esc(r?.referred_tiktok_username||'Referido')+' · '+money(c.commission_amount)+'</strong><small>'+esc(String(c.period_month).slice(0,7))+' · '+esc(Number(c.commission_rate).toLocaleString('es-CO'))+'% sobre '+money(c.agency_net_amount)+'</small><p>Estado: '+esc(statusLabels[c.status]||c.status)+'</p></div><div class="gx-admin-list-actions"><label class="gx-commission-status-label">Estado<select data-commission-status data-commission-id="'+c.id+'">'+statusOptions.map(([value,label])=>'<option value="'+value+'" '+(c.status===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label><button type="button" data-commission-action="delete" data-commission-id="'+c.id+'">Eliminar</button></div></article>';};
-    return '<div class="gx-commission-search"><label for="gxCommissionSearch">Buscar referente</label><input id="gxCommissionSearch" type="search" placeholder="Nombre o usuario del referente…"></div><div class="gx-commission-groups" id="gxCommissionGroups">'+Array.from(people.values()).sort((a,b)=>a.name.localeCompare(b.name,'es')).map(person=>'<details class="gx-commission-person" data-commission-person data-search="'+esc((person.name+' '+person.username+' '+person.items.map(c=>refMap.get(c.referral_id)?.referred_tiktok_username||'').join(' ')).toLowerCase())+'"><summary><span><strong>'+esc(person.name)+'</strong><small>'+(person.username?'@'+esc(person.username)+' · ':'')+person.items.length+' liquidación(es)</small></span><span class="gx-commission-person-total">'+money(person.items.filter(c=>c.status==='paid').reduce((sum,c)=>sum+Number(c.commission_amount||0),0))+' pagados</span></summary><div class="gx-commission-person-rows">'+person.items.slice().sort((a,b)=>String(b.period_month).localeCompare(String(a.period_month))).map(card).join('')+'</div></details>').join('')+'</div>';
+    return '<div class="gx-commission-search"><label for="gxCommissionSearch">Buscar referente</label><input id="gxCommissionSearch" type="search" placeholder="Nombre o usuario del referente…"></div><div class="gx-commission-groups" id="gxCommissionGroups">'+Array.from(people.values()).sort((a,b)=>a.name.localeCompare(b.name,'es')).map(person=>'<details class="gx-commission-person" data-commission-person data-person-id="'+esc(person.id)+'" data-search="'+esc((person.name+' '+person.username+' '+person.items.map(c=>refMap.get(c.referral_id)?.referred_tiktok_username||'').join(' ')).toLowerCase())+'"><summary><span><strong>'+esc(person.name)+'</strong><small>'+(person.username?'@'+esc(person.username)+' · ':'')+person.items.length+' liquidación(es)</small></span><span class="gx-commission-person-total">'+money(person.items.filter(c=>c.status==='paid').reduce((sum,c)=>sum+Number(c.commission_amount||0),0))+' pagados</span></summary><div class="gx-commission-person-rows">'+person.items.slice().sort((a,b)=>String(b.period_month).localeCompare(String(a.period_month))).map(card).join('')+'</div></details>').join('')+'</div>';
   }
   function bindAdminReferralActions(){
     $('gxReferralsPage')?.querySelectorAll('[data-ref-action]').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>handleAdminAction(btn.dataset.refAction,btn.dataset.refId));});
@@ -451,19 +463,19 @@
     const client=db();if(!client)return;
     const result=await client.from('gx_referral_commissions').delete().eq('id',id);
     if(result.error){console.error(result.error);notify('No se pudo eliminar la liquidación.',true);return;}
-    notify('Liquidación eliminada.');await loadData();render();
+    notify('Liquidación eliminada.');await refreshCommissionView();
   }
   async function updateCommissionStatus(id,next){
     if(!isAdmin()||!id)return;
     const allowed=['pending','approved','paid','cancelled'];if(!allowed.includes(next))return;
     const client=db();if(!client)return;
     const labels={pending:'Pendiente',approved:'Aprobada · por pagar',paid:'Pagada',cancelled:'Cancelada'};
-    if(!confirm('¿Confirmas cambiar el estado de esta liquidación a "'+labels[next]+'"?')){render();return;}
+    if(!confirm('¿Confirmas cambiar el estado de esta liquidación a "'+labels[next]+'"?')){const sel=$('gxReferralsPage')?.querySelector('[data-commission-status][data-commission-id="'+id+'"]');if(sel)sel.value=commissions.find(c=>c.id===id)?.status||'pending';return;}
     const patch={status:next,updated_at:new Date().toISOString(),paid_at:next==='paid'?new Date().toISOString():null};
     const result=await client.from('gx_referral_commissions').update(patch).eq('id',id).select('id,status').maybeSingle();
-    if(result.error||!result.data){console.error('Gana más: no se pudo actualizar comisión',result.error||'No se actualizó ninguna fila');notify('No se pudo actualizar la liquidación'+(result.error?.message?': '+result.error.message:'. Revisa los permisos de administrador.'),true);await loadData();render();return;}
+    if(result.error||!result.data){console.error('Gana más: no se pudo actualizar comisión',result.error||'No se actualizó ninguna fila');notify('No se pudo actualizar la liquidación'+(result.error?.message?': '+result.error.message:'. Revisa los permisos de administrador.'),true);await refreshCommissionView();return;}
     notify('Estado actualizado: '+labels[next]+'.');
-    await loadData();render();
+    await refreshCommissionView();
   }
   async function handleAdminAction(action,id){
     if(!isAdmin())return;
