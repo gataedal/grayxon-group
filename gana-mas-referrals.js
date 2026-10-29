@@ -109,7 +109,7 @@
     const client=db(),uid=userId();if(!client||!uid){referrals=[];commissions=[];return;}
     const page=$('gxReferralsPage');if(page)page.innerHTML='<div class="gx-ref-loading"><span class="gx-ref-spinner"></span><p>Cargando tu programa de referidos…</p></div>';
     try{
-      let query=client.from('gx_referrals').select('id,referrer_user_id,referred_tiktok_username,referred_display_name,referred_user_id,status,created_at,reviewed_at,admin_note');
+      let query=client.from('gx_referrals').select('id,referrer_user_id,referred_tiktok_username,referred_display_name,referred_user_id,status,created_at,reviewed_at,admin_note,program_id');
       if(!isAdmin())query=query.eq('referrer_user_id',uid);
       const result=await query.order('created_at',{ascending:false});
       if(result.error)throw result.error;
@@ -267,11 +267,12 @@
       const sel=$('gxRefCommissionReferral');if(sel){sel.value=id;document.getElementById('gxRefCommissionForm')?.scrollIntoView({behavior:'smooth',block:'center'});sel.focus();}
       return;
     }
-    const next=action==='approve'?'approved':'rejected';
-    if(!confirm(next==='approved'?'¿Confirmas que este referido fue validado?':'¿Quieres rechazar este referido?'))return;
-    const result=await client.from('gx_referrals').update({status:next,reviewed_at:new Date().toISOString(),reviewed_by:userId()}).eq('id',id);
+    const next=action==='approve'?'approved':action==='pending'?'pending':'rejected';
+    const promptText=next==='approved'?'¿Confirmas que este referido fue validado?':next==='pending'?'¿Quieres devolver este referido al estado pendiente?':'¿Quieres rechazar este referido?';
+    if(!confirm(promptText))return;
+    const result=await client.from('gx_referrals').update({status:next,reviewed_at:next==='pending'?null:new Date().toISOString(),reviewed_by:userId()}).eq('id',id);
     if(result.error){console.error(result.error);notify('No se pudo actualizar el referido.',true);return;}
-    notify(next==='approved'?'Referido validado.':'Referido rechazado.');
+    notify(next==='approved'?'Referido validado.':next==='pending'?'Referido devuelto a pendiente.':'Referido rechazado.');
     await loadData();render();
   }
   function watchAuth(){
