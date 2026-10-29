@@ -170,14 +170,14 @@
     if(!rows.length)return '<div class="gx-admin-empty"><strong>No hay referidos en esta lista</strong><p>Cuando registres invitaciones, aparecerán aquí.</p></div>';
     return '<div class="gx-admin-list">'+rows.map(r=>'<article class="gx-admin-list-row"><div class="gx-admin-list-main"><strong>@'+esc(r.referred_tiktok_username)+'</strong><small>'+esc(adminProfiles.find(p=>p.id===r.referrer_user_id)?.full_name||adminProfiles.find(p=>p.id===r.referrer_user_id)?.username||'Usuario no encontrado')+' · '+esc(dateFmt(r.created_at))+'</small><p>Estado: '+esc(({pending:'Por validar',approved:'Validado',rejected:'Rechazado'})[r.status]||r.status)+'</p></div><div class="gx-admin-list-actions">'+(r.status==='pending'?'<button type="button" data-ref-action="approve" data-ref-id="'+r.id+'">Validar</button><button type="button" data-ref-action="reject" data-ref-id="'+r.id+'">Rechazar</button>':'<button type="button" data-ref-action="pending" data-ref-id="'+r.id+'">Volver a pendiente</button>')+'<button type="button" data-ref-action="delete" data-ref-id="'+r.id+'">Eliminar</button></div></article>').join('')+'</div>';
   }
-  function renderAdminCommissionRows(){
-    if(!commissions.length)return '<div class="gx-admin-empty"><strong>No hay liquidaciones registradas</strong><p>Registra la primera liquidación para que quede en el historial.</p></div>';
+  function renderAdminCommissionRows(rows=commissions){
+    if(!rows.length)return '<div class="gx-admin-empty"><strong>No hay liquidaciones registradas</strong><p>Registra la primera liquidación para que quede en el historial.</p></div>';
     const refMap=new Map(referrals.map(r=>[r.id,r]));
-    return '<div class="gx-admin-list">'+commissions.map(c=>{const r=refMap.get(c.referral_id);return '<article class="gx-admin-list-row"><div class="gx-admin-list-main"><strong>@'+esc(r?.referred_tiktok_username||'Referido')+' · '+money(c.commission_amount)+'</strong><small>'+esc(c.period_month)+' · '+esc(Number(c.commission_rate).toLocaleString('es-CO'))+'% sobre '+money(c.agency_net_amount)+'</small><p>Estado: '+esc(({pending:'Pendiente de aprobación',approved:'Aprobada, por pagar',paid:'Pagada'})[c.status]||c.status)+'</p></div><div class="gx-admin-list-actions">'+(c.status==='pending'?'<button type="button" data-commission-action="approve" data-commission-id="'+c.id+'">Aprobar</button>':c.status==='approved'?'<button type="button" data-commission-action="paid" data-commission-id="'+c.id+'">Marcar pagada</button>':'')+'</div></article>';}).join('')+'</div>';
+    return '<div class="gx-admin-list">'+rows.map(c=>{const r=refMap.get(c.referral_id);return '<article class="gx-admin-list-row"><div class="gx-admin-list-main"><strong>@'+esc(r?.referred_tiktok_username||'Referido')+' · '+money(c.commission_amount)+'</strong><small>'+esc(c.period_month)+' · '+esc(Number(c.commission_rate).toLocaleString('es-CO'))+'% sobre '+money(c.agency_net_amount)+'</small><p>Estado: '+esc(({pending:'Pendiente de aprobación',approved:'Aprobada, por pagar',paid:'Pagada'})[c.status]||c.status)+'</p></div><div class="gx-admin-list-actions">'+(c.status==='pending'?'<button type="button" data-commission-action="approve" data-commission-id="'+c.id+'">Aprobar</button>':c.status==='approved'?'<button type="button" data-commission-action="paid" data-commission-id="'+c.id+'">Marcar pagada</button>':'')+'<button type="button" data-commission-action="delete" data-commission-id="'+c.id+'">Eliminar</button></div></article>';}).join('')+'</div>';
   }
   function bindAdminReferralActions(){
     $('gxReferralsPage')?.querySelectorAll('[data-ref-action]').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>handleAdminAction(btn.dataset.refAction,btn.dataset.refId));});
-    $('gxReferralsPage')?.querySelectorAll('[data-commission-action]').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>updateCommissionStatus(btn.dataset.commissionId,btn.dataset.commissionAction));});
+    $('gxReferralsPage')?.querySelectorAll('[data-commission-action]').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>btn.dataset.commissionAction==='delete'?deleteCommission(btn.dataset.commissionId):updateCommissionStatus(btn.dataset.commissionId,btn.dataset.commissionAction));});
   }
   async function saveAdminProgram(event){
     event.preventDefault();const client=db();if(!client||!isAdmin())return;
@@ -186,7 +186,7 @@
     const id=$('gxAdminProgramId')?.value;
     const result=id?await client.from('gx_earning_programs').update(payload).eq('id',id):await client.from('gx_earning_programs').insert(payload);
     if(result.error){console.error(result.error);notify('No se pudo guardar el programa.',true);return;}
-    notify(id?'Programa actualizado.':'Programa creado.');editingProgramId=null;await loadData();render();
+    notify(id?'Programa actualizado.':'Programa creado.');editingProgramId=null;await loadData();if(!id){adminTab='overview';selectedAdminProgramId=null;}else if(selectedAdminProgramId){adminTab='program-detail';adminProgramSection='settings';}render();
   }
   async function saveAdminReferral(event){
     event.preventDefault();const client=db();if(!client||!isAdmin())return;
@@ -382,6 +382,14 @@
       notify('Liquidación mensual guardada.');
       await loadData();render();
     }catch(error){console.error('Gana más: error al guardar liquidación',error);if(message)message.textContent='No se pudo guardar la liquidación. Comprueba los datos y los permisos.';button.disabled=false;button.querySelector('span').textContent='Guardar liquidación';}
+  }
+  async function deleteCommission(id){
+    if(!isAdmin()||!id)return;
+    if(!confirm('¿Eliminar esta liquidación del historial? Verifica que el pago no se haya realizado antes de continuar.'))return;
+    const client=db();if(!client)return;
+    const result=await client.from('gx_referral_commissions').delete().eq('id',id);
+    if(result.error){console.error(result.error);notify('No se pudo eliminar la liquidación.',true);return;}
+    notify('Liquidación eliminada.');await loadData();render();
   }
   async function updateCommissionStatus(id,next){
     if(!isAdmin()||!id)return;
