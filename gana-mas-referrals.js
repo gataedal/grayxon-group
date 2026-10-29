@@ -22,6 +22,7 @@
   let editingProgramId = null;
   let selectedAdminProgramId = null;
   let adminProgramSection = 'overview';
+  let creatorStatusRefreshTimer = null;
 
   function currentProfile(){ try { return typeof profile !== 'undefined' ? profile : window.profile || null; } catch (_) { return window.profile || null; } }
   function currentSession(){ try { return typeof session !== 'undefined' ? session : window.session || null; } catch (_) { return window.session || null; } }
@@ -458,8 +459,21 @@
     if(main)new MutationObserver(()=>{ensureButton();if(isOpen&&$('gxReferralsPage')?.classList.contains('hidden')){isOpen=false;}}).observe(main,{childList:true,subtree:false});
     setInterval(()=>{ensureButton();},1800);
   }
+  async function refreshCreatorStatus(){
+    if(!isOpen||isAdmin()||document.hidden)return;
+    const page=$('gxReferralsPage');
+    if(!page||page.classList.contains('hidden'))return;
+    if($('gxRefModal')&&!$('gxRefModal').classList.contains('hidden'))return;
+    const active=document.activeElement;
+    if(active&&page.contains(active)&&/^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName))return;
+    await loadData();
+    if(isOpen&&!document.hidden)render();
+  }
   function boot(){
     ensurePage();ensureButton();watchAuth();
+    if(!creatorStatusRefreshTimer)creatorStatusRefreshTimer=window.setInterval(refreshCreatorStatus,30000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshCreatorStatus();});
+    window.addEventListener('focus',refreshCreatorStatus);
     const bottomNav=$('grayxonBottomNav');
     if(bottomNav && !bottomNav.dataset.gxRefBound){
       bottomNav.dataset.gxRefBound='1';
