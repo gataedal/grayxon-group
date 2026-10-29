@@ -299,3 +299,37 @@ body.gx-referrals-mode #grayxonBottomNav button .gx-nav-icon{display:block!impor
 .gx-ref-program-detail-heading{margin:18px 0 8px;font-size:13px}
 .gx-ref-program-requirements{color:#aab2bf;font-size:12px;line-height:1.75;white-space:pre-wrap}
 @media(max-width:800px){.gx-ref-program-grid{grid-template-columns:1fr}.gx-ref-program-card{min-height:0}}
+
+
+/* Simplificación: resumen general y administración dentro de cada programa */
+.gx-admin-programs-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:4px 0 0}
+.gx-admin-programs-header h2{font-size:22px;margin:5px 0 0;letter-spacing:-.03em}
+.gx-admin-programs-header p{font-size:12px;color:#98a1b0;margin:7px 0 0;line-height:1.55}
+.gx-admin-create-btn{width:auto!important;min-width:150px}
+.gx-admin-program-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.gx-admin-program-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;min-height:215px;padding:17px;border:1px solid #2c3037;border-radius:15px;background:linear-gradient(145deg,#121417,#0b0d10);color:#f4f5f7;text-align:left;font:inherit;cursor:pointer;transition:border-color .18s,transform .18s,background .18s}
+.gx-admin-program-card:hover{border-color:#8b7445;background:linear-gradient(145deg,#191710,#0d0f12);transform:translateY(-2px)}
+.gx-admin-program-card-top{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.gx-admin-program-icon{width:36px;height:36px;display:grid;place-items:center;border:1px solid #59482a;border-radius:11px;background:#211a0e;color:#e6c97c;font-size:18px}
+.gx-admin-status{display:inline-flex;align-items:center;border:1px solid #3b4048;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:850;white-space:nowrap;color:#b7bfcb;background:#181b20}
+.gx-admin-status.active{border-color:#285d43;background:#10271b;color:#83d7a2}
+.gx-admin-status.paused{border-color:#66532c;background:#241d0e;color:#e4c578}
+.gx-admin-status.archived,.gx-admin-status.rejected{color:#a5aab3}
+.gx-admin-status.draft{border-color:#41434a;color:#c2c6ce}
+.gx-admin-program-card>strong{font-size:15px;line-height:1.3}
+.gx-admin-program-card>small{color:#e0c477;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.gx-admin-program-card>p{margin:0;color:#9ba4b2;font-size:11px;line-height:1.55}
+.gx-admin-program-card-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;color:#c0c6d0;font-size:10px}
+.gx-admin-program-card-stats span{border:1px solid #2e3239;border-radius:7px;padding:6px 8px;background:#0a0c0f}
+.gx-admin-program-card-cta{font-size:11px;font-weight:850;color:#e5c779}
+.gx-admin-detail-heading{display:flex;flex-direction:column;gap:15px;padding:18px;border:1px solid #2b3037;border-radius:15px;background:linear-gradient(120deg,#111316,#17141d)}
+.gx-admin-back-btn{align-self:flex-start;border:1px solid #343941;border-radius:9px;background:#181b20;color:#d9dee7;padding:9px 12px;font-size:11px;font-weight:800;cursor:pointer}
+.gx-admin-detail-heading h2{margin:5px 0;font-size:25px;letter-spacing:-.03em}
+.gx-admin-detail-heading p{margin:0;color:#a0a8b5;font-size:11px}
+.gx-admin-program-conditions{margin-top:12px;padding:13px;border:1px solid #292e35;border-radius:10px;background:#0b0d10;color:#aab2bf;font-size:12px;line-height:1.7;white-space:pre-wrap}
+.gx-admin-danger-zone{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:24px;padding-top:18px;border-top:1px solid #39272a}
+.gx-admin-danger-zone strong{font-size:12px;color:#f0b2b2}
+.gx-admin-danger-zone p{font-size:11px;line-height:1.5;color:#929aa7;margin:5px 0 0;max-width:520px}
+.gx-admin-danger-btn{border:1px solid #713d43;border-radius:9px;background:#281417;color:#ffb4b4;padding:10px 13px;font-size:11px;font-weight:850;cursor:pointer}
+@media(max-width:850px){.gx-admin-program-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.gx-admin-program-grid{grid-template-columns:1fr}.gx-admin-program-card{min-height:0}.gx-admin-programs-header{align-items:stretch;flex-direction:column}.gx-admin-create-btn{width:100%!important}.gx-admin-danger-zone{align-items:stretch;flex-direction:column}.gx-admin-danger-btn{width:100%}}
