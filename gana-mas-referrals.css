@@ -191,7 +191,6 @@ body.gx-ref-modal-open{overflow:hidden}
 /* Gana más: vista dedicada, sin superposición del inicio ni navegación inferior */
 body.gx-referrals-mode main.wrap > .page:not(#gxReferralsPage){display:none!important}
 body.gx-referrals-mode main.wrap > #gxReferralsPage{display:block!important;width:100%;min-height:calc(100svh - 88px)}
-body.gx-referrals-mode #grayxonBottomNav{display:none!important}
 body.gx-referrals-mode main.wrap{display:block!important}
 .gx-ref-share>p{max-width:680px}
 .gx-ref-main-grid{grid-template-columns:minmax(0,1fr)}
@@ -199,4 +198,17 @@ body.gx-referrals-mode main.wrap{display:block!important}
 @media(min-width:900px){
  body.gx-referrals-mode .gx-referrals-shell{max-width:1060px}
  .gx-ref-main-grid{grid-template-columns:minmax(0,1fr)}
+}
+
+
+/* Ajustes de navegación y composición de Gana más */
+body.gx-referrals-mode main.wrap > #gxReferralsPage{padding-top:0!important;padding-bottom:calc(112px + env(safe-area-inset-bottom))!important}
+body.gx-referrals-mode .gx-referrals-shell{padding-top:0!important;margin-top:0!important}
+.gx-ref-requirements-btn{align-self:center;margin-left:auto!important;margin-right:auto!important}
+.gx-ref-hero-copy{display:flex;flex-direction:column;align-items:stretch}
+.gx-ref-hero-copy>.gx-ref-requirements-btn{align-self:center}
+body.gx-referrals-mode #grayxonBottomNav{display:flex!important;z-index:1200}
+@media(max-width:800px){
+ body.gx-referrals-mode main.wrap > #gxReferralsPage{padding-bottom:calc(120px + env(safe-area-inset-bottom))!important}
+ .gx-ref-requirements-btn{margin-top:18px}
 }
