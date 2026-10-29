@@ -280,3 +280,22 @@ body.gx-referrals-mode #grayxonBottomNav button .gx-nav-icon{display:block!impor
  .gx-admin-filter select{width:100%}
  .gx-admin-center-hero{padding:20px}
 }
+
+
+/* Catálogo de programas publicados para participantes */
+.gx-ref-program-catalog{display:flex;flex-direction:column;gap:14px;padding:20px;border:1px solid #292d34;border-radius:16px;background:linear-gradient(145deg,#101215,#0b0d0f)}
+.gx-ref-program-catalog .gx-ref-section-head{margin:0}
+.gx-ref-program-catalog .gx-ref-section-head p{margin:7px 0 0;color:#98a1b0;font-size:12px;line-height:1.55}
+.gx-ref-program-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.gx-ref-program-card{display:flex;flex-direction:column;align-items:flex-start;gap:9px;min-width:0;min-height:150px;padding:16px;border:1px solid #30343b;border-radius:13px;background:#0b0d10;color:#f4f5f7;text-align:left;cursor:pointer;font:inherit;transition:border-color .18s,transform .18s,background .18s}
+.gx-ref-program-card:hover{border-color:#8e7541;background:#15130f;transform:translateY(-2px)}
+.gx-ref-program-type{display:inline-flex;align-items:center;padding:5px 7px;border:1px solid #59482a;border-radius:6px;background:#211a0e;color:#e6c97c;font-size:8px;font-weight:900;letter-spacing:.1em}
+.gx-ref-program-card>strong{font-size:14px;line-height:1.35}
+.gx-ref-program-card p{margin:0;color:#9ca5b3;font-size:11px;line-height:1.55}
+.gx-ref-program-cta{margin-top:auto;color:#e6c97c;font-size:10px;font-weight:850}
+.gx-ref-program-detail-kpi{display:flex;flex-direction:column;gap:6px;padding:14px;border:1px solid #51442b;border-radius:11px;background:#17140e}
+.gx-ref-program-detail-kpi small{color:#b8ad90;font-size:10px}
+.gx-ref-program-detail-kpi strong{color:#f0d486;font-size:14px}
+.gx-ref-program-detail-heading{margin:18px 0 8px;font-size:13px}
+.gx-ref-program-requirements{color:#aab2bf;font-size:12px;line-height:1.75;white-space:pre-wrap}
+@media(max-width:800px){.gx-ref-program-grid{grid-template-columns:1fr}.gx-ref-program-card{min-height:0}}
