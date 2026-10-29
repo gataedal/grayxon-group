@@ -445,3 +445,32 @@ body.gx-program-fullscreen .gx-program-activity-section,body.gx-program-fullscre
  body.gx-program-fullscreen .gx-program-detail-main{grid-template-columns:minmax(0,1fr) minmax(88px,115px)!important}
  body.gx-program-fullscreen .gx-program-hero-description{-webkit-line-clamp:3}
 }
+
+/* Ajuste fino móvil: tarjeta de programa compacta y métricas centradas */
+body.gx-program-fullscreen main.wrap>#gxReferralsPage{padding-top:10px!important}
+body.gx-program-fullscreen .gx-program-detail-page{gap:14px!important}
+body.gx-program-fullscreen .gx-program-detail-hero{min-height:0!important;height:auto!important;align-items:stretch!important;border-top:1px solid #353237!important;border-left:1px solid #353237!important;border-right:1px solid #353237!important;border-radius:16px!important;margin:0 10px!important;width:calc(100% - 20px)!important}
+body.gx-program-fullscreen .gx-program-detail-hero:after{background:linear-gradient(90deg,rgba(4,5,7,.92),rgba(4,5,7,.76) 55%,rgba(4,5,7,.38)),linear-gradient(0deg,rgba(4,5,7,.48),transparent 75%)}
+body.gx-program-fullscreen .gx-program-detail-overlay{padding:13px 14px 15px!important;padding-top:13px!important;gap:11px!important}
+body.gx-program-fullscreen .gx-program-detail-main{margin-top:0!important;gap:9px!important}
+body.gx-program-fullscreen .gx-program-detail-titleblock h1{margin:0 0 5px!important}
+body.gx-program-fullscreen .gx-program-hero-description{-webkit-line-clamp:2!important;line-height:1.4!important}
+body.gx-program-fullscreen .gx-program-hero-actions{margin-top:1px!important}
+body.gx-program-fullscreen .gx-program-activity-grid-two>button{min-height:104px!important;grid-template-columns:42px minmax(0,1fr) 14px!important;align-items:center!important;padding:12px!important}
+body.gx-program-fullscreen .gx-program-activity-card-copy{align-self:center!important;justify-self:stretch!important;display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:flex-start!important;gap:4px!important;min-height:64px!important;text-align:left!important}
+body.gx-program-fullscreen .gx-program-activity-card-copy small{color:#aeb5bd!important;font-size:11px!important;line-height:1.2!important}
+body.gx-program-fullscreen .gx-program-activity-card-copy strong{color:#67e6c1!important;font-size:24px!important;font-weight:850!important;line-height:1.1!important;font-variant-numeric:tabular-nums}
+body.gx-program-fullscreen .gx-program-activity-card-copy em{color:#d4c17f!important;font-size:10px!important;line-height:1.3!important}
+body.gx-program-fullscreen .gx-program-activity-grid-two>button:nth-child(2) .gx-program-activity-card-copy strong{color:#7de8d1!important}
+body.gx-program-fullscreen .gx-program-activity-icon{align-self:center!important}
+@media(max-width:620px){
+ body.gx-program-fullscreen main.wrap>#gxReferralsPage{padding-top:10px!important}
+ body.gx-program-fullscreen .gx-program-detail-hero{min-height:0!important;height:auto!important;margin:0 10px!important;width:calc(100% - 20px)!important}
+ body.gx-program-fullscreen .gx-program-detail-overlay{padding:12px 12px 14px!important;gap:10px!important}
+ body.gx-program-fullscreen .gx-program-detail-topline{gap:8px!important}
+ body.gx-program-fullscreen .gx-program-detail-validity{font-size:10px!important}
+ body.gx-program-fullscreen .gx-program-detail-main{grid-template-columns:minmax(0,1fr) minmax(88px,112px)!important}
+ body.gx-program-fullscreen .gx-program-detail-titleblock h1{font-size:clamp(20px,5.8vw,28px)!important}
+ body.gx-program-fullscreen .gx-program-detail-reward strong{font-size:18px!important}
+ body.gx-program-fullscreen .gx-program-activity-grid-two>button{min-height:100px!important}
+}
