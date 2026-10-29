@@ -425,3 +425,23 @@ body.gx-referrals-mode #grayxonBottomNav button .gx-nav-icon{display:block!impor
 .gx-program-earnings-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 16px}.gx-program-earnings-summary>div{display:grid;gap:7px;padding:13px;border:1px solid #303238;border-radius:12px;background:#101114}.gx-program-earnings-summary small{color:#aeb3bd;font-size:11px}.gx-program-earnings-summary strong{color:#f4d47a;font-size:20px;overflow-wrap:anywhere}
 .gx-program-earnings-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:13px;border:1px solid #303238;border-radius:12px;background:#0d0e10;color:#f3f4f6;text-align:left;cursor:pointer}.gx-program-earnings-row>span:first-child{display:grid;gap:5px;min-width:0}.gx-program-earnings-row small{color:#a4a9b2;font-size:11px}.gx-program-earning-value{display:grid;justify-items:end;gap:5px}.gx-program-earning-value em{color:#d9bc76;font-size:10px;font-style:normal}
 @media(max-width:620px){.gx-program-banner-content{padding:12px;gap:10px}.gx-program-banner-main{grid-template-columns:minmax(0,1fr) auto;gap:8px}.gx-program-banner-copy h2{font-size:16px}.gx-program-banner-copy p{font-size:11px}.gx-program-banner-reward{max-width:100px}.gx-program-banner-reward strong{font-size:18px}.gx-program-banner-footer>span{font-size:9px}.gx-program-banner-card .gx-ref-program-cta-btn{padding:8px 11px!important;font-size:10px!important}.gx-program-detail-hero{min-height:300px}.gx-program-detail-overlay{padding:14px;gap:13px}.gx-program-detail-main{grid-template-columns:minmax(0,1fr) minmax(90px,115px);gap:10px}.gx-program-detail-titleblock h1{font-size:clamp(21px,6vw,29px)}.gx-program-hero-description{font-size:11px;-webkit-line-clamp:4}.gx-program-detail-reward{padding-left:9px}.gx-program-detail-reward strong{font-size:18px}.gx-program-hero-actions{display:grid;grid-template-columns:1fr 1fr}.gx-program-hero-actions .gx-ref-program-cta-btn,.gx-program-hero-actions .gx-admin-secondary-btn{min-width:0;width:100%!important;padding:9px 7px;font-size:10px}.gx-program-activity-grid-two{grid-template-columns:1fr}.gx-program-personal-code{align-items:stretch;flex-direction:column;gap:11px}.gx-program-code-actions{display:grid;grid-template-columns:1fr 1fr}.gx-program-code-actions button{width:100%}.gx-program-referrals-panel{padding:18px 13px}}
+
+
+/* Vista de programa a pantalla completa: ocultar cabecera global solo en el detalle */
+body.gx-program-fullscreen header.top{display:none!important}
+body.gx-program-fullscreen main.wrap{width:100%!important;max-width:none!important;margin:0!important;padding-top:0!important;padding-left:0!important;padding-right:0!important}
+body.gx-program-fullscreen main.wrap>#gxReferralsPage{width:100%!important;max-width:none!important;min-height:100svh!important;padding:0 0 calc(104px + env(safe-area-inset-bottom))!important;margin:0!important}
+body.gx-program-fullscreen .gx-program-detail-page{width:100%!important;max-width:none!important;gap:14px!important;margin:0!important;padding:0 0 calc(12px + env(safe-area-inset-bottom))!important}
+body.gx-program-fullscreen .gx-program-detail-hero{min-height:clamp(290px,48svh,470px)!important;align-items:flex-start!important;border-top:0!important;border-left:0!important;border-right:0!important;border-radius:0 0 17px 17px!important}
+body.gx-program-fullscreen .gx-program-detail-overlay{padding:clamp(16px,3.5vw,28px)!important;padding-top:max(16px,env(safe-area-inset-top))!important;gap:clamp(12px,2.5svh,22px)!important}
+body.gx-program-fullscreen .gx-program-detail-topline{margin-bottom:0}
+body.gx-program-fullscreen .gx-program-detail-main{margin-top:0}
+body.gx-program-fullscreen .gx-program-detail-titleblock h1{margin-top:0}
+body.gx-program-fullscreen .gx-program-hero-actions{margin-top:0}
+body.gx-program-fullscreen .gx-program-activity-section,body.gx-program-fullscreen .gx-program-detail-page>.gx-ref-program-media,body.gx-program-fullscreen .gx-program-detail-page>.gx-ref-program-file{margin-left:15px!important;margin-right:15px!important}
+@media(max-width:620px){
+ body.gx-program-fullscreen .gx-program-detail-hero{min-height:clamp(310px,46svh,430px)!important}
+ body.gx-program-fullscreen .gx-program-detail-overlay{padding:15px!important;padding-top:max(14px,env(safe-area-inset-top))!important;gap:12px!important}
+ body.gx-program-fullscreen .gx-program-detail-main{grid-template-columns:minmax(0,1fr) minmax(88px,115px)!important}
+ body.gx-program-fullscreen .gx-program-hero-description{-webkit-line-clamp:3}
+}
