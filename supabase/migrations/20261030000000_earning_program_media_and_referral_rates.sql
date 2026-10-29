@@ -17,3 +17,6 @@ drop policy if exists gx_earning_program_media_admin_delete on storage.objects;
 create policy gx_earning_program_media_admin_delete on storage.objects for delete to authenticated using (bucket_id='gx-earning-program-media' and exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.role='admin' and p.active=true));
 drop policy if exists gx_earning_program_media_public_read on storage.objects;
 create policy gx_earning_program_media_public_read on storage.objects for select to public using (bucket_id='gx-earning-program-media');
+-- Administrator inserts for referrals
+DROP POLICY IF EXISTS gx_referrals_admin_insert ON public.gx_referrals;
+CREATE POLICY gx_referrals_admin_insert ON public.gx_referrals FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=(SELECT auth.uid()) AND p.role='admin' AND p.active=true));
