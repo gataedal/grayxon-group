@@ -356,3 +356,10 @@ body.gx-referrals-mode #grayxonBottomNav button .gx-nav-icon{display:block!impor
 .gx-ref-program-cover{display:block;width:100%;max-height:220px;object-fit:cover;margin:0 0 14px;border-radius:12px}
 .gx-ref-program-file{display:flex;align-items:center;gap:8px;margin:14px 0;padding:14px;border:1px solid #59482a;border-radius:10px;background:#17140e;color:#e6c879;font-size:12px;font-weight:800;text-decoration:none}
 @media(max-width:600px){.gx-admin-media-editor{padding:13px}.gx-ref-program-media{max-height:300px}}
+
+
+/* Referidos: búsqueda por usuario y estado eliminado visible para el creador. */
+.gx-admin-user-search{display:block;width:100%;min-width:0;height:42px;margin:6px 0 9px;padding:0 12px;border:1px solid #303640;border-radius:10px;background:#080a0c;color:#f2f4f7;outline:none;font-size:13px;box-sizing:border-box}
+.gx-admin-user-search:focus{border-color:#25f4ee;box-shadow:0 0 0 3px #25f4ee14}
+.gx-ref-status.deleted{border-color:#4b5563;background:#171a20;color:#cbd5e1}
+.gx-admin-list-actions [data-ref-action="restore"]{border-color:#285943;background:#10251a;color:#83e1a5}
