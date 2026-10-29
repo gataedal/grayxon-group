@@ -2087,8 +2087,6 @@ function ensureCreatorDashboardStyles(){
       .profile-page .creator-profile-manager-card{padding:13px}
       .profile-page .creator-profile-manager-contact{width:100%;box-sizing:border-box}
     }
-`;
-
     /* Ajuste puntual del inicio de creadores: perfil compacto y menos espacio vertical. */
     @media(max-width:680px){
       #space .creator-dashboard{gap:10px!important}
@@ -2134,6 +2132,7 @@ function ensureCreatorDashboardStyles(){
       #space .gx-recent-announcements-head{margin-bottom:8px!important}
     }
 
+`;
   document.head.appendChild(style);
 }
 
