@@ -264,8 +264,16 @@
   }
   function boot(){
     ensurePage();ensureButton();watchAuth();
+    const bottomNav=$('grayxonBottomNav');
+    if(bottomNav && !bottomNav.dataset.gxRefBound){
+      bottomNav.dataset.gxRefBound='1';
+      bottomNav.addEventListener('click',event=>{
+        if(!isOpen)return;
+        if(event.target.closest('button[data-gx-bottom]'))closePage();
+      },true);
+    }
     document.addEventListener('click',event=>{
-      if(isOpen && !event.target.closest('#gxReferralsPage') && !event.target.closest('#gxOpenReferrals')){
+      if(isOpen && !event.target.closest('#grayxonBottomNav') && !event.target.closest('#gxReferralsPage') && !event.target.closest('#gxOpenReferrals')){
         const current=document.querySelector('main.wrap > .page:not(.hidden)');
         if(current && current.id!=='gxReferralsPage')isOpen=false;
       }
