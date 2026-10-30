@@ -3800,10 +3800,10 @@ async function startGrayxonLiveKitTraining(training, options={}){
             const active=hasLiveScreenShare();
             if(active){
               await room.localParticipant.setScreenShareEnabled(false);
-              updateShareControl(hasLiveScreenShare());
+              updateShareControl(false);
             }else{
               await room.localParticipant.setScreenShareEnabled(true);
-              updateShareControl(hasLiveScreenShare());
+              updateShareControl(true);
             }
             return;
           }
