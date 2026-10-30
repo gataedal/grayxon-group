@@ -3091,12 +3091,12 @@ function syncGrayxonLiveKitHandTiles(stage=document.querySelector('#grayxonLiveK
   const main=tiles.find(tile=>tile.dataset.gxLivekitMain==='true')||tiles[0];
   const minis=tiles.filter(tile=>tile!==main);
   minis.sort((a,b)=>{
-    const handA=a.dataset.gxLivekitHandRaised==='true'?1:0;
-    const handB=b.dataset.gxLivekitHandRaised==='true'?1:0;
-    if(handA!==handB)return handB-handA;
     const speakingA=a.dataset.gxLivekitSpeaking==='true'?1:0;
     const speakingB=b.dataset.gxLivekitSpeaking==='true'?1:0;
     if(speakingA!==speakingB)return speakingB-speakingA;
+    const handA=a.dataset.gxLivekitHandRaised==='true'?1:0;
+    const handB=b.dataset.gxLivekitHandRaised==='true'?1:0;
+    if(handA!==handB)return handB-handA;
     const avA=a.dataset.gxLivekitMicEnabled==='true'&&a.dataset.gxLivekitCameraEnabled==='true'?1:0;
     const avB=b.dataset.gxLivekitMicEnabled==='true'&&b.dataset.gxLivekitCameraEnabled==='true'?1:0;
     return avB-avA;
@@ -3247,7 +3247,7 @@ function ensureGrayxonLiveKitLayout(){
   body.grayxon-live-training-call .gx-chat-panel{position:absolute!important;top:auto!important;right:24px!important;bottom:92px!important;left:auto!important;width:min(390px,calc(100% - 48px))!important;height:min(68dvh,620px)!important;max-height:calc(100% - 180px)!important}
   body.grayxon-live-training-call .gx-participants-panel{position:absolute!important;top:0!important;right:0!important;bottom:0!important;width:min(390px,90vw)!important;padding:68px 14px 90px!important}
   .gx-participant-row{padding:12px 9px!important;margin:5px 0!important;border:1px solid #ffffff12!important;border-radius:12px!important;background:#ffffff05!important;gap:10px!important}.gx-participant-name{font-size:13px!important;font-weight:750!important}.gx-participant-status{font-size:11px!important;line-height:1.4!important}
-  .gx-participant-actions{display:flex!important;flex-wrap:wrap!important;gap:6px!important;width:100%!important;margin:7px 0 0 46px!important}.gx-participant-actions button{min-height:30px!important;padding:6px 9px!important;border:1px solid #ffffff20!important;border-radius:8px!important;background:#1a2029!important;color:#f3f5f7!important;font-size:10px!important;font-weight:750!important}.gx-participant-actions .gx-participant-kick{border-color:#fe2c5555!important;background:#2a151b!important;color:#ff9aaa!important}
+  .gx-participant-actions{display:flex!important;flex-wrap:wrap!important;gap:6px!important;width:calc(100% - 46px)!important;margin:7px 0 0 46px!important}.gx-participant-actions button{min-height:30px!important;padding:6px 9px!important;border:1px solid #ffffff20!important;border-radius:8px!important;background:#1a2029!important;color:#f3f5f7!important;font-size:10px!important;font-weight:750!important}.gx-participant-actions .gx-participant-kick{border-color:#fe2c5555!important;background:#2a151b!important;color:#ff9aaa!important}
   .gx-participants-head [data-gx-mute-all]{border:1px solid #fe2c5566!important;border-radius:9px!important;background:#2a151b!important;color:#ffb2bf!important;padding:8px 10px!important;font-size:11px!important;font-weight:800!important}
   @media(max-width:600px){body.grayxon-live-training-call .gx-chat-panel{left:10px!important;right:10px!important;bottom:70px!important;width:auto!important;height:min(42dvh,340px)!important;max-height:calc(100% - 100px)!important}}`;document.head.appendChild(qualityStyle);}
 }
@@ -3951,7 +3951,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     gxLiveCallRealtimeChannel=sb.channel('grayxon-live-call-'+training.id,{config:{broadcast:{self:false}}})
       .on('broadcast',{event:'reaction'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.emoji){showGrayxonReaction(String(payload.name||'Participante'),String(payload.emoji));playGrayxonSound('reaction');}})
       .on('broadcast',{event:'chat'},({payload})=>{if(payload&&payload.userId!==session?.user?.id&&payload.message){const chatName=String(payload.name||'Participante'),chatMessage=String(payload.message);appendGrayxonChatMessage(chatName,chatMessage);}})
-      .on('broadcast',{event:'hand'},({payload})=>{if(!payload||payload.userId===session?.user?.id)return;const key=String(payload.participantId||payload.identity||'');if(!key)return;if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);if(key===String(room.localParticipant?.identity||'')&&!payload.raised){gxHandRaised=false;setButton('hand',false,'Bajar la mano','Levantar la mano');}syncGrayxonLiveKitHandTiles(stage);refreshLiveKitParticipants();})
+      .on('broadcast',{event:'hand'},({payload})=>{if(!payload)return;const key=String(payload.participantId||payload.identity||'');if(!key||(payload.userId===session?.user?.id&&key!==String(room.localParticipant?.identity||'')))return;if(payload.raised)grayxonRaisedHands.set(key,true);else grayxonRaisedHands.delete(key);if(key===String(room.localParticipant?.identity||'')&&!payload.raised){gxHandRaised=false;setButton('hand',false,'Bajar la mano','Levantar la mano');}syncGrayxonLiveKitHandTiles(stage);refreshLiveKitParticipants();})
       .on('broadcast',{event:'pin-participant'},({payload})=>{
         if(!payload||String(payload.trainingId||'')!==String(training.id||''))return;
         const participantId=String(payload.participantId||'');
