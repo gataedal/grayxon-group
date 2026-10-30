@@ -36,26 +36,6 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     let body: { trainingId?: string } = {};
     try { body = await req.json(); } catch { /* invalid body */ }
     const trainingId = body.trainingId?.trim();
-
-    // Reuse one LiveKit identity for the same Grayxon account in the same
-    // browser/device. This prevents a second tab from showing the same user
-    // twice when the user switches tabs and rejoins the same training.
-    // Different devices (for example, desktop and phone) retain distinct IDs.
-    const deviceSignature = [
-      req.headers.get("user-agent") || "",
-      req.headers.get("sec-ch-ua") || "",
-      req.headers.get("sec-ch-ua-platform") || "",
-      req.headers.get("sec-ch-ua-mobile") || "",
-    ].join("|");
-    const digest = new Uint8Array(await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(`${profile.id}:${deviceSignature}`),
-    ));
-    const uuidBytes = Array.from(digest.slice(0, 16));
-    uuidBytes[6] = (uuidBytes[6] & 0x0f) | 0x50;
-    uuidBytes[8] = (uuidBytes[8] & 0x3f) | 0x80;
-    const deviceHex = uuidBytes.map(value => value.toString(16).padStart(2, "0")).join("");
-    const connectionId = `${deviceHex.slice(0, 8)}-${deviceHex.slice(8, 12)}-${deviceHex.slice(12, 16)}-${deviceHex.slice(16, 20)}-${deviceHex.slice(20)}`;
     if (!trainingId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trainingId)) {
       return response({ error: "Debes indicar un trainingId válido." }, 400);
     }
@@ -106,9 +86,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     }
     if (!allowed) return response({ error: "No tienes permiso para entrar a este entrenamiento." }, 403);
 
-    // LiveKit identities must be unique per connection. This permits the same
-    // Grayxon account to join from a computer and a phone at the same time.
-    const identity = `${profile.id}-${connectionId}`;
+    const identity = String(profile.id);
     const { data: profileDetails, error: avatarError } = await ctx.supabaseAdmin
       .from("profile_details")
       .select("avatar_url")
@@ -123,8 +101,6 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     const sessionHostUserId = String(training.livekit_host_user_id || "");
     const participantMetadata = JSON.stringify({
       avatar_url: typeof profileDetails?.avatar_url === "string" ? profileDetails.avatar_url : "",
-      profile_user_id: String(profile.id),
-      connection_id: connectionId,
       session_host_user_id: sessionHostUserId,
     });
     const token = new AccessToken(API_KEY, API_SECRET, {
@@ -148,7 +124,6 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       roomName: training.room_name,
       moderator,
       sessionHostUserId,
-      connectionId,
       user: { id: profile.id, username: profile.username, full_name: profile.full_name, role: profile.role },
     });
   } catch (error) {
