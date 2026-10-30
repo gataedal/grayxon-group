@@ -3592,6 +3592,19 @@ async function startGrayxonLiveKitTraining(training, options={}){
         if(remainingVideo){remainingVideo.style.display='block';remainingVideo.style.visibility='visible';if(avatar){avatar.style.display='none';avatar.style.visibility='hidden';}}
         else if(avatar){avatar.style.display='flex';avatar.style.visibility='visible';}
       }
+      if(isScreenShare&&stage){
+        const remainingTiles=Array.from(stage.querySelectorAll('[data-gx-livekit-tile]'));
+        const pinnedId=String(window.__gxLiveKitPinnedParticipantId||'');
+        const hostId=String(window.__gxHostParticipantId||'');
+        const localId=String(room.localParticipant?.identity||'');
+        const main=remainingTiles.find(item=>item.dataset.gxLivekitScreenShare==='true')||
+          remainingTiles.find(item=>item.dataset.gxLivekitIdentity===pinnedId)||
+          remainingTiles.find(item=>item.dataset.gxLivekitIdentity===hostId)||
+          remainingTiles.find(item=>item.dataset.gxLivekitIdentity===localId)||
+          remainingTiles[0];
+        if(main&&main!==stage.firstElementChild)stage.insertBefore(main,stage.firstElementChild);
+        remainingTiles.forEach(item=>{item.dataset.gxLivekitMain=String(item===main);});
+      }
     });
     room.on(LK.RoomEvent.TrackUnsubscribed,(track,publication,participant)=>{
       // Quita únicamente la pista que LiveKit acaba de desuscribir. Al terminar
