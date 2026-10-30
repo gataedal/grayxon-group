@@ -3238,7 +3238,7 @@ function ensureGrayxonLiveKitLayout(){
   /* El escenario LiveKit es el único proveedor de videollamadas. */`;
   document.head.appendChild(style);
   if(!document.documentElement.dataset.gxLiveKitAudioResume){document.documentElement.dataset.gxLiveKitAudioResume='1';document.addEventListener('pointerdown',()=>{document.querySelectorAll('audio[data-gx-livekit-audio]').forEach(audio=>{if(audio.paused){const play=audio.play?.();if(play?.catch)play.catch(()=>{});}});},true);}
-  if(!document.getElementById('gx-livekit-quality-layout')){const qualityStyle=document.createElement('style');qualityStyle.id='gx-livekit-quality-layout';qualityStyle.textContent=`#grayxonLiveKitStage{height:100%!important;min-height:0!important;box-sizing:border-box!important;padding:66px 24px 104px!important;overflow:auto!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;grid-template-rows:minmax(0,1fr) auto!important;align-content:stretch!important;gap:10px!important}
+  if(!document.getElementById('gx-livekit-quality-layout')){const qualityStyle=document.createElement('style');qualityStyle.id='gx-livekit-quality-layout';qualityStyle.textContent=`#grayxonLiveKitStage{height:100%!important;min-height:0!important;max-height:100%!important;box-sizing:border-box!important;padding:66px 24px 104px!important;overflow:auto!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;grid-template-rows:minmax(0,1fr) auto!important;align-content:stretch!important;gap:10px!important}
   #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1/-1!important;grid-row:1!important;height:100%!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important}
   #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]){grid-column:auto!important;grid-row:auto!important;height:96px!important;min-height:90px!important;max-height:112px!important;aspect-ratio:16/9!important}
   #grayxonLiveKitStage [data-gx-livekit-speaking="true"]{border:2px solid #25f4ee!important;box-shadow:0 0 0 2px #25f4ee25,0 0 22px #25f4ee55!important}
@@ -3670,6 +3670,46 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
     room.remoteParticipants.forEach(participant=>participant.trackPublications.forEach(pub=>{if(pub.track)onTrack(pub.track,participant);}));
     const controls=$('.gx-call-controls');
+    const callMoreMenu=$('.gx-call-more-menu'),callChatPanel=$('.gx-chat-panel');
+    const positionCallPopover=(panel,anchor,type)=>{
+      if(!panel||!anchor)return;
+      const mobile=window.matchMedia('(max-width: 600px)').matches;
+      panel.hidden=false;panel.classList.remove('hidden');
+      panel.style.setProperty('position','fixed','important');
+      panel.style.setProperty('right','auto','important');
+      panel.style.setProperty('bottom','auto','important');
+      panel.style.setProperty('box-sizing','border-box','important');
+      panel.style.setProperty('left','12px','important');
+      panel.style.setProperty('top','12px','important');
+      if(type==='chat'){
+        panel.style.setProperty('width',mobile?'calc(100vw - 20px)':'min(390px, calc(100vw - 24px))','important');
+        panel.style.setProperty('height',mobile?'min(42dvh, 360px)':'min(64dvh, 560px)','important');
+        panel.style.setProperty('max-height','calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom))','important');
+        panel.style.setProperty('min-height','120px','important');
+      }else{
+        panel.style.setProperty('width','min(240px, calc(100vw - 24px))','important');
+        panel.style.setProperty('height','auto','important');
+        panel.style.setProperty('max-height','calc(100dvh - 32px)','important');
+      }
+      requestAnimationFrame(()=>{
+        if(panel.hidden||!document.body.classList.contains('grayxon-live-training-call'))return;
+        const a=anchor.getBoundingClientRect(),p=panel.getBoundingClientRect(),vv=window.visualViewport;
+        const viewportTop=vv?vv.offsetTop:0,viewportBottom=vv?vv.offsetTop+vv.height:window.innerHeight;
+        const left=type==='chat'&&mobile?10:Math.max(12,Math.min(a.left+(a.width-p.width)/2,window.innerWidth-p.width-12));
+        let top=a.top-p.height-10;
+        if(top<viewportTop+12)top=a.bottom+10;
+        top=Math.max(viewportTop+12,Math.min(top,viewportBottom-p.height-12));
+        panel.style.setProperty('left',left+'px','important');
+        panel.style.setProperty('top',top+'px','important');
+      });
+    };
+    const repositionCallPanels=()=>{
+      const moreButton=$('[data-gx-call="more"]'),chatButton=$('[data-gx-call="chat"]');
+      if(callMoreMenu&&!callMoreMenu.hidden)positionCallPopover(callMoreMenu,moreButton,'menu');
+      if(callChatPanel&&!callChatPanel.hidden)positionCallPopover(callChatPanel,chatButton,'chat');
+    };
+    window.addEventListener('resize',repositionCallPanels,{passive:true});
+    window.visualViewport?.addEventListener('resize',repositionCallPanels,{passive:true});
     if(window.__gxSecondaryDevice){
       stage?.querySelector('[data-gx-livekit-mini-controls]')?.remove();
       audioEnabled=false;videoEnabled=false;setButton('audio',false,'Micrófono encendido','Micrófono apagado');setButton('video',false,'Cámara encendida','Cámara apagada');
@@ -3684,11 +3724,22 @@ async function startGrayxonLiveKitTraining(training, options={}){
         if(action==='video'||action==='audio'){mediaActionBusy=true;button.disabled=true;}
         try{
           if(action==='hangup'){const modal=$('.gx-call-end-modal');if(modal){modal.hidden=false;modal.classList.remove('hidden');}return;}
-          if(action==='more'){const menu=$('.gx-call-more-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;}
-          if(action==='chat'){const panel=$('.gx-chat-panel');if(!panel)return;const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);document.body.classList.toggle('gx-chat-open',open);button.setAttribute('aria-pressed',String(open));if(open){gxLiveChatMessageCount=0;updateGrayxonChatCounter();$('#gx-chat-input')?.focus();}return;}
+          if(action==='more'){const menu=$('.gx-call-more-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){if(open){menu.hidden=true;menu.classList.add('hidden');}else positionCallPopover(menu,button,'menu');}return;}
+          if(action==='chat'){const panel=$('.gx-chat-panel');if(!panel)return;const open=panel.hidden;if(open)positionCallPopover(panel,button,'chat');else{panel.hidden=true;panel.classList.add('hidden');}document.body.classList.toggle('gx-chat-open',open);button.setAttribute('aria-pressed',String(open));if(open){gxLiveChatMessageCount=0;updateGrayxonChatCounter();$('#gx-chat-input')?.focus();}return;}
           if(action==='reactions'){const menu=$('.gx-reactions-menu');const open=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!open));if(menu){menu.hidden=open;menu.classList.toggle('hidden',open);}return;}
           if(!joined){toast('La llamada todavía se está conectando…');return;}
-          if(action==='audio'){audioEnabled=!audioEnabled;await room.localParticipant.setMicrophoneEnabled(audioEnabled);setButton('audio',audioEnabled,'Micrófono encendido','Micrófono apagado');return;}
+          if(action==='audio'){
+            const previous=!!room.localParticipant.isMicrophoneEnabled,next=!previous;
+            try{
+              await room.localParticipant.setMicrophoneEnabled(next);
+              audioEnabled=!!room.localParticipant.isMicrophoneEnabled;
+              setButton('audio',audioEnabled,'Micrófono encendido','Micrófono apagado');
+            }catch(audioError){
+              audioEnabled=previous;setButton('audio',previous,'Micrófono encendido','Micrófono apagado');
+              throw audioError;
+            }
+            return;
+          }
           if(action==='video'){
             const previous=videoEnabled,next=!previous;
             const localTile=stage?.querySelector('[data-gx-livekit-tile="gx-livekit-local"]');
@@ -3701,7 +3752,9 @@ async function startGrayxonLiveKitTraining(training, options={}){
             }
             try{
               await room.localParticipant.setCameraEnabled(next);
-              if(next)room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
+              videoEnabled=!!room.localParticipant.isCameraEnabled;
+              setButton('video',videoEnabled,'Cámara encendida','Cámara apagada');
+              if(videoEnabled)room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
               if(next&&mirrorEnabled)await applyMirror(true);
             }catch(cameraError){
               videoEnabled=previous;
@@ -3976,7 +4029,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
       })
       .subscribe();
     toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
-    gxLiveKitCleanup=()=>{joined=false;try{room?.removeAllListeners();}catch(_){}try{room?.localParticipant?.trackPublications?.forEach(pub=>{try{pub.track?.stop();}catch(_){}});}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
+    gxLiveKitCleanup=()=>{joined=false;window.removeEventListener('resize',repositionCallPanels);window.visualViewport?.removeEventListener('resize',repositionCallPanels);try{room?.removeAllListeners();}catch(_){}try{room?.localParticipant?.trackPublications?.forEach(pub=>{try{pub.track?.stop();}catch(_){}});}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
     room.on(LK.RoomEvent.Disconnected,async()=>{
       if(liveTrainingEnding||gxLiveKitRoom!==room)return;
       try{await recordLiveTrainingLeave();}catch(_){}
