@@ -40,7 +40,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(connectionId)) {
       return response({ error: "La conexión del dispositivo no es válida." }, 400);
     }
-    if (!trainingId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89a-f]{3}-[0-9a-f]{12}$/i.test(trainingId)) {
+    if (!trainingId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab]{3}-[0-9a-f]{12}$/i.test(trainingId)) {
       return response({ error: "Debes indicar un trainingId válido." }, 400);
     }
     const { data: rows, error: te } = await ctx.supabaseAdmin.from("live_trainings")
