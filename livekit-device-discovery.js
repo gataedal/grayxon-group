@@ -85,7 +85,6 @@
     button.setAttribute('aria-label','Actualizar lista de dispositivos');
     button.style.cssText='min-width:42px;margin-left:auto;margin-right:8px;color:#25f4ee;font-size:18px;';
     head.insertBefore(button,head.querySelector('[data-gx-device-close]')||null);
-    button.addEventListener('click',()=>refresh({probe:true}));
   };
   media.addEventListener?.('devicechange',()=>{
     const current=modal();
@@ -96,6 +95,5 @@
       Promise.resolve().then(installRefreshButton);
       return;
     }
-    if(event.target.closest?.('[data-gx-device-refresh]'))refresh({probe:true});
   });
 })();
