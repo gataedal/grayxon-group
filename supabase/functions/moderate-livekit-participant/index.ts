@@ -148,9 +148,9 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
         if (!result.ok) return { identity, muted: false, error: true };
         return { identity, muted: true };
       }));
-      const failed = results.filter(item => item.error).length;
+      const failed = results.filter(item => "error" in item && item.error).length;
       if (failed) return response({ error: `LiveKit no pudo silenciar ${failed} participante(s).`, mutedCount: results.filter(item => item.muted).length }, 502);
-      return response({ ok: true, action, mutedCount: results.filter(item => item.muted).length, skippedCount: results.filter(item => item.skipped).length });
+      return response({ ok: true, action, mutedCount: results.filter(item => item.muted).length, skippedCount: results.filter(item => "skipped" in item && item.skipped).length });
     }
 
     const participant = participants.find((item: { identity?: string }) => String(item.identity ?? "") === participantId);
