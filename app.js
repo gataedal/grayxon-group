@@ -3571,7 +3571,8 @@ async function startGrayxonLiveKitTraining(training, options={}){
       if(!publication||!participant)return;
       const isLocal=participant===room.localParticipant;
       const identity=String(participant?.identity||participant?.sid||'remote');
-      const isScreenShare=String(publication.source||publication.track?.source||'').toLowerCase().replace(/[_-]/g,'').includes('screenshare');
+      const isScreenShare=String(publication.source||publication.track?.source||'').toLowerCase().replace(/[^a-z]/g,'').includes('screenshare');
+      if(isLocal&&isScreenShare)updateShareControl(false);
       const key=isScreenShare?'gx-livekit-share-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_'):(isLocal?'gx-livekit-local':'gx-livekit-'+identity.replace(/[^a-zA-Z0-9_-]/g,'_'));
       const tile=stage?.querySelector('[data-gx-livekit-tile="'+CSS.escape(key)+'"]');
       const track=publication.track;
