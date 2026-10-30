@@ -3248,11 +3248,14 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   tile.dataset.gxLivekitMicEnabled=String(micEnabled);
   tile.dataset.gxLivekitCameraEnabled=String(cameraEnabled);
   const pinnedId=String(window.__gxLiveKitPinnedParticipantId||'');
-  const hostId=String(window.__gxHostParticipantId||'');
+  let hostId=String(window.__gxHostParticipantId||'');
+  const participantMetadata=(()=>{try{return JSON.parse(String(participant?.metadata||'{}'));}catch(_){return {};}})();
+  const metadataHostId=String(participantMetadata.session_host_user_id||'');
+  if(metadataHostId&&!hostId){hostId=metadataHostId;window.__gxHostParticipantId=metadataHostId;}
   const tiles=Array.from(host.querySelectorAll('[data-gx-livekit-tile]'));
   const pinnedTile=pinnedId&&tiles.find(item=>item.dataset.gxLivekitIdentity===pinnedId);
   const hostTile=hostId&&tiles.find(item=>item.dataset.gxLivekitIdentity===hostId);
-  const mainTile=pinnedTile||hostTile||tiles.find(item=>item.dataset.gxLivekitIdentity===String(gxLiveKitRoom?.localParticipant?.identity||''))||tile;
+  const mainTile=hostTile||pinnedTile||tiles.find(item=>item.dataset.gxLivekitIdentity===String(gxLiveKitRoom?.localParticipant?.identity||''))||tile;
   const selfMenu=$('.gx-self-camera-menu-wrap');
   if(selfMenu)selfMenu.style.display=mainTile?.dataset.gxLivekitIdentity===String(gxLiveKitRoom?.localParticipant?.identity||'')?'flex':'none';
   if(mainTile&&mainTile!==host.firstChild)host.insertBefore(mainTile,host.firstChild);
