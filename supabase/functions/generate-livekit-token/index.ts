@@ -33,10 +33,14 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     if (!profile) return response({ error: "Perfil de Grayxon no encontrado." }, 404);
     if (!profile.active) return response({ error: "El acceso del usuario está desactivado." }, 403);
 
-    let body: { trainingId?: string } = {};
+    let body: { trainingId?: string; connectionId?: string } = {};
     try { body = await req.json(); } catch { /* invalid body */ }
     const trainingId = body.trainingId?.trim();
-    if (!trainingId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trainingId)) {
+    const connectionId = String(body.connectionId || crypto.randomUUID()).trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(connectionId)) {
+      return response({ error: "La conexión del dispositivo no es válida." }, 400);
+    }
+    if (!trainingId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89a-f]{3}-[0-9a-f]{12}$/i.test(trainingId)) {
       return response({ error: "Debes indicar un trainingId válido." }, 400);
     }
     const { data: rows, error: te } = await ctx.supabaseAdmin.from("live_trainings")
@@ -86,7 +90,9 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     }
     if (!allowed) return response({ error: "No tienes permiso para entrar a este entrenamiento." }, 403);
 
-    const identity = String(profile.id);
+    // LiveKit identities must be unique per connection. This permits the same
+    // Grayxon account to join from a computer and a phone at the same time.
+    const identity = `${profile.id}-${connectionId}`;
     const { data: profileDetails, error: avatarError } = await ctx.supabaseAdmin
       .from("profile_details")
       .select("avatar_url")
@@ -101,6 +107,8 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     const sessionHostUserId = String(training.livekit_host_user_id || "");
     const participantMetadata = JSON.stringify({
       avatar_url: typeof profileDetails?.avatar_url === "string" ? profileDetails.avatar_url : "",
+      profile_user_id: String(profile.id),
+      connection_id: connectionId,
       session_host_user_id: sessionHostUserId,
     });
     const token = new AccessToken(API_KEY, API_SECRET, {
@@ -124,6 +132,7 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       roomName: training.room_name,
       moderator,
       sessionHostUserId,
+      connectionId,
       user: { id: profile.id, username: profile.username, full_name: profile.full_name, role: profile.role },
     });
   } catch (error) {
