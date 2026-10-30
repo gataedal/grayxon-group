@@ -87,18 +87,15 @@
     head.insertBefore(button,head.querySelector('[data-gx-device-close]')||null);
     button.addEventListener('click',()=>refresh({probe:true}));
   };
-  const observer=new MutationObserver(()=>{
-    const current=modal();
-    if(current && !current.hidden){
-      installRefreshButton();
-    }
-  });
-  if(document.documentElement)observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['hidden','class']});
   media.addEventListener?.('devicechange',()=>{
     const current=modal();
     if(current && !current.hidden)refresh();
   });
   document.addEventListener('click',event=>{
+    if(event.target.closest?.('[data-gx-more="devices"],[data-gx-settings-devices]')){
+      Promise.resolve().then(installRefreshButton);
+      return;
+    }
     if(event.target.closest?.('[data-gx-device-refresh]'))refresh({probe:true});
   });
 })();
