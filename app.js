@@ -3651,6 +3651,8 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room.on(LK.RoomEvent.Disconnected,()=>{if(joined&&!liveTrainingEnding)toast('La conexión del entrenamiento se cerró.');});
     await room.connect(data.serverUrl,data.token,{autoSubscribe:true});
     joined=true;
+    const sameAccountConnection=Array.from(room.remoteParticipants.values()).some(participant=>{try{const metadata=JSON.parse(String(participant.metadata||'{}'));return String(metadata.profile_user_id||participant.identity||'')===String(session?.user?.id||'');}catch(_){return String(participant.identity||'')===String(session?.user?.id||'');}});
+    window.__gxSecondaryDevice=!!sameAccountConnection;
     document.body.classList.add('grayxon-livekit-active');
     window.__gxLocalParticipantId=room.localParticipant.identity;
     window.__gxHostParticipantId=String(data.sessionHostUserId||'')===String(data.user?.id||'')?String(room.localParticipant.identity||''):'';
@@ -3666,6 +3668,11 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room.localParticipant.videoTrackPublications.forEach(pub=>{if(pub.track)renderGrayxonLiveKitTrack(pub.track,room.localParticipant,stage);});
     room.remoteParticipants.forEach(participant=>participant.trackPublications.forEach(pub=>{if(pub.track)onTrack(pub.track,participant);}));
     const controls=$('.gx-call-controls');
+    if(window.__gxSecondaryDevice){
+      audioEnabled=false;videoEnabled=false;setButton('audio',false,'Micrófono encendido','Micrófono apagado');setButton('video',false,'Cámara encendida','Cámara apagada');
+      controls?.querySelectorAll('[data-gx-call="audio"],[data-gx-call="video"]').forEach(button=>{button.disabled=true;button.title='Este dispositivo está conectado en modo secundario para compartir pantalla.';});
+      const brand=$('.gx-call-brand');if(brand&&!brand.querySelector('[data-gx-secondary-device]')){const note=document.createElement('span');note.dataset.gxSecondaryDevice='1';note.textContent='PANTALLA SECUNDARIA';note.style.cssText='padding:5px 8px;border:1px solid #25f4ee55;border-radius:7px;background:#0c2528;color:#9ffbf5;font-size:9px;font-weight:900;letter-spacing:.08em';brand.appendChild(note);}
+    }
     let mediaActionBusy=false;
     controls?.querySelectorAll('[data-gx-call]').forEach(button=>{
       button.onclick=async()=>{
