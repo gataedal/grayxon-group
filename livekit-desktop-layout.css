@@ -1,68 +1,65 @@
-/* Grayxon LiveKit desktop stage: stable participant cards and bounded screen share. */
+/* Desktop-only LiveKit layout. Mobile rules remain in livekit-mobile-layout.css. */
 @media (min-width: 601px) {
-  #grayxonLiveKitStage {
-    display: grid !important;
+  body.grayxon-livekit-active #grayxonLiveKitStage {
+    display: flex !important;
+    flex-flow: row wrap !important;
+    align-content: center !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 14px !important;
     width: 100% !important;
     height: 100% !important;
     min-height: 0 !important;
     max-height: 100% !important;
     box-sizing: border-box !important;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)) !important;
-    grid-template-rows: none !important;
-    grid-auto-rows: minmax(0, auto) !important;
-    align-content: center !important;
-    align-items: center !important;
-    justify-items: center !important;
-    gap: 14px !important;
-    padding: 64px clamp(16px, 2vw, 28px) 108px !important;
+    padding: 64px 28px 108px !important;
     overflow: auto !important;
     overscroll-behavior: contain !important;
   }
 
-  #grayxonLiveKitStage > [data-gx-livekit-tile] {
+  /* Camera-only calls: every participant gets the same bounded card. */
+  body.grayxon-livekit-active #grayxonLiveKitStage > [data-gx-livekit-tile] {
     position: relative !important;
-    grid-column: auto !important;
-    grid-row: auto !important;
-    width: 100% !important;
+    display: grid !important;
+    flex: 0 1 min(100%, 520px) !important;
+    width: min(100%, 520px) !important;
     height: auto !important;
     min-width: 0 !important;
     min-height: 0 !important;
-    max-width: 560px !important;
-    max-height: 340px !important;
+    max-width: 520px !important;
+    max-height: 300px !important;
     aspect-ratio: 16 / 9 !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
     align-self: center !important;
     justify-self: center !important;
     overflow: hidden !important;
   }
 
-  /* One participant: keep the camera centered and never stretch it across the whole desktop. */
-  #grayxonLiveKitStage:not(:has(> [data-gx-livekit-tile]:nth-of-type(2))) > [data-gx-livekit-tile] {
-    width: min(100%, 720px) !important;
-    max-width: 720px !important;
-  }
-
-  #grayxonLiveKitStage > [data-gx-livekit-tile] video {
+  body.grayxon-livekit-active #grayxonLiveKitStage > [data-gx-livekit-tile] video {
+    position: absolute !important;
+    inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
   }
 
-  /* Screen share gets the large fixed area; participant cards stay in a short strip below. */
-  #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) {
+  /* While sharing, the screen is the only large tile; attendees stay compact. */
+  body.grayxon-livekit-active #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]:not([data-gx-livekit-share-ended="true"])) {
     display: grid !important;
     grid-template-columns: repeat(auto-fit, minmax(160px, 220px)) !important;
     grid-template-rows: minmax(0, 1fr) 132px !important;
     grid-auto-rows: 132px !important;
     align-content: stretch !important;
-    align-items: stretch !important;
+    align-items: center !important;
     justify-content: center !important;
-    justify-items: stretch !important;
+    justify-items: center !important;
+    gap: 12px !important;
     padding: 64px 24px 108px !important;
     overflow: hidden !important;
-    gap: 12px !important;
   }
 
-  #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] {
+  body.grayxon-livekit-active #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]:not([data-gx-livekit-share-ended="true"])) > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] {
     grid-column: 1 / -1 !important;
     grid-row: 1 !important;
     width: 100% !important;
@@ -72,69 +69,43 @@
     max-width: none !important;
     max-height: none !important;
     aspect-ratio: auto !important;
-    align-self: stretch !important;
-    justify-self: stretch !important;
     background: #000 !important;
   }
 
-  #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) > [data-gx-livekit-tile]:not([data-gx-livekit-screen-share="true"]) {
+  body.grayxon-livekit-active #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]:not([data-gx-livekit-share-ended="true"])) > [data-gx-livekit-tile]:not([data-gx-livekit-screen-share="true"]) {
     grid-row: 2 !important;
     grid-column: auto !important;
-    width: 100% !important;
+    flex: 0 0 220px !important;
+    width: 220px !important;
     height: 124px !important;
     min-width: 0 !important;
     min-height: 0 !important;
     max-width: 220px !important;
     max-height: 124px !important;
     aspect-ratio: 16 / 9 !important;
-    align-self: center !important;
-    justify-self: center !important;
   }
 
-  #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] video {
+  body.grayxon-livekit-active #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] video {
     object-fit: contain !important;
     background: #000 !important;
   }
 
-  /* Keep the existing floating self-camera preview only for the local share overlay. */
-  #grayxonLiveKitStage[data-gx-local-share-active="true"] {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 220px)) !important;
-    grid-template-rows: minmax(0, 1fr) 132px !important;
-    grid-auto-rows: 132px !important;
-    align-content: stretch !important;
-    overflow: hidden !important;
-  }
-
-  #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] {
-    grid-column: 1 / -1 !important;
-    grid-row: 1 !important;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
-    aspect-ratio: auto !important;
-  }
-
-  #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile="gx-livekit-local"] {
+  /* During our own share, keep the local camera as a small floating preview. */
+  body.grayxon-livekit-active #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile="gx-livekit-local"] {
     position: absolute !important;
-    top: 72px !important;
+    top: 76px !important;
     right: 32px !important;
-    grid-column: auto !important;
-    grid-row: auto !important;
+    z-index: 30 !important;
     width: min(220px, 18vw) !important;
     height: auto !important;
+    min-height: 0 !important;
     max-width: 220px !important;
+    max-height: none !important;
     aspect-ratio: 16 / 9 !important;
-    z-index: 30 !important;
+    flex: none !important;
   }
 
-  #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile]:not([data-gx-livekit-screen-share="true"]):not([data-gx-livekit-tile="gx-livekit-local"]) {
-    grid-row: 2 !important;
-    grid-column: auto !important;
-    width: 100% !important;
-    height: 124px !important;
-    max-width: 220px !important;
-    max-height: 124px !important;
+  body.grayxon-livekit-active #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile="gx-livekit-local"] video {
+    object-fit: cover !important;
   }
 }
