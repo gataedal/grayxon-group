@@ -1,6 +1,6 @@
 /* Grayxon LiveKit desktop stage: stable participant cards and bounded screen share. */
 @media (min-width: 601px) {
-  #grayxonLiveKitStage {
+  body.grayxon-livekit-active #grayxonLiveKitStage {
     display: grid !important;
     width: 100% !important;
     height: 100% !important;
@@ -19,7 +19,7 @@
     overscroll-behavior: contain !important;
   }
 
-  #grayxonLiveKitStage > [data-gx-livekit-tile] {
+  body.grayxon-livekit-active #grayxonLiveKitStage > [data-gx-livekit-tile] {
     position: relative !important;
     grid-column: auto !important;
     grid-row: auto !important;
@@ -36,19 +36,19 @@
   }
 
   /* One participant: keep the camera centered and never stretch it across the whole desktop. */
-  #grayxonLiveKitStage:not(:has(> [data-gx-livekit-tile]:nth-of-type(2))) > [data-gx-livekit-tile] {
+  body.grayxon-livekit-active #grayxonLiveKitStage:not(:has(> [data-gx-livekit-tile]:nth-of-type(2))) > [data-gx-livekit-tile] {
     width: min(100%, 720px) !important;
     max-width: 720px !important;
   }
 
-  #grayxonLiveKitStage > [data-gx-livekit-tile] video {
+  body.grayxon-livekit-active #grayxonLiveKitStage > [data-gx-livekit-tile] video {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
   }
 
   /* Screen share gets the large fixed area; participant cards stay in a short strip below. */
-  #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) {
+  body.grayxon-livekit-active #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) {
     display: grid !important;
     grid-template-columns: repeat(auto-fit, minmax(160px, 220px)) !important;
     grid-template-rows: minmax(0, 1fr) 132px !important;
@@ -62,7 +62,7 @@
     gap: 12px !important;
   }
 
-  #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] {
+  body.grayxon-livekit-active #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] {
     grid-column: 1 / -1 !important;
     grid-row: 1 !important;
     width: 100% !important;
@@ -77,7 +77,7 @@
     background: #000 !important;
   }
 
-  #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) > [data-gx-livekit-tile]:not([data-gx-livekit-screen-share="true"]) {
+  body.grayxon-livekit-active #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) > [data-gx-livekit-tile]:not([data-gx-livekit-screen-share="true"]) {
     grid-row: 2 !important;
     grid-column: auto !important;
     width: 100% !important;
@@ -91,13 +91,13 @@
     justify-self: center !important;
   }
 
-  #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] video {
+  body.grayxon-livekit-active #grayxonLiveKitStage:has(> [data-gx-livekit-tile][data-gx-livekit-screen-share="true"]) > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] video {
     object-fit: contain !important;
     background: #000 !important;
   }
 
   /* Keep the existing floating self-camera preview only for the local share overlay. */
-  #grayxonLiveKitStage[data-gx-local-share-active="true"] {
+  body.grayxon-livekit-active #grayxonLiveKitStage[data-gx-local-share-active="true"] {
     display: grid !important;
     grid-template-columns: repeat(auto-fit, minmax(160px, 220px)) !important;
     grid-template-rows: minmax(0, 1fr) 132px !important;
@@ -106,7 +106,7 @@
     overflow: hidden !important;
   }
 
-  #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] {
+  body.grayxon-livekit-active #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile][data-gx-livekit-screen-share="true"] {
     grid-column: 1 / -1 !important;
     grid-row: 1 !important;
     width: 100% !important;
@@ -116,7 +116,7 @@
     aspect-ratio: auto !important;
   }
 
-  #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile="gx-livekit-local"] {
+  body.grayxon-livekit-active #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile="gx-livekit-local"] {
     position: absolute !important;
     top: 72px !important;
     right: 32px !important;
@@ -129,7 +129,7 @@
     z-index: 30 !important;
   }
 
-  #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile]:not([data-gx-livekit-screen-share="true"]):not([data-gx-livekit-tile="gx-livekit-local"]) {
+  body.grayxon-livekit-active #grayxonLiveKitStage[data-gx-local-share-active="true"] > [data-gx-livekit-tile]:not([data-gx-livekit-screen-share="true"]):not([data-gx-livekit-tile="gx-livekit-local"]) {
     grid-row: 2 !important;
     grid-column: auto !important;
     width: 100% !important;
