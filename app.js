@@ -3238,18 +3238,29 @@ function ensureGrayxonLiveKitLayout(){
   /* El escenario LiveKit es el único proveedor de videollamadas. */`;
   document.head.appendChild(style);
   if(!document.documentElement.dataset.gxLiveKitAudioResume){document.documentElement.dataset.gxLiveKitAudioResume='1';document.addEventListener('pointerdown',()=>{document.querySelectorAll('audio[data-gx-livekit-audio]').forEach(audio=>{if(audio.paused){const play=audio.play?.();if(play?.catch)play.catch(()=>{});}});},true);}
-  if(!document.getElementById('gx-livekit-quality-layout')){const qualityStyle=document.createElement('style');qualityStyle.id='gx-livekit-quality-layout';qualityStyle.textContent=`#grayxonLiveKitStage{height:100%!important;min-height:0!important;max-height:100%!important;box-sizing:border-box!important;padding:66px 24px 104px!important;overflow:auto!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;grid-template-rows:minmax(0,1fr) auto!important;align-content:stretch!important;gap:10px!important}
-  #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1/-1!important;grid-row:1!important;height:100%!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important}
-  #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]){grid-column:auto!important;grid-row:auto!important;height:96px!important;min-height:90px!important;max-height:112px!important;aspect-ratio:16/9!important}
+  if(!document.getElementById('gx-livekit-quality-layout')){const qualityStyle=document.createElement('style');qualityStyle.id='gx-livekit-quality-layout';qualityStyle.textContent=`#grayxonLiveKitStage{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))!important;grid-auto-rows:minmax(100px,auto)!important;grid-template-rows:none!important;align-content:start!important;align-items:stretch!important;width:100%!important;height:100%!important;min-height:0!important;max-height:100%!important;box-sizing:border-box!important;padding:clamp(58px,7vh,74px) clamp(10px,2vw,24px) calc(100px + env(safe-area-inset-bottom))!important;overflow:auto!important;overscroll-behavior:contain!important;gap:10px!important}
+  #grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1/-1!important;grid-row:auto!important;width:100%!important;height:auto!important;min-height:200px!important;max-height:min(62vh,560px)!important;aspect-ratio:16/9!important}
+  #grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]){grid-column:auto!important;grid-row:auto!important;width:100%!important;height:auto!important;min-height:100px!important;max-height:150px!important;aspect-ratio:16/9!important}
+  #grayxonLiveKitStage [data-gx-livekit-tile] video{object-fit:cover!important}
+  #grayxonLiveKitStage [data-gx-livekit-tile] video[data-gx-screen-share="true"]{object-fit:contain!important}
   #grayxonLiveKitStage [data-gx-livekit-speaking="true"]{border:2px solid #25f4ee!important;box-shadow:0 0 0 2px #25f4ee25,0 0 22px #25f4ee55!important}
   #grayxonLiveKitStage [data-gx-livekit-speaking="true"] [data-gx-livekit-label]::after{content:' · HABLANDO';color:#25f4ee;font-size:9px;font-weight:900}
-  @media(max-width:600px){#grayxonLiveKitStage{height:100%!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:auto!important;align-content:start!important;padding:58px 10px 88px!important;gap:7px!important}#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1/-1!important;grid-row:auto!important;height:auto!important;min-height:190px!important;aspect-ratio:16/9!important}#grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]){grid-column:auto!important;grid-row:auto!important;height:auto!important;min-height:110px!important;max-height:none!important;aspect-ratio:4/3!important}}
-  body.grayxon-live-training-call .gx-chat-panel{position:absolute!important;top:auto!important;right:24px!important;bottom:92px!important;left:auto!important;width:min(390px,calc(100% - 48px))!important;height:min(68dvh,620px)!important;max-height:calc(100% - 180px)!important}
-  body.grayxon-live-training-call .gx-participants-panel{position:absolute!important;top:0!important;right:0!important;bottom:0!important;width:min(390px,90vw)!important;padding:68px 14px 90px!important}
-  .gx-participant-row{padding:12px 9px!important;margin:5px 0!important;border:1px solid #ffffff12!important;border-radius:12px!important;background:#ffffff05!important;gap:10px!important}.gx-participant-name{font-size:13px!important;font-weight:750!important}.gx-participant-status{font-size:11px!important;line-height:1.4!important}
-  .gx-participant-actions{display:flex!important;flex-wrap:wrap!important;gap:6px!important;width:calc(100% - 46px)!important;margin:7px 0 0 46px!important}.gx-participant-actions button{min-height:30px!important;padding:6px 9px!important;border:1px solid #ffffff20!important;border-radius:8px!important;background:#1a2029!important;color:#f3f5f7!important;font-size:10px!important;font-weight:750!important}.gx-participant-actions .gx-participant-kick{border-color:#fe2c5555!important;background:#2a151b!important;color:#ff9aaa!important}
-  .gx-participants-head [data-gx-mute-all]{border:1px solid #fe2c5566!important;border-radius:9px!important;background:#2a151b!important;color:#ffb2bf!important;padding:8px 10px!important;font-size:11px!important;font-weight:800!important}
-  @media(max-width:600px){body.grayxon-live-training-call .gx-chat-panel{left:10px!important;right:10px!important;bottom:70px!important;width:auto!important;height:min(42dvh,340px)!important;max-height:calc(100% - 100px)!important}}`;document.head.appendChild(qualityStyle);}
+  body.grayxon-live-training-call .gx-chat-panel,body.grayxon-live-training-call .gx-call-more-menu,body.grayxon-live-training-call .gx-participants-panel{position:fixed!important;z-index:100007!important;box-sizing:border-box!important;max-width:calc(100vw - 24px)!important}
+  body.grayxon-live-training-call .gx-participants-panel{top:12px!important;right:12px!important;bottom:12px!important;left:auto!important;width:min(360px,calc(100vw - 24px))!important;max-height:calc(100dvh - 24px)!important;padding:14px!important;overflow:auto!important;border:1px solid #ffffff20!important;border-radius:18px!important;background:rgba(10,13,18,.98)!important;box-shadow:0 20px 60px #0009!important}
+  body.grayxon-live-training-call .gx-participants-panel[hidden],body.grayxon-live-training-call .gx-participants-panel.hidden{display:none!important}
+  body.grayxon-live-training-call .gx-chat-panel[hidden],body.grayxon-live-training-call .gx-chat-panel.hidden,body.grayxon-live-training-call .gx-call-more-menu[hidden],body.grayxon-live-training-call .gx-call-more-menu.hidden{display:none!important}
+  body.grayxon-live-training-call .gx-call-controls{width:max-content!important;max-width:calc(100vw - 24px)!important;flex-wrap:nowrap!important;gap:clamp(3px,.8vw,9px)!important}
+  body.grayxon-live-training-call .gx-call-controls button{min-width:46px!important;min-height:48px!important;flex:0 1 auto!important;padding:4px 5px!important}
+  @media(min-width:601px) and (max-width:820px){body.grayxon-live-training-call .gx-call-controls{gap:3px!important;padding:7px 8px!important}body.grayxon-live-training-call .gx-call-controls button{min-width:40px!important;min-height:44px!important;font-size:9px!important;padding:3px!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon{width:21px!important;height:21px!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon svg{width:19px!important;height:19px!important}}
+  @media(max-width:600px){#grayxonLiveKitStage{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:none!important;grid-auto-rows:minmax(96px,auto)!important;align-content:start!important;height:100%!important;padding:58px 10px calc(92px + env(safe-area-inset-bottom))!important;gap:7px!important}#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{grid-column:1/-1!important;grid-row:auto!important;height:auto!important;min-height:180px!important;max-height:none!important;aspect-ratio:16/9!important}#grayxonLiveKitStage [data-gx-livekit-tile]:not([data-gx-livekit-main="true"]){grid-column:auto!important;grid-row:auto!important;height:auto!important;min-height:96px!important;max-height:none!important;aspect-ratio:4/3!important}#grayxonLiveKitStage [data-gx-livekit-tile] video{object-fit:cover!important}#grayxonLiveKitStage [data-gx-livekit-tile] video[data-gx-screen-share="true"]{object-fit:contain!important}body.grayxon-live-training-call .gx-chat-panel{width:calc(100vw - 20px)!important;height:min(42dvh,360px)!important;max-height:calc(var(--gx-vv-height,100dvh) - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;min-height:120px!important}body.grayxon-live-training-call .gx-call-more-menu{width:min(260px,calc(100vw - 24px))!important}body.grayxon-live-training-call .gx-participants-panel{width:calc(100vw - 20px)!important;max-height:calc(var(--gx-vv-height,100dvh) - 24px)!important;left:10px!important;right:10px!important}body.grayxon-live-training-call #grayxonTrainingRoomWrap .gx-call-controls{left:8px!important;right:8px!important;width:auto!important;max-width:none!important;gap:3px!important;padding:6px 5px!important}body.grayxon-live-training-call .gx-call-controls button{flex:1 1 0!important;min-width:0!important;min-height:44px!important;padding:4px 2px!important;font-size:9px!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon{width:21px!important;height:21px!important}body.grayxon-live-training-call .gx-call-controls button .gx-ctl-icon svg{width:19px!important;height:19px!important}}
+  @media(max-height:560px) and (orientation:landscape){#grayxonLiveKitStage{padding-top:50px!important;padding-bottom:76px!important}#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-main="true"]{min-height:140px!important;max-height:48vh!important}body.grayxon-live-training-call .gx-call-controls button{min-height:40px!important}}
+  body.grayxon-live-training-call .gx-participant-row{padding:12px 9px!important;margin:5px 0!important;border:1px solid #ffffff12!important;border-radius:12px!important;background:#ffffff05!important;gap:10px!important}
+  body.grayxon-live-training-call .gx-participant-name{font-size:13px!important;font-weight:750!important}
+  body.grayxon-live-training-call .gx-participant-status{font-size:11px!important;line-height:1.4!important}
+  body.grayxon-live-training-call .gx-participant-actions{display:flex!important;flex-wrap:wrap!important;gap:6px!important;width:calc(100% - 46px)!important;margin:7px 0 0 46px!important}
+  body.grayxon-live-training-call .gx-participant-actions button{min-height:30px!important;padding:6px 9px!important;border:1px solid #ffffff20!important;border-radius:8px!important;background:#1a2029!important;color:#f3f5f7!important;font-size:10px!important;font-weight:750!important}
+  body.grayxon-live-training-call .gx-participant-actions .gx-participant-kick{border-color:#fe2c5555!important;background:#2a151b!important;color:#ff9aaa!important}
+  body.grayxon-live-training-call .gx-participants-head [data-gx-mute-all]{border:1px solid #fe2c5566!important;border-radius:9px!important;background:#2a151b!important;color:#ffb2bf!important;padding:8px 10px!important;font-size:11px!important;font-weight:800!important}`;document.head.appendChild(qualityStyle);}
 }
 function renderGrayxonLiveKitTrack(track, participant, host){
   if(!host)return;
@@ -3686,6 +3697,11 @@ async function startGrayxonLiveKitTraining(training, options={}){
         panel.style.setProperty('height',mobile?'min(42dvh, 360px)':'min(64dvh, 560px)','important');
         panel.style.setProperty('max-height','calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom))','important');
         panel.style.setProperty('min-height','120px','important');
+      }else if(type==='participants'){
+        panel.style.setProperty('width',mobile?'calc(100vw - 20px)':'min(360px, calc(100vw - 24px))','important');
+        panel.style.setProperty('height',mobile?'min(68dvh, 560px)':'min(72dvh, 620px)','important');
+        panel.style.setProperty('max-height','calc(100dvh - 24px)','important');
+        panel.style.setProperty('min-height','180px','important');
       }else{
         panel.style.setProperty('width','min(240px, calc(100vw - 24px))','important');
         panel.style.setProperty('height','auto','important');
@@ -3697,7 +3713,6 @@ async function startGrayxonLiveKitTraining(training, options={}){
         const viewportTop=vv?vv.offsetTop:0,viewportBottom=vv?vv.offsetTop+vv.height:window.innerHeight;
         const left=type==='chat'&&mobile?10:Math.max(12,Math.min(a.left+(a.width-p.width)/2,window.innerWidth-p.width-12));
         let top=a.top-p.height-10;
-        if(top<viewportTop+12)top=a.bottom+10;
         top=Math.max(viewportTop+12,Math.min(top,viewportBottom-p.height-12));
         panel.style.setProperty('left',left+'px','important');
         panel.style.setProperty('top',top+'px','important');
@@ -3710,6 +3725,8 @@ async function startGrayxonLiveKitTraining(training, options={}){
     };
     window.addEventListener('resize',repositionCallPanels,{passive:true});
     window.visualViewport?.addEventListener('resize',repositionCallPanels,{passive:true});
+    window.visualViewport?.addEventListener('scroll',repositionCallPanels,{passive:true});
+    window.addEventListener('orientationchange',repositionCallPanels,{passive:true});
     if(window.__gxSecondaryDevice){
       stage?.querySelector('[data-gx-livekit-mini-controls]')?.remove();
       audioEnabled=false;videoEnabled=false;setButton('audio',false,'Micrófono encendido','Micrófono apagado');setButton('video',false,'Cámara encendida','Cámara apagada');
@@ -3741,7 +3758,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
             return;
           }
           if(action==='video'){
-            const previous=videoEnabled,next=!previous;
+            const previous=!!room.localParticipant.isCameraEnabled,next=!previous;
             const localTile=stage?.querySelector('[data-gx-livekit-tile="gx-livekit-local"]');
             const localAvatar=localTile?.querySelector('.gx-livekit-avatar');
             videoEnabled=next;
@@ -4004,7 +4021,13 @@ async function startGrayxonLiveKitTraining(training, options={}){
     if(participantsHead&&!$('[data-gx-mute-all]',participantsHead)){const muteAll=document.createElement('button');muteAll.type='button';muteAll.dataset.gxMuteAll='1';muteAll.textContent='Silenciar a todos';muteAll.hidden=!window.__gxCanManageMeeting;const closeButton=$('[data-gx-close-participants]',participantsHead);participantsHead.insertBefore(muteAll,closeButton||null);muteAll.onclick=async()=>{if(!window.__gxCanManageMeeting||muteAll.disabled)return;muteAll.disabled=true;try{const {data,error}=await sb.functions.invoke('moderate-livekit-participant',{body:{trainingId:String(training.id),action:'audio-all',excludeParticipantId:String(room.localParticipant.identity||'') }});if(error||data?.error||!data?.ok)throw new Error(data?.error||error?.message||'No se pudo silenciar a todos.');toast('Micrófonos de los participantes silenciados ✓');refreshLiveKitParticipants();}catch(error){toast(error?.message||'No se pudo silenciar a todos.');}finally{muteAll.disabled=false;}};}
     const participantsButton=$('[data-gx-more="participants"]');
     if(participantsButton)participantsButton.onclick=()=>{
-      const panel=$('.gx-participants-panel');if(panel){const open=panel.hidden;panel.hidden=!open;panel.classList.toggle('hidden',!open);if(open)refreshLiveKitParticipants();}
+      const panel=$('.gx-participants-panel');
+      if(panel){
+        const open=panel.hidden;
+        if(open)positionCallPopover(panel,$('[data-gx-call="more"]'),'participants');
+        else{panel.hidden=true;panel.classList.add('hidden');}
+        if(open)refreshLiveKitParticipants();
+      }
       const menu=$('.gx-call-more-menu');if(menu){menu.hidden=true;menu.classList.add('hidden');}
       $('[data-gx-call="more"]')?.setAttribute('aria-expanded','false');
     };
@@ -4029,7 +4052,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
       })
       .subscribe();
     toast(isHost?'Entraste al entrenamiento como anfitrión ✓':isAdmin?'Entraste como administrador ✓':'Entraste al entrenamiento ✓');
-    gxLiveKitCleanup=()=>{joined=false;window.removeEventListener('resize',repositionCallPanels);window.visualViewport?.removeEventListener('resize',repositionCallPanels);try{room?.removeAllListeners();}catch(_){}try{room?.localParticipant?.trackPublications?.forEach(pub=>{try{pub.track?.stop();}catch(_){}});}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
+    gxLiveKitCleanup=()=>{joined=false;window.removeEventListener('resize',repositionCallPanels);window.visualViewport?.removeEventListener('resize',repositionCallPanels);window.visualViewport?.removeEventListener('scroll',repositionCallPanels);window.removeEventListener('orientationchange',repositionCallPanels);try{room?.removeAllListeners();}catch(_){}try{room?.localParticipant?.trackPublications?.forEach(pub=>{try{pub.track?.stop();}catch(_){}});}catch(_){}try{room?.disconnect();}catch(_){}if(gxLiveKitRoom===room)gxLiveKitRoom=null;};
     room.on(LK.RoomEvent.Disconnected,async()=>{
       if(liveTrainingEnding||gxLiveKitRoom!==room)return;
       try{await recordLiveTrainingLeave();}catch(_){}
