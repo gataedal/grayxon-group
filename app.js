@@ -9606,3 +9606,108 @@ async function gxEventsSaveMatchSchedule(matchId){if(!gxEventsAdmin())return;con
 async function gxEventsSaveMatch(matchId){if(!gxEventsAdmin())return;const m=gxEventsDashboardData?.matches.find(x=>x.id===matchId);if(!m)return;const select=document.querySelector(`[data-gxev-match-result="${matchId}"]`),sa=document.querySelector(`[data-gxev-score-a="${matchId}"]`),sbx=document.querySelector(`[data-gxev-score-b="${matchId}"]`),value=String(select?.value||'');if(!value)return toast('Selecciona ganador o empate.');const winner=value==='a'?m.participant_a_id:value==='b'?m.participant_b_id:null,scoreA=sa?.value===''?null:Number(sa?.value),scoreB=sbx?.value===''?null:Number(sbx?.value);const r=await sb.rpc('gx_events_save_match_result',{p_match_id:matchId,p_winner_participant_id:winner,p_score_a:scoreA,p_score_b:scoreB,p_notes:null});if(r.error)return toast(r.error.message);toast('Resultado guardado y avisos enviados ✓');await gxEventsReloadDashboard(gxEventsSelectedId,true);}
 
 (function gxEventsBindModuleV23(){if(window.__gxEventsModuleV23Bound)return;window.__gxEventsModuleV23Bound=true;document.addEventListener('change',e=>{if(e.target?.id==='gxevParticipantCsv')gxEventsChange(e);},{capture:true});document.addEventListener('click',async e=>{const b=e.target.closest?.('[data-gx-open-events]');if(!b)return;e.preventDefault();if(!session?.user?.id){nav('auth');return;}gxEventsSelectedId=null;gxPendingEventTarget=null;gxPendingEventPostTarget=null;gxPendingEventTab=null;gxEventsExitFullscreen();try{const {data,error}=await sb.rpc('gx_events_latest_unread_post');const latest=!error&&Array.isArray(data)?data[0]:null;if(latest?.event_id&&latest?.post_id){gxPendingEventTarget=latest.event_id;gxPendingEventPostTarget=latest.post_id;gxPendingEventTab='thread';}}catch(err){console.warn('Eventos: abrir publicación pendiente',err);}nav('events');});const refresh=()=>{gxEventsInjectDashboardCard();if(session?.user?.id){gxEventsRefreshUnreadCount().catch(()=>{});gxMissionsRefreshUnreadBadge().catch(()=>{});}};window.addEventListener('focus',refresh);window.addEventListener('pageshow',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});const observer=new MutationObserver(ms=>{let maybe=false;for(const m of ms)for(const n of Array.from(m.addedNodes||[])){if(n.nodeType!==1)continue;if(n.matches?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards')||n.querySelector?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards'))maybe=true;}if(maybe)gxEventsInjectDashboardCard();});observer.observe(document.body,{childList:true,subtree:true});setTimeout(refresh,250);setTimeout(refresh,1200);setInterval(()=>{if(!document.hidden&&session?.user?.id){gxEventsRefreshUnreadCount().catch(()=>{});gxMissionsRefreshUnreadBadge().catch(()=>{});}},30000);})();
+
+
+/* Restore only the three requested LiveKit call panels: chat, More, participants. */
+(()=> {
+  if (document.getElementById('gx-livekit-call-panels-restored')) return;
+  const style = document.createElement('style');
+  style.id = 'gx-livekit-call-panels-restored';
+  style.textContent = `
+    body.grayxon-live-training-call .gx-chat-panel,
+    body.grayxon-live-training-call .gx-call-more-menu,
+    body.grayxon-live-training-call .gx-participants-panel {
+      position: fixed !important;
+      z-index: 100007 !important;
+      box-sizing: border-box !important;
+      max-width: calc(100vw - 24px) !important;
+    }
+    body.grayxon-live-training-call .gx-participants-panel {
+      top: 12px !important;
+      right: 12px !important;
+      bottom: 12px !important;
+      left: auto !important;
+      width: min(360px, calc(100vw - 24px)) !important;
+      max-height: calc(100dvh - 24px) !important;
+      padding: 14px !important;
+      overflow: auto !important;
+      border: 1px solid #ffffff20 !important;
+      border-radius: 18px !important;
+      background: rgba(10,13,18,.98) !important;
+      box-shadow: 0 20px 60px #0009 !important;
+    }
+    body.grayxon-live-training-call .gx-participants-panel[hidden],
+    body.grayxon-live-training-call .gx-participants-panel.hidden,
+    body.grayxon-live-training-call .gx-chat-panel[hidden],
+    body.grayxon-live-training-call .gx-chat-panel.hidden,
+    body.grayxon-live-training-call .gx-call-more-menu[hidden],
+    body.grayxon-live-training-call .gx-call-more-menu.hidden {
+      display: none !important;
+    }
+    body.grayxon-live-training-call .gx-participant-row {
+      padding: 12px 9px !important;
+      margin: 5px 0 !important;
+      border: 1px solid #ffffff12 !important;
+      border-radius: 12px !important;
+      background: #ffffff05 !important;
+      gap: 10px !important;
+    }
+    body.grayxon-live-training-call .gx-participant-name {
+      font-size: 13px !important;
+      font-weight: 750 !important;
+    }
+    body.grayxon-live-training-call .gx-participant-status {
+      font-size: 11px !important;
+      line-height: 1.4 !important;
+    }
+    body.grayxon-live-training-call .gx-participant-actions {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 6px !important;
+      width: calc(100% - 46px) !important;
+      margin: 7px 0 0 46px !important;
+    }
+    body.grayxon-live-training-call .gx-participant-actions button {
+      min-height: 30px !important;
+      padding: 6px 9px !important;
+      border: 1px solid #ffffff20 !important;
+      border-radius: 8px !important;
+      background: #1a2029 !important;
+      color: #f3f5f7 !important;
+      font-size: 10px !important;
+      font-weight: 750 !important;
+    }
+    body.grayxon-live-training-call .gx-participant-actions .gx-participant-kick {
+      border-color: #fe2c5555 !important;
+      background: #2a151b !important;
+      color: #ff9aaa !important;
+    }
+    body.grayxon-live-training-call .gx-participants-head [data-gx-mute-all] {
+      border: 1px solid #fe2c5566 !important;
+      border-radius: 9px !important;
+      background: #2a151b !important;
+      color: #ffb2bf !important;
+      padding: 8px 10px !important;
+      font-size: 11px !important;
+      font-weight: 800 !important;
+    }
+    @media (max-width: 600px) {
+      body.grayxon-live-training-call .gx-chat-panel {
+        width: calc(100vw - 20px) !important;
+        height: min(42dvh, 360px) !important;
+        max-height: calc(var(--gx-vv-height,100dvh) - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+        min-height: 120px !important;
+      }
+      body.grayxon-live-training-call .gx-call-more-menu {
+        width: min(260px, calc(100vw - 24px)) !important;
+      }
+      body.grayxon-live-training-call .gx-participants-panel {
+        width: calc(100vw - 20px) !important;
+        max-height: calc(var(--gx-vv-height,100dvh) - 24px) !important;
+        left: 10px !important;
+        right: 10px !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+})();
