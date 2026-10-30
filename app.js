@@ -3671,6 +3671,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     room.remoteParticipants.forEach(participant=>participant.trackPublications.forEach(pub=>{if(pub.track)onTrack(pub.track,participant);}));
     const controls=$('.gx-call-controls');
     if(window.__gxSecondaryDevice){
+      stage?.querySelector('[data-gx-livekit-mini-controls]')?.remove();
       audioEnabled=false;videoEnabled=false;setButton('audio',false,'Micrófono encendido','Micrófono apagado');setButton('video',false,'Cámara encendida','Cámara apagada');
       controls?.querySelectorAll('[data-gx-call="audio"],[data-gx-call="video"]').forEach(button=>{button.disabled=true;button.title='Este dispositivo está conectado en modo secundario para compartir pantalla.';});
       const brand=$('.gx-call-brand');if(brand&&!brand.querySelector('[data-gx-secondary-device]')){const note=document.createElement('span');note.dataset.gxSecondaryDevice='1';note.textContent='PANTALLA SECUNDARIA';note.style.cssText='padding:5px 8px;border:1px solid #25f4ee55;border-radius:7px;background:#0c2528;color:#9ffbf5;font-size:9px;font-weight:900;letter-spacing:.08em';brand.appendChild(note);}
