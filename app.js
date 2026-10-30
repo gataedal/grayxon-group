@@ -3387,6 +3387,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
   const isHost=!!session?.user?.id&&training.created_by===session.user.id;
   const isAdmin=profile?.role==='admin';
   window.__gxCanManageMeeting=isHost||isAdmin;
+  window.__gxSecondaryDevice=false;
   let room=null, joined=false, audioEnabled=false, videoEnabled=false, shareTrack=null, elapsedStarted=false;
   const stage=$('#grayxonLiveKitStage');
   if(!document.documentElement.dataset.gxLiveKitParticipantMenuHandler){
