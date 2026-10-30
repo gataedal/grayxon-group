@@ -491,3 +491,9 @@ body.grayxon-live-training-call .gx-self-camera-menu {
     border-radius: 9px !important;
   }
 }
+
+
+/* Remove a stale screen-share tile as soon as its media track ends. */
+#grayxonLiveKitStage [data-gx-livekit-tile][data-gx-livekit-screen-share="true"][data-gx-livekit-share-ended="true"] {
+  display: none !important;
+}
