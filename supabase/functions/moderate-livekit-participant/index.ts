@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ACTIONS = new Set(["audio", "video", "pin"]);
+const ACTIONS = new Set(["audio", "video", "pin", "remove", "audio-all"]);
 
 function response(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -60,16 +60,21 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     const userId = ctx.userClaims?.id;
     if (!userId) return response({ error: "Usuario no autenticado." }, 401);
 
-    let body: { trainingId?: string; participantId?: string; action?: string } = {};
+    let body: { trainingId?: string; participantId?: string; excludeParticipantId?: string; action?: string } = {};
     try { body = await req.json(); } catch { return response({ error: "Solicitud no válida." }, 400); }
     const trainingId = String(body.trainingId ?? "").trim();
     const participantId = String(body.participantId ?? "").trim();
+    const excludeParticipantId = String(body.excludeParticipantId ?? "").trim();
     const action = String(body.action ?? "").trim();
     if (!UUID_RE.test(trainingId)) return response({ error: "Debes indicar un entrenamiento válido." }, 400);
-    if (!participantId || participantId.length > 128 || participantId === userId) {
+    if (!ACTIONS.has(action)) return response({ error: "Acción de moderación no válida." }, 400);
+    if (action !== "audio-all" && (!participantId || participantId.length > 128)) {
       return response({ error: "El participante seleccionado no es válido." }, 400);
     }
-    if (!ACTIONS.has(action)) return response({ error: "Acción de moderación no válida." }, 400);
+    if (action === "remove" && excludeParticipantId && participantId === excludeParticipantId) {
+      return response({ error: "No puedes expulsarte de tu propia conexión." }, 400);
+    }
+    if (excludeParticipantId.length > 128) return response({ error: "La conexión de origen no es válida." }, 400);
 
     const { data: profile, error: profileError } = await ctx.supabaseAdmin
       .from("profiles").select("id, role, active").eq("id", userId).maybeSingle();
@@ -122,40 +127,65 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       return response({ error: "No se pudieron consultar los participantes de LiveKit." }, 502);
     }
     const roomData = await listResponse.json().catch(() => null);
-    const participant = Array.isArray(roomData?.participants)
-      ? roomData.participants.find((item: { identity?: string }) => String(item.identity ?? "") === participantId)
-      : null;
+    const participants = Array.isArray(roomData?.participants) ? roomData.participants : [];
+    if (action === "audio-all") {
+      const targets = participants.filter((item: { identity?: string }) => {
+        const identity = String(item.identity ?? "");
+        return identity && identity !== excludeParticipantId;
+      });
+      const results = await Promise.all(targets.map(async (target: { identity?: string; tracks?: Array<{ type?: number | string; sid?: string; trackSid?: string }> }) => {
+        const identity = String(target.identity ?? "");
+        const audioTrack = (Array.isArray(target.tracks) ? target.tracks : []).find(item => {
+          const raw = item.type;
+          const isAudio = typeof raw === "string" ? raw.toUpperCase() === "AUDIO" || Number(raw) === 0 : Number(raw) === 0;
+          return isAudio && String(item.sid ?? item.trackSid ?? "").length > 0;
+        });
+        if (!audioTrack) return { identity, muted: false, skipped: true };
+        const result = await fetch(`${baseUrl}/twirp/livekit.RoomService/MutePublishedTrack`, {
+          method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ room: training.room_name, identity, trackSid: String(audioTrack.sid ?? audioTrack.trackSid), muted: true }),
+        });
+        if (!result.ok) return { identity, muted: false, error: true };
+        return { identity, muted: true };
+      }));
+      const failed = results.filter(item => "error" in item && item.error).length;
+      if (failed) return response({ error: `LiveKit no pudo silenciar ${failed} participante(s).`, mutedCount: results.filter(item => item.muted).length }, 502);
+      return response({ ok: true, action, mutedCount: results.filter(item => item.muted).length, skippedCount: results.filter(item => "skipped" in item && item.skipped).length });
+    }
+
+    const participant = participants.find((item: { identity?: string }) => String(item.identity ?? "") === participantId);
     if (!participant) return response({ error: "Ese participante ya no está en la llamada." }, 404);
 
+    if (action === "remove") {
+      const removeResponse = await fetch(`${baseUrl}/twirp/livekit.RoomService/RemoveParticipant`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ room: training.room_name, identity: participantId }),
+      });
+      if (!removeResponse.ok) {
+        console.error("moderate-livekit-participant: RemoveParticipant failed", removeResponse.status, (await removeResponse.text()).slice(0, 300));
+        return response({ error: "LiveKit no pudo expulsar al participante." }, 502);
+      }
+      return response({ ok: true, action, participantId, removed: true });
+    }
+
     // LiveKit's protobuf JSON can encode enum values as either numbers or names.
-    // Accept both forms so a valid published track is not mistaken for an absent track.
     const wantedType = action === "audio" ? 0 : 1;
     const wantedName = action === "audio" ? "AUDIO" : "VIDEO";
     const tracks = Array.isArray(participant.tracks) ? participant.tracks : [];
     const track = tracks.find((item: { type?: number | string; sid?: string; muted?: boolean; trackSid?: string }) => {
       const rawType = item.type;
-      const matchesType = typeof rawType === "string"
-        ? (rawType.toUpperCase() === wantedName || Number(rawType) === wantedType)
-        : Number(rawType) === wantedType;
-      const sid = String(item.sid ?? item.trackSid ?? "");
-      return matchesType && sid.length > 0;
+      const matchesType = typeof rawType === "string" ? (rawType.toUpperCase() === wantedName || Number(rawType) === wantedType) : Number(rawType) === wantedType;
+      return matchesType && String(item.sid ?? item.trackSid ?? "").length > 0;
     });
-    if (!track) {
-      return response({ ok: true, action, participantId, alreadyMutedOrNotPublished: true });
-    }
+    if (!track) return response({ ok: true, action, participantId, alreadyMutedOrNotPublished: true });
 
     const muteResponse = await fetch(`${baseUrl}/twirp/livekit.RoomService/MutePublishedTrack`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        room: training.room_name, identity: participantId, trackSid: String(track.sid ?? track.trackSid), muted: true,
-      }),
+      method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ room: training.room_name, identity: participantId, trackSid: String(track.sid ?? track.trackSid), muted: true }),
     });
     if (!muteResponse.ok) {
       console.error("moderate-livekit-participant: MutePublishedTrack failed", muteResponse.status, (await muteResponse.text()).slice(0, 300));
-      return response({ error: action === "audio"
-        ? "LiveKit no pudo silenciar el micrófono."
-        : "LiveKit no pudo apagar la cámara." }, 502);
+      return response({ error: action === "audio" ? "LiveKit no pudo silenciar el micrófono." : "LiveKit no pudo apagar la cámara." }, 502);
     }
     return response({ ok: true, action, participantId, muted: true });
   } catch (error) {
