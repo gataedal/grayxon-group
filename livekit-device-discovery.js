@@ -1,30 +1,10 @@
-/* Grayxon LiveKit device discovery recovery.
-   Keep device enumeration resilient without changing the active LiveKit tracks. */
+/* Grayxon LiveKit device discovery.
+   Preserve the browser's native mediaDevices API and never request permissions just to list devices. */
 (()=>{
   const media=navigator.mediaDevices;
-  if(!media || media.__gxDeviceDiscoveryPatched) return;
+  if(!media || !media.enumerateDevices) return;
   const nativeEnumerate=media.enumerateDevices.bind(media);
-  const nativeGetUserMedia=media.getUserMedia?.bind(media);
   let refreshInFlight=null;
-  const stopProbe=stream=>{try{stream?.getTracks?.().forEach(track=>track.stop());}catch(_){}};
-  const enumerateWithRecovery=async()=>{
-    let devices=await nativeEnumerate();
-    const missing=[];
-    if(!devices.some(device=>device.kind==='videoinput')) missing.push({audio:false,video:true});
-    if(!devices.some(device=>device.kind==='audioinput')) missing.push({audio:true,video:false});
-    if(missing.length && nativeGetUserMedia){
-      for(const constraints of missing){
-        let probe=null;
-        try{probe=await nativeGetUserMedia(constraints);}
-        catch(error){console.warn('[Grayxon] No se pudo revalidar el permiso de dispositivo:',error?.name||error);}
-        finally{stopProbe(probe);}
-      }
-      devices=await nativeEnumerate();
-    }
-    return devices;
-  };
-  try{media.enumerateDevices=enumerateWithRecovery;}catch(error){console.warn('[Grayxon] No se pudo activar la recuperación de dispositivos.',error);}
-  try{Object.defineProperty(media,'__gxDeviceDiscoveryPatched',{value:true});}catch(_){}
   const modal=()=>document.querySelector('.gx-device-settings-modal');
   const note=()=>document.querySelector('[data-gx-device-note]');
   const populate=devices=>{
@@ -55,17 +35,11 @@
     const status=note();
     if(status)status.textContent='Lista actualizada. Si falta un dispositivo recién conectado, pulsa «Actualizar lista».';
   };
-  const refresh=async({probe=false}={})=>{
+  const refresh=async()=>{
     if(refreshInFlight)return refreshInFlight;
     refreshInFlight=(async()=>{
       const status=note();
-      if(status)status.textContent=probe?'Actualizando permisos y buscando dispositivos…':'Actualizando dispositivos…';
-      let probeStream=null;
-      if(probe && nativeGetUserMedia){
-        try{probeStream=await nativeGetUserMedia({audio:true,video:true});}
-        catch(error){if(status)status.textContent='No se pudo revalidar el acceso: '+(error?.message||error);}
-        finally{stopProbe(probeStream);}
-      }
+      if(status)status.textContent='Actualizando dispositivos…';
       try{
         const devices=await nativeEnumerate();
         populate(devices);
@@ -85,7 +59,7 @@
     button.setAttribute('aria-label','Actualizar lista de dispositivos');
     button.style.cssText='min-width:42px;margin-left:auto;margin-right:8px;color:#25f4ee;font-size:18px;';
     head.insertBefore(button,head.querySelector('[data-gx-device-close]')||null);
-    button.addEventListener('click',()=>refresh({probe:true}));
+    button.addEventListener('click',()=>refresh());
   };
   media.addEventListener?.('devicechange',()=>{
     const current=modal();
