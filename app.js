@@ -3273,9 +3273,10 @@ function renderGrayxonLiveKitTrack(track, participant, host){
   const hostShare=hostId&&tiles.find(item=>item.dataset.gxLivekitIdentity===hostId&&item.dataset.gxLivekitScreenShare==='true');
   const pinnedTile=pinnedId&&tiles.find(item=>item.dataset.gxLivekitIdentity===pinnedId&&item.dataset.gxLivekitScreenShare!=='true');
   const hostTile=hostId&&tiles.find(item=>item.dataset.gxLivekitIdentity===hostId&&item.dataset.gxLivekitScreenShare!=='true');
-  const mainTile=pinnedShare||hostShare||pinnedTile||hostTile||tiles.find(item=>item.dataset.gxLivekitIdentity===String(gxLiveKitRoom?.localParticipant?.identity||'')&&item.dataset.gxLivekitScreenShare!=='true')||tile;
+  const activeShare=tiles.find(item=>item.dataset.gxLivekitScreenShare==='true');
+  const mainTile=pinnedShare||activeShare||pinnedTile||hostTile||tiles.find(item=>item.dataset.gxLivekitIdentity===String(gxLiveKitRoom?.localParticipant?.identity||'')&&item.dataset.gxLivekitScreenShare!=='true')||tile;
   const selfMenu=$('.gx-self-camera-menu-wrap');
-  if(selfMenu)selfMenu.style.display=mainTile?.dataset.gxLivekitIdentity===String(gxLiveKitRoom?.localParticipant?.identity||'')?'flex':'none';
+  if(selfMenu)selfMenu.style.display=mainTile?.dataset.gxLivekitIdentity===String(gxLiveKitRoom?.localParticipant?.identity||'')&&mainTile?.dataset.gxLivekitScreenShare!=='true'?'flex':'none';
   if(mainTile&&mainTile!==host.firstChild)host.insertBefore(mainTile,host.firstChild);
   tiles.forEach(item=>{item.dataset.gxLivekitMain=String(item===mainTile);});
   let label=tile.querySelector('[data-gx-livekit-label]');
