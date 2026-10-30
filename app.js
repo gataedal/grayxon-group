@@ -3635,19 +3635,32 @@ async function startGrayxonLiveKitTraining(training, options={}){
       if(video)video.style.display='block';
       if(video&&avatar)avatar.style.display='none';
     });
+    const isScreenSharePublication=value=>String(value?.source||value?.track?.source||'').toLowerCase().replace(/[^a-z]/g,'').includes('screenshare');
+    const hasLiveScreenShare=()=>{
+      const publications=Array.from(room.localParticipant.videoTrackPublications?.values?.()||[]);
+      return publications.some(publication=>isScreenSharePublication(publication)&&publication.track&&publication.track.mediaStreamTrack?.readyState!=='ended');
+    };
     const updateShareControl=active=>{
       shareTrack=!!active;
-      const label=active?'Dejar de compartir pantalla':'Compartir pantalla';
-      document.querySelectorAll('[data-gx-more="share"]').forEach(button=>{button.textContent=label;button.setAttribute('aria-pressed',String(!!active));});
+      const label=shareTrack?'Dejar de compartir pantalla':'Compartir pantalla';
+      document.querySelectorAll('[data-gx-more="share"]').forEach(button=>{
+        const text=button.querySelector('span:last-child');
+        if(text)text.textContent=label;else button.textContent=label;
+        button.setAttribute('aria-pressed',String(shareTrack));
+        button.dataset.active=String(shareTrack);
+      });
     };
     room.on(LK.RoomEvent.LocalTrackPublished,(publication,participant)=>{
       if(publication?.kind==='video'&&publication.track)renderGrayxonLiveKitTrack(publication.track,participant||room.localParticipant,stage);
-      if(publication?.source===LK.Track.Source.ScreenShare||publication?.track?.source===LK.Track.Source.ScreenShare)updateShareControl(true);
-      else if(publication?.source===LK.Track.Source.Camera&&mirrorEnabled)void applyMirror(true);
+      if(isScreenSharePublication(publication)){
+        updateShareControl(true);
+        const mediaTrack=publication.track?.mediaStreamTrack;
+        mediaTrack?.addEventListener?.('ended',()=>updateShareControl(false),{once:true});
+      }else if(publication?.source===LK.Track.Source.Camera&&mirrorEnabled)void applyMirror(true);
     });
     room.on(LK.RoomEvent.LocalTrackUnpublished,publication=>{
-      if(publication?.source===LK.Track.Source.ScreenShare||publication?.track?.source===LK.Track.Source.ScreenShare){
-        updateShareControl(false);
+      if(isScreenSharePublication(publication)){
+        updateShareControl(hasLiveScreenShare());
         void restoreLocalCameraAfterShare(publication?.track);
       }
     });
@@ -3782,7 +3795,17 @@ async function startGrayxonLiveKitTraining(training, options={}){
             }
             return;
           }
-          if(action==='share'){if(shareTrack){await room.localParticipant.setScreenShareEnabled(false);shareTrack=null;}else{await room.localParticipant.setScreenShareEnabled(true);shareTrack=true;}return;}
+          if(action==='share'){
+            const active=hasLiveScreenShare();
+            if(active){
+              await room.localParticipant.setScreenShareEnabled(false);
+              updateShareControl(hasLiveScreenShare());
+            }else{
+              await room.localParticipant.setScreenShareEnabled(true);
+              updateShareControl(hasLiveScreenShare());
+            }
+            return;
+          }
           if(action==='hand'){
             const previous=gxHandRaised;
             const next=!previous;
