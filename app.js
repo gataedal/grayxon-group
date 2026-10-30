@@ -3545,7 +3545,7 @@ async function startGrayxonLiveKitTraining(training, options={}){
     if(response.error)throw new Error(response.error.message||'No se pudo obtener acceso a LiveKit.');
     const data=response.data||{};
     if(!data.token||!data.serverUrl)throw new Error(data.error||'El servidor no devolvió el acceso a la sala.');
-    room=new LK.Room({adaptiveStream:true,dynacast:true,audioCaptureDefaults:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    room=new LK.Room({adaptiveStream:true,dynacast:true,disconnectOnPageLeave:false,audioCaptureDefaults:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
     gxLiveKitRoom=room;
     room.on(LK.RoomEvent.TrackSubscribed,(track,publication,participant)=>onTrack(track,participant));
     // Reafirma la suscripción cuando una pista remota se publica de nuevo.
