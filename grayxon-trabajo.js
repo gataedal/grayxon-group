@@ -137,7 +137,7 @@
     ]);
     const memberByUser = new Map(members.map(m => [m.user_id, m]));
     const departmentById = new Map(departments.map(d => [d.id, d]));
-    state.tasks = tasks.filter(task => state.isAdmin || task.assigned_to === user.id).map(task => ({
+    state.tasks = tasks.filter(task => state.isAdmin || task.assigned_to === state.session?.user?.id).map(task => ({
       ...task,
       assignee: memberByUser.has(task.assigned_to) ? memberByUser.get(task.assigned_to) : null,
       department: departmentById.has(task.department_id) ? departmentById.get(task.department_id) : null
@@ -315,7 +315,20 @@
   function fileAttachmentCard(file,url) {
     if(!url) return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+'</small><span>No fue posible abrir el archivo</span></div></article>';
     const mime=esc(file.mime_type||'');
-    return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small></div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'">Ver</button><a class="gxt-btn" href="'+esc(url)+'" download="'+esc(file.file_name)+'">Descargar</a></div></article>';
+    return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small></div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'">Ver</button><button type="button" class="gxt-btn" data-download-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'">Descargar</button></div></article>';
+  }
+
+  async function downloadAttachment(url,name,button) {
+    const original=button.textContent;button.disabled=true;button.textContent='Descargando...';
+    try {
+      const response=await fetch(url);
+      if(!response.ok)throw new Error('No se pudo recuperar el archivo');
+      const blob=await response.blob();
+      const objectUrl=URL.createObjectURL(blob);
+      const link=document.createElement('a');link.href=objectUrl;link.download=name||'archivo';document.body.appendChild(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(objectUrl),1500);
+    } catch(error) { toast('No se pudo descargar el archivo. Intenta nuevamente.'); }
+    finally {button.disabled=false;button.textContent=original;}
   }
 
   function openFilePreview(url,name,mime) {
@@ -326,7 +339,7 @@
     else preview='<div class="gxt-preview-unavailable"><div>📄</div><strong>Vista previa no disponible para este formato</strong><p>Puedes descargar el archivo para abrirlo con la aplicación correspondiente.</p></div>';
     const layer=document.createElement('div');
     layer.className='gxt-file-preview';
-    layer.innerHTML='<div class="gxt-file-preview-dialog"><header><div><strong>'+safeName+'</strong><small>Vista previa del archivo</small></div><div class="gxt-file-actions"><a class="gxt-btn primary" href="'+safeUrl+'" download="'+safeName+'">Descargar</a><button type="button" class="gxt-close" data-preview-close>×</button></div></header><div class="gxt-preview-content">'+preview+'</div></div>';
+    layer.innerHTML='<div class="gxt-file-preview-dialog"><header><div><strong>'+safeName+'</strong><small>Vista previa del archivo</small></div><div class="gxt-file-actions"><button type="button" class="gxt-btn primary" data-download-file="'+safeUrl+'" data-file-name="'+safeName+'">Descargar</button><button type="button" class="gxt-close" data-preview-close>×</button></div></header><div class="gxt-preview-content">'+preview+'</div></div>';
     modalRoot.appendChild(layer);
     layer.addEventListener('click',e=>{if(e.target===layer||e.target.closest('[data-preview-close]'))layer.remove();});
   }
@@ -456,8 +469,10 @@
     const adminNote = request.admin_note ? '<div class="gxt-status-note"><strong>Observación de administración</strong><br>'+esc(request.admin_note)+'</div>' : '';
     openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
       '<section class="gxt-request-origin"><div class="gxt-section-kicker">SOLICITUD ORIGINAL</div><div class="gxt-request-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span></div><div class="gxt-request-description">'+esc(request.description||'Sin detalles adicionales.')+'</div>'+adminNote+'</section>'+
-      '<section class="gxt-followup-section"><div class="gxt-followup-heading"><div><div class="gxt-section-kicker">CONVERSACIÓN Y EVIDENCIAS</div><h3>Seguimiento</h3><p>Mensajes y archivos compartidos entre las personas relacionadas con esta solicitud.</p></div><span class="gxt-followup-count">'+(allComments.length+attachmentHtml.length)+' elementos</span></div><div class="gxt-list">'+commentHtml+(attachmentHtml.join('')||'')+'</div><form id="gxRequestCommentForm" class="gxt-followup-composer"><div class="gxt-field"><label>Tu mensaje</label><textarea name="body" maxlength="5000" placeholder="Escribe una actualización o respuesta. También puedes adjuntar archivos sin escribir un mensaje."></textarea></div><div class="gxt-field"><label>Archivos o imágenes</label><input name="files" type="file" multiple><small class="gxt-hint">Hasta 5 archivos, máximo 20 MB cada uno. Se conserva el formato original.</small></div><button class="gxt-btn primary" type="submit">Publicar en seguimiento</button></form></section>',true);
+      '<section class="gxt-followup-section"><div class="gxt-followup-heading"><div><div class="gxt-section-kicker">CONVERSACIÓN Y EVIDENCIAS</div><h3>Seguimiento</h3><p>Mensajes y archivos compartidos entre las personas relacionadas con esta solicitud.</p></div><span class="gxt-followup-count">'+(allComments.length+attachmentHtml.length)+' elementos</span></div><div class="gxt-list">'+commentHtml+(attachmentHtml.join('')||'')+'</div><form id="gxRequestCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxRequestFiles" title="Adjuntar archivos">＋</label><input id="gxRequestFiles" name="files" type="file" multiple hidden><button class="gxt-btn primary" type="submit">Enviar</button></div></div><div class="gxt-compose-hint"><span id="gxSelectedFiles">Puedes enviar texto, archivos o ambos.</span><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>',true);
     const commentForm = document.getElementById('gxRequestCommentForm');
+    const fileInput = document.getElementById('gxRequestFiles');
+    if(fileInput) fileInput.addEventListener('change',()=>{const label=document.getElementById('gxSelectedFiles');if(label)label.textContent=fileInput.files.length?Array.from(fileInput.files).map(f=>f.name).join(' · '):'Puedes enviar texto, archivos o ambos.';});
     if (commentForm) commentForm.addEventListener('submit',async event=>{
       event.preventDefault();
       const formData=new FormData(commentForm);
@@ -720,6 +735,8 @@
     if(event.target===modalRoot){closeModal();return;}
     const close=event.target.closest('[data-close-modal]');
     if(close)return closeModal();
+    const download=event.target.closest('[data-download-file]');
+    if(download){downloadAttachment(download.dataset.downloadFile,download.dataset.fileName,download);return;}
     const preview=event.target.closest('[data-preview-file]');
     if(preview)return openFilePreview(preview.dataset.previewFile,preview.dataset.fileName,preview.dataset.fileMime);
     const review=event.target.closest('[data-review]');
