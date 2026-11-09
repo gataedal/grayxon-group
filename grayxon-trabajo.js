@@ -339,19 +339,27 @@
     return state.isAdmin?'Integrante':'Administración';
   }
 
-  function renderChatTimeline(comments,attachments) {
+  function renderChatTimeline(comments,attachments,proposals=[],reviewTaskId=null,allowProposalReview=false) {
+    const proposalAnnouncement=proposals.length?comments.find(item=>(item.body||'').trim()==='Propuesta final enviada a revisión.'):null;
+    const visibleComments=proposalAnnouncement?comments.filter(item=>item!==proposalAnnouncement):comments;
     const items=[
-      ...comments.map(item=>({kind:'message',created_at:item.created_at,author_id:item.author_id,author_name:item.author_name||'Integrante',body:item.body})),
-      ...attachments.map(item=>({kind:'file',created_at:item.created_at,author_id:item.uploaded_by,author_name:item.uploader_name||'Integrante',file:item,url:item.signed_url||null}))
+      ...visibleComments.map(item=>({kind:'message',created_at:item.created_at,author_id:item.author_id,author_name:item.author_name||'Integrante',body:item.body})),
+      ...attachments.map(item=>({kind:'file',created_at:item.created_at,author_id:item.uploaded_by,author_name:item.uploader_name||'Integrante',file:item,url:item.signed_url||null})),
+      ...(proposals.length?[{kind:'proposal',created_at:proposalAnnouncement?.created_at||proposals[0].created_at,author_id:proposalAnnouncement?.author_id||proposals[0].uploaded_by,author_name:proposalAnnouncement?.author_name||proposals[0].uploader_name||'Responsable',body:proposalAnnouncement?.body||'Propuesta final enviada a revisión.',files:proposals,task_id:reviewTaskId}]:[])
     ].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-    if(!items.length)return '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación con una actualización o adjunta un archivo.</div>';
+    if(!items.length)return '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación o adjunta un archivo.</div>';
     return items.map(item=>{
       const mine=item.author_id?item.author_id===state.session?.user?.id:item.author_name===state.member?.display_name;
-      const content=item.kind==='message'?'<p>'+esc(item.body)+'</p>':fileAttachmentCard(item.file,item.url);
+      let content='';
+      if(item.kind==='message')content='<p>'+esc(item.body)+'</p>';
+      else if(item.kind==='file')content=fileAttachmentCard(item.file,item.url);
+      else {
+        content='<p>'+esc(item.body)+'</p>'+item.files.map(file=>fileAttachmentCard(file,file.signed_url)).join('');
+        if(allowProposalReview&&item.files.length)content+='<div class="gxt-chat-proposal-review"><label for="gxReviewFeedback">Observaciones (si solicitas cambios)</label><textarea id="gxReviewFeedback" placeholder="Indica qué debe ajustarse si todavía no está lista."></textarea><div class="gxt-actions"><button type="button" class="gxt-btn primary" data-delivery-review="approve" data-task-id="'+item.task_id+'">Aprobar y enviar al creador</button><button type="button" class="gxt-btn danger" data-delivery-review="return" data-task-id="'+item.task_id+'">Solicitar cambios</button></div></div>';
+      }
       return '<article class="gxt-chat-message '+(mine?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-message-head"><strong class="gxt-chat-author">'+esc(item.author_name)+'</strong><time>'+dateTimeLabel(item.created_at)+'</time></div>'+content+'</div></article>';
     }).join('');
   }
-
   async function downloadAttachment(url,name,button) {
     const original=button.textContent;button.disabled=true;button.textContent='Descargando...';
     try {
@@ -495,13 +503,10 @@
     const proposalRows=canReviewLinkedDelivery
       ? await queryRows(sb.from('gx_creator_delivery_proposal_files').select('*').eq('task_id',linkedTask.id).gte('created_at',linkedTask.created_at).order('created_at'),'requester proposal files')
       : [];
-    const proposalCards=await Promise.all(proposalRows.map(async file=>{
+    const proposalChatRows=await Promise.all(proposalRows.map(async file=>{
       const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(file.object_path,1800);
-      return fileAttachmentCard(file,data?.signedUrl,attachmentUploaderName(file.uploaded_by,linkedTask));
+      return {...file,signed_url:data?.signedUrl||null,uploader_name:attachmentUploaderName(file.uploaded_by,linkedTask)};
     }));
-    const requesterProposalHtml=canReviewLinkedDelivery
-      ? '<section class="gxt-panel gxt-creator-proposal"><div class="gxt-panel-head"><div><div class="gxt-section-kicker">ENTREGA PARA EL CREADOR</div><h2>Propuesta final</h2><p class="gxt-hint">El responsable envió estos archivos para tu revisión. Solo se publicarán al creador cuando los apruebes.</p></div></div><div class="gxt-list">'+(proposalCards.join('')||'<div class="gxt-empty">No se encontraron archivos en la propuesta final.</div>')+'</div>'+(proposalRows.length?'<div class="gxt-field"><label>Observaciones (si solicitas cambios)</label><textarea id="gxReviewFeedback" placeholder="Indica qué debe ajustarse si todavía no está lista."></textarea></div><div class="gxt-actions"><button class="gxt-btn primary" data-delivery-review="approve" data-task-id="'+linkedTask.id+'">Aprobar y enviar al creador</button><button class="gxt-btn danger" data-delivery-review="return" data-task-id="'+linkedTask.id+'">Solicitar cambios</button></div>':'')+'</section>'
-      : '';
     const requestFileRows=await Promise.all([
       ...attachments.map(async a=>{
         const {data}=await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800);
@@ -513,14 +518,14 @@
       })
     ]);
     const allComments=[...comments,...legacyComments];
-    const chatHtml=renderChatTimeline(allComments,requestFileRows);
+    const chatHtml=renderChatTimeline(allComments,requestFileRows,proposalChatRows,linkedTask?.id,canReviewLinkedDelivery);
     const requester = request.requester?.display_name || 'Integrante';
     const adminNote = request.admin_note ? '<div class="gxt-status-note"><strong>Observación de administración</strong><br>'+esc(request.admin_note)+'</div>' : '';
     const targetCreator = state.creators.find(c=>c.id===request.creator_user_id);
     const targetCreatorName = targetCreator ? (targetCreator.tiktok_username || targetCreator.username || targetCreator.full_name) : '';
     openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
-      '<section class="gxt-request-origin"><div class="gxt-section-kicker">SOLICITUD ORIGINAL</div><div class="gxt-request-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span>'+(targetCreatorName?'<span class="gxt-chip">Entrega para @'+esc(targetCreatorName)+'</span>':'')+'</div><div class="gxt-request-description">'+esc(request.description||'Sin detalles adicionales.')+'</div>'+adminNote+'</section>'+requesterProposalHtml+
-      '<section class="gxt-followup-section"><div class="gxt-followup-heading"><div><div class="gxt-section-kicker">CONVERSACIÓN Y EVIDENCIAS</div><h3>Seguimiento</h3><p>Mensajes y archivos compartidos entre las personas relacionadas con esta solicitud.</p></div><span class="gxt-followup-count">'+(allComments.length+requestFileRows.length)+' elementos</span></div><div class="gxt-chat-thread">'+chatHtml+'</div><form id="gxRequestCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxRequestFiles" title="Adjuntar archivos">＋</label><input id="gxRequestFiles" name="files" type="file" multiple hidden><button class="gxt-btn primary" type="submit">Enviar</button></div></div><div class="gxt-compose-hint"><span id="gxSelectedFiles">Puedes enviar texto, archivos o ambos.</span><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>',true);
+      '<section class="gxt-request-origin"><div class="gxt-section-kicker">SOLICITUD ORIGINAL</div><div class="gxt-request-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span>'+(targetCreatorName?'<span class="gxt-chip">Entrega para @'+esc(targetCreatorName)+'</span>':'')+'</div><div class="gxt-request-description">'+esc(request.description||'Sin detalles adicionales.')+'</div>'+adminNote+'</section>'+
+      '<section class="gxt-followup-section"><div class="gxt-followup-heading"><div><div class="gxt-section-kicker">CONVERSACIÓN</div><h3>Conversación</h3></div><span class="gxt-followup-count">'+(allComments.length+requestFileRows.length)+' elementos</span></div><div class="gxt-chat-thread">'+chatHtml+'</div><form id="gxRequestCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxRequestFiles" title="Adjuntar archivos">＋</label><input id="gxRequestFiles" name="files" type="file" multiple hidden><button class="gxt-btn primary" type="submit">Enviar</button></div></div><div class="gxt-compose-hint"><span id="gxSelectedFiles">Puedes enviar texto, archivos o ambos.</span><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>',true);
     const commentForm = document.getElementById('gxRequestCommentForm');
     const fileInput = document.getElementById('gxRequestFiles');
     if(fileInput) fileInput.addEventListener('change',()=>{const label=document.getElementById('gxSelectedFiles');if(label)label.textContent=fileInput.files.length?Array.from(fileInput.files).map(f=>f.name).join(' · '):'Puedes enviar texto, archivos o ambos.';});
