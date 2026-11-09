@@ -113,7 +113,7 @@
 
   async function loadData() {
     const taskQuery = sb.from('gx_tasks')
-      .select('*,assignee:gx_internal_members!gx_tasks_assigned_to_fkey(display_name,job_title),creator:gx_internal_members!gx_tasks_created_by_fkey(display_name),department:gx_departments(name)')
+      .select('*,assignee:gx_internal_members!gx_tasks_assigned_to_fkey(display_name,job_title),department:gx_departments(name)')
       .order('created_at', { ascending: false });
     const requestQuery = sb.from('gx_task_requests')
       .select('*,requester:gx_internal_members!gx_task_requests_requester_id_fkey(display_name,job_title),department:gx_departments(name)')
@@ -125,7 +125,7 @@
       .select('id,name,slug,active')
       .order('name');
     const activityQuery = sb.from('gx_task_activity')
-      .select('id,task_id,actor_id,action,details,created_at,actor:gx_internal_members!gx_task_activity_actor_id_fkey(display_name),task:gx_tasks!gx_task_activity_task_id_fkey(title)')
+      .select('id,task_id,actor_name,action,details,created_at,task:gx_tasks!gx_task_activity_task_id_fkey(title)')
       .order('created_at', { ascending: false })
       .limit(80);
 
@@ -280,7 +280,7 @@
       let summary = a.action === 'created' ? 'Creó la tarea' :
         a.action === 'status_changed' ? 'Cambió estado: '+(statusLabels[detail.from]||detail.from)+' → '+(statusLabels[detail.to]||detail.to) :
         a.action === 'reassigned' ? 'Reasignó la tarea' : a.action === 'comment_added' ? 'Añadió un comentario' : a.action === 'attachment_added' ? 'Adjuntó una evidencia' : 'Actualizó la tarea';
-      return '<tr><td>'+dateTimeLabel(a.created_at)+'</td><td>'+esc(a.actor?.display_name || 'Sistema')+'</td><td>'+esc(a.task?.title || 'Tarea')+'</td><td>'+esc(summary)+'</td></tr>';
+      return '<tr><td>'+dateTimeLabel(a.created_at)+'</td><td>'+esc(a.actor_name || 'Sistema')+'</td><td>'+esc(a.task?.title || 'Tarea')+'</td><td>'+esc(summary)+'</td></tr>';
     }).join('');
     main.innerHTML = pageHead('Actividad','Registro de cambios y movimientos de las tareas.', '')+
       '<section class="gxt-panel"><div class="gxt-table-wrap"><table class="gxt-table"><thead><tr><th>Fecha</th><th>Integrante</th><th>Tarea</th><th>Movimiento</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(rows?'':'<div class="gxt-empty">Todavía no hay actividad registrada.</div>')+'</section>';
@@ -421,9 +421,9 @@
     }
     if (!task) return toast('No se pudo encontrar la tarea.');
     const [comments, attachments, activity] = await Promise.all([
-      queryRows(sb.from('gx_task_comments').select('id,body,created_at,author:gx_internal_members!gx_task_comments_author_id_fkey(display_name)').eq('task_id',taskId).order('created_at'), 'task comments'),
+      queryRows(sb.from('gx_task_comments').select('id,body,author_name,created_at').eq('task_id',taskId).order('created_at'), 'task comments'),
       queryRows(sb.from('gx_task_attachments').select('*').eq('task_id',taskId).order('created_at'), 'task attachments'),
-      queryRows(sb.from('gx_task_activity').select('id,action,details,created_at,actor:gx_internal_members!gx_task_activity_actor_id_fkey(display_name)').eq('task_id',taskId).order('created_at',{ascending:false}).limit(20), 'task activity')
+      queryRows(sb.from('gx_task_activity').select('id,action,details,actor_name,created_at').eq('task_id',taskId).order('created_at',{ascending:false}).limit(20), 'task activity')
     ]);
     const isAssignee = task.assigned_to === state.session.user.id;
     const canProgress = !state.isAdmin && isAssignee && !['submitted','completed'].includes(task.status);
@@ -432,8 +432,8 @@
       const { data } = await sb.storage.from('gx-internal-task-files').createSignedUrl(a.object_path,1800);
       return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir evidencia</a></p>':'')+'</div>';
     }));
-    const commentHtml = comments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author?.display_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
-    const activityHtml = activity.map(a=>'<div class="gxt-comment"><strong>'+esc(a.actor?.display_name||'Sistema')+'</strong><small>'+dateTimeLabel(a.created_at)+'</small><p>'+esc(a.action==='created'?'Creó la tarea':a.action==='status_changed'?'Cambió el estado':a.action==='comment_added'?'Añadió un comentario':a.action==='attachment_added'?'Adjuntó una evidencia':a.action==='reassigned'?'Reasignó la tarea':'Actualizó la tarea')+'</p></div>').join('');
+    const commentHtml = comments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
+    const activityHtml = activity.map(a=>'<div class="gxt-comment"><strong>'+esc(a.actor_name||'Sistema')+'</strong><small>'+dateTimeLabel(a.created_at)+'</small><p>'+esc(a.action==='created'?'Creó la tarea':a.action==='status_changed'?'Cambió el estado':a.action==='comment_added'?'Añadió un comentario':a.action==='attachment_added'?'Adjuntó una evidencia':a.action==='reassigned'?'Reasignó la tarea':'Actualizó la tarea')+'</p></div>').join('');
     const progressHtml = canProgress
       ? '<form id="gxProgressForm"><div class="gxt-form-grid"><div class="gxt-field"><label>Estado</label><select name="status"><option value="in_progress" '+(task.status==='in_progress'?'selected':'')+'>En progreso</option><option value="blocked" '+(task.status==='blocked'?'selected':'')+'>Bloqueada</option><option value="submitted">Entregada para revisión</option></select></div><div class="gxt-field full"><label>Comentario de avance (opcional)</label><textarea name="comment" placeholder="Describe lo que avanzaste o lo que entregas."></textarea></div></div><div class="gxt-actions"><button class="gxt-btn primary" type="submit">Guardar avance</button></div></form>'
       : '';
