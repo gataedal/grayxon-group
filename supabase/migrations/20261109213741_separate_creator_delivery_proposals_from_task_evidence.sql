@@ -64,7 +64,7 @@ begin
   select v_delivery_id,'gx-internal-task-files',f.object_path,f.file_name,f.mime_type,f.size_bytes,f.created_at
   from public.gx_creator_delivery_proposal_files f
   where f.task_id=v_task.id and f.uploaded_by=v_task.assigned_to
-    and f.created_at>coalesce(v_task.reviewed_at,v_task.created_at);
+    and f.created_at>=coalesce(v_task.reviewed_at,v_task.created_at);
   select count(*) into v_file_count from public.gx_creator_delivery_files where delivery_id=v_delivery_id;
   if v_file_count=0 then
     raise exception 'El encargado debe adjuntar al menos un archivo en “Propuesta final” antes de que puedas aprobarlo.' using errcode='22023';
