@@ -104,3 +104,15 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-accordion .gxt-card-meta{gap:6px}
 .gxt-accordion .gxt-chip{font-size:9px}
 @media(max-width:560px){.gxt-accordion>summary{padding:12px}.gxt-accordion-body{padding:0 12px 12px}.gxt-accordion-main>strong{font-size:11px}}
+
+/* Composer compacto integrado al chat, con acentos Grayxon */
+.gxt-chat-compose{display:flex;align-items:flex-end;gap:10px;padding:9px 10px;border:1px solid #3a4654;border-radius:15px;background:linear-gradient(145deg,#151c24,#0d1218);box-shadow:inset 0 0 0 1px #202a35,0 5px 18px #0004}
+.gxt-chat-compose:focus-within{border-color:#25aeb5;box-shadow:0 0 0 2px #25f4ee20,0 8px 24px #0005}
+.gxt-chat-compose textarea{flex:1;min-width:0;min-height:42px;max-height:130px;resize:vertical;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;padding:10px 5px!important;color:#f2f5f8;font:inherit;font-size:12px}
+.gxt-chat-compose-actions{display:flex;align-items:center;gap:7px;padding-bottom:2px}
+.gxt-attach-btn{width:36px;height:36px;display:grid;place-items:center;border:1px solid #3c5960;border-radius:11px;background:linear-gradient(145deg,#172c31,#142027);color:#75e2e4;font-size:24px;line-height:1;cursor:pointer;transition:.18s}
+.gxt-attach-btn:hover{border-color:#25f4ee;background:#18363a;transform:translateY(-1px)}
+.gxt-chat-compose .gxt-btn.primary{min-height:36px;padding:0 15px;border-radius:10px;background:linear-gradient(110deg,#25aeb5,#25f4ee);border:1px solid #42dce0;color:#071114;font-weight:800}
+.gxt-compose-hint{display:flex;justify-content:space-between;gap:10px;padding:7px 4px 0;color:#8d9aa8;font-size:9px}
+.gxt-compose-hint small{color:#6f7d8c;white-space:nowrap}
+@media(max-width:560px){.gxt-chat-compose{gap:6px;padding:7px}.gxt-chat-compose-actions{gap:5px}.gxt-chat-compose .gxt-btn.primary{padding:0 11px}.gxt-compose-hint{flex-direction:column;gap:3px}}
