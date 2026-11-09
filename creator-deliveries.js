@@ -207,15 +207,21 @@
     const notification=e.target.closest('[data-notification-id]');
     if(!notification)return;
     const title=notification.querySelector('.notification-copy strong')?.textContent||'';
-    if(!/nuevo contenido disponible/i.test(title))return;
+    const isCreatorDelivery=/nuevo contenido disponible/i.test(title);
+    const isRequesterReview=/propuesta lista para revisar/i.test(title);
+    if(!isCreatorDelivery&&!isRequesterReview)return;
     e.preventDefault();e.stopImmediatePropagation();
     (async()=>{
       const uid=currentUserId||await getSessionAndRole();
       if(!uid)return;
-      const {data}=await sb.from('notifications').select('id,user_id,link_page,link_target,read_at').eq('id',notification.dataset.notificationId).eq('user_id',uid).maybeSingle();
-      if(data?.link_page!=='creator-delivery')return;
+      const {data}=await sb.from('notifications').select('id,user_id,type,link_page,link_target,read_at').eq('id',notification.dataset.notificationId).eq('user_id',uid).maybeSingle();
+      if(!data)return;
       if(!data.read_at)await sb.from('notifications').update({read_at:new Date().toISOString()}).eq('id',data.id).eq('user_id',uid);
-      openScreen(data.link_target);
+      if(data.type==='creator_delivery_review'&&data.link_page==='grayxon-trabajo'){
+        window.location.href='./grayxon-trabajo.html?task='+encodeURIComponent(data.link_target||'');
+        return;
+      }
+      if(data.type==='creator_delivery'&&data.link_page==='creator-delivery')openScreen(data.link_target);
     })();
   },true);
 
