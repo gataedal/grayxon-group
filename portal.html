@@ -652,6 +652,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
  $('gxcalNext').addEventListener('click',()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);selected=null;loadMonth()});
  $('gxcalGrid').addEventListener('click',e=>{const b=e.target.closest('[data-gxcal-day]');if(!b)return;selected=b.dataset.gxcalDay;if(selected.slice(0,7)!==monthKey()){const d=new Date(selected+'T12:00:00');view=new Date(d.getFullYear(),d.getMonth(),1);loadMonth();return}renderGrid();renderDay()});
  window.addEventListener('grayxon:calendar-open',window.grayxonOpenCalendar);
+ if(new URLSearchParams(location.search).get('openCalendar')==='1')setTimeout(()=>{if(typeof window.grayxonOpenCalendar==='function')window.grayxonOpenCalendar()},900);
 })();
 </script>
 <div id="toast" class="toast hidden"></div>
