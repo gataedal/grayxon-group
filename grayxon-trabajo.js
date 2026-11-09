@@ -380,8 +380,9 @@
       const { error: uploadError } = await sb.storage.from('gx-internal-request-files').upload(objectPath,file,{upsert:false});
       if (uploadError) {
         if (uploadedPaths.length) await sb.storage.from('gx-internal-request-files').remove(uploadedPaths);
-        await sb.from('gx_task_requests').delete().eq('id',request.id);
-        return toast('No se pudo subir '+file.name+': '+uploadError.message+'. La solicitud no fue enviada.');
+        await refresh();
+        closeModal();
+        return toast('La solicitud sí fue enviada, pero no se pudo adjuntar '+file.name+'. Puedes intentarlo nuevamente desde administración.');
       }
       uploadedPaths.push(objectPath);
       const { error: rowError } = await sb.from('gx_task_request_attachments').insert({
@@ -390,8 +391,9 @@
       });
       if (rowError) {
         await sb.storage.from('gx-internal-request-files').remove(uploadedPaths);
-        await sb.from('gx_task_requests').delete().eq('id',request.id);
-        return toast('No se pudo registrar el archivo '+file.name+'. La solicitud no fue enviada.');
+        await refresh();
+        closeModal();
+        return toast('La solicitud sí fue enviada, pero no se pudo registrar '+file.name+'.');
       }
     }
     closeModal(); await refresh(); toast('Solicitud enviada a administración.');
