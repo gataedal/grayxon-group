@@ -426,7 +426,7 @@
       queryRows(sb.from('gx_task_activity').select('id,action,details,created_at,actor:gx_internal_members!gx_task_activity_actor_id_fkey(display_name)').eq('task_id',taskId).order('created_at',{ascending:false}).limit(20), 'task activity')
     ]);
     const isAssignee = task.assigned_to === state.session.user.id;
-    const canProgress = !state.isAdmin && isAssignee && task.status !== 'completed';
+    const canProgress = !state.isAdmin && isAssignee && !['submitted','completed'].includes(task.status);
     const canReview = state.isAdmin && task.status === 'submitted';
     const attachmentHtml = await Promise.all(attachments.map(async a=>{
       const { data } = await sb.storage.from('gx-internal-task-files').createSignedUrl(a.object_path,1800);
