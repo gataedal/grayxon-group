@@ -93,7 +93,8 @@
     if (state.session) await loadMember();
     else setAuthView(false);
 
-    sb.auth.onAuthStateChange((_event, session) => {
+    sb.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return;
       state.session = session;
       setTimeout(() => {
         if (session) loadMember();
