@@ -137,7 +137,7 @@
     ]);
     const memberByUser = new Map(members.map(m => [m.user_id, m]));
     const departmentById = new Map(departments.map(d => [d.id, d]));
-    state.tasks = tasks.map(task => ({
+    state.tasks = tasks.filter(task => state.isAdmin || task.assigned_to === user.id).map(task => ({
       ...task,
       assignee: memberByUser.has(task.assigned_to) ? memberByUser.get(task.assigned_to) : null,
       department: departmentById.has(task.department_id) ? departmentById.get(task.department_id) : null
@@ -192,11 +192,7 @@
   function taskCard(task) {
     const assignee = task.assignee?.display_name || 'Integrante';
     const due = task.due_at ? 'Vence: '+dateLabel(task.due_at) : 'Sin fecha límite';
-    return '<button type="button" class="gxt-card" data-open-task="'+task.id+'" style="text-align:left;color:inherit;width:100%">'+
-      '<div class="gxt-card-top"><div><h3>'+esc(task.title)+'</h3><p>'+esc(task.description || 'Sin descripción adicional.')+'</p></div>'+taskChip(task.status)+'</div>'+
-      '<div class="gxt-card-meta"><span class="gxt-chip">'+esc(priorityLabels[task.priority] || task.priority)+'</span>'+
-      (state.isAdmin?'<span class="gxt-chip">'+esc(assignee)+'</span>':'')+
-      '<span class="gxt-chip">'+esc(task.department?.name || 'Sin área')+'</span><span class="gxt-chip">'+esc(due)+'</span></div></button>';
+    return '<details class="gxt-accordion gxt-task-accordion"><summary><div class="gxt-accordion-main"><strong>'+esc(task.title)+'</strong><div class="gxt-card-meta">'+taskChip(task.status)+'<span class="gxt-chip">'+esc(priorityLabels[task.priority] || task.priority)+'</span>'+(state.isAdmin?'<span class="gxt-chip">'+esc(assignee)+'</span>':'')+'<span class="gxt-chip">'+esc(due)+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p>'+esc(task.description || 'Sin descripción adicional.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">'+esc(task.department?.name || 'Sin área')+'</span><span class="gxt-chip">Creada: '+dateLabel(task.created_at)+'</span></div><div class="gxt-actions"><button type="button" class="gxt-btn primary" data-open-task="'+task.id+'">Abrir tarea y seguimiento</button></div></div></details>';
   }
 
   function requestCard(request) {
@@ -207,11 +203,7 @@
     } else if (state.isAdmin && request.status === 'approved') {
       actions = '<div class="gxt-actions"><button class="gxt-btn primary" data-request-action="convert" data-request-id="'+request.id+'">Convertir en tarea</button></div>';
     }
-    return '<article id="gx-request-'+request.id+'" data-request-id="'+request.id+'" class="gxt-card"><div class="gxt-card-top"><div><h3>'+esc(request.title)+'</h3><p>'+esc(request.description || 'Sin detalles adicionales.')+'</p></div><span class="gxt-chip">'+esc(requestLabels[request.status] || request.status)+'</span></div>'+
-      '<div class="gxt-card-meta"><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name || 'Sin área')+'</span>'+
-      (state.isAdmin?'<span class="gxt-chip">Solicitó: '+esc(requester)+'</span>':'')+
-      '<span class="gxt-chip">'+dateLabel(request.created_at)+'</span></div>'+
-      '<div class="gxt-actions"><button type="button" class="gxt-btn ghost" data-open-request="'+request.id+'">Ver solicitud y comentarios</button></div>'+actions+'</article>';
+    return '<details id="gx-request-'+request.id+'" data-request-id="'+request.id+'" class="gxt-accordion gxt-request-accordion"><summary><div class="gxt-accordion-main"><strong>'+esc(request.title)+'</strong><div class="gxt-card-meta"><span class="gxt-chip">'+esc(requestLabels[request.status] || request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span>'+(state.isAdmin?'<span class="gxt-chip">Solicitó: '+esc(requester)+'</span>':'')+'<span class="gxt-chip">'+dateLabel(request.created_at)+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p>'+esc(request.description || 'Sin detalles adicionales.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">'+esc(request.department?.name || 'Sin área')+'</span></div><div class="gxt-actions"><button type="button" class="gxt-btn ghost" data-open-request="'+request.id+'">Abrir solicitud y conversación</button></div>'+actions+'</div></details>';
   }
 
   function renderDashboard() {
@@ -251,13 +243,15 @@
   }
 
   function renderRequestsPage() {
-    const active = state.requests.filter(r=>r.status!=='converted');
+    const active = state.requests.filter(r=>!['converted','rejected'].includes(r.status));
     const converted = state.requests.filter(r=>r.status==='converted');
+    const rejected = state.requests.filter(r=>r.status==='rejected');
     const activeList = active.map(requestCard).join('') || '<div class="gxt-empty">No hay solicitudes pendientes de gestión.</div>';
     const historyList = converted.map(requestCard).join('');
     main.innerHTML = pageHead(state.isAdmin?'Solicitudes del equipo':'Mis solicitudes',state.isAdmin?'Revisa las solicitudes que aún requieren una decisión. Las convertidas quedan en el historial.':'Aquí aparecen las solicitudes que todavía requieren gestión. Cuando una se convierte en tarea, continúa en “Tareas”.', '<button class="gxt-btn primary" data-action="new-request">＋ Nueva solicitud</button>')+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+active.length+' solicitudes activas</h2></div><div class="gxt-list">'+activeList+'</div></section>'+
-      (historyList ? '<section class="gxt-panel gxt-history-panel"><div class="gxt-panel-head"><h2>Historial · '+converted.length+' convertidas en tarea</h2><small>Ya no requieren una nueva solicitud</small></div><div class="gxt-list">'+historyList+'</div></section>' : '');
+      (historyList ? '<section class="gxt-panel gxt-history-panel"><div class="gxt-panel-head"><h2>Historial · '+converted.length+' convertidas en tarea</h2><small>Consulta cada solicitud cuando la necesites</small></div><div class="gxt-list">'+historyList+'</div></section>' : '')+
+      (rejected.length ? '<section class="gxt-panel gxt-history-panel"><div class="gxt-panel-head"><h2>Solicitudes rechazadas · '+rejected.length+'</h2></div><div class="gxt-list">'+rejected.map(requestCard).join('')+'</div></section>' : '');
   }
 
   function renderTeamPage() {
