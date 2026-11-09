@@ -340,10 +340,12 @@
   }
 
   function renderChatTimeline(comments,attachments,proposals=[],reviewTaskId=null,allowProposalReview=false) {
+    const proposalAnnouncement=proposals.length?comments.find(item=>(item.body||'').trim()==='Propuesta final enviada a revisión.'):null;
+    const visibleComments=proposalAnnouncement?comments.filter(item=>item!==proposalAnnouncement):comments;
     const items=[
-      ...comments.map(item=>({kind:'message',created_at:item.created_at,author_id:item.author_id,author_name:item.author_name||'Integrante',body:item.body})),
+      ...visibleComments.map(item=>({kind:'message',created_at:item.created_at,author_id:item.author_id,author_name:item.author_name||'Integrante',body:item.body})),
       ...attachments.map(item=>({kind:'file',created_at:item.created_at,author_id:item.uploaded_by,author_name:item.uploader_name||'Integrante',file:item,url:item.signed_url||null})),
-      ...(proposals.length?[{kind:'proposal',created_at:proposals[0].created_at,author_id:proposals[0].uploaded_by,author_name:proposals[0].uploader_name||'Responsable',files:proposals,task_id:reviewTaskId}]:[])
+      ...(proposals.length?[{kind:'proposal',created_at:proposalAnnouncement?.created_at||proposals[0].created_at,author_id:proposalAnnouncement?.author_id||proposals[0].uploaded_by,author_name:proposalAnnouncement?.author_name||proposals[0].uploader_name||'Responsable',body:proposalAnnouncement?.body||'Propuesta final enviada a revisión.',files:proposals,task_id:reviewTaskId}]:[])
     ].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     if(!items.length)return '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación o adjunta un archivo.</div>';
     return items.map(item=>{
@@ -352,7 +354,7 @@
       if(item.kind==='message')content='<p>'+esc(item.body)+'</p>';
       else if(item.kind==='file')content=fileAttachmentCard(item.file,item.url);
       else {
-        content='<p>Propuesta final enviada a revisión.</p>'+item.files.map(file=>fileAttachmentCard(file,file.signed_url)).join('');
+        content='<p>'+esc(item.body)+'</p>'+item.files.map(file=>fileAttachmentCard(file,file.signed_url)).join('');
         if(allowProposalReview&&item.files.length)content+='<div class="gxt-chat-proposal-review"><label for="gxReviewFeedback">Observaciones (si solicitas cambios)</label><textarea id="gxReviewFeedback" placeholder="Indica qué debe ajustarse si todavía no está lista."></textarea><div class="gxt-actions"><button type="button" class="gxt-btn primary" data-delivery-review="approve" data-task-id="'+item.task_id+'">Aprobar y enviar al creador</button><button type="button" class="gxt-btn danger" data-delivery-review="return" data-task-id="'+item.task_id+'">Solicitar cambios</button></div></div>';
       }
       return '<article class="gxt-chat-message '+(mine?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-message-head"><strong class="gxt-chat-author">'+esc(item.author_name)+'</strong><time>'+dateTimeLabel(item.created_at)+'</time></div>'+content+'</div></article>';
