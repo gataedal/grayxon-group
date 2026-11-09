@@ -26,9 +26,11 @@ No altera:
 
 Los managers y administradores actuales se incorporan a la nueva membresía usando sus perfiles existentes. Los creadores no se incorporan.
 
-## Acceso
+## Acceso de la primera etapa
 
-La página independiente es `grayxon-trabajo.html`. Los integrantes operativos nuevos se autentican con correo y contraseña, sin crearles un perfil de manager ni de creador. La función `gx-create-internal-member` permite que un administrador cree esas cuentas y su membresía.
+La página independiente es `grayxon-trabajo.html`. En esta primera etapa solo ingresan la cuenta administradora actual y los managers que ya existen en el portal. La migración vincula sus `auth.users.id` existentes con `gx_internal_members`; no crea usuarios, no duplica credenciales y no cambia contraseñas. Los creadores quedan excluidos.
+
+La interfaz de esta etapa no incluye creación de cuentas ni de nuevos integrantes. La incorporación de colaboradores futuros se definirá cuando existan esas personas y se autorice ese flujo.
 
 ## Calendario y notificaciones
 
@@ -51,19 +53,20 @@ La página independiente es `grayxon-trabajo.html`. Los integrantes operativos n
 - Respaldo de código: `backup/pre-grayxon-trabajo-2026-11-09`.
 - Supabase: proyecto `vxyakhelhuikutepdjyn`.
 - La migración todavía no se ha aplicado a Supabase.
-- La Edge Function todavía no se ha desplegado.
+- No hay Edge Function nueva necesaria para la primera etapa.
 - No se creó una rama de base de datos de pago.
 - No se ha obtenido un backup completo restaurable de los datos preexistentes; esta implementación evita modificar sus tablas y estructuras.
 
 ## Revisión antes de producción
 
-1. Revisar la migración y sus políticas RLS.
-2. Probar la creación de miembros, tareas y solicitudes con cuentas de prueba.
-3. Verificar que un operativo no pueda leer solicitudes o tareas ajenas ni asignar tareas.
-4. Verificar la aprobación administrativa y el regreso a progreso cuando se solicitan correcciones.
-5. Verificar archivos privados, notificaciones y calendario.
-6. Ejecutar los asesores de seguridad y rendimiento después de aplicar la migración.
-7. Desplegar a producción únicamente después de validar los puntos anteriores.
+1. Aplicar la migración primero en un entorno aislado y verificar que se incorporen la cuenta admin y los tres managers activos existentes.
+2. Probar inicio de sesión con las credenciales actuales, sin crear cuentas ni cambiar contraseñas.
+3. Verificar que un manager solo pueda consultar sus tareas asignadas y sus propias solicitudes; probar también accesos directos por API a tareas y solicitudes ajenas.
+4. Verificar creación/asignación de tareas por administración, actualización de avance por el responsable, entrega para revisión, aprobación y devolución con correcciones.
+5. Verificar carga, lectura y aislamiento de archivos privados.
+6. Verificar notificaciones y enlaces profundos, además de la lectura de tareas en el calendario compartido.
+7. Ejecutar los asesores de seguridad y rendimiento después de aplicar la migración.
+8. Desplegar a producción únicamente después de validar los puntos anteriores.
 
 ## Reversión
 
@@ -74,6 +77,6 @@ El archivo `supabase/rollback/20261109000000_grayxon_trabajo.sql` elimina exclus
 - Las operaciones de creación de solicitudes y tareas usan privilegios por columna: los integrantes no pueden insertar solicitudes ya aprobadas/convertidas y ningún cliente puede marcar directamente una tarea como completada. Los cambios de estado pasan por las RPC con validación.
 - Las funciones `SECURITY DEFINER` usadas solo por triggers tienen revocado el permiso de ejecución directa para `PUBLIC`, `anon` y `authenticated`.
 - El calendario existente tenía una referencia a `managerIds` antes de inicializarla en el flujo de managers. Se corrigió únicamente dentro del bloque del calendario porque impedía cargar esa vista.
-- La tabla de notificaciones existente y su trigger de push están conectados. Sin embargo, la página independiente de Grayxon Trabajo todavía no registra suscripciones Web Push. La entrega push depende de que cada cuenta tenga una fila activa en `push_subscriptions`; se debe implementar/probar el alta de suscripción para nuevos colaboradores.
-- Debe probarse el acceso al calendario existente con una cuenta operativa nueva que no tenga fila en `profiles`. Esa cuenta se crea intencionalmente solo en Auth y `gx_internal_members`, no como creador ni manager.
-- No se han ejecutado pruebas de integración con la migración aplicada: producción permanece intacta y no se autorizó una rama de base de datos de pago. No considerar el módulo listo para producción hasta realizar pruebas en un entorno aislado.
+- Las notificaciones se insertan en la tabla existente y el service worker reconoce el destino `grayxon-trabajo`. La página independiente no registra nuevas suscripciones Web Push; la recepción push depende de que las cuentas ya tengan una suscripción activa. Debe comprobarse con el admin y los managers existentes y distinguir notificación interna de entrega push.
+- El calendario usa el perfil existente de cada manager y la consulta de tareas queda filtrada por RLS. Debe probarse con los usuarios actuales.
+- No se han ejecutado pruebas de integración con la migración aplicada: producción permanece intacta y no se creó una rama de base de datos de pago. La revisión de código y las consultas de solo lectura no sustituyen una prueba de migración y RLS en entorno aislado.
