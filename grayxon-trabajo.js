@@ -43,6 +43,7 @@
   function setAuthView(isAuthed) {
     login.hidden = isAuthed;
     root.hidden = !isAuthed;
+    document.body.classList.toggle('gxt-authenticated', !!isAuthed);
   }
 
   function showAccessMessage(message) {
@@ -595,10 +596,6 @@
     if(review)return reviewTask(review.dataset.taskId,review.dataset.review==='approve');
     const reassign=event.target.closest('[data-reassign]');
     if(reassign)return reassignTask(reassign.dataset.reassign);
-  });
-
-  document.getElementById('gxLogout').addEventListener('click', () => {
-    window.location.href = 'portal.html';
   });
 
   init();
