@@ -26,3 +26,15 @@
 .gxt-backlink{font-size:10px;color:#9aa3ae;text-decoration:none}.gxt-backlink:hover{color:#fff}
 @media(max-width:850px){.gxt-layout{grid-template-columns:1fr}.gxt-nav{position:static;display:flex;overflow:auto;gap:5px;padding:7px}.gxt-nav button{white-space:nowrap;padding:10px 11px}.gxt-nav button .gxt-nav-ico{display:none}.gxt-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.gxt-shell{padding:10px 10px 85px}.gxt-top{padding:10px 2px 15px}.gxt-brand strong{font-size:11px}.gxt-logo{width:34px;height:34px}.gxt-user-info{display:none}.gxt-layout{margin-top:14px;gap:12px}.gxt-page-head{flex-direction:column}.gxt-page-head>.gxt-actions{width:100%}.gxt-page-head>.gxt-actions .gxt-btn{flex:1}.gxt-panel{padding:13px}.gxt-metric{padding:12px}.gxt-metric strong{font-size:24px}.gxt-form-grid{grid-template-columns:1fr}.gxt-field.full{grid-column:auto}.gxt-modal-root{padding:8px;align-items:flex-end}.gxt-modal{max-height:94dvh;padding:15px;border-radius:16px}.gxt-card-top{align-items:flex-start}.gxt-card-meta{gap:5px}}
+
+
+/* Integración visual con la navegación inferior del portal Grayxon */
+[hidden]{display:none!important}
+body.gxt-authenticated{padding-bottom:calc(82px + env(safe-area-inset-bottom,0px))}
+.gx-bottom-nav{position:fixed;z-index:10000;left:14px;right:14px;bottom:calc(2px + env(safe-area-inset-bottom,0px));min-height:70px;display:none;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;padding:5px 8px;border:1px solid #292d34;border-radius:19px;background:rgba(7,10,14,.94);backdrop-filter:blur(18px);box-shadow:0 12px 35px #0009}
+body.gxt-authenticated .gx-bottom-nav{display:grid}
+.gx-bottom-nav a{position:relative;min-width:0;min-height:56px;padding:5px 2px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;border:0;border-radius:12px;background:transparent;color:#c3c8d1;text-decoration:none;font-size:12px;line-height:1.15;font-weight:500}
+.gx-bottom-nav a:hover,.gx-bottom-nav a:focus-visible{background:#171c22;color:#fff;outline:none}
+.gx-bottom-nav .gx-nav-icon{font-size:23px;line-height:1;color:#c3c8d1}
+@media(min-width:801px){.gx-bottom-nav{left:50%;right:auto;width:min(560px,calc(100vw - 32px));transform:translateX(-50%)}}
+@media(max-width:560px){body.gxt-authenticated{padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))}.gx-bottom-nav{left:10px;right:10px;min-height:68px}}
