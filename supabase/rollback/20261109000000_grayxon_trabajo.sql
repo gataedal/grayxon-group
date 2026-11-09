@@ -40,6 +40,8 @@ drop function if exists public.gx_task_member_update(uuid,text,text);
 drop function if exists public.gx_notify_task_requests();
 drop function if exists public.gx_notify_task_changes();
 drop function if exists public.gx_log_task_activity();
+drop function if exists public.gx_log_task_comment_activity();
+drop function if exists public.gx_log_task_attachment_activity();
 drop function if exists public.gx_validate_task_assignment();
 drop function if exists public.gx_set_updated_at();
 drop function if exists public.gx_is_internal_member();
