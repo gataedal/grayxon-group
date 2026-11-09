@@ -245,3 +245,12 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 @media(max-width:560px){.gxt-selected-file{max-width:100%}.gxt-final-proposal-toggle{padding:10px}}
 
 .gxt-final-proposal-tag{display:inline-flex;align-items:center;gap:6px;margin:0 0 8px;padding:4px 8px;border:1px solid #39777a;border-radius:999px;background:#12292d;color:#8be8e6;font-size:9px;font-weight:850;letter-spacing:.08em}
+
+.gxt-file-final-tag{display:inline-flex;width:max-content;max-width:100%;margin-top:3px;padding:3px 7px;border:1px solid #39777a;border-radius:999px;background:#12292d;color:#8be8e6;font-size:8px;font-weight:850;letter-spacing:.07em}
+.gxt-preview-review{display:grid;gap:11px;padding:16px;border-top:1px solid #35434d;background:linear-gradient(145deg,#111d23,#0c1218)}
+.gxt-preview-review>div{display:grid;gap:4px}
+.gxt-preview-review strong{font-size:13px;color:#e4f5f4}
+.gxt-preview-review small{font-size:10px;line-height:1.55;color:#9eafb5}
+.gxt-preview-review textarea{width:100%;min-height:78px;resize:vertical;padding:10px;border:1px solid #394955;border-radius:10px;background:#090f14;color:#f2f5f7;font:inherit;font-size:12px}
+.gxt-preview-review .gxt-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+.gxt-preview-review .gxt-actions .gxt-btn{min-height:38px}
