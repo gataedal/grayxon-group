@@ -243,3 +243,5 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-final-proposal-toggle strong{font-size:11px;color:#dff8f7}
 .gxt-final-proposal-toggle small{font-size:10px;line-height:1.5;color:#9eafb5}
 @media(max-width:560px){.gxt-selected-file{max-width:100%}.gxt-final-proposal-toggle{padding:10px}}
+
+.gxt-final-proposal-tag{display:inline-flex;align-items:center;gap:6px;margin:0 0 8px;padding:4px 8px;border:1px solid #39777a;border-radius:999px;background:#12292d;color:#8be8e6;font-size:9px;font-weight:850;letter-spacing:.08em}
