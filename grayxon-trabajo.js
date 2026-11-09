@@ -320,11 +320,13 @@
     if (event.target === modalRoot) closeModal();
   }
 
-  function fileAttachmentCard(file,url,uploadedBy='') {
+  function fileAttachmentCard(file,url,uploadedBy='',reviewTaskId=null,canReviewProposal=false) {
     const authorLine=uploadedBy?'<small class="gxt-file-uploader">Enviado por '+esc(uploadedBy)+'</small>':'';
     if(!url) return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+'</small>'+authorLine+'<span>No fue posible abrir el archivo</span></div></article>';
     const mime=esc(file.mime_type||'');
-    return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small>'+authorLine+'</div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'">Ver</button><button type="button" class="gxt-btn" data-download-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'">Descargar</button></div></article>';
+    const finalTag=file.is_final_proposal?'<span class="gxt-file-final-tag">✦ PROPUESTA FINAL</span>':'';
+    const reviewAttrs=file.is_final_proposal&&canReviewProposal?' data-preview-task-id="'+esc(reviewTaskId||'')+'" data-preview-review="true"':'';
+    return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small>'+authorLine+finalTag+'</div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'"'+reviewAttrs+'>Ver</button><button type="button" class="gxt-btn" data-download-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'">Descargar</button></div></article>';
   }
 
   function attachmentUploaderName(userId,context={},fileId=null,activityRows=[]) {
@@ -384,7 +386,7 @@
     finally {button.disabled=false;button.textContent=original;}
   }
 
-  function openFilePreview(url,name,mime) {
+  function openFilePreview(url,name,mime,reviewTaskId=null,canReviewProposal=false) {
     const safeUrl=esc(url), safeName=esc(name);
     let preview='';
     if((mime||'').startsWith('image/')) preview='<img class="gxt-preview-image" src="'+safeUrl+'" alt="'+safeName+'">';
@@ -392,7 +394,7 @@
     else preview='<div class="gxt-preview-unavailable"><div>📄</div><strong>Vista previa no disponible para este formato</strong><p>Puedes descargar el archivo para abrirlo con la aplicación correspondiente.</p></div>';
     const layer=document.createElement('div');
     layer.className='gxt-file-preview';
-    layer.innerHTML='<div class="gxt-file-preview-dialog"><header><div><strong>'+safeName+'</strong><small>Vista previa del archivo</small></div><div class="gxt-file-actions"><button type="button" class="gxt-btn primary" data-download-file="'+safeUrl+'" data-file-name="'+safeName+'">Descargar</button><button type="button" class="gxt-close" data-preview-close>×</button></div></header><div class="gxt-preview-content">'+preview+'</div></div>';
+    layer.innerHTML='<div class="gxt-file-preview-dialog"><header><div><strong>'+safeName+'</strong><small>Vista previa del archivo</small></div><div class="gxt-file-actions"><button type="button" class="gxt-btn primary" data-download-file="'+safeUrl+'" data-file-name="'+safeName+'">Descargar</button><button type="button" class="gxt-close" data-preview-close>×</button></div></header><div class="gxt-preview-content">'+preview+'</div>'+(canReviewProposal&&reviewTaskId?'<section class="gxt-preview-review"><div><strong>Revisión de propuesta final</strong><small>Aprueba el contenido para enviarlo al creador o deja comentarios para solicitar ajustes.</small></div><textarea id="gxPreviewReviewFeedback" placeholder="Comentarios u observaciones (obligatorios si solicitas cambios)"></textarea><div class="gxt-actions"><button type="button" class="gxt-btn primary" data-preview-delivery-review="approve" data-task-id="'+esc(reviewTaskId)+'">Aprobar y enviar</button><button type="button" class="gxt-btn danger" data-preview-delivery-review="return" data-task-id="'+esc(reviewTaskId)+'">Solicitar cambios</button></div></section>':'')+'</div>';
     modalRoot.appendChild(layer);
     layer.addEventListener('click',e=>{if(e.target===layer||e.target.closest('[data-preview-close]'))layer.remove();});
   }
@@ -516,7 +518,7 @@
       : [];
     const proposalChatRows=await Promise.all(proposalRows.map(async file=>{
       const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(file.object_path,1800);
-      return {...file,signed_url:data?.signedUrl||null,uploader_name:attachmentUploaderName(file.uploaded_by,linkedTask)};
+      return {...file,signed_url:data?.signedUrl||null,uploader_name:attachmentUploaderName(file.uploaded_by,linkedTask),is_final_proposal:true};
     }));
     const requestFileRows=await Promise.all([
       ...attachments.map(async a=>{
@@ -765,8 +767,8 @@
     closeModal(); await refresh(); toast(approve?'Tarea aprobada y completada.':'Tarea devuelta para correcciones.');
   }
 
-  async function reviewCreatorDelivery(taskId, approve) {
-    const feedback = String(document.getElementById('gxReviewFeedback')?.value || '').trim();
+  async function reviewCreatorDelivery(taskId, approve, feedbackOverride=null) {
+    const feedback = String(feedbackOverride ?? document.getElementById('gxReviewFeedback')?.value ?? '').trim();
     if (!approve && !feedback) return toast('Cuéntale al encargado qué debe corregir.');
     const { error } = await sb.rpc('gx_creator_delivery_review', {
       p_task_id:taskId,p_approved:approve,p_feedback:feedback
@@ -872,7 +874,14 @@
     const download=event.target.closest('[data-download-file]');
     if(download){downloadAttachment(download.dataset.downloadFile,download.dataset.fileName,download);return;}
     const preview=event.target.closest('[data-preview-file]');
-    if(preview)return openFilePreview(preview.dataset.previewFile,preview.dataset.fileName,preview.dataset.fileMime);
+    if(preview)return openFilePreview(preview.dataset.previewFile,preview.dataset.fileName,preview.dataset.fileMime,preview.dataset.previewTaskId||null,preview.dataset.previewReview==='true');
+    const previewDeliveryReview=event.target.closest('[data-preview-delivery-review]');
+    if(previewDeliveryReview){
+      const feedback=document.getElementById('gxPreviewReviewFeedback')?.value||'';
+      const approve=previewDeliveryReview.dataset.previewDeliveryReview==='approve';
+      if(!approve&&!feedback.trim())return toast('Escribe los comentarios que debe revisar el responsable.');
+      return reviewCreatorDelivery(previewDeliveryReview.dataset.taskId,approve,feedback);
+    }
     const deliveryReview=event.target.closest('[data-delivery-review]');
     if(deliveryReview)return reviewCreatorDelivery(deliveryReview.dataset.taskId,deliveryReview.dataset.deliveryReview==='approve');
     const review=event.target.closest('[data-review]');
