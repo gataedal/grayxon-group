@@ -210,9 +210,11 @@
     if(!/nuevo contenido disponible/i.test(title))return;
     e.preventDefault();e.stopImmediatePropagation();
     (async()=>{
-      const {data}=await sb.from('notifications').select('id,user_id,link_page,link_target,read_at').eq('id',notification.dataset.notificationId).eq('user_id',currentUserId).maybeSingle();
+      const uid=currentUserId||await getSessionAndRole();
+      if(!uid)return;
+      const {data}=await sb.from('notifications').select('id,user_id,link_page,link_target,read_at').eq('id',notification.dataset.notificationId).eq('user_id',uid).maybeSingle();
       if(data?.link_page!=='creator-delivery')return;
-      if(!data.read_at)await sb.from('notifications').update({read_at:new Date().toISOString()}).eq('id',data.id).eq('user_id',currentUserId);
+      if(!data.read_at)await sb.from('notifications').update({read_at:new Date().toISOString()}).eq('id',data.id).eq('user_id',uid);
       openScreen(data.link_target);
     })();
   },true);
