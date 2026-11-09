@@ -483,12 +483,25 @@
       request = data;
     }
     if (!request) return toast('No se pudo encontrar la solicitud o no tienes acceso.');
-    const [comments, attachments, legacyComments, legacyAttachments] = await Promise.all([
+    const [comments, attachments, legacyComments, legacyAttachments, linkedTaskResult] = await Promise.all([
       queryRows(sb.from('gx_task_request_comments').select('id,author_id,body,author_name,created_at').eq('request_id',requestId).order('created_at'), 'request comments'),
       queryRows(sb.from('gx_task_request_attachments').select('*').eq('request_id',requestId).order('created_at'), 'request attachments'),
       request.converted_task_id ? queryRows(sb.from('gx_task_comments').select('id,author_id,body,author_name,created_at').eq('task_id',request.converted_task_id).order('created_at'),'legacy task comments') : Promise.resolve([]),
-      request.converted_task_id ? queryRows(sb.from('gx_task_attachments').select('*').eq('task_id',request.converted_task_id).order('created_at'),'legacy task attachments') : Promise.resolve([])
+      request.converted_task_id ? queryRows(sb.from('gx_task_attachments').select('*').eq('task_id',request.converted_task_id).order('created_at'),'legacy task attachments') : Promise.resolve([]),
+      request.converted_task_id ? sb.from('gx_tasks').select('id,status,requester_id,assigned_to,creator_user_id,created_at').eq('id',request.converted_task_id).maybeSingle() : Promise.resolve({data:null,error:null})
     ]);
+    const linkedTask=linkedTaskResult?.data||null;
+    const canReviewLinkedDelivery=!!linkedTask?.creator_user_id&&linkedTask.requester_id===state.session?.user?.id&&linkedTask.status==='submitted';
+    const proposalRows=canReviewLinkedDelivery
+      ? await queryRows(sb.from('gx_creator_delivery_proposal_files').select('*').eq('task_id',linkedTask.id).gte('created_at',linkedTask.created_at).order('created_at'),'requester proposal files')
+      : [];
+    const proposalCards=await Promise.all(proposalRows.map(async file=>{
+      const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(file.object_path,1800);
+      return fileAttachmentCard(file,data?.signedUrl,attachmentUploaderName(file.uploaded_by,linkedTask));
+    }));
+    const requesterProposalHtml=canReviewLinkedDelivery
+      ? '<section class="gxt-panel gxt-creator-proposal"><div class="gxt-panel-head"><div><div class="gxt-section-kicker">ENTREGA PARA EL CREADOR</div><h2>Propuesta final</h2><p class="gxt-hint">El responsable envió estos archivos para tu revisión. Solo se publicarán al creador cuando los apruebes.</p></div></div><div class="gxt-list">'+(proposalCards.join('')||'<div class="gxt-empty">No se encontraron archivos en la propuesta final.</div>')+'</div>'+(proposalRows.length?'<div class="gxt-field"><label>Observaciones (si solicitas cambios)</label><textarea id="gxReviewFeedback" placeholder="Indica qué debe ajustarse si todavía no está lista."></textarea></div><div class="gxt-actions"><button class="gxt-btn primary" data-delivery-review="approve" data-task-id="'+linkedTask.id+'">Aprobar y enviar al creador</button><button class="gxt-btn danger" data-delivery-review="return" data-task-id="'+linkedTask.id+'">Solicitar cambios</button></div>':'')+'</section>'
+      : '';
     const requestFileRows=await Promise.all([
       ...attachments.map(async a=>{
         const {data}=await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800);
@@ -506,7 +519,7 @@
     const targetCreator = state.creators.find(c=>c.id===request.creator_user_id);
     const targetCreatorName = targetCreator ? (targetCreator.tiktok_username || targetCreator.username || targetCreator.full_name) : '';
     openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
-      '<section class="gxt-request-origin"><div class="gxt-section-kicker">SOLICITUD ORIGINAL</div><div class="gxt-request-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span>'+(targetCreatorName?'<span class="gxt-chip">Entrega para @'+esc(targetCreatorName)+'</span>':'')+'</div><div class="gxt-request-description">'+esc(request.description||'Sin detalles adicionales.')+'</div>'+adminNote+'</section>'+
+      '<section class="gxt-request-origin"><div class="gxt-section-kicker">SOLICITUD ORIGINAL</div><div class="gxt-request-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span>'+(targetCreatorName?'<span class="gxt-chip">Entrega para @'+esc(targetCreatorName)+'</span>':'')+'</div><div class="gxt-request-description">'+esc(request.description||'Sin detalles adicionales.')+'</div>'+adminNote+'</section>'+requesterProposalHtml+
       '<section class="gxt-followup-section"><div class="gxt-followup-heading"><div><div class="gxt-section-kicker">CONVERSACIÓN Y EVIDENCIAS</div><h3>Seguimiento</h3><p>Mensajes y archivos compartidos entre las personas relacionadas con esta solicitud.</p></div><span class="gxt-followup-count">'+(allComments.length+requestFileRows.length)+' elementos</span></div><div class="gxt-chat-thread">'+chatHtml+'</div><form id="gxRequestCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxRequestFiles" title="Adjuntar archivos">＋</label><input id="gxRequestFiles" name="files" type="file" multiple hidden><button class="gxt-btn primary" type="submit">Enviar</button></div></div><div class="gxt-compose-hint"><span id="gxSelectedFiles">Puedes enviar texto, archivos o ambos.</span><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>',true);
     const commentForm = document.getElementById('gxRequestCommentForm');
     const fileInput = document.getElementById('gxRequestFiles');
