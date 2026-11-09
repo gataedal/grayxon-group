@@ -230,3 +230,27 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
   .gxt-modal .gxt-actions .gxt-btn{min-height:42px}
   .gxt-modal .gxt-field input,.gxt-modal .gxt-field textarea,.gxt-modal .gxt-field select{font-size:16px}
 }
+
+
+/* Archivos seleccionados antes de publicar en el chat */
+.gxt-selected-files{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.gxt-selected-file{display:flex;align-items:center;gap:9px;max-width:100%;padding:6px 8px 6px 10px;border:1px solid #3b5961;border-radius:10px;background:linear-gradient(145deg,#14272d,#10191f);color:#dce9ed;font-size:10px}
+.gxt-selected-file span{min-width:0;overflow-wrap:anywhere}
+.gxt-selected-file button{width:23px;height:23px;flex:0 0 23px;border:1px solid #76505a;border-radius:7px;background:#321b22;color:#ff9cae;font-size:17px;line-height:1;cursor:pointer}
+.gxt-final-proposal-toggle{display:flex;align-items:flex-start;gap:10px;margin-top:11px;padding:11px 12px;border:1px solid #3b666a;border-radius:12px;background:linear-gradient(120deg,#14282d,#10171d);cursor:pointer}
+.gxt-final-proposal-toggle input{width:17px;height:17px;flex:0 0 17px;margin:1px 0 0;accent-color:#25dfe2}
+.gxt-final-proposal-toggle span{display:grid;gap:4px}
+.gxt-final-proposal-toggle strong{font-size:11px;color:#dff8f7}
+.gxt-final-proposal-toggle small{font-size:10px;line-height:1.5;color:#9eafb5}
+@media(max-width:560px){.gxt-selected-file{max-width:100%}.gxt-final-proposal-toggle{padding:10px}}
+
+.gxt-final-proposal-tag{display:inline-flex;align-items:center;gap:6px;margin:0 0 8px;padding:4px 8px;border:1px solid #39777a;border-radius:999px;background:#12292d;color:#8be8e6;font-size:9px;font-weight:850;letter-spacing:.08em}
+
+.gxt-file-final-tag{display:inline-flex;width:max-content;max-width:100%;margin-top:3px;padding:3px 7px;border:1px solid #39777a;border-radius:999px;background:#12292d;color:#8be8e6;font-size:8px;font-weight:850;letter-spacing:.07em}
+.gxt-preview-review{display:grid;gap:11px;padding:16px;border-top:1px solid #35434d;background:linear-gradient(145deg,#111d23,#0c1218)}
+.gxt-preview-review>div{display:grid;gap:4px}
+.gxt-preview-review strong{font-size:13px;color:#e4f5f4}
+.gxt-preview-review small{font-size:10px;line-height:1.55;color:#9eafb5}
+.gxt-preview-review textarea{width:100%;min-height:78px;resize:vertical;padding:10px;border:1px solid #394955;border-radius:10px;background:#090f14;color:#f2f5f7;font:inherit;font-size:12px}
+.gxt-preview-review .gxt-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+.gxt-preview-review .gxt-actions .gxt-btn{min-height:38px}

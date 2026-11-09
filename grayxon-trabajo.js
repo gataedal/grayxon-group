@@ -320,11 +320,13 @@
     if (event.target === modalRoot) closeModal();
   }
 
-  function fileAttachmentCard(file,url,uploadedBy='') {
+  function fileAttachmentCard(file,url,uploadedBy='',reviewTaskId=null,canReviewProposal=false) {
     const authorLine=uploadedBy?'<small class="gxt-file-uploader">Enviado por '+esc(uploadedBy)+'</small>':'';
     if(!url) return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+'</small>'+authorLine+'<span>No fue posible abrir el archivo</span></div></article>';
     const mime=esc(file.mime_type||'');
-    return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small>'+authorLine+'</div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'">Ver</button><button type="button" class="gxt-btn" data-download-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'">Descargar</button></div></article>';
+    const finalTag=file.is_final_proposal?'<span class="gxt-file-final-tag">✦ PROPUESTA FINAL</span>':'';
+    const reviewAttrs=file.is_final_proposal&&canReviewProposal?' data-preview-task-id="'+esc(reviewTaskId||'')+'" data-preview-review="true"':'';
+    return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small>'+authorLine+finalTag+'</div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'"'+reviewAttrs+'>Ver</button><button type="button" class="gxt-btn" data-download-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'">Descargar</button></div></article>';
   }
 
   function attachmentUploaderName(userId,context={},fileId=null,activityRows=[]) {
@@ -348,14 +350,24 @@
       ...(proposals.length?[{kind:'proposal',created_at:proposalAnnouncement?.created_at||proposals[0].created_at,author_id:proposalAnnouncement?.author_id||proposals[0].uploaded_by,author_name:proposalAnnouncement?.author_name||proposals[0].uploader_name||'Responsable',body:proposalAnnouncement?.body||'Propuesta final enviada a revisión.',files:proposals,task_id:reviewTaskId}]:[])
     ].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     if(!items.length)return '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación o adjunta un archivo.</div>';
-    return items.map(item=>{
+    const grouped=[];
+    items.forEach(item=>{
+      const previous=grouped[grouped.length-1];
+      const sameSender=previous&&previous.author_id===item.author_id;
+      const closeInTime=previous&&Math.abs(new Date(item.created_at)-new Date(previous.created_at))<=5*60*1000;
+      if(previous&&previous.kind!=='proposal'&&sameSender&&closeInTime){
+        if(item.kind==='message')previous.messages.push(item.body);
+        else if(item.kind==='proposal'){previous.files.push(...item.files);previous.isFinalProposal=true;}
+        else previous.files.push(item);
+      }else grouped.push({kind:item.kind,created_at:item.created_at,author_id:item.author_id,author_name:item.author_name,messages:item.kind==='message'?[item.body]:[],files:item.kind==='file'?[item]:item.kind==='proposal'?item.files:[],task_id:item.task_id,body:item.body,isFinalProposal:item.kind==='proposal'});
+    });
+    return grouped.map(item=>{
       const mine=item.author_id?item.author_id===state.session?.user?.id:item.author_name===state.member?.display_name;
       let content='';
-      if(item.kind==='message')content='<p>'+esc(item.body)+'</p>';
-      else if(item.kind==='file')content=fileAttachmentCard(item.file,item.url);
-      else {
-        content='<p>'+esc(item.body)+'</p>'+item.files.map(file=>fileAttachmentCard(file,file.signed_url)).join('');
-        if(allowProposalReview&&item.files.length)content+='<div class="gxt-chat-proposal-review"><label for="gxReviewFeedback">Observaciones (si solicitas cambios)</label><textarea id="gxReviewFeedback" placeholder="Indica qué debe ajustarse si todavía no está lista."></textarea><div class="gxt-actions"><button type="button" class="gxt-btn primary" data-delivery-review="approve" data-task-id="'+item.task_id+'">Aprobar y enviar al creador</button><button type="button" class="gxt-btn danger" data-delivery-review="return" data-task-id="'+item.task_id+'">Solicitar cambios</button></div></div>';
+      if(item.kind==='proposal'){
+        content='<p>'+esc(item.body)+'</p>'+item.files.map(file=>fileAttachmentCard(file,file.signed_url,'',reviewTaskId,allowProposalReview)).join('');
+      }else{
+        content=(item.isFinalProposal?'<div class="gxt-final-proposal-tag">✦ PROPUESTA FINAL</div>':'')+item.messages.map(message=>'<p>'+esc(message)+'</p>').join('')+item.files.map(file=>fileAttachmentCard(file.file||file,file.url||file.signed_url,file.uploader_name||'',reviewTaskId,allowProposalReview)).join('');
       }
       return '<article class="gxt-chat-message '+(mine?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-message-head"><strong class="gxt-chat-author">'+esc(item.author_name)+'</strong><time>'+dateTimeLabel(item.created_at)+'</time></div>'+content+'</div></article>';
     }).join('');
@@ -373,7 +385,7 @@
     finally {button.disabled=false;button.textContent=original;}
   }
 
-  function openFilePreview(url,name,mime) {
+  function openFilePreview(url,name,mime,reviewTaskId=null,canReviewProposal=false) {
     const safeUrl=esc(url), safeName=esc(name);
     let preview='';
     if((mime||'').startsWith('image/')) preview='<img class="gxt-preview-image" src="'+safeUrl+'" alt="'+safeName+'">';
@@ -381,7 +393,7 @@
     else preview='<div class="gxt-preview-unavailable"><div>📄</div><strong>Vista previa no disponible para este formato</strong><p>Puedes descargar el archivo para abrirlo con la aplicación correspondiente.</p></div>';
     const layer=document.createElement('div');
     layer.className='gxt-file-preview';
-    layer.innerHTML='<div class="gxt-file-preview-dialog"><header><div><strong>'+safeName+'</strong><small>Vista previa del archivo</small></div><div class="gxt-file-actions"><button type="button" class="gxt-btn primary" data-download-file="'+safeUrl+'" data-file-name="'+safeName+'">Descargar</button><button type="button" class="gxt-close" data-preview-close>×</button></div></header><div class="gxt-preview-content">'+preview+'</div></div>';
+    layer.innerHTML='<div class="gxt-file-preview-dialog"><header><div><strong>'+safeName+'</strong><small>Vista previa del archivo</small></div><div class="gxt-file-actions"><button type="button" class="gxt-btn primary" data-download-file="'+safeUrl+'" data-file-name="'+safeName+'">Descargar</button><button type="button" class="gxt-close" data-preview-close>×</button></div></header><div class="gxt-preview-content">'+preview+'</div>'+(canReviewProposal&&reviewTaskId?'<section class="gxt-preview-review"><div><strong>Revisión de propuesta final</strong><small>Aprueba el contenido para enviarlo al creador o deja comentarios para solicitar ajustes.</small></div><textarea id="gxPreviewReviewFeedback" placeholder="Comentarios u observaciones (obligatorios si solicitas cambios)"></textarea><div class="gxt-actions"><button type="button" class="gxt-btn primary" data-preview-delivery-review="approve" data-task-id="'+esc(reviewTaskId)+'">Aprobar y enviar</button><button type="button" class="gxt-btn danger" data-preview-delivery-review="return" data-task-id="'+esc(reviewTaskId)+'">Solicitar cambios</button></div></section>':'')+'</div>';
     modalRoot.appendChild(layer);
     layer.addEventListener('click',e=>{if(e.target===layer||e.target.closest('[data-preview-close]'))layer.remove();});
   }
@@ -505,7 +517,7 @@
       : [];
     const proposalChatRows=await Promise.all(proposalRows.map(async file=>{
       const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(file.object_path,1800);
-      return {...file,signed_url:data?.signedUrl||null,uploader_name:attachmentUploaderName(file.uploaded_by,linkedTask)};
+      return {...file,signed_url:data?.signedUrl||null,uploader_name:attachmentUploaderName(file.uploaded_by,linkedTask),is_final_proposal:true};
     }));
     const requestFileRows=await Promise.all([
       ...attachments.map(async a=>{
@@ -624,15 +636,11 @@
       const {data}=await sb.storage.from(bucket).createSignedUrl(a.object_path,1800);
       return {...a,uploader_name:attachmentUploaderName(a.uploaded_by,task,a.id,activity),signed_url:data?.signedUrl||null};
     }));
-    const chatHtml=renderChatTimeline(comments,chatFileRows);
-    const proposalAttachmentHtml = await Promise.all(proposalFiles.map(async f=>{
-      const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(f.object_path,1800);
-      const uploader=attachmentUploaderName(f.uploaded_by,task,f.id,activity);
-      return fileAttachmentCard(f,data?.signedUrl,uploader);
+    const proposalChatRows=await Promise.all(proposalFiles.map(async file=>{
+      const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(file.object_path,1800);
+      return {...file,signed_url:data?.signedUrl||null,uploader_name:attachmentUploaderName(file.uploaded_by,task,file.id,activity),is_final_proposal:true};
     }));
-    const proposalHtml = task.creator_user_id
-      ? '<section class="gxt-panel gxt-creator-proposal"><div class="gxt-panel-head"><div><div class="gxt-section-kicker">ENTREGA PARA EL CREADOR</div><h2>Propuesta final</h2><p class="gxt-hint">Los archivos quedan en revisión. Solo se publicarán cuando quien solicitó el contenido los apruebe.</p></div></div><div class="gxt-list">'+(proposalAttachmentHtml.join('')||'<div class="gxt-empty">Todavía no hay archivos en la propuesta final.</div>')+'</div>'+(canProgress&&isAssignee?'<form id="gxCreatorProposalForm" class="gxt-proposal-upload"><div class="gxt-field"><label>Adjuntar archivos finales</label><input type="file" name="files" multiple accept="image/*,video/*,.pdf,.zip"><small class="gxt-hint">Hasta 5 archivos por carga · máximo 20 MB cada uno. Las evidencias del chat no se publican al creador.</small></div><button type="submit" class="gxt-btn">Guardar archivos en la propuesta</button></form>'+(proposalFiles.length?'<div class="gxt-proposal-submit"><div><strong>¿Ya está lista?</strong><small>Envía la propuesta a quien la solicitó para que pueda revisarla.</small></div><button type="button" class="gxt-btn primary" data-submit-proposal="'+task.id+'">Enviar propuesta a revisión</button></div>':''):'')+'</section>'
-      : '';
+    const chatHtml=renderChatTimeline(comments,chatFileRows,proposalChatRows,task.id,canReviewCreatorDelivery);
     const activityHtml = activity.map(a=>'<div class="gxt-comment"><strong>'+esc(a.actor_name||'Sistema')+'</strong><small>'+dateTimeLabel(a.created_at)+'</small><p>'+esc(a.action==='created'?'Creó la tarea':a.action==='status_changed'?'Cambió el estado':a.action==='comment_added'?'Añadió un comentario':a.action==='attachment_added'?'Adjuntó una evidencia':a.action==='reassigned'?'Reasignó la tarea':'Actualizó la tarea')+'</p></div>').join('');
     const progressHtml = canProgress
       ? '<form id="gxProgressForm"><div class="gxt-form-grid"><div class="gxt-field"><label>Estado</label><select name="status"><option value="in_progress" '+(task.status==='in_progress'?'selected':'')+'>En progreso</option><option value="blocked" '+(task.status==='blocked'?'selected':'')+'>Bloqueada</option>'+(!task.creator_user_id?'<option value="submitted">Entregada para revisión</option>':'')+'</select></div><div class="gxt-field full"><label>Comentario de avance (opcional)</label><textarea name="comment" placeholder="Describe lo que avanzaste o lo que necesitas comunicar."></textarea></div></div><div class="gxt-actions"><button class="gxt-btn primary" type="submit">Guardar avance</button></div></form>'
@@ -647,43 +655,13 @@
       : '';
     openModal(task.title, 'Creada por administración · '+(task.assignee?.display_name||'Responsable'), 
       '<div class="gxt-card-meta">'+taskChip(task.status)+'<span class="gxt-chip">'+esc(priorityLabels[task.priority]||task.priority)+'</span><span class="gxt-chip">'+esc(task.department?.name||'Sin área')+'</span></div>'+
-      '<section class="gxt-panel gxt-task-overview"><div class="gxt-section-kicker">RESUMEN DE LA TAREA</div><div class="gxt-task-description">'+esc(task.description||'Sin descripción adicional.')+'</div><div class="gxt-card-meta"><span class="gxt-chip">Inicio: '+dateLabel(task.starts_at)+'</span><span class="gxt-chip">Vence: '+dateLabel(task.due_at)+'</span></div>'+reassignHtml+reviewHtml+progressHtml+'</section>'+proposalHtml+
-      '<section class="gxt-panel gxt-task-conversation"><div class="gxt-panel-head"><div><div class="gxt-section-kicker">CONVERSACIÓN DEL EQUIPO</div><h2>Seguimiento</h2></div><span class="gxt-followup-count">'+(comments.length+chatFileRows.length)+' elementos</span></div><div class="gxt-chat-thread">'+chatHtml+'</div><form id="gxCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje o adjunta archivos..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxTaskFiles" title="Adjuntar archivos">＋</label><input id="gxTaskFiles" type="file" name="files" multiple hidden><button class="gxt-btn primary" type="submit">Enviar</button></div></div><div class="gxt-compose-hint"><span id="gxTaskSelectedFiles">Puedes enviar texto, archivos o ambos.</span><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>'+
+      '<section class="gxt-panel gxt-task-overview"><div class="gxt-section-kicker">RESUMEN DE LA TAREA</div><div class="gxt-task-description">'+esc(task.description||'Sin descripción adicional.')+'</div><div class="gxt-card-meta"><span class="gxt-chip">Inicio: '+dateLabel(task.starts_at)+'</span><span class="gxt-chip">Vence: '+dateLabel(task.due_at)+'</span></div>'+reassignHtml+(canReviewCreatorDelivery?'':reviewHtml)+progressHtml+'</section>'+
+      '<section class="gxt-panel gxt-task-conversation"><div class="gxt-panel-head"><div><div class="gxt-section-kicker">CONVERSACIÓN DEL EQUIPO</div><h2>Seguimiento</h2></div><span class="gxt-followup-count">'+(comments.length+chatFileRows.length)+' elementos</span></div><div class="gxt-chat-thread">'+chatHtml+'</div><form id="gxCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje o adjunta archivos..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxTaskFiles" title="Adjuntar archivos">＋</label><input id="gxTaskFiles" type="file" name="files" multiple hidden><button class="gxt-btn primary" type="submit" id="gxChatSendButton">Enviar</button></div></div><div id="gxTaskSelectedFiles" class="gxt-selected-files" aria-live="polite"><span class="gxt-compose-hint">Puedes enviar texto, archivos o ambos.</span></div>'+(task.creator_user_id&&isAssignee&&canProgress?'<label class="gxt-final-proposal-toggle"><input type="checkbox" id="gxChatFinalProposal"> <span><strong>Enviar como propuesta final</strong><small>Los archivos se enviarán a revisión y no quedarán como adjuntos normales del chat.</small></span></label>':'')+'<div class="gxt-compose-hint"><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Historial de actividad</h2></div><div class="gxt-list">'+(activityHtml||'<div class="gxt-empty">Sin movimientos registrados.</div>')+'</div></section>',
       true
     );
 
-    const proposalForm = document.getElementById('gxCreatorProposalForm');
-    const submitProposalButton=document.querySelector('[data-submit-proposal]');
-    if(submitProposalButton)submitProposalButton.addEventListener('click',async()=>{
-      if(!proposalFiles.length)return toast('Adjunta al menos un archivo antes de enviar la propuesta.');
-      submitProposalButton.disabled=true;submitProposalButton.textContent='Enviando a revisión...';
-      const {error}=await sb.rpc('gx_task_member_update',{p_task_id:task.id,p_status:'submitted',p_comment:'Propuesta final enviada a revisión.'});
-      if(error){submitProposalButton.disabled=false;submitProposalButton.textContent='Enviar propuesta a revisión';return toast('No se pudo enviar la propuesta: '+error.message);}
-      closeModal();await refresh();toast('Propuesta enviada a revisión. La persona solicitante recibirá una notificación.');await openTaskDetail(task.id);
-    });
-    if(proposalForm)proposalForm.addEventListener('submit',async event=>{
-      event.preventDefault();
-      const files=Array.from(new FormData(proposalForm).getAll('files')).filter(file=>file instanceof File&&file.size>0);
-      if(!files.length)return toast('Selecciona al menos un archivo para la propuesta.');
-      if(files.length>5)return toast('Puedes adjuntar máximo 5 archivos por carga.');
-      if(files.some(file=>file.size>20*1024*1024))return toast('Cada archivo debe pesar máximo 20 MB.');
-      for(const file of files){
-        const safeName=file.name.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-100);
-        const objectPath=task.id+'/'+crypto.randomUUID()+'-'+safeName;
-        const {error:uploadError}=await sb.storage.from('gx-internal-task-files').upload(objectPath,file,{upsert:false});
-        if(uploadError)return toast('No se pudo cargar '+file.name+': '+uploadError.message);
-        const {error:rowError}=await sb.from('gx_creator_delivery_proposal_files').insert({
-          task_id:task.id,uploaded_by:state.session.user.id,object_path:objectPath,
-          file_name:file.name,mime_type:file.type||null,size_bytes:file.size
-        });
-        if(rowError){
-          await sb.storage.from('gx-internal-task-files').remove([objectPath]);
-          return toast('No se pudo registrar '+file.name+': '+rowError.message);
-        }
-      }
-      closeModal();await refresh();await openTaskDetail(task.id);toast('Archivos añadidos a la propuesta final.');
-    });
+
 
     const progressForm = document.getElementById('gxProgressForm');
     if (progressForm) progressForm.addEventListener('submit', async event=>{
@@ -697,45 +675,86 @@
     });
 
     const taskFileInput=document.getElementById('gxTaskFiles');
-    if(taskFileInput)taskFileInput.addEventListener('change',()=>{const label=document.getElementById('gxTaskSelectedFiles');if(label)label.textContent=taskFileInput.files.length?Array.from(taskFileInput.files).map(f=>f.name).join(' · '):'Puedes enviar texto, archivos o ambos.';});
+    let selectedChatFiles=[];
+    const selectedFilesRoot=document.getElementById('gxTaskSelectedFiles');
+    const finalProposalToggle=document.getElementById('gxChatFinalProposal');
+    const sendButton=document.getElementById('gxChatSendButton');
+    function syncChatFiles(){
+      if(taskFileInput){
+        const transfer=new DataTransfer();
+        selectedChatFiles.forEach(file=>transfer.items.add(file));
+        taskFileInput.files=transfer.files;
+      }
+      if(selectedFilesRoot){
+        selectedFilesRoot.innerHTML=selectedChatFiles.length
+          ? selectedChatFiles.map((file,index)=>'<div class="gxt-selected-file"><span>📎 '+esc(file.name)+'</span><button type="button" data-remove-chat-file="'+index+'" aria-label="Quitar '+esc(file.name)+'">×</button></div>').join('')
+          : '<span class="gxt-compose-hint">Puedes enviar texto, archivos o ambos.</span>';
+      }
+      if(sendButton)sendButton.textContent=finalProposalToggle?.checked?'Enviar propuesta':'Enviar';
+    }
+    if(taskFileInput)taskFileInput.addEventListener('change',()=>{
+      const incoming=Array.from(taskFileInput.files||[]);
+      const merged=[...selectedChatFiles];
+      incoming.forEach(file=>{if(!merged.some(existing=>existing.name===file.name&&existing.size===file.size&&existing.lastModified===file.lastModified))merged.push(file)});
+      if(merged.length>5){toast('Puedes adjuntar máximo 5 archivos por publicación.');}
+      else if(merged.some(file=>file.size>20*1024*1024)){toast('Cada archivo debe pesar máximo 20 MB.');}
+      else selectedChatFiles=merged;
+      syncChatFiles();
+    });
+    if(finalProposalToggle)finalProposalToggle.addEventListener('change',syncChatFiles);
+    if(selectedFilesRoot)selectedFilesRoot.addEventListener('click',event=>{
+      const remove=event.target.closest('[data-remove-chat-file]');
+      if(!remove)return;
+      selectedChatFiles.splice(Number(remove.dataset.removeChatFile),1);
+      syncChatFiles();
+    });
     const commentForm = document.getElementById('gxCommentForm');
     if (commentForm) commentForm.addEventListener('submit', async event=>{
       event.preventDefault();
       const formData=new FormData(commentForm);
       const body=String(formData.get('body')||'').trim();
-      const files=formData.getAll('files').filter(file=>file instanceof File&&file.size>0);
+      const files=[...selectedChatFiles];
+      const asFinalProposal=!!finalProposalToggle?.checked;
       if(!body&&!files.length)return toast('Escribe un mensaje o adjunta al menos un archivo.');
+      if(asFinalProposal&&!files.length)return toast('Adjunta al menos un archivo para enviar la propuesta final.');
       if(files.length>5)return toast('Puedes adjuntar máximo 5 archivos por publicación.');
       if(files.some(file=>file.size>20*1024*1024))return toast('Cada archivo debe pesar máximo 20 MB.');
-      if(task.source_request_id){
-        if(body){
-          const {error}=await sb.from('gx_task_request_comments').insert({request_id:task.source_request_id,author_id:state.session.user.id,body});
-          if(error)return toast('No se pudo publicar: '+error.message);
-        }
-      }else if(body){
-        const {error}=await sb.from('gx_task_comments').insert({task_id:task.id,author_id:state.session.user.id,body});
-        if(error)return toast('No se pudo publicar: '+error.message);
-      }
+      if(sendButton){sendButton.disabled=true;sendButton.textContent=asFinalProposal?'Enviando propuesta...':'Enviando...';}
+      const commentBody=body||(!asFinalProposal?'Adjuntó archivos: '+files.map(file=>file.name).join(', '):'Archivos adjuntos a la propuesta final.');
+      const commentTable=task.source_request_id?'gx_task_request_comments':'gx_task_comments';
+      const commentPayload=task.source_request_id
+        ? {request_id:task.source_request_id,author_id:state.session.user.id,body:commentBody}
+        : {task_id:task.id,author_id:state.session.user.id,body:commentBody};
+      const {error:commentError}=await sb.from(commentTable).insert(commentPayload);
+      if(commentError){if(sendButton){sendButton.disabled=false;syncChatFiles()}return toast('No se pudo publicar el mensaje: '+commentError.message);}
       for(const file of files){
         const safeName=file.name.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-100);
         const objectPath=(task.source_request_id||task.id)+'/'+crypto.randomUUID()+'-'+safeName;
-        const bucket=task.source_request_id?'gx-internal-request-files':'gx-internal-task-files';
+        const bucket=asFinalProposal?'gx-internal-task-files':(task.source_request_id?'gx-internal-request-files':'gx-internal-task-files');
         const {error:uploadError}=await sb.storage.from(bucket).upload(objectPath,file,{upsert:false});
-        if(uploadError)return toast('No se pudo adjuntar '+file.name+': '+uploadError.message);
-        const table=task.source_request_id?'gx_task_request_attachments':'gx_task_attachments';
-        const row=task.source_request_id
-          ? {request_id:task.source_request_id,uploaded_by:state.session.user.id,object_path:objectPath,file_name:file.name,mime_type:file.type||null,size_bytes:file.size}
-          : {task_id:task.id,uploaded_by:state.session.user.id,object_path:objectPath,file_name:file.name,mime_type:file.type||null,size_bytes:file.size};
-        const {error:rowError}=await sb.from(table).insert(row);
-        if(rowError){await sb.storage.from(bucket).remove([objectPath]);return toast('No se pudo registrar '+file.name+': '+rowError.message);}
+        if(uploadError){if(sendButton){sendButton.disabled=false;syncChatFiles()}return toast('No se pudo adjuntar '+file.name+': '+uploadError.message);}
+        if(asFinalProposal){
+          const {error:rowError}=await sb.from('gx_creator_delivery_proposal_files').insert({
+            task_id:task.id,uploaded_by:state.session.user.id,object_path:objectPath,
+            file_name:file.name,mime_type:file.type||null,size_bytes:file.size
+          });
+          if(rowError){await sb.storage.from(bucket).remove([objectPath]);if(sendButton){sendButton.disabled=false;syncChatFiles()}return toast('No se pudo registrar '+file.name+' en la propuesta: '+rowError.message);}
+        }else{
+          const table=task.source_request_id?'gx_task_request_attachments':'gx_task_attachments';
+          const row=task.source_request_id
+            ? {request_id:task.source_request_id,uploaded_by:state.session.user.id,object_path:objectPath,file_name:file.name,mime_type:file.type||null,size_bytes:file.size}
+            : {task_id:task.id,uploaded_by:state.session.user.id,object_path:objectPath,file_name:file.name,mime_type:file.type||null,size_bytes:file.size};
+          const {error:rowError}=await sb.from(table).insert(row);
+          if(rowError){await sb.storage.from(bucket).remove([objectPath]);if(sendButton){sendButton.disabled=false;syncChatFiles()}return toast('No se pudo registrar '+file.name+': '+rowError.message);}
+        }
       }
-      if(task.source_request_id&&!body&&files.length){
-        const {error}=await sb.from('gx_task_request_comments').insert({request_id:task.source_request_id,author_id:state.session.user.id,body:'Adjuntó archivos: '+files.map(file=>file.name).join(', ')});
-        if(error)return toast('Los archivos se adjuntaron, pero no se pudo notificar al equipo: '+error.message);
+      if(asFinalProposal){
+        const {error:submitError}=await sb.rpc('gx_task_member_update',{p_task_id:task.id,p_status:'submitted',p_comment:'Propuesta final enviada a revisión.'});
+        if(submitError){if(sendButton){sendButton.disabled=false;syncChatFiles()}return toast('Los archivos se guardaron, pero no se pudo enviar la propuesta a revisión: '+submitError.message);}
       }
-      await openTaskDetail(task.id); toast('Seguimiento publicado.');
+      closeModal();await refresh();await openTaskDetail(task.id);
+      toast(asFinalProposal?'Propuesta final enviada a revisión.':'Seguimiento publicado.');
     });
-
 
   }
 
@@ -747,8 +766,8 @@
     closeModal(); await refresh(); toast(approve?'Tarea aprobada y completada.':'Tarea devuelta para correcciones.');
   }
 
-  async function reviewCreatorDelivery(taskId, approve) {
-    const feedback = String(document.getElementById('gxReviewFeedback')?.value || '').trim();
+  async function reviewCreatorDelivery(taskId, approve, feedbackOverride=null) {
+    const feedback = String(feedbackOverride ?? document.getElementById('gxReviewFeedback')?.value ?? '').trim();
     if (!approve && !feedback) return toast('Cuéntale al encargado qué debe corregir.');
     const { error } = await sb.rpc('gx_creator_delivery_review', {
       p_task_id:taskId,p_approved:approve,p_feedback:feedback
@@ -854,7 +873,14 @@
     const download=event.target.closest('[data-download-file]');
     if(download){downloadAttachment(download.dataset.downloadFile,download.dataset.fileName,download);return;}
     const preview=event.target.closest('[data-preview-file]');
-    if(preview)return openFilePreview(preview.dataset.previewFile,preview.dataset.fileName,preview.dataset.fileMime);
+    if(preview)return openFilePreview(preview.dataset.previewFile,preview.dataset.fileName,preview.dataset.fileMime,preview.dataset.previewTaskId||null,preview.dataset.previewReview==='true');
+    const previewDeliveryReview=event.target.closest('[data-preview-delivery-review]');
+    if(previewDeliveryReview){
+      const feedback=document.getElementById('gxPreviewReviewFeedback')?.value||'';
+      const approve=previewDeliveryReview.dataset.previewDeliveryReview==='approve';
+      if(!approve&&!feedback.trim())return toast('Escribe los comentarios que debe revisar el responsable.');
+      return reviewCreatorDelivery(previewDeliveryReview.dataset.taskId,approve,feedback);
+    }
     const deliveryReview=event.target.closest('[data-delivery-review]');
     if(deliveryReview)return reviewCreatorDelivery(deliveryReview.dataset.taskId,deliveryReview.dataset.deliveryReview==='approve');
     const review=event.target.closest('[data-review]');
