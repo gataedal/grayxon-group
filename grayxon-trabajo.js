@@ -412,8 +412,8 @@
       queryRows(sb.from('gx_task_request_attachments').select('*').eq('request_id',requestId).order('created_at'), 'request attachments')
     ]);
     const attachmentHtml = await Promise.all(attachments.map(async a=>{
-      const { data } = await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800);
-      return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir archivo</a></p>':'<p>No fue posible generar el enlace del archivo.</p>')+'</div>';
+      const { data } = await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800,{download:a.file_name});
+      return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir</a> · <a href="'+esc(data.signedUrl)+'">Descargar '+esc(a.file_name)+'</a></p>':'<p>No fue posible generar el enlace del archivo.</p>')+'</div>';
     }));
     const commentHtml = comments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
     const requester = request.requester?.display_name || 'Integrante';
@@ -421,17 +421,30 @@
     openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
       '<div class="gxt-card-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span></div>'+
       '<section class="gxt-panel"><p>'+esc(request.description||'Sin detalles adicionales.')+'</p>'+adminNote+'</section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Archivos adjuntos</h2></div><div class="gxt-list">'+(attachmentHtml.join('')||'<div class="gxt-empty">Esta solicitud no tiene archivos adjuntos.</div>')+'</div></section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Comentarios de seguimiento</h2></div><div class="gxt-list">'+commentHtml+'</div><form id="gxRequestCommentForm" style="margin-top:12px"><div class="gxt-field"><label>Escribir comentario</label><textarea name="body" maxlength="5000" required placeholder="Escribe una actualización o respuesta para las personas relacionadas."></textarea></div><button class="gxt-btn primary" type="submit">Publicar comentario</button></form></section>',true);
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Seguimiento</h2></div><div class="gxt-list">'+commentHtml+(attachmentHtml.join('')||'')+'</div><form id="gxRequestCommentForm" style="margin-top:12px"><div class="gxt-field"><label>Mensaje (opcional si adjuntas archivos)</label><textarea name="body" maxlength="5000" placeholder="Escribe una actualización o respuesta."></textarea></div><div class="gxt-field"><label>Adjuntar archivos o imágenes</label><input name="files" type="file" multiple><small class="gxt-hint">Hasta 5 archivos, máximo 20 MB cada uno. Se conserva el formato original.</small></div><button class="gxt-btn primary" type="submit">Publicar en seguimiento</button></form></section>',true);
     const commentForm = document.getElementById('gxRequestCommentForm');
     if (commentForm) commentForm.addEventListener('submit',async event=>{
       event.preventDefault();
-      const body=String(new FormData(commentForm).get('body')||'').trim();
-      if(!body)return;
-      const {error}=await sb.from('gx_task_request_comments').insert({request_id:request.id,author_id:state.session.user.id,body});
-      if(error)return toast('No se pudo publicar el comentario: '+error.message);
+      const formData=new FormData(commentForm);
+      const body=String(formData.get('body')||'').trim();
+      const files=formData.getAll('files').filter(file=>file instanceof File&&file.size>0);
+      if(!body&&!files.length)return toast('Escribe un mensaje o adjunta al menos un archivo.');
+      if(files.length>5)return toast('Puedes adjuntar máximo 5 archivos por publicación.');
+      if(files.some(file=>file.size>20*1024*1024))return toast('Cada archivo debe pesar máximo 20 MB.');
+      if(body){
+        const {error}=await sb.from('gx_task_request_comments').insert({request_id:request.id,author_id:state.session.user.id,body});
+        if(error)return toast('No se pudo publicar el comentario: '+error.message);
+      }
+      for(const file of files){
+        const safeName=file.name.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-100);
+        const objectPath=request.id+'/'+crypto.randomUUID()+'-'+safeName;
+        const {error:uploadError}=await sb.storage.from('gx-internal-request-files').upload(objectPath,file,{upsert:false});
+        if(uploadError)return toast('El mensaje se publicó, pero no se pudo adjuntar '+file.name+': '+uploadError.message);
+        const {error:rowError}=await sb.from('gx_task_request_attachments').insert({request_id:request.id,uploaded_by:state.session.user.id,object_path:objectPath,file_name:file.name,mime_type:file.type||null,size_bytes:file.size});
+        if(rowError){await sb.storage.from('gx-internal-request-files').remove([objectPath]);return toast('No se pudo registrar '+file.name+': '+rowError.message);}
+      }
       await openRequestDetail(request.id);
-      toast('Comentario publicado.');
+      toast('Seguimiento publicado.');
     });
   }
 
