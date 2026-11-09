@@ -14,7 +14,7 @@
     if(document.getElementById('gxCreatorDeliveriesStyles'))return;
     const style=document.createElement('style');style.id='gxCreatorDeliveriesStyles';
     style.textContent=`
-      #gxCreatorDeliveriesScreen{position:fixed;inset:0;z-index:16000;overflow:auto;background:radial-gradient(ellipse at 12% 0%,#17212a 0%,#080a0d 42%,#070809 100%);color:#f4f6f8;padding:calc(env(safe-area-inset-top,0px) + 15px) 16px calc(env(safe-area-inset-bottom,0px) + 28px);box-sizing:border-box}
+      #gxCreatorDeliveriesScreen{position:fixed;inset:0;z-index:9000;overflow:auto;background:radial-gradient(ellipse at 12% 0%,#17212a 0%,#080a0d 42%,#070809 100%);color:#f4f6f8;padding:calc(env(safe-area-inset-top,0px) + 15px) 16px calc(env(safe-area-inset-bottom,0px) + 28px);box-sizing:border-box}
       #gxCreatorDeliveriesScreen[hidden]{display:none!important}
       .gx-delivery-shell{width:min(900px,100%);margin:0 auto}
       .gx-delivery-head{display:flex;align-items:center;gap:13px;padding:4px 0 18px;border-bottom:1px solid #29323c}
@@ -63,17 +63,15 @@
     screen.hidden=true;
     screen.innerHTML=`<div class="gx-delivery-shell">
       <header class="gx-delivery-head">
-        <button type="button" class="gx-delivery-back" id="gxDeliveriesBack" aria-label="Volver">‹</button>
         <div class="gx-delivery-head-copy"><div class="gx-delivery-brandline">GRAYXON · CONTENIDO</div><h1>Mis entregas</h1><p>Material aprobado y publicado para ti</p></div>
       </header>
-      <div class="gx-delivery-intro"><strong>Tu contenido, listo para descargar.</strong><p>Aquí encontrarás los flyers, imágenes, videos y materiales que el equipo Grayxon haya aprobado y enviado a tu cuenta.</p></div>
       <div id="gxCreatorDeliveriesList" class="gx-delivery-list"><div class="gx-delivery-loading">Cargando tus entregas…</div></div>
     </div>
     <div id="gxCreatorDeliveryDetail" class="gx-delivery-modal" hidden><section class="gx-delivery-dialog" role="dialog" aria-modal="true" aria-label="Detalle de entrega"><header class="gx-delivery-dialog-head"><div><h2 id="gxCreatorDeliveryTitle">Entrega</h2><p id="gxCreatorDeliveryMeta"></p></div><button type="button" class="gx-delivery-close" id="gxCreatorDeliveryClose" aria-label="Cerrar">×</button></header><div class="gx-delivery-dialog-body" id="gxCreatorDeliveryFiles"></div></section></div>`;
     document.body.appendChild(screen);
     listRoot=screen.querySelector('#gxCreatorDeliveriesList');
     detailRoot=screen.querySelector('#gxCreatorDeliveryDetail');
-    screen.querySelector('#gxDeliveriesBack').addEventListener('click',closeScreen);
+
     screen.querySelector('#gxCreatorDeliveryClose').addEventListener('click',closeDetail);
     detailRoot.addEventListener('click',e=>{if(e.target===detailRoot)closeDetail()});
     screen.addEventListener('click',e=>{
