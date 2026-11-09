@@ -640,14 +640,6 @@
       return {...file,signed_url:data?.signedUrl||null,uploader_name:attachmentUploaderName(file.uploaded_by,task,file.id,activity)};
     }));
     const chatHtml=renderChatTimeline(comments,chatFileRows,proposalChatRows,task.id,false);
-    const proposalAttachmentHtml = await Promise.all(proposalFiles.map(async f=>{
-      const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(f.object_path,1800);
-      const uploader=attachmentUploaderName(f.uploaded_by,task,f.id,activity);
-      return fileAttachmentCard(f,data?.signedUrl,uploader);
-    }));
-    const proposalHtml = task.creator_user_id
-      ? '<section class="gxt-panel gxt-creator-proposal"><div class="gxt-panel-head"><div><div class="gxt-section-kicker">ENTREGA PARA EL CREADOR</div><h2>Propuesta final</h2><p class="gxt-hint">Los archivos quedan en revisión. Solo se publicarán cuando quien solicitó el contenido los apruebe.</p></div></div><div class="gxt-list">'+(proposalAttachmentHtml.join('')||'<div class="gxt-empty">Todavía no hay archivos en la propuesta final.</div>')+'</div>'+(canProgress&&isAssignee?'<form id="gxCreatorProposalForm" class="gxt-proposal-upload"><div class="gxt-field"><label>Adjuntar archivos finales</label><input type="file" name="files" multiple accept="image/*,video/*,.pdf,.zip"><small class="gxt-hint">Hasta 5 archivos por carga · máximo 20 MB cada uno. Las evidencias del chat no se publican al creador.</small></div><button type="submit" class="gxt-btn">Guardar archivos en la propuesta</button></form>'+(proposalFiles.length?'<div class="gxt-proposal-submit"><div><strong>¿Ya está lista?</strong><small>Envía la propuesta a quien la solicitó para que pueda revisarla.</small></div><button type="button" class="gxt-btn primary" data-submit-proposal="'+task.id+'">Enviar propuesta a revisión</button></div>':''):'')+'</section>'
-      : '';
     const activityHtml = activity.map(a=>'<div class="gxt-comment"><strong>'+esc(a.actor_name||'Sistema')+'</strong><small>'+dateTimeLabel(a.created_at)+'</small><p>'+esc(a.action==='created'?'Creó la tarea':a.action==='status_changed'?'Cambió el estado':a.action==='comment_added'?'Añadió un comentario':a.action==='attachment_added'?'Adjuntó una evidencia':a.action==='reassigned'?'Reasignó la tarea':'Actualizó la tarea')+'</p></div>').join('');
     const progressHtml = canProgress
       ? '<form id="gxProgressForm"><div class="gxt-form-grid"><div class="gxt-field"><label>Estado</label><select name="status"><option value="in_progress" '+(task.status==='in_progress'?'selected':'')+'>En progreso</option><option value="blocked" '+(task.status==='blocked'?'selected':'')+'>Bloqueada</option>'+(!task.creator_user_id?'<option value="submitted">Entregada para revisión</option>':'')+'</select></div><div class="gxt-field full"><label>Comentario de avance (opcional)</label><textarea name="comment" placeholder="Describe lo que avanzaste o lo que necesitas comunicar."></textarea></div></div><div class="gxt-actions"><button class="gxt-btn primary" type="submit">Guardar avance</button></div></form>'
@@ -668,37 +660,7 @@
       true
     );
 
-    const proposalForm = document.getElementById('gxCreatorProposalForm');
-    const submitProposalButton=document.querySelector('[data-submit-proposal]');
-    if(submitProposalButton)submitProposalButton.addEventListener('click',async()=>{
-      if(!proposalFiles.length)return toast('Adjunta al menos un archivo antes de enviar la propuesta.');
-      submitProposalButton.disabled=true;submitProposalButton.textContent='Enviando a revisión...';
-      const {error}=await sb.rpc('gx_task_member_update',{p_task_id:task.id,p_status:'submitted',p_comment:'Propuesta final enviada a revisión.'});
-      if(error){submitProposalButton.disabled=false;submitProposalButton.textContent='Enviar propuesta a revisión';return toast('No se pudo enviar la propuesta: '+error.message);}
-      closeModal();await refresh();toast('Propuesta enviada a revisión. La persona solicitante recibirá una notificación.');await openTaskDetail(task.id);
-    });
-    if(proposalForm)proposalForm.addEventListener('submit',async event=>{
-      event.preventDefault();
-      const files=Array.from(new FormData(proposalForm).getAll('files')).filter(file=>file instanceof File&&file.size>0);
-      if(!files.length)return toast('Selecciona al menos un archivo para la propuesta.');
-      if(files.length>5)return toast('Puedes adjuntar máximo 5 archivos por carga.');
-      if(files.some(file=>file.size>20*1024*1024))return toast('Cada archivo debe pesar máximo 20 MB.');
-      for(const file of files){
-        const safeName=file.name.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-100);
-        const objectPath=task.id+'/'+crypto.randomUUID()+'-'+safeName;
-        const {error:uploadError}=await sb.storage.from('gx-internal-task-files').upload(objectPath,file,{upsert:false});
-        if(uploadError)return toast('No se pudo cargar '+file.name+': '+uploadError.message);
-        const {error:rowError}=await sb.from('gx_creator_delivery_proposal_files').insert({
-          task_id:task.id,uploaded_by:state.session.user.id,object_path:objectPath,
-          file_name:file.name,mime_type:file.type||null,size_bytes:file.size
-        });
-        if(rowError){
-          await sb.storage.from('gx-internal-task-files').remove([objectPath]);
-          return toast('No se pudo registrar '+file.name+': '+rowError.message);
-        }
-      }
-      closeModal();await refresh();await openTaskDetail(task.id);toast('Archivos añadidos a la propuesta final.');
-    });
+
 
     const progressForm = document.getElementById('gxProgressForm');
     if (progressForm) progressForm.addEventListener('submit', async event=>{
