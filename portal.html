@@ -552,7 +552,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 .gxcal-day-panel h3{font-size:14px;margin:0 0 10px;font-weight:700}
 .gxcal-item{display:flex;align-items:flex-start;gap:10px;padding:10px 11px;margin:7px 0;background:#12151a;border:1px solid #262b33;border-radius:10px}
 .gxcal-item-mark{width:3px;min-height:31px;border-radius:4px;flex-shrink:0}
-.gxcal-item-content{min-width:0;flex:1}.gxcal-item-type{display:inline-flex;align-items:center;padding:3px 7px;margin:0 0 5px;border-radius:5px;font-size:9px;line-height:1.2;letter-spacing:.035em;text-transform:uppercase;font-weight:800;background:#242830;color:#d8dde5;border:1px solid #373d47}.gxcal-type-battle{background:#382b1b;color:#ffc36f;border-color:#74532d}.gxcal-type-mission{background:#342238;color:#e5a4ec;border-color:#704678}.gxcal-type-training{background:#173536;color:#76efea;border-color:#2b7375}.gxcal-type-birthday{background:#2b2442;color:#c8b4ff;border-color:#5d4b8a}.gxcal-type-event{background:#252a32;color:#d5dce6;border-color:#454c59}
+.gxcal-item-content{min-width:0;flex:1}.gxcal-item-type{display:inline-flex;align-items:center;padding:3px 7px;margin:0 0 5px;border-radius:5px;font-size:9px;line-height:1.2;letter-spacing:.035em;text-transform:uppercase;font-weight:800;background:#242830;color:#d8dde5;border:1px solid #373d47}.gxcal-type-battle{background:#382b1b;color:#ffc36f;border-color:#74532d}.gxcal-type-mission{background:#342238;color:#e5a4ec;border-color:#704678}.gxcal-type-training{background:#173536;color:#76efea;border-color:#2b7375}.gxcal-type-birthday{background:#2b2442;color:#c8b4ff;border-color:#5d4b8a}.gxcal-type-event{background:#252a32;color:#d5dce6;border-color:#454c59}.gxcal-type-task{background:#302819;color:#f1d18e;border-color:#79623a}
 .gxcal-item-title{font-size:12px;font-weight:650;line-height:1.45}
 .gxcal-item-meta{font-size:10px;color:#929aa7;margin-top:3px}
 .gxcal-empty{color:#8f98a6;font-size:12px;padding:8px 0}
@@ -564,7 +564,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 (function(){
  const modal=document.getElementById('gxCalendarModal');if(!modal||modal.dataset.bound)return;modal.dataset.bound='1';
  const $=id=>document.getElementById(id);
- const colors={mission:'#d879c8',battle:'#e8ad62',training:'#55d8cf',birthday:'#b6a0ff',event:'#8b93a2'};
+ const colors={mission:'#d879c8',battle:'#e8ad62',training:'#55d8cf',birthday:'#b6a0ff',event:'#8b93a2',task:'#c7a35b'};
  let view=new Date();view.setDate(1);let selected=null,items=[],loadedKey='',busy=false;
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const isoDay=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -588,9 +588,10 @@ setTimeout(()=>{updateBadge();syncActive()},250);
     safe(sb.from('gx_events').select('id,title,event_type,starts_at,ends_at,status,audience').in('status',['published','in_progress','scheduled','upcoming']).gte('starts_at',from).lte('starts_at',to)),
     safe(sb.from('gx_event_matches').select('id,event_id,participant_a_id,participant_b_id,scheduled_at,status,round_id').gte('scheduled_at',from).lte('scheduled_at',to)),
     safe(sb.from('live_trainings').select('id,title,scheduled_at,status,instructor_name').eq('status','scheduled').gte('scheduled_at',from).lte('scheduled_at',to)),
-    safe(sb.from('profile_details').select('user_id,birth_date').not('birth_date','is',null))
+    safe(sb.from('profile_details').select('user_id,birth_date').not('birth_date','is',null)),
+    safe(sb.from('gx_tasks').select('id,title,status,starts_at,due_at').or('and(starts_at.gte.'+from+',starts_at.lte.'+to+'),and(due_at.gte.'+from+',due_at.lte.'+to+')'))
    ];
-   const [missions,events,matches,trainings,birthdays]=await Promise.all(tasks);
+   const [missions,events,matches,trainings,birthdays,internalTasks]=await Promise.all(tasks);
    missions.forEach(m=>{const date=m.week_start||m.created_at;if(date&&String(date).slice(0,10)>=isoDay(start)&&String(date).slice(0,10)<=isoDay(end))add(result,m.title,date,'mission','Misión asignada')});
    events.forEach(e=>add(result,e.title,e.starts_at,'event',e.event_type||'Evento'));
    const participantIds=[...new Set(matches.flatMap(m=>[m.participant_a_id,m.participant_b_id]).filter(Boolean))];
@@ -609,6 +610,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
     add(result,title,m.scheduled_at,'battle',matchStatusLabel(m.status));
    });
    trainings.forEach(t=>add(result,t.title,t.scheduled_at,'training',t.instructor_name||'Entrenamiento en vivo'));
+   internalTasks.forEach(t=>{const status=({pending:'Pendiente',in_progress:'En progreso',blocked:'Bloqueada',submitted:'Entregada para revisión',completed:'Completada'}[t.status]||'Tarea');if(t.starts_at)add(result,t.title,t.starts_at,'task','Inicio · '+status);if(t.due_at&&(!t.starts_at||String(t.due_at).slice(0,10)!==String(t.starts_at).slice(0,10)))add(result,'Vence · '+t.title,t.due_at,'task','Fecha límite · '+status)});
    const profileIds=birthdays.map(b=>b.user_id).filter(Boolean);
    let names=[];
    if(profileIds.length)names=await safe(sb.from('profiles').select('id,username,full_name,role,manager_id,active').in('id',profileIds).eq('active',true));
@@ -639,7 +641,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
   if(!selected){$('gxcalSelectedTitle').textContent='Selecciona un día';$('gxcalDayItems').innerHTML='<div class="gxcal-empty">Elige una fecha para ver sus actividades.</div>';return}
   const d=new Date(selected+'T12:00:00');$('gxcalSelectedTitle').textContent=fmtDate(d);
   const dayItems=items.filter(x=>x.day===selected).sort((a,b)=>a.date-b.date);
-  $('gxcalDayItems').innerHTML=dayItems.length?dayItems.map(e=>'<div class="gxcal-item"><i class="gxcal-item-mark" style="background:'+colors[e.type]+'"></i><div class="gxcal-item-content"><span class="gxcal-item-type gxcal-type-'+esc(e.type)+'">'+esc(({mission:'Misión',battle:'Batalla',training:'Entrenamiento en vivo',birthday:'Cumpleaños',event:'Evento'})[e.type]||'Actividad')+'</span><div class="gxcal-item-title">'+esc(e.title)+'</div><div class="gxcal-item-meta">'+esc(e.meta||'')+' · '+esc(new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit'}).format(e.date))+'</div></div></div>').join(''):'<div class="gxcal-empty">No hay actividades registradas para este día.</div>';
+  $('gxcalDayItems').innerHTML=dayItems.length?dayItems.map(e=>'<div class="gxcal-item"><i class="gxcal-item-mark" style="background:'+colors[e.type]+'"></i><div class="gxcal-item-content"><span class="gxcal-item-type gxcal-type-'+esc(e.type)+'">'+esc(({mission:'Misión',battle:'Batalla',training:'Entrenamiento en vivo',birthday:'Cumpleaños',event:'Evento',task:'Tarea interna'})[e.type]||'Actividad')+'</span><div class="gxcal-item-title">'+esc(e.title)+'</div><div class="gxcal-item-meta">'+esc(e.meta||'')+' · '+esc(new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit'}).format(e.date))+'</div></div></div>').join(''):'<div class="gxcal-empty">No hay actividades registradas para este día.</div>';
  }
  window.grayxonOpenCalendar=function(){modal.hidden=false;modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';selected=isoDay(new Date());view=new Date();view.setDate(1);loadMonth()};
  function close(){modal.hidden=true;modal.setAttribute('aria-hidden','true');document.body.style.overflow='';}
@@ -743,6 +745,7 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
 }
 </style>
   <script src="gana-mas-referrals.js?v=20"></script>
+  <script src="grayxon-trabajo-entry.js?v=1"></script>
 </body>
 
 <style id="grayxon-final-modal-mobile-fix">
