@@ -99,6 +99,7 @@ create table public.gx_task_comments (
   id uuid primary key default gen_random_uuid(),
   task_id uuid not null references public.gx_tasks(id) on delete cascade,
   author_id uuid not null references public.gx_internal_members(user_id) on delete restrict,
+  author_name text not null default 'Integrante',
   body text not null,
   created_at timestamptz not null default now(),
   constraint gx_task_comments_body_check check (length(btrim(body)) between 1 and 5000)
@@ -110,6 +111,7 @@ create table public.gx_task_activity (
   id uuid primary key default gen_random_uuid(),
   task_id uuid not null references public.gx_tasks(id) on delete cascade,
   actor_id uuid references public.gx_internal_members(user_id) on delete set null,
+  actor_name text not null default 'Sistema',
   action text not null,
   details jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
@@ -210,7 +212,12 @@ as $$
 declare
   v_action text;
   v_details jsonb;
+  v_actor_name text;
 begin
+  select display_name into v_actor_name
+  from public.gx_internal_members
+  where user_id = auth.uid();
+
   if tg_op = 'INSERT' then
     v_action := 'created';
     v_details := jsonb_build_object(
@@ -231,8 +238,8 @@ begin
     end if;
   end if;
 
-  insert into public.gx_task_activity(task_id, actor_id, action, details)
-  values (new.id, auth.uid(), v_action, v_details);
+  insert into public.gx_task_activity(task_id, actor_id, actor_name, action, details)
+  values (new.id, auth.uid(), coalesce(v_actor_name,'Sistema'), v_action, v_details);
 
   return new;
 end;
@@ -249,16 +256,38 @@ security definer
 set search_path = public, pg_temp
 as $
 begin
-  insert into public.gx_task_activity(task_id, actor_id, action, details)
+  insert into public.gx_task_activity(task_id, actor_id, actor_name, action, details)
   values (
     new.task_id,
     new.author_id,
+    new.author_name,
     'comment_added',
     jsonb_build_object('comment_id', new.id, 'preview', left(new.body, 120))
   );
   return new;
 end;
 $;
+
+create or replace function public.gx_set_task_comment_author_name()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+declare
+  v_author_name text;
+begin
+  select display_name into v_author_name
+  from public.gx_internal_members
+  where user_id = new.author_id;
+  new.author_name := coalesce(v_author_name,'Integrante');
+  return new;
+end;
+$;
+
+create trigger gx_task_comments_set_author_name
+before insert on public.gx_task_comments
+for each row execute function public.gx_set_task_comment_author_name();
 
 create trigger gx_task_comments_log_activity
 after insert on public.gx_task_comments
@@ -270,11 +299,18 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $
+declare
+  v_actor_name text;
 begin
-  insert into public.gx_task_activity(task_id, actor_id, action, details)
+  select display_name into v_actor_name
+  from public.gx_internal_members
+  where user_id = new.uploaded_by;
+
+  insert into public.gx_task_activity(task_id, actor_id, actor_name, action, details)
   values (
     new.task_id,
     new.uploaded_by,
+    coalesce(v_actor_name,'Integrante'),
     'attachment_added',
     jsonb_build_object('attachment_id', new.id, 'file_name', new.file_name)
   );
