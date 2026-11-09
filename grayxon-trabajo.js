@@ -26,7 +26,7 @@
   }[c]));
   const statusLabels = {
     pending:'Pendiente', in_progress:'En progreso', blocked:'Bloqueada',
-    submitted:'Entregada para revisión', completed:'Completada'
+    submitted:'Entregada para revisión', completed:'Completada', cancelled:'Cancelada'
   };
   const requestLabels = { pending:'Pendiente', approved:'Aprobada', rejected:'Rechazada', converted:'Convertida en tarea' };
   const priorityLabels = { low:'Baja', normal:'Normal', high:'Alta', urgent:'Urgente' };
@@ -198,7 +198,11 @@
   function taskCard(task) {
     const assignee = task.assignee?.display_name || 'Integrante';
     const due = task.due_at ? 'Vence: '+dateLabel(task.due_at) : 'Sin fecha límite';
-    return '<details class="gxt-accordion gxt-task-accordion"><summary><div class="gxt-accordion-main"><strong>'+esc(task.title)+'</strong><div class="gxt-card-meta">'+taskChip(task.status)+'<span class="gxt-chip">'+esc(priorityLabels[task.priority] || task.priority)+'</span>'+(state.isAdmin?'<span class="gxt-chip">'+esc(assignee)+'</span>':'')+'<span class="gxt-chip">'+esc(due)+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p>'+esc(task.description || 'Sin descripción adicional.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">'+esc(task.department?.name || 'Sin área')+'</span><span class="gxt-chip">Creada: '+dateLabel(task.created_at)+'</span></div><div class="gxt-actions"><button type="button" class="gxt-btn primary" data-open-task="'+task.id+'">Abrir tarea y seguimiento</button></div></div></details>';
+    const adminActions=state.isAdmin&&task.status==='pending'
+      ? '<button type="button" class="gxt-btn" data-cancel-task="'+task.id+'">Cancelar tarea</button><button type="button" class="gxt-btn danger" data-delete-task="'+task.id+'">Eliminar</button>'
+      : state.isAdmin&&task.status==='cancelled'
+        ? '<button type="button" class="gxt-btn danger" data-delete-task="'+task.id+'">Eliminar tarea</button>' : '';
+    return '<details class="gxt-accordion gxt-task-accordion"><summary><div class="gxt-accordion-main"><strong>'+esc(task.title)+'</strong><div class="gxt-card-meta">'+taskChip(task.status)+'<span class="gxt-chip">'+esc(priorityLabels[task.priority] || task.priority)+'</span>'+(state.isAdmin?'<span class="gxt-chip">'+esc(assignee)+'</span>':'')+'<span class="gxt-chip">'+esc(due)+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p>'+esc(task.description || 'Sin descripción adicional.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">'+esc(task.department?.name || 'Sin área')+'</span><span class="gxt-chip">Creada: '+dateLabel(task.created_at)+'</span></div><div class="gxt-actions"><button type="button" class="gxt-btn primary" data-open-task="'+task.id+'">Abrir tarea y seguimiento</button>'+adminActions+'</div></div></details>';
   }
 
   function requestCard(request) {
@@ -206,10 +210,8 @@
     const creator = state.creators.find(c=>c.id===request.creator_user_id);
     const creatorLabel = creator ? (creator.tiktok_username || creator.username || creator.full_name || 'Creador') : '';
     let actions = '';
-    if (state.isAdmin && request.status === 'pending') {
-      actions = '<div class="gxt-actions"><button class="gxt-btn" data-request-action="approve" data-request-id="'+request.id+'">Aprobar</button><button class="gxt-btn danger" data-request-action="reject" data-request-id="'+request.id+'">Rechazar</button></div>';
-    } else if (state.isAdmin && request.status === 'approved') {
-      actions = '<div class="gxt-actions"><button class="gxt-btn primary" data-request-action="convert" data-request-id="'+request.id+'">Convertir en tarea</button></div>';
+    if (state.isAdmin && ['pending','approved'].includes(request.status)) {
+      actions = '<div class="gxt-actions"><button class="gxt-btn primary" data-request-action="convert" data-request-id="'+request.id+'">Asignar y crear tarea</button><button class="gxt-btn danger" data-request-action="reject" data-request-id="'+request.id+'">Rechazar</button></div>';
     }
     return '<details id="gx-request-'+request.id+'" data-request-id="'+request.id+'" class="gxt-accordion gxt-request-accordion"><summary><div class="gxt-accordion-main"><strong>'+esc(request.title)+'</strong><div class="gxt-card-meta"><span class="gxt-chip">'+esc(requestLabels[request.status] || request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span>'+(state.isAdmin?'<span class="gxt-chip">Solicitó: '+esc(requester)+'</span>':'')+(creatorLabel?'<span class="gxt-chip">Para @'+esc(creatorLabel)+'</span>':'')+'<span class="gxt-chip">'+dateLabel(request.created_at)+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p>'+esc(request.description || 'Sin detalles adicionales.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">'+esc(request.department?.name || 'Sin área')+'</span></div><div class="gxt-actions"><button type="button" class="gxt-btn ghost" data-open-request="'+request.id+'">Abrir solicitud y conversación</button></div>'+actions+'</div></details>';
   }
@@ -241,7 +243,7 @@
       '<div class="gxt-metrics">'+metricHtml+'</div>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+(state.isAdmin?'Tareas recientes':'Mis tareas')+'</h2><button class="gxt-btn ghost" data-tab="tasks">Ver todas</button></div><div class="gxt-list">'+taskList+'</div></section>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+(state.isAdmin?'Solicitudes pendientes':'Mis solicitudes recientes')+'</h2><button class="gxt-btn ghost" data-tab="requests">Ver solicitudes</button></div><div class="gxt-list">'+requestList+'</div></section>'+
-      '<div class="gxt-status-note">Las tareas solo se consideran completadas cuando administración aprueba la entrega. Las solicitudes no se convierten en tareas hasta que administración lo decide.</div>';
+      '<div class="gxt-status-note">Las tareas solo se consideran completadas cuando administración aprueba la entrega. Las solicitudes se convierten en tareas cuando administración asigna responsable y confirma su creación.</div>';
   }
 
   function renderTasksPage() {
@@ -256,7 +258,7 @@
     const rejected = state.requests.filter(r=>r.status==='rejected');
     const activeList = active.map(requestCard).join('') || '<div class="gxt-empty">No hay solicitudes pendientes de gestión.</div>';
     const historyList = converted.map(requestCard).join('');
-    main.innerHTML = pageHead(state.isAdmin?'Solicitudes del equipo':'Mis solicitudes',state.isAdmin?'Revisa las solicitudes que aún requieren una decisión. Las convertidas quedan en el historial.':'Aquí aparecen las solicitudes que todavía requieren gestión. Cuando una se convierte en tarea, continúa en “Tareas”.', '<button class="gxt-btn primary" data-action="new-request">＋ Nueva solicitud</button>')+
+    main.innerHTML = pageHead(state.isAdmin?'Solicitudes del equipo':'Mis solicitudes',state.isAdmin?'Asigna responsable y crea tareas directamente desde cada solicitud. Las convertidas quedan en el historial.':'Aquí aparecen las solicitudes que todavía requieren gestión. Cuando una se convierte en tarea, continúa en “Tareas”.', '<button class="gxt-btn primary" data-action="new-request">＋ Nueva solicitud</button>')+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+active.length+' solicitudes activas</h2></div><div class="gxt-list">'+activeList+'</div></section>'+
       (historyList ? '<section class="gxt-panel gxt-history-panel"><div class="gxt-panel-head"><h2>Historial · '+converted.length+' convertidas en tarea</h2><small>Consulta cada solicitud cuando la necesites</small></div><div class="gxt-list">'+historyList+'</div></section>' : '')+
       (rejected.length ? '<section class="gxt-panel gxt-history-panel"><div class="gxt-panel-head"><h2>Solicitudes rechazadas · '+rejected.length+'</h2></div><div class="gxt-list">'+rejected.map(requestCard).join('')+'</div></section>' : '');
@@ -594,6 +596,33 @@
     });
   }
 
+  async function cancelTask(taskId) {
+    if(!state.isAdmin)return;
+    if(!confirm('¿Cancelar esta tarea? Solo se permite antes de que comience.'))return;
+    const {error}=await sb.rpc('gx_admin_cancel_task',{p_task_id:taskId});
+    if(error)return toast('No se pudo cancelar la tarea: '+error.message);
+    await refresh();toast('Tarea cancelada.');
+  }
+
+  async function deleteTask(taskId) {
+    if(!state.isAdmin)return;
+    const task=state.tasks.find(item=>item.id===taskId);
+    if(!task||!['pending','cancelled'].includes(task.status))return toast('Solo puedes eliminar tareas pendientes o canceladas.');
+    if(!confirm('¿Eliminar definitivamente esta tarea y su historial de chat? Esta acción no se puede deshacer.'))return;
+    const [attachments,proposals]=await Promise.all([
+      queryRows(sb.from('gx_task_attachments').select('object_path').eq('task_id',taskId),'task files for deletion'),
+      queryRows(sb.from('gx_creator_delivery_proposal_files').select('object_path').eq('task_id',taskId),'proposal files for deletion')
+    ]);
+    const paths=[...new Set([...attachments,...proposals].map(row=>row.object_path).filter(Boolean))];
+    if(paths.length){
+      const {error:storageError}=await sb.storage.from('gx-internal-task-files').remove(paths);
+      if(storageError)return toast('No se pudieron retirar los archivos de la tarea: '+storageError.message);
+    }
+    const {error}=await sb.rpc('gx_admin_delete_task',{p_task_id:taskId});
+    if(error)return toast('No se pudo eliminar la tarea: '+error.message);
+    await refresh();toast('Tarea eliminada.');
+  }
+
   async function requestAction(action, requestId) {
     const request = state.requests.find(r=>r.id===requestId);
     if (!request || !state.isAdmin) return;
@@ -609,7 +638,7 @@
   }
 
   function openConvertRequest(request) {
-    openModal('Convertir solicitud en tarea','La solicitud pasará a tarea únicamente después de esta decisión administrativa.',
+    openModal('Crear tarea desde solicitud','Asigna responsable, prioridad y fechas. Al confirmar, la solicitud se aprobará y se convertirá en tarea automáticamente.',
       '<form id="gxConvertForm"><div class="gxt-status-note">'+esc(request.title)+'</div><div class="gxt-form-grid">'+
       '<div class="gxt-field full"><label>Responsable</label><select name="assigned_to" required><option value="">Seleccionar integrante…</option>'+activeMembersOptions()+'</select></div>'+
       '<div class="gxt-field"><label>Prioridad</label><select name="priority"><option value="normal">Normal</option><option value="low">Baja</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>'+
@@ -627,7 +656,7 @@
         p_due_at: form.get('due_at') ? new Date(form.get('due_at')).toISOString() : null
       });
       if (error) return toast('No se pudo convertir la solicitud: '+error.message);
-      closeModal(); await refresh(); toast('Solicitud convertida en tarea.');
+      closeModal(); await refresh(); toast('Tarea creada y solicitud convertida.');
       if (data) openTaskDetail(data);
     });
   }
@@ -869,6 +898,10 @@
   });
 
   main.addEventListener('click',event=>{
+    const cancel=event.target.closest('[data-cancel-task]');
+    if(cancel)return cancelTask(cancel.dataset.cancelTask);
+    const removeTask=event.target.closest('[data-delete-task]');
+    if(removeTask)return deleteTask(removeTask.dataset.deleteTask);
     const open=event.target.closest('[data-open-task]');
     if(open)return openTaskDetail(open.dataset.openTask);
     const openRequest=event.target.closest('[data-open-request]');
