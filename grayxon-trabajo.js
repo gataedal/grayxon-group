@@ -148,7 +148,7 @@
           ['home','⌂','Resumen'],['tasks','▤','Todas las tareas'],['requests','↗','Solicitudes'],
           ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
         ]
-      : [['home','⌂','Mi trabajo'],['requests','↗','Mis solicitudes'],['calendar','▦','Calendario']];
+      : [['home','⌂','Mi trabajo'],['tasks','▤','Tareas'],['requests','↗','Mis solicitudes'],['calendar','▦','Calendario']];
     nav.innerHTML = items.map(([key,icon,label]) =>
       '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span>'+label+'</button>'
     ).join('');
