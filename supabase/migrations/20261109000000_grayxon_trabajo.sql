@@ -348,7 +348,7 @@ begin
     raise exception 'No tienes acceso a Grayxon Trabajo.' using errcode = '42501';
   end if;
 
-  if p_status not in ('in_progress','blocked','submitted') then
+  if p_status is null or p_status not in ('in_progress','blocked','submitted') then
     raise exception 'Estado no permitido para el responsable.' using errcode = '22023';
   end if;
 
@@ -363,6 +363,10 @@ begin
 
   if v_task.status = 'completed' then
     raise exception 'La tarea ya fue completada por administración.' using errcode = '22023';
+  end if;
+
+  if v_task.status = 'submitted' then
+    raise exception 'La tarea está pendiente de revisión administrativa.' using errcode = '22023';
   end if;
 
   update public.gx_tasks
@@ -392,6 +396,14 @@ declare
 begin
   if auth.uid() is null or not public.is_admin() then
     raise exception 'Solo administración puede revisar tareas.' using errcode = '42501';
+  end if;
+
+  if p_approved is null then
+    raise exception 'Indica si la entrega fue aprobada.' using errcode = '22023';
+  end if;
+
+  if p_approved is false and nullif(btrim(coalesce(p_feedback,'')), '') is null then
+    raise exception 'Escribe qué debe corregirse antes de devolver la tarea.' using errcode = '22023';
   end if;
 
   select * into v_task
