@@ -226,9 +226,10 @@
       : [['Mis tareas',tasks.length,'Asignadas a tu usuario'],['En progreso',active,'Pendientes o en ejecución'],['Por revisar',review,'Entregadas a administración'],['Completadas',completed,'Aprobadas por administración']];
     const metricHtml = metrics.map(m=>'<div class="gxt-metric"><small>'+m[0]+'</small><strong>'+m[1]+'</strong><span>'+m[2]+'</span></div>').join('');
     const taskList = tasks.slice(0,6).map(taskCard).join('') || '<div class="gxt-empty">Todavía no hay tareas registradas.</div>';
+    const activeRequests = requests.filter(r=>r.status!=='converted');
     const requestList = state.isAdmin
-      ? requests.filter(r=>r.status==='pending').slice(0,4).map(requestCard).join('') || '<div class="gxt-empty">No hay solicitudes pendientes.</div>'
-      : requests.slice(0,3).map(requestCard).join('') || '<div class="gxt-empty">Aún no has enviado solicitudes.</div>';
+      ? activeRequests.filter(r=>r.status==='pending').slice(0,4).map(requestCard).join('') || '<div class="gxt-empty">No hay solicitudes pendientes.</div>'
+      : activeRequests.slice(0,3).map(requestCard).join('') || '<div class="gxt-empty">No tienes solicitudes pendientes de gestión. Las convertidas en tareas ya aparecen en “Mis tareas”.</div>';
     const title = state.isAdmin ? 'Resumen operativo' : 'Mi trabajo';
     const description = state.isAdmin
       ? 'Supervisa las tareas, entregas y solicitudes del equipo interno.'
@@ -250,9 +251,13 @@
   }
 
   function renderRequestsPage() {
-    const list = state.requests.map(requestCard).join('') || '<div class="gxt-empty">No hay solicitudes para mostrar.</div>';
-    main.innerHTML = pageHead(state.isAdmin?'Solicitudes del equipo':'Mis solicitudes',state.isAdmin?'Revisa, aprueba, rechaza o convierte las solicitudes en tareas.':'Envía solicitudes al administrador y consulta únicamente las que tú has creado.', '<button class="gxt-btn primary" data-action="new-request">＋ Nueva solicitud</button>')+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+state.requests.length+' solicitudes</h2></div><div class="gxt-list">'+list+'</div></section>';
+    const active = state.requests.filter(r=>r.status!=='converted');
+    const converted = state.requests.filter(r=>r.status==='converted');
+    const activeList = active.map(requestCard).join('') || '<div class="gxt-empty">No hay solicitudes pendientes de gestión.</div>';
+    const historyList = converted.map(requestCard).join('');
+    main.innerHTML = pageHead(state.isAdmin?'Solicitudes del equipo':'Mis solicitudes',state.isAdmin?'Revisa las solicitudes que aún requieren una decisión. Las convertidas quedan en el historial.':'Aquí aparecen las solicitudes que todavía requieren gestión. Cuando una se convierte en tarea, continúa en “Tareas”.', '<button class="gxt-btn primary" data-action="new-request">＋ Nueva solicitud</button>')+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+active.length+' solicitudes activas</h2></div><div class="gxt-list">'+activeList+'</div></section>'+
+      (historyList ? '<section class="gxt-panel gxt-history-panel"><div class="gxt-panel-head"><h2>Historial · '+converted.length+' convertidas en tarea</h2><small>Ya no requieren una nueva solicitud</small></div><div class="gxt-list">'+historyList+'</div></section>' : '');
   }
 
   function renderTeamPage() {
@@ -437,9 +442,8 @@
     const requester = request.requester?.display_name || 'Integrante';
     const adminNote = request.admin_note ? '<div class="gxt-status-note"><strong>Observación de administración</strong><br>'+esc(request.admin_note)+'</div>' : '';
     openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
-      '<div class="gxt-card-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span></div>'+
-      '<section class="gxt-panel"><p>'+esc(request.description||'Sin detalles adicionales.')+'</p>'+adminNote+'</section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Seguimiento</h2></div><div class="gxt-list">'+commentHtml+(attachmentHtml.join('')||'')+'</div><form id="gxRequestCommentForm" style="margin-top:12px"><div class="gxt-field"><label>Mensaje (opcional si adjuntas archivos)</label><textarea name="body" maxlength="5000" placeholder="Escribe una actualización o respuesta."></textarea></div><div class="gxt-field"><label>Adjuntar archivos o imágenes</label><input name="files" type="file" multiple><small class="gxt-hint">Hasta 5 archivos, máximo 20 MB cada uno. Se conserva el formato original.</small></div><button class="gxt-btn primary" type="submit">Publicar en seguimiento</button></form></section>',true);
+      '<section class="gxt-request-origin"><div class="gxt-section-kicker">SOLICITUD ORIGINAL</div><div class="gxt-request-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span></div><div class="gxt-request-description">'+esc(request.description||'Sin detalles adicionales.')+'</div>'+adminNote+'</section>'+
+      '<section class="gxt-followup-section"><div class="gxt-followup-heading"><div><div class="gxt-section-kicker">CONVERSACIÓN Y EVIDENCIAS</div><h3>Seguimiento</h3><p>Mensajes y archivos compartidos entre las personas relacionadas con esta solicitud.</p></div><span class="gxt-followup-count">'+(allComments.length+attachmentHtml.length)+' elementos</span></div><div class="gxt-list">'+commentHtml+(attachmentHtml.join('')||'')+'</div><form id="gxRequestCommentForm" class="gxt-followup-composer"><div class="gxt-field"><label>Tu mensaje</label><textarea name="body" maxlength="5000" placeholder="Escribe una actualización o respuesta. También puedes adjuntar archivos sin escribir un mensaje."></textarea></div><div class="gxt-field"><label>Archivos o imágenes</label><input name="files" type="file" multiple><small class="gxt-hint">Hasta 5 archivos, máximo 20 MB cada uno. Se conserva el formato original.</small></div><button class="gxt-btn primary" type="submit">Publicar en seguimiento</button></form></section>',true);
     const commentForm = document.getElementById('gxRequestCommentForm');
     if (commentForm) commentForm.addEventListener('submit',async event=>{
       event.preventDefault();
