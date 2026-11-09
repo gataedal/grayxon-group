@@ -92,10 +92,12 @@
     if (state.session) await loadMember();
     else setAuthView(false);
 
-    sb.auth.onAuthStateChange(async (_event, session) => {
+    sb.auth.onAuthStateChange((_event, session) => {
       state.session = session;
-      if (session) await loadMember();
-      else setAuthView(false);
+      setTimeout(() => {
+        if (session) loadMember();
+        else setAuthView(false);
+      }, 0);
     });
   }
 
@@ -610,10 +612,8 @@
     errorEl.textContent='';
     const email=document.getElementById('gxLoginEmail').value.trim().toLowerCase();
     const password=document.getElementById('gxLoginPassword').value;
-    const {data,error}=await sb.auth.signInWithPassword({email,password});
+    const {error}=await sb.auth.signInWithPassword({email,password});
     if(error){errorEl.textContent='No se pudo iniciar sesión. Verifica el correo y la contraseña.';return}
-    state.session=data.session;
-    await loadMember();
   });
 
   document.getElementById('gxLogout').addEventListener('click',signOut);
