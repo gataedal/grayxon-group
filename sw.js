@@ -1,4 +1,4 @@
-/* Grayxon Academy · Web Push Service Worker v50 · event post deep links + dedupe */
+/* Grayxon Academy · Web Push Service Worker v51 · internal request deep links + dedupe */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
