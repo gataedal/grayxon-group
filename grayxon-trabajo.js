@@ -144,9 +144,9 @@
     const items = state.isAdmin
       ? [
           ['home','⌂','Resumen'],['tasks','▤','Todas las tareas'],['requests','↗','Solicitudes'],
-          ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad']
+          ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
         ]
-      : [['home','⌂','Mi trabajo'],['requests','↗','Mis solicitudes']];
+      : [['home','⌂','Mi trabajo'],['requests','↗','Mis solicitudes'],['calendar','▦','Calendario']];
     nav.innerHTML = items.map(([key,icon,label]) =>
       '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span>'+label+'</button>'
     ).join('');
@@ -245,6 +245,11 @@
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+state.departments.length+' áreas</h2></div><div class="gxt-table-wrap"><table class="gxt-table"><thead><tr><th>Área</th><th>Identificador</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
   }
 
+  function renderCalendarLinkPage() {
+    main.innerHTML = pageHead('Calendario de Grayxon','Usa el calendario compartido del portal. Las tareas internas se muestran allí junto a eventos, batallas, entrenamientos y cumpleaños.','<button class="gxt-btn primary" data-action="open-calendar">Abrir calendario</button>')+
+      '<section class="gxt-panel"><div class="gxt-status-note">Este acceso abre el calendario existente de Grayxon; no crea un calendario paralelo. La visibilidad de las tareas se controla desde Supabase según tu membresía y asignaciones.</div><a class="gxt-backlink" href="portal.html?openCalendar=1">Abrir el calendario compartido ↗</a></section>';
+  }
+
   function renderActivityPage() {
     const rows = state.activity.map(a => {
       const detail = a.details || {};
@@ -264,13 +269,14 @@
     if (state.tab === 'team' && state.isAdmin) return renderTeamPage();
     if (state.tab === 'departments' && state.isAdmin) return renderDepartmentsPage();
     if (state.tab === 'activity' && state.isAdmin) return renderActivityPage();
+    if (state.tab === 'calendar') return renderCalendarLinkPage();
     renderDashboard();
   }
 
   function openModal(title, subtitle, body, wide = false) {
     modalRoot.innerHTML = '<section class="gxt-modal '+(wide?'wide':'')+'" role="dialog" aria-modal="true"><header class="gxt-modal-head"><div><h2>'+esc(title)+'</h2><p>'+esc(subtitle)+'</p></div><button type="button" class="gxt-close" data-close-modal aria-label="Cerrar">×</button></header>'+body+'</section>';
     modalRoot.querySelector('[data-close-modal]').addEventListener('click',closeModal);
-    modalRoot.addEventListener('click', backdropClose, { once: true });
+
   }
 
   function backdropClose(event) {
@@ -576,6 +582,7 @@
       if(action.dataset.action==='new-request')return openNewRequest();
       if(action.dataset.action==='new-member')return openNewMember();
       if(action.dataset.action==='new-department')return openNewDepartment();
+      if(action.dataset.action==='open-calendar'){window.location.href='./portal.html?openCalendar=1';return;}
     }
     const tab=event.target.closest('[data-tab]');
     if(tab){state.tab=tab.dataset.tab;renderPage();return}
@@ -588,6 +595,7 @@
   });
 
   modalRoot.addEventListener('click',event=>{
+    if(event.target===modalRoot){closeModal();return;}
     const close=event.target.closest('[data-close-modal]');
     if(close)return closeModal();
     const review=event.target.closest('[data-review]');
