@@ -318,6 +318,25 @@
     if (event.target === modalRoot) closeModal();
   }
 
+  function fileAttachmentCard(file,url) {
+    if(!url) return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+'</small><span>No fue posible abrir el archivo</span></div></article>';
+    const mime=esc(file.mime_type||'');
+    return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small></div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'">Ver</button><a class="gxt-btn" href="'+esc(url)+'" download="'+esc(file.file_name)+'">Descargar</a></div></article>';
+  }
+
+  function openFilePreview(url,name,mime) {
+    const safeUrl=esc(url), safeName=esc(name);
+    let preview='';
+    if((mime||'').startsWith('image/')) preview='<img class="gxt-preview-image" src="'+safeUrl+'" alt="'+safeName+'">';
+    else if(mime==='application/pdf') preview='<iframe class="gxt-preview-frame" src="'+safeUrl+'" title="'+safeName+'"></iframe>';
+    else preview='<div class="gxt-preview-unavailable"><div>📄</div><strong>Vista previa no disponible para este formato</strong><p>Puedes descargar el archivo para abrirlo con la aplicación correspondiente.</p></div>';
+    const layer=document.createElement('div');
+    layer.className='gxt-file-preview';
+    layer.innerHTML='<div class="gxt-file-preview-dialog"><header><div><strong>'+safeName+'</strong><small>Vista previa del archivo</small></div><div class="gxt-file-actions"><a class="gxt-btn primary" href="'+safeUrl+'" download="'+safeName+'">Descargar</a><button type="button" class="gxt-close" data-preview-close>×</button></div></header><div class="gxt-preview-content">'+preview+'</div></div>';
+    modalRoot.appendChild(layer);
+    layer.addEventListener('click',e=>{if(e.target===layer||e.target.closest('[data-preview-close]'))layer.remove();});
+  }
+
   function closeModal() { modalRoot.innerHTML = ''; }
 
   function activeMembersOptions(selected = '') {
@@ -429,16 +448,16 @@
     ]);
     const attachmentHtml = await Promise.all([
       ...attachments.map(async a=>{
-        const { data } = await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800,{download:a.file_name});
-        return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir</a> · <a href="'+esc(data.signedUrl)+'">Descargar '+esc(a.file_name)+'</a></p>':'<p>No fue posible generar el enlace del archivo.</p>')+'</div>';
+        const { data } = await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800);
+        return fileAttachmentCard(a,data?.signedUrl);
       }),
       ...legacyAttachments.map(async a=>{
-        const { data } = await sb.storage.from('gx-internal-task-files').createSignedUrl(a.object_path,1800,{download:a.file_name});
-        return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir</a> · <a href="'+esc(data.signedUrl)+'">Descargar '+esc(a.file_name)+'</a></p>':'<p>No fue posible generar el enlace del archivo.</p>')+'</div>';
+        const { data } = await sb.storage.from('gx-internal-task-files').createSignedUrl(a.object_path,1800);
+        return fileAttachmentCard(a,data?.signedUrl);
       })
     ]);
     const allComments=[...comments,...legacyComments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-    const commentHtml = allComments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
+    const commentHtml = allComments.map(c=>'<article class="gxt-chat-message '+(c.author_name===state.member?.display_name?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-author">'+esc(c.author_name||'Integrante')+'</div><p>'+esc(c.body)+'</p><time>'+dateTimeLabel(c.created_at)+'</time></div></article>').join('') || '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación con una actualización o adjunta un archivo.</div>';
     const requester = request.requester?.display_name || 'Integrante';
     const adminNote = request.admin_note ? '<div class="gxt-status-note"><strong>Observación de administración</strong><br>'+esc(request.admin_note)+'</div>' : '';
     openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
@@ -533,10 +552,10 @@
     const canReview = state.isAdmin && task.status === 'submitted';
     const attachmentHtml = await Promise.all(attachments.map(async a=>{
       const bucket=a.request_id?'gx-internal-request-files':'gx-internal-task-files';
-      const { data } = await sb.storage.from(bucket).createSignedUrl(a.object_path,1800,{download:a.file_name});
-      return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir</a> · <a href="'+esc(data.signedUrl)+'">Descargar '+esc(a.file_name)+'</a></p>':'')+'</div>';
+      const { data } = await sb.storage.from(bucket).createSignedUrl(a.object_path,1800);
+      return fileAttachmentCard(a,data?.signedUrl);
     }));
-    const commentHtml = comments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
+    const commentHtml = comments.map(c=>'<article class="gxt-chat-message '+(c.author_name===state.member?.display_name?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-author">'+esc(c.author_name||'Integrante')+'</div><p>'+esc(c.body)+'</p><time>'+dateTimeLabel(c.created_at)+'</time></div></article>').join('') || '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación.</div>';
     const activityHtml = activity.map(a=>'<div class="gxt-comment"><strong>'+esc(a.actor_name||'Sistema')+'</strong><small>'+dateTimeLabel(a.created_at)+'</small><p>'+esc(a.action==='created'?'Creó la tarea':a.action==='status_changed'?'Cambió el estado':a.action==='comment_added'?'Añadió un comentario':a.action==='attachment_added'?'Adjuntó una evidencia':a.action==='reassigned'?'Reasignó la tarea':'Actualizó la tarea')+'</p></div>').join('');
     const progressHtml = canProgress
       ? '<form id="gxProgressForm"><div class="gxt-form-grid"><div class="gxt-field"><label>Estado</label><select name="status"><option value="in_progress" '+(task.status==='in_progress'?'selected':'')+'>En progreso</option><option value="blocked" '+(task.status==='blocked'?'selected':'')+'>Bloqueada</option><option value="submitted">Entregada para revisión</option></select></div><div class="gxt-field full"><label>Comentario de avance (opcional)</label><textarea name="comment" placeholder="Describe lo que avanzaste o lo que entregas."></textarea></div></div><div class="gxt-actions"><button class="gxt-btn primary" type="submit">Guardar avance</button></div></form>'
@@ -707,6 +726,8 @@
     if(event.target===modalRoot){closeModal();return;}
     const close=event.target.closest('[data-close-modal]');
     if(close)return closeModal();
+    const preview=event.target.closest('[data-preview-file]');
+    if(preview)return openFilePreview(preview.dataset.previewFile,preview.dataset.fileName,preview.dataset.fileMime);
     const review=event.target.closest('[data-review]');
     if(review)return reviewTask(review.dataset.taskId,review.dataset.review==='approve');
     const reassign=event.target.closest('[data-reassign]');
