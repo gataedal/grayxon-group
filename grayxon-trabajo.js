@@ -353,10 +353,11 @@
       const previous=grouped[grouped.length-1];
       const sameSender=previous&&previous.author_id===item.author_id;
       const closeInTime=previous&&Math.abs(new Date(item.created_at)-new Date(previous.created_at))<=5*60*1000;
-      if(item.kind!=='proposal'&&previous&&previous.kind!=='proposal'&&sameSender&&closeInTime){
+      if(previous&&previous.kind!=='proposal'&&sameSender&&closeInTime){
         if(item.kind==='message')previous.messages.push(item.body);
+        else if(item.kind==='proposal'){previous.files.push(...item.files);previous.isFinalProposal=true;}
         else previous.files.push(item);
-      }else grouped.push({kind:item.kind,created_at:item.created_at,author_id:item.author_id,author_name:item.author_name,messages:item.kind==='message'?[item.body]:[],files:item.kind==='file'?[item]:item.kind==='proposal'?item.files:[],task_id:item.task_id,body:item.body});
+      }else grouped.push({kind:item.kind,created_at:item.created_at,author_id:item.author_id,author_name:item.author_name,messages:item.kind==='message'?[item.body]:[],files:item.kind==='file'?[item]:item.kind==='proposal'?item.files:[],task_id:item.task_id,body:item.body,isFinalProposal:item.kind==='proposal'});
     });
     return grouped.map(item=>{
       const mine=item.author_id?item.author_id===state.session?.user?.id:item.author_name===state.member?.display_name;
@@ -365,7 +366,7 @@
         content='<p>'+esc(item.body)+'</p>'+item.files.map(file=>fileAttachmentCard(file,file.signed_url)).join('');
         if(allowProposalReview&&item.files.length)content+='<div class="gxt-chat-proposal-review"><label for="gxReviewFeedback">Observaciones (si solicitas cambios)</label><textarea id="gxReviewFeedback" placeholder="Indica qué debe ajustarse si todavía no está lista."></textarea><div class="gxt-actions"><button type="button" class="gxt-btn primary" data-delivery-review="approve" data-task-id="'+item.task_id+'">Aprobar y enviar al creador</button><button type="button" class="gxt-btn danger" data-delivery-review="return" data-task-id="'+item.task_id+'">Solicitar cambios</button></div></div>';
       }else{
-        content=item.messages.map(message=>'<p>'+esc(message)+'</p>').join('')+item.files.map(file=>fileAttachmentCard(file.file||file,file.url||file.signed_url)).join('');
+        content=(item.isFinalProposal?'<div class="gxt-final-proposal-tag">✦ PROPUESTA FINAL</div>':'')+item.messages.map(message=>'<p>'+esc(message)+'</p>').join('')+item.files.map(file=>fileAttachmentCard(file.file||file,file.url||file.signed_url)).join('');
       }
       return '<article class="gxt-chat-message '+(mine?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-message-head"><strong class="gxt-chat-author">'+esc(item.author_name)+'</strong><time>'+dateTimeLabel(item.created_at)+'</time></div>'+content+'</div></article>';
     }).join('');
@@ -634,7 +635,11 @@
       const {data}=await sb.storage.from(bucket).createSignedUrl(a.object_path,1800);
       return {...a,uploader_name:attachmentUploaderName(a.uploaded_by,task,a.id,activity),signed_url:data?.signedUrl||null};
     }));
-    const chatHtml=renderChatTimeline(comments,chatFileRows);
+    const proposalChatRows=await Promise.all(proposalFiles.map(async file=>{
+      const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(file.object_path,1800);
+      return {...file,signed_url:data?.signedUrl||null,uploader_name:attachmentUploaderName(file.uploaded_by,task,file.id,activity)};
+    }));
+    const chatHtml=renderChatTimeline(comments,chatFileRows,proposalChatRows,task.id,false);
     const proposalAttachmentHtml = await Promise.all(proposalFiles.map(async f=>{
       const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(f.object_path,1800);
       const uploader=attachmentUploaderName(f.uploaded_by,task,f.id,activity);
