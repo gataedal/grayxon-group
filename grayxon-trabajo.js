@@ -83,6 +83,7 @@
     await loadData();
     renderNav();
     renderPage();
+    handleNotificationTarget();
   }
 
   async function init() {
@@ -142,6 +143,27 @@
     state.activity = activity;
   }
 
+  function handleNotificationTarget() {
+    const params = new URLSearchParams(window.location.search);
+    const taskId = params.get('task');
+    const requestId = params.get('request');
+    if (taskId && state.tasks.some(t => t.id === taskId)) {
+      state.tab = 'tasks';
+      renderPage();
+      openTaskDetail(taskId);
+      return;
+    }
+    if (requestId && state.requests.some(r => r.id === requestId)) {
+      state.tab = 'requests';
+      renderPage();
+      const card = document.getElementById('gx-request-' + requestId);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.style.borderColor = '#c7a35b';
+      }
+    }
+  }
+
   function renderNav() {
     const items = state.isAdmin
       ? [
@@ -180,7 +202,7 @@
     } else if (state.isAdmin && request.status === 'approved') {
       actions = '<div class="gxt-actions"><button class="gxt-btn primary" data-request-action="convert" data-request-id="'+request.id+'">Convertir en tarea</button></div>';
     }
-    return '<article class="gxt-card"><div class="gxt-card-top"><div><h3>'+esc(request.title)+'</h3><p>'+esc(request.description || 'Sin detalles adicionales.')+'</p></div><span class="gxt-chip">'+esc(requestLabels[request.status] || request.status)+'</span></div>'+
+    return '<article id="gx-request-'+request.id+'" data-request-id="'+request.id+'" class="gxt-card"><div class="gxt-card-top"><div><h3>'+esc(request.title)+'</h3><p>'+esc(request.description || 'Sin detalles adicionales.')+'</p></div><span class="gxt-chip">'+esc(requestLabels[request.status] || request.status)+'</span></div>'+
       '<div class="gxt-card-meta"><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name || 'Sin área')+'</span>'+
       (state.isAdmin?'<span class="gxt-chip">Solicitó: '+esc(requester)+'</span>':'')+
       '<span class="gxt-chip">'+dateLabel(request.created_at)+'</span></div>'+actions+'</article>';
