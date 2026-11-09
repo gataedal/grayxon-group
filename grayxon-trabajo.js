@@ -570,7 +570,7 @@
     const comments=[...taskComments,...sharedComments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     const attachments=[...taskAttachments,...sharedAttachments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     const isAssignee = task.assigned_to === state.session.user.id;
-    const canProgress = !state.isAdmin && isAssignee && !['submitted','completed'].includes(task.status);
+    const canProgress = isAssignee && !['submitted','completed'].includes(task.status);
     const isRequesterForCreatorDelivery = !!task.creator_user_id && task.requester_id === state.session?.user?.id;
     const canReviewCreatorDelivery = isRequesterForCreatorDelivery && task.status === 'submitted';
     const canReviewAdminTask = state.isAdmin && !task.creator_user_id && task.status === 'submitted';
