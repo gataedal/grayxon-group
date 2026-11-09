@@ -45,5 +45,5 @@
 
   addEntry();
   window.addEventListener('load', addEntry, { once: true });
-  client.auth.onAuthStateChange(() => { addEntry(); });
+  client.auth.onAuthStateChange(() => { setTimeout(addEntry, 0); });
 })();
