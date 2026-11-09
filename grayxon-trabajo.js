@@ -379,7 +379,6 @@
       const objectPath = request.id+'/'+crypto.randomUUID()+'-'+safeName;
       const { error: uploadError } = await sb.storage.from('gx-internal-request-files').upload(objectPath,file,{upsert:false});
       if (uploadError) {
-        if (uploadedPaths.length) await sb.storage.from('gx-internal-request-files').remove(uploadedPaths);
         await refresh();
         closeModal();
         return toast('La solicitud sí fue enviada, pero no se pudo adjuntar '+file.name+'. Puedes intentarlo nuevamente desde administración.');
@@ -390,7 +389,7 @@
         file_name:file.name,mime_type:file.type||null,size_bytes:file.size
       });
       if (rowError) {
-        await sb.storage.from('gx-internal-request-files').remove(uploadedPaths);
+        await sb.storage.from('gx-internal-request-files').remove([objectPath]);
         await refresh();
         closeModal();
         return toast('La solicitud sí fue enviada, pero no se pudo registrar '+file.name+'.');
