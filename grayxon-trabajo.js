@@ -221,7 +221,7 @@
     const activeRequests = requests.filter(r=>r.status!=='converted');
     const requestList = state.isAdmin
       ? activeRequests.filter(r=>r.status==='pending').slice(0,4).map(requestCard).join('') || '<div class="gxt-empty">No hay solicitudes pendientes.</div>'
-      : activeRequests.slice(0,3).map(requestCard).join('') || '<div class="gxt-empty">No tienes solicitudes pendientes de gestión. Las convertidas en tareas ya aparecen en “Mis tareas”.</div>';
+      : requests.slice(0,3).map(requestCard).join('') || '<div class="gxt-empty">Todavía no has enviado solicitudes.</div>';
     const title = state.isAdmin ? 'Resumen operativo' : 'Mi trabajo';
     const description = state.isAdmin
       ? 'Supervisa las tareas, entregas y solicitudes del equipo interno.'
@@ -232,7 +232,7 @@
     main.innerHTML = pageHead(title,description,actions)+
       '<div class="gxt-metrics">'+metricHtml+'</div>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+(state.isAdmin?'Tareas recientes':'Mis tareas')+'</h2><button class="gxt-btn ghost" data-tab="tasks">Ver todas</button></div><div class="gxt-list">'+taskList+'</div></section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+(state.isAdmin?'Solicitudes pendientes':'Mis solicitudes')+'</h2><button class="gxt-btn ghost" data-tab="requests">Ver solicitudes</button></div><div class="gxt-list">'+requestList+'</div></section>'+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+(state.isAdmin?'Solicitudes pendientes':'Mis solicitudes recientes')+'</h2><button class="gxt-btn ghost" data-tab="requests">Ver solicitudes</button></div><div class="gxt-list">'+requestList+'</div></section>'+
       '<div class="gxt-status-note">Las tareas solo se consideran completadas cuando administración aprueba la entrega. Las solicitudes no se convierten en tareas hasta que administración lo decide.</div>';
   }
 
