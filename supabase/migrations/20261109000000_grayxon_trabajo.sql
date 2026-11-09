@@ -321,13 +321,30 @@ begin
       'grayxon-trabajo', new.id::text
     from public.profiles p
     where p.role = 'admin' and p.active is true;
-  elsif old.status is distinct from new.status and new.status in ('in_progress','completed') then
+  elsif old.status is distinct from new.status and new.status = 'blocked' then
+    insert into public.notifications(user_id, type, title, message, link_page, link_target)
+    select p.id, 'internal_task_blocked', 'Tarea bloqueada',
+      left('El responsable marcó como bloqueada la tarea "' || new.title || '".', 180),
+      'grayxon-trabajo', new.id::text
+    from public.profiles p
+    where p.role = 'admin' and p.active is true;
+  elsif old.status = 'submitted' and new.status = 'in_progress' then
     insert into public.notifications(user_id, type, title, message, link_page, link_target)
     values (
       new.assigned_to,
       'internal_task_update',
-      case when new.status = 'completed' then 'Tarea aprobada' else 'Se solicitaron ajustes' end,
-      left('La tarea "' || new.title || '" cambió a ' || new.status || '.', 180),
+      'Se solicitaron correcciones',
+      left('Administración devolvió la tarea "' || new.title || '" con observaciones.', 180),
+      'grayxon-trabajo',
+      new.id::text
+    );
+  elsif old.status is distinct from new.status and new.status = 'completed' then
+    insert into public.notifications(user_id, type, title, message, link_page, link_target)
+    values (
+      new.assigned_to,
+      'internal_task_update',
+      'Tarea aprobada',
+      left('Administración aprobó la tarea "' || new.title || '".', 180),
       'grayxon-trabajo',
       new.id::text
     );
