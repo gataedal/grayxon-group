@@ -1,0 +1,1 @@
+drop index if exists public.gx_creator_delivery_proposal_files_uploaded_by_idx;
