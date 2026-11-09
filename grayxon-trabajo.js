@@ -493,17 +493,22 @@
       task = data;
     }
     if (!task) return toast('No se pudo encontrar la tarea.');
-    const [comments, attachments, activity] = await Promise.all([
+    const [taskComments, taskAttachments, activity, sharedComments, sharedAttachments] = await Promise.all([
       queryRows(sb.from('gx_task_comments').select('id,body,author_name,created_at').eq('task_id',taskId).order('created_at'), 'task comments'),
       queryRows(sb.from('gx_task_attachments').select('*').eq('task_id',taskId).order('created_at'), 'task attachments'),
-      queryRows(sb.from('gx_task_activity').select('id,action,details,actor_name,created_at').eq('task_id',taskId).order('created_at',{ascending:false}).limit(20), 'task activity')
+      queryRows(sb.from('gx_task_activity').select('id,action,details,actor_name,created_at').eq('task_id',taskId).order('created_at',{ascending:false}).limit(20), 'task activity'),
+      task.source_request_id ? queryRows(sb.from('gx_task_request_comments').select('id,body,author_name,created_at').eq('request_id',task.source_request_id).order('created_at'),'shared request comments') : Promise.resolve([]),
+      task.source_request_id ? queryRows(sb.from('gx_task_request_attachments').select('*').eq('request_id',task.source_request_id).order('created_at'),'shared request attachments') : Promise.resolve([])
     ]);
+    const comments=[...taskComments,...sharedComments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    const attachments=[...taskAttachments,...sharedAttachments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     const isAssignee = task.assigned_to === state.session.user.id;
     const canProgress = !state.isAdmin && isAssignee && !['submitted','completed'].includes(task.status);
     const canReview = state.isAdmin && task.status === 'submitted';
     const attachmentHtml = await Promise.all(attachments.map(async a=>{
-      const { data } = await sb.storage.from('gx-internal-task-files').createSignedUrl(a.object_path,1800);
-      return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir evidencia</a></p>':'')+'</div>';
+      const bucket=a.request_id?'gx-internal-request-files':'gx-internal-task-files';
+      const { data } = await sb.storage.from(bucket).createSignedUrl(a.object_path,1800,{download:a.file_name});
+      return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir</a> · <a href="'+esc(data.signedUrl)+'">Descargar '+esc(a.file_name)+'</a></p>':'')+'</div>';
     }));
     const commentHtml = comments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
     const activityHtml = activity.map(a=>'<div class="gxt-comment"><strong>'+esc(a.actor_name||'Sistema')+'</strong><small>'+dateTimeLabel(a.created_at)+'</small><p>'+esc(a.action==='created'?'Creó la tarea':a.action==='status_changed'?'Cambió el estado':a.action==='comment_added'?'Añadió un comentario':a.action==='attachment_added'?'Adjuntó una evidencia':a.action==='reassigned'?'Reasignó la tarea':'Actualizó la tarea')+'</p></div>').join('');
@@ -519,8 +524,7 @@
     openModal(task.title, 'Creada por administración · '+(task.assignee?.display_name||'Responsable'), 
       '<div class="gxt-card-meta">'+taskChip(task.status)+'<span class="gxt-chip">'+esc(priorityLabels[task.priority]||task.priority)+'</span><span class="gxt-chip">'+esc(task.department?.name||'Sin área')+'</span></div>'+
       '<section class="gxt-panel"><p>'+esc(task.description||'Sin descripción adicional.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">Inicio: '+dateLabel(task.starts_at)+'</span><span class="gxt-chip">Vence: '+dateLabel(task.due_at)+'</span></div>'+reassignHtml+reviewHtml+progressHtml+'</section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Comentarios y avances</h2></div><div class="gxt-list">'+commentHtml+'</div><form id="gxCommentForm" style="margin-top:12px"><div class="gxt-field"><label>Agregar comentario</label><textarea name="body" required placeholder="Escribe un comentario o actualización."></textarea></div><button class="gxt-btn" type="submit">Publicar comentario</button></form></section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Evidencias y archivos</h2></div><div class="gxt-list">'+(attachmentHtml.join('')||'<div class="gxt-empty">No se han adjuntado evidencias.</div>')+'</div><form id="gxUploadForm" style="margin-top:12px"><div class="gxt-field"><label>Adjuntar evidencia (máximo 20 MB)</label><input type="file" name="file" required></div><button class="gxt-btn" type="submit">Subir archivo</button></form></section>'+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Seguimiento</h2></div><div class="gxt-list">'+commentHtml+(attachmentHtml.join('')||'')+'</div><form id="gxCommentForm" style="margin-top:12px"><div class="gxt-field"><label>Mensaje (opcional si adjuntas archivos)</label><textarea name="body" maxlength="5000" placeholder="Escribe una actualización o respuesta."></textarea></div><div class="gxt-field"><label>Adjuntar archivos o imágenes</label><input type="file" name="files" multiple><small class="gxt-hint">Hasta 5 archivos, máximo 20 MB cada uno. Se conserva el formato original.</small></div><button class="gxt-btn" type="submit">Publicar en seguimiento</button></form></section>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Historial de actividad</h2></div><div class="gxt-list">'+(activityHtml||'<div class="gxt-empty">Sin movimientos registrados.</div>')+'</div></section>',
       true
     );
@@ -539,32 +543,42 @@
     const commentForm = document.getElementById('gxCommentForm');
     if (commentForm) commentForm.addEventListener('submit', async event=>{
       event.preventDefault();
-      const body = String(new FormData(commentForm).get('body')||'').trim();
-      if (!body) return;
-      const { error } = await sb.from('gx_task_comments').insert({task_id:task.id,author_id:state.session.user.id,body});
-      if (error) return toast('No se pudo publicar el comentario: '+error.message);
-      await openTaskDetail(task.id); toast('Comentario publicado.');
+      const formData=new FormData(commentForm);
+      const body=String(formData.get('body')||'').trim();
+      const files=formData.getAll('files').filter(file=>file instanceof File&&file.size>0);
+      if(!body&&!files.length)return toast('Escribe un mensaje o adjunta al menos un archivo.');
+      if(files.length>5)return toast('Puedes adjuntar máximo 5 archivos por publicación.');
+      if(files.some(file=>file.size>20*1024*1024))return toast('Cada archivo debe pesar máximo 20 MB.');
+      if(task.source_request_id){
+        if(body){
+          const {error}=await sb.from('gx_task_request_comments').insert({request_id:task.source_request_id,author_id:state.session.user.id,body});
+          if(error)return toast('No se pudo publicar: '+error.message);
+        }
+      }else if(body){
+        const {error}=await sb.from('gx_task_comments').insert({task_id:task.id,author_id:state.session.user.id,body});
+        if(error)return toast('No se pudo publicar: '+error.message);
+      }
+      for(const file of files){
+        const safeName=file.name.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-100);
+        const objectPath=(task.source_request_id||task.id)+'/'+crypto.randomUUID()+'-'+safeName;
+        const bucket=task.source_request_id?'gx-internal-request-files':'gx-internal-task-files';
+        const {error:uploadError}=await sb.storage.from(bucket).upload(objectPath,file,{upsert:false});
+        if(uploadError)return toast('No se pudo adjuntar '+file.name+': '+uploadError.message);
+        const table=task.source_request_id?'gx_task_request_attachments':'gx_task_attachments';
+        const row=task.source_request_id
+          ? {request_id:task.source_request_id,uploaded_by:state.session.user.id,object_path:objectPath,file_name:file.name,mime_type:file.type||null,size_bytes:file.size}
+          : {task_id:task.id,uploaded_by:state.session.user.id,object_path:objectPath,file_name:file.name,mime_type:file.type||null,size_bytes:file.size};
+        const {error:rowError}=await sb.from(table).insert(row);
+        if(rowError){await sb.storage.from(bucket).remove([objectPath]);return toast('No se pudo registrar '+file.name+': '+rowError.message);}
+      }
+      if(task.source_request_id&&!body&&files.length){
+        const {error}=await sb.from('gx_task_request_comments').insert({request_id:task.source_request_id,author_id:state.session.user.id,body:'Adjuntó archivos: '+files.map(file=>file.name).join(', ')});
+        if(error)return toast('Los archivos se adjuntaron, pero no se pudo notificar al equipo: '+error.message);
+      }
+      await openTaskDetail(task.id); toast('Seguimiento publicado.');
     });
 
-    const uploadForm = document.getElementById('gxUploadForm');
-    if (uploadForm) uploadForm.addEventListener('submit', async event=>{
-      event.preventDefault();
-      const file = new FormData(uploadForm).get('file');
-      if (!(file instanceof File)) return;
-      if (file.size > 20*1024*1024) return toast('El archivo supera el límite de 20 MB.');
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-100);
-      const objectPath = task.id+'/'+crypto.randomUUID()+'-'+safeName;
-      const { error: uploadError } = await sb.storage.from('gx-internal-task-files').upload(objectPath,file,{upsert:false});
-      if (uploadError) return toast('No se pudo subir el archivo: '+uploadError.message);
-      const { error: rowError } = await sb.from('gx_task_attachments').insert({
-        task_id:task.id,uploaded_by:state.session.user.id,object_path:objectPath,file_name:file.name,mime_type:file.type||null,size_bytes:file.size
-      });
-      if (rowError) {
-        await sb.storage.from('gx-internal-task-files').remove([objectPath]);
-        return toast('No se pudo registrar la evidencia: '+rowError.message);
-      }
-      await openTaskDetail(task.id); toast('Evidencia adjuntada.');
-    });
+
   }
 
   async function reviewTask(taskId, approve) {
