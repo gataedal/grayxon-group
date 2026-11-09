@@ -16,6 +16,7 @@ delete from public.notifications
 where type in (
   'internal_task',
   'internal_task_review',
+  'internal_task_blocked',
   'internal_task_update',
   'internal_request',
   'internal_request_update'
