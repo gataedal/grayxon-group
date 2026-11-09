@@ -258,7 +258,7 @@
       '<td><span class="gxt-chip '+(m.active?'status-completed':'status-blocked')+'">'+(m.active?'Activo':'Inactivo')+'</span></td>'+
       '<td><button class="gxt-btn" data-edit-member="'+m.id+'">Editar</button></td></tr>'
     ).join('');
-    main.innerHTML = pageHead('Equipo interno','Administra integrantes, cargos y áreas. Los permisos de acceso se mantienen separados del cargo.', '<button class="gxt-btn primary" data-action="new-member">＋ Añadir integrante</button>')+
+    main.innerHTML = pageHead('Equipo interno','Administra los integrantes que ya tienen una cuenta Grayxon. Los permisos de acceso se mantienen separados del cargo.', '')+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+state.members.length+' integrantes</h2></div><div class="gxt-table-wrap"><table class="gxt-table"><thead><tr><th>Integrante</th><th>Cargo</th><th>Área</th><th>Acceso</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
   }
 
@@ -512,35 +512,6 @@
     closeModal(); await refresh(); toast('Tarea reasignada.');
   }
 
-  function openNewMember() {
-    if (!state.isAdmin) return;
-    openModal('Añadir integrante','Se creará una cuenta de acceso operativo independiente de los perfiles de creador y manager.',
-      '<form id="gxNewMemberForm"><div class="gxt-form-grid">'+
-      '<div class="gxt-field full"><label>Nombre completo</label><input name="display_name" maxlength="120" required></div>'+
-      '<div class="gxt-field full"><label>Correo electrónico</label><input name="email" type="email" required></div>'+
-      '<div class="gxt-field"><label>Cargo</label><input name="job_title" maxlength="80" placeholder="Ej. Diseñador" required></div>'+
-      '<div class="gxt-field"><label>Área</label><select name="department_id">'+activeDepartmentsOptions()+'</select></div>'+
-      '<div class="gxt-field full"><label>Contraseña inicial</label><input name="password" type="password" minlength="8" required><span class="gxt-hint">Comparte la contraseña por un canal seguro. El integrante podrá cambiarla desde su cuenta más adelante.</span></div>'+
-      '</div><div class="gxt-modal-actions"><button type="button" class="gxt-btn ghost" data-close-modal>Cancelar</button><button type="submit" class="gxt-btn primary">Crear acceso operativo</button></div></form>');
-    document.getElementById('gxNewMemberForm').addEventListener('submit', createMember);
-  }
-
-  async function createMember(event) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const { data, error } = await sb.functions.invoke('gx-create-internal-member', {
-      body: {
-        display_name:String(form.get('display_name')||'').trim(),
-        email:String(form.get('email')||'').trim(),
-        job_title:String(form.get('job_title')||'').trim(),
-        department_id:String(form.get('department_id')||'')||null,
-        password:String(form.get('password')||'')
-      }
-    });
-    if (error || data?.error) return toast('No se pudo crear el integrante: '+(data?.error||error?.message||'Error desconocido'));
-    closeModal(); await refresh(); toast('Integrante creado. Ya puede ingresar a Grayxon Trabajo.');
-  }
-
   function openEditMember(memberId) {
     if (!state.isAdmin) return;
     const m = state.members.find(x=>x.id===memberId);
@@ -605,7 +576,6 @@
     if(action){
       if(action.dataset.action==='new-task')return openNewTask();
       if(action.dataset.action==='new-request')return openNewRequest();
-      if(action.dataset.action==='new-member')return openNewMember();
       if(action.dataset.action==='new-department')return openNewDepartment();
       if(action.dataset.action==='open-calendar'){window.location.href='./portal.html?openCalendar=1';return;}
     }
