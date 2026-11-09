@@ -254,7 +254,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $gx$
 begin
   insert into public.gx_task_activity(task_id, actor_id, actor_name, action, details)
   values (
@@ -266,14 +266,14 @@ begin
   );
   return new;
 end;
-$;
+$gx$;
 
 create or replace function public.gx_set_task_comment_author_name()
 returns trigger
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $gx$
 declare
   v_author_name text;
 begin
@@ -283,7 +283,7 @@ begin
   new.author_name := coalesce(v_author_name,'Integrante');
   return new;
 end;
-$;
+$gx$;
 
 create trigger gx_task_comments_set_author_name
 before insert on public.gx_task_comments
@@ -298,7 +298,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $gx$
 declare
   v_actor_name text;
 begin
@@ -316,7 +316,7 @@ begin
   );
   return new;
 end;
-$;
+$gx$;
 
 create trigger gx_task_attachments_log_activity
 after insert on public.gx_task_attachments
