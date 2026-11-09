@@ -7,26 +7,19 @@
   <meta name="color-scheme" content="dark">
   <title>Grayxon Trabajo</title>
   <link rel="icon" type="image/png" href="assets/grayxon-logo.png">
-  <link rel="stylesheet" href="grayxon-trabajo.css?v=1">
+  <link rel="stylesheet" href="grayxon-trabajo.css?v=2">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
 <body>
   <section id="gxLogin" class="gxt-login-wrap">
-    <form id="gxLoginForm" class="gxt-login">
-      <div class="gxt-brand">
-        <img class="gxt-logo" src="assets/grayxon-logo.png" alt="">
-        <div><strong>GRAYXON</strong><small>TRABAJO</small></div>
-      </div>
+    <div class="gxt-login">
+      <div class="gxt-brand"><img class="gxt-logo" src="assets/grayxon-logo.png" alt=""><div><strong>GRAYXON</strong><small>TRABAJO</small></div></div>
       <h1>Gestión interna</h1>
-      <p>Acceso exclusivo para el equipo operativo de Grayxon Group. Ingresa con el correo y la contraseña asignados por administración.</p>
-      <div class="gxt-field"><label for="gxLoginEmail">Correo electrónico</label><input id="gxLoginEmail" type="email" autocomplete="username" required></div>
-      <div class="gxt-field"><label for="gxLoginPassword">Contraseña</label><input id="gxLoginPassword" type="password" autocomplete="current-password" required></div>
+      <p id="gxLoginMessage">Validando tu sesión del portal Grayxon…</p>
       <div id="gxLoginError" class="gxt-error" aria-live="polite"></div>
-      <button class="gxt-btn primary" type="submit" style="width:100%">Ingresar a Grayxon Trabajo</button>
-      <p class="gxt-hint" style="margin-top:15px">Si aún no tienes acceso, solicita tu cuenta al administrador.</p>
-      <a class="gxt-backlink" href="portal.html">Volver al portal Grayxon</a>
-    </form>
+      <a class="gxt-btn primary" href="portal.html" style="display:block;width:100%;text-align:center;text-decoration:none">Volver al portal Grayxon</a>
+    </div>
   </section>
 
   <div id="gxApp" class="gxt-shell" hidden>
@@ -38,7 +31,7 @@
       <div class="gxt-user">
         <div class="gxt-user-info"><strong id="gxUserName">Equipo Grayxon</strong><small id="gxUserJob"></small></div>
         <span id="gxAccessBadge" class="gxt-access">Operativo</span>
-        <button id="gxLogout" class="gxt-btn ghost" type="button">Salir</button>
+        <button id="gxLogout" class="gxt-btn ghost" type="button">Volver al portal</button>
       </div>
     </header>
 
@@ -51,6 +44,6 @@
   <div id="gxModalRoot" class="gxt-modal-root"></div>
   <div id="gxToast" class="gxt-toast" hidden></div>
 
-  <script src="grayxon-trabajo.js?v=1"></script>
+  <script src="grayxon-trabajo.js?v=2"></script>
 </body>
 </html>
