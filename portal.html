@@ -484,9 +484,7 @@ nav.addEventListener('click',function(e){
   if(typeof window.grayxonNavigateToDashboard==='function'){
    window.grayxonNavigateToDashboard();
   } else {
-   /* Respaldo únicamente si el enrutador aún no está disponible. */
-   const fallback=document.getElementById('openMySpace');
-   if(fallback)fallback.click();
+   window.location.href='./portal.html';
   }
   setTimeout(syncActive,100);
   return;
@@ -515,10 +513,11 @@ nav.addEventListener('click',function(e){
   return;
  }
  if(action==='profile'){
-  /* El acceso Perfil navega a la página de perfil; no abre el antiguo menú flotante. */
+  if(typeof window.grayxonNavigateToProfile==='function'){window.grayxonNavigateToProfile();return;}
   const directProfileButton=document.getElementById('mobileProfile');
-  if(directProfileButton){directProfileButton.click();}
-  else if(typeof window.grayxonNavigateToProfile==='function'){window.grayxonNavigateToProfile();}
+  if(directProfileButton){directProfileButton.click();return;}
+  const profilePage=document.getElementById('profile');
+  if(profilePage){document.querySelectorAll('main.wrap>.page').forEach(page=>page.classList.toggle('hidden',page!==profilePage));window.scrollTo({top:0,behavior:'smooth'});}
   return;
  }
  if(action==='notifications'){
