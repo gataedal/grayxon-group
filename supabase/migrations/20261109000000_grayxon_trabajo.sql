@@ -242,6 +242,50 @@ create trigger gx_tasks_log_activity
 after insert or update on public.gx_tasks
 for each row execute function public.gx_log_task_activity();
 
+create or replace function public.gx_log_task_comment_activity()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+begin
+  insert into public.gx_task_activity(task_id, actor_id, action, details)
+  values (
+    new.task_id,
+    new.author_id,
+    'comment_added',
+    jsonb_build_object('comment_id', new.id, 'preview', left(new.body, 120))
+  );
+  return new;
+end;
+$;
+
+create trigger gx_task_comments_log_activity
+after insert on public.gx_task_comments
+for each row execute function public.gx_log_task_comment_activity();
+
+create or replace function public.gx_log_task_attachment_activity()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+begin
+  insert into public.gx_task_activity(task_id, actor_id, action, details)
+  values (
+    new.task_id,
+    new.uploaded_by,
+    'attachment_added',
+    jsonb_build_object('attachment_id', new.id, 'file_name', new.file_name)
+  );
+  return new;
+end;
+$;
+
+create trigger gx_task_attachments_log_activity
+after insert on public.gx_task_attachments
+for each row execute function public.gx_log_task_attachment_activity();
+
 -- Reutiliza la tabla de notificaciones existente sin modificar su estructura ni sus políticas.
 create or replace function public.gx_notify_task_changes()
 returns trigger
