@@ -1,0 +1,2 @@
+create index if not exists gx_creator_delivery_proposal_files_uploaded_by_idx
+on public.gx_creator_delivery_proposal_files(uploaded_by);
