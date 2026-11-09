@@ -762,7 +762,7 @@
       for(const file of files){
         const safeName=file.name.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-100);
         const objectPath=(task.source_request_id||task.id)+'/'+crypto.randomUUID()+'-'+safeName;
-        const bucket=task.source_request_id?'gx-internal-request-files':'gx-internal-task-files';
+        const bucket=asFinalProposal?'gx-internal-task-files':(task.source_request_id?'gx-internal-request-files':'gx-internal-task-files');
         const {error:uploadError}=await sb.storage.from(bucket).upload(objectPath,file,{upsert:false});
         if(uploadError){if(sendButton){sendButton.disabled=false;syncChatFiles()}return toast('No se pudo adjuntar '+file.name+': '+uploadError.message);}
         if(asFinalProposal){
