@@ -627,6 +627,11 @@ grant select, insert, update, delete on public.gx_task_comments to authenticated
 grant select on public.gx_task_activity to authenticated;
 grant select, insert, delete on public.gx_task_attachments to authenticated;
 
+revoke all on function public.gx_is_internal_member() from public, anon;
+revoke all on function public.gx_task_member_update(uuid,text,text) from public, anon;
+revoke all on function public.gx_task_review(uuid,boolean,text) from public, anon;
+revoke all on function public.gx_task_convert_request(uuid,uuid,text,timestamptz,timestamptz) from public, anon;
+
 grant execute on function public.gx_is_internal_member() to authenticated;
 grant execute on function public.gx_task_member_update(uuid,text,text) to authenticated;
 grant execute on function public.gx_task_review(uuid,boolean,text) to authenticated;
