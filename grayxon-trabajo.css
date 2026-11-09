@@ -87,3 +87,20 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-preview-unavailable strong{font-size:13px}
 .gxt-preview-unavailable p{font-size:11px;color:#96a0ac;line-height:1.6}
 @media(max-width:560px){.gxt-chat-bubble{max-width:92%}.gxt-file-card{align-items:flex-start;flex-wrap:wrap}.gxt-file-actions{width:100%;padding-left:46px}.gxt-file-preview{padding:7px}.gxt-file-preview-dialog{width:100%;height:92dvh}.gxt-file-preview-dialog>header{align-items:flex-start}.gxt-file-actions .gxt-btn{padding:7px}}
+
+/* Listas compactas y desplegables para escalar con el volumen de trabajo */
+.gxt-accordion{border:1px solid #2c343e;border-radius:13px;background:linear-gradient(145deg,#121820,#0d1116);overflow:hidden}
+.gxt-accordion[open]{border-color:#465363;background:#121820}
+.gxt-accordion>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 15px;min-height:66px}
+.gxt-accordion>summary::-webkit-details-marker{display:none}
+.gxt-accordion-main{display:grid;gap:8px;min-width:0;flex:1}
+.gxt-accordion-main>strong{font-size:12px;line-height:1.4;color:#f1f4f7}
+.gxt-accordion-chevron{width:27px;height:27px;flex:0 0 27px;display:grid;place-items:center;border:1px solid #343e49;border-radius:8px;color:#b8c2ce;transition:transform .18s ease}
+.gxt-accordion[open] .gxt-accordion-chevron{transform:rotate(180deg)}
+.gxt-accordion-body{padding:0 15px 15px;border-top:1px solid #28313b}
+.gxt-accordion-body>p{font-size:11px;line-height:1.7;color:#c2cbd5;white-space:pre-wrap;margin:12px 0}
+.gxt-accordion-body>.gxt-card-meta{margin:10px 0}
+.gxt-accordion-body>.gxt-actions{margin-top:12px}
+.gxt-accordion .gxt-card-meta{gap:6px}
+.gxt-accordion .gxt-chip{font-size:9px}
+@media(max-width:560px){.gxt-accordion>summary{padding:12px}.gxt-accordion-body{padding:0 12px 12px}.gxt-accordion-main>strong{font-size:11px}}
