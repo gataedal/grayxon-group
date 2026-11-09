@@ -16,6 +16,9 @@ function resolveTarget(data) {
     return `./grayxon-trabajo.html?${targetParam}=${encodeURIComponent(value)}`;
   }
 
+  // Published creator deliveries open the dedicated Mis entregas screen.
+  if (page === 'creator-delivery') return `./portal.html?delivery=${encodeURIComponent(value)}`;
+
   // Official thread notifications open the exact publication in the thread.
   if (page === 'event-post') return `./portal.html?grayxonPush=1&page=event-post&target=${encodeURIComponent(value)}#events`;
   // Legacy thread notifications still open the event thread.
