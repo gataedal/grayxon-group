@@ -58,7 +58,11 @@ create table public.gx_tasks (
   constraint gx_tasks_title_check check (length(btrim(title)) between 2 and 180),
   constraint gx_tasks_priority_check check (priority in ('low','normal','high','urgent')),
   constraint gx_tasks_status_check check (status in ('pending','in_progress','blocked','submitted','completed')),
-  constraint gx_tasks_dates_check check (starts_at is null or due_at is null or due_at >= starts_at)
+  constraint gx_tasks_dates_check check (starts_at is null or due_at is null or due_at >= starts_at),
+  constraint gx_tasks_completion_check check (
+    status <> 'completed'
+    or (completed_at is not null and reviewed_by is not null and reviewed_at is not null)
+  )
 );
 
 create index gx_tasks_assigned_due_idx on public.gx_tasks (assigned_to, due_at);
@@ -81,7 +85,11 @@ create table public.gx_task_requests (
   updated_at timestamptz not null default now(),
   constraint gx_task_requests_title_check check (length(btrim(title)) between 2 and 180),
   constraint gx_task_requests_urgency_check check (urgency in ('normal','high','urgent')),
-  constraint gx_task_requests_status_check check (status in ('pending','approved','rejected','converted'))
+  constraint gx_task_requests_status_check check (status in ('pending','approved','rejected','converted')),
+  constraint gx_task_requests_conversion_check check (
+    (status = 'converted' and converted_task_id is not null)
+    or (status <> 'converted' and converted_task_id is null)
+  )
 );
 
 alter table public.gx_tasks
@@ -730,11 +738,36 @@ using (public.is_admin());
 
 grant select, insert, update, delete on public.gx_departments to authenticated;
 grant select, insert, update, delete on public.gx_internal_members to authenticated;
-grant select, insert, update, delete on public.gx_tasks to authenticated;
-grant select, insert, update, delete on public.gx_task_requests to authenticated;
-grant select, insert, update, delete on public.gx_task_comments to authenticated;
+
+-- Los estados de tarea solo cambian mediante las RPC validadas.
+-- La interfaz puede crear tareas pendientes y administración puede editar sus datos,
+-- pero no insertar ni actualizar directamente status, reviewed_by o completed_at.
+grant select, delete on public.gx_tasks to authenticated;
+revoke insert, update on public.gx_tasks from authenticated;
+grant insert (title, description, priority, department_id, created_by, assigned_to, starts_at, due_at)
+  on public.gx_tasks to authenticated;
+grant update (title, description, priority, department_id, assigned_to, starts_at, due_at)
+  on public.gx_tasks to authenticated;
+
+-- Los integrantes solo pueden crear solicitudes pendientes. Solo administración
+-- puede aprobar/rechazar; la conversión y converted_task_id quedan reservados a la RPC.
+grant select, delete on public.gx_task_requests to authenticated;
+revoke insert, update on public.gx_task_requests from authenticated;
+grant insert (requester_id, department_id, title, description, urgency)
+  on public.gx_task_requests to authenticated;
+grant update (status, reviewed_by, reviewed_at, admin_note)
+  on public.gx_task_requests to authenticated;
+
+grant select, delete on public.gx_task_comments to authenticated;
+revoke insert, update on public.gx_task_comments from authenticated;
+grant insert (task_id, author_id, body) on public.gx_task_comments to authenticated;
+
 grant select on public.gx_task_activity to authenticated;
-grant select, insert, delete on public.gx_task_attachments to authenticated;
+
+grant select, delete on public.gx_task_attachments to authenticated;
+revoke insert, update on public.gx_task_attachments from authenticated;
+grant insert (task_id, uploaded_by, object_path, file_name, mime_type, size_bytes)
+  on public.gx_task_attachments to authenticated;
 
 -- Las funciones SECURITY DEFINER usadas exclusivamente por triggers no deben
 -- exponerse como RPCs invocables por usuarios o clientes anónimos.
