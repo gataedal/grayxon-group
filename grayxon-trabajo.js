@@ -156,11 +156,7 @@
     if (requestId && state.requests.some(r => r.id === requestId)) {
       state.tab = 'requests';
       renderPage();
-      const card = document.getElementById('gx-request-' + requestId);
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        card.style.borderColor = '#c7a35b';
-      }
+      openRequestDetail(requestId);
     }
   }
 
@@ -205,7 +201,8 @@
     return '<article id="gx-request-'+request.id+'" data-request-id="'+request.id+'" class="gxt-card"><div class="gxt-card-top"><div><h3>'+esc(request.title)+'</h3><p>'+esc(request.description || 'Sin detalles adicionales.')+'</p></div><span class="gxt-chip">'+esc(requestLabels[request.status] || request.status)+'</span></div>'+
       '<div class="gxt-card-meta"><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name || 'Sin área')+'</span>'+
       (state.isAdmin?'<span class="gxt-chip">Solicitó: '+esc(requester)+'</span>':'')+
-      '<span class="gxt-chip">'+dateLabel(request.created_at)+'</span></div>'+actions+'</article>';
+      '<span class="gxt-chip">'+dateLabel(request.created_at)+'</span></div>'+
+      '<div class="gxt-actions"><button type="button" class="gxt-btn ghost" data-open-request="'+request.id+'">Ver solicitud y comentarios</button></div>'+actions+'</article>';
   }
 
   function renderDashboard() {
@@ -357,6 +354,7 @@
       '<div class="gxt-field full"><label>Explica tu solicitud</label><textarea name="description" required placeholder="Describe qué necesitas y por qué."></textarea></div>'+
       '<div class="gxt-field"><label>Área relacionada</label><select name="department_id">'+activeDepartmentsOptions(state.member.department_id)+'</select></div>'+
       '<div class="gxt-field"><label>Urgencia</label><select name="urgency"><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>'+
+      '<div class="gxt-field full"><label>Archivos adjuntos</label><input name="files" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp,.txt,.zip"><small class="gxt-hint">Puedes adjuntar hasta 5 archivos de máximo 20 MB cada uno.</small></div>'+
       '</div><div class="gxt-modal-actions"><button type="button" class="gxt-btn ghost" data-close-modal>Cancelar</button><button class="gxt-btn primary" type="submit">Enviar solicitud</button></div></form>');
     document.getElementById('gxNewRequestForm').addEventListener('submit', createRequest);
   }
@@ -364,15 +362,76 @@
   async function createRequest(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const { error } = await sb.from('gx_task_requests').insert({
+    const files = form.getAll('files').filter(file => file instanceof File && file.size > 0);
+    if (files.length > 5) return toast('Puedes adjuntar máximo 5 archivos por solicitud.');
+    if (files.some(file => file.size > 20*1024*1024)) return toast('Cada archivo debe pesar máximo 20 MB.');
+    const { data: request, error } = await sb.from('gx_task_requests').insert({
       requester_id: state.session.user.id,
       title: String(form.get('title')||'').trim(),
       description: String(form.get('description')||'').trim(),
       department_id: String(form.get('department_id')||'') || null,
       urgency: String(form.get('urgency')||'normal')
-    });
+    }).select('id').single();
     if (error) return toast('No se pudo enviar la solicitud: '+error.message);
+    const uploadedPaths = [];
+    for (const file of files) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-100);
+      const objectPath = request.id+'/'+crypto.randomUUID()+'-'+safeName;
+      const { error: uploadError } = await sb.storage.from('gx-internal-request-files').upload(objectPath,file,{upsert:false});
+      if (uploadError) {
+        if (uploadedPaths.length) await sb.storage.from('gx-internal-request-files').remove(uploadedPaths);
+        await sb.from('gx_task_requests').delete().eq('id',request.id);
+        return toast('No se pudo subir '+file.name+': '+uploadError.message+'. La solicitud no fue enviada.');
+      }
+      uploadedPaths.push(objectPath);
+      const { error: rowError } = await sb.from('gx_task_request_attachments').insert({
+        request_id:request.id,uploaded_by:state.session.user.id,object_path:objectPath,
+        file_name:file.name,mime_type:file.type||null,size_bytes:file.size
+      });
+      if (rowError) {
+        await sb.storage.from('gx-internal-request-files').remove(uploadedPaths);
+        await sb.from('gx_task_requests').delete().eq('id',request.id);
+        return toast('No se pudo registrar el archivo '+file.name+'. La solicitud no fue enviada.');
+      }
+    }
     closeModal(); await refresh(); toast('Solicitud enviada a administración.');
+  }
+
+  async function openRequestDetail(requestId) {
+    let request = state.requests.find(r=>r.id===requestId);
+    if (!request) {
+      const { data } = await sb.from('gx_task_requests')
+        .select('*,requester:gx_internal_members!gx_task_requests_requester_id_fkey(display_name,job_title),department:gx_departments(name)')
+        .eq('id',requestId).maybeSingle();
+      request = data;
+    }
+    if (!request) return toast('No se pudo encontrar la solicitud o no tienes acceso.');
+    const [comments, attachments] = await Promise.all([
+      queryRows(sb.from('gx_task_request_comments').select('id,body,author_name,created_at').eq('request_id',requestId).order('created_at'), 'request comments'),
+      queryRows(sb.from('gx_task_request_attachments').select('*').eq('request_id',requestId).order('created_at'), 'request attachments')
+    ]);
+    const attachmentHtml = await Promise.all(attachments.map(async a=>{
+      const { data } = await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800);
+      return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir archivo</a></p>':'<p>No fue posible generar el enlace del archivo.</p>')+'</div>';
+    }));
+    const commentHtml = comments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
+    const requester = request.requester?.display_name || 'Integrante';
+    const adminNote = request.admin_note ? '<div class="gxt-status-note"><strong>Observación de administración</strong><br>'+esc(request.admin_note)+'</div>' : '';
+    openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
+      '<div class="gxt-card-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span></div>'+
+      '<section class="gxt-panel"><p>'+esc(request.description||'Sin detalles adicionales.')+'</p>'+adminNote+'</section>'+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Archivos adjuntos</h2></div><div class="gxt-list">'+(attachmentHtml.join('')||'<div class="gxt-empty">Esta solicitud no tiene archivos adjuntos.</div>')+'</div></section>'+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Comentarios de seguimiento</h2></div><div class="gxt-list">'+commentHtml+'</div><form id="gxRequestCommentForm" style="margin-top:12px"><div class="gxt-field"><label>Escribir comentario</label><textarea name="body" maxlength="5000" required placeholder="Escribe una actualización o respuesta para las personas relacionadas."></textarea></div><button class="gxt-btn primary" type="submit">Publicar comentario</button></form></section>',true);
+    const commentForm = document.getElementById('gxRequestCommentForm');
+    if (commentForm) commentForm.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const body=String(new FormData(commentForm).get('body')||'').trim();
+      if(!body)return;
+      const {error}=await sb.from('gx_task_request_comments').insert({request_id:request.id,author_id:state.session.user.id,body});
+      if(error)return toast('No se pudo publicar el comentario: '+error.message);
+      await openRequestDetail(request.id);
+      toast('Comentario publicado.');
+    });
   }
 
   async function requestAction(action, requestId) {
@@ -571,6 +630,8 @@
   main.addEventListener('click',event=>{
     const open=event.target.closest('[data-open-task]');
     if(open)return openTaskDetail(open.dataset.openTask);
+    const openRequest=event.target.closest('[data-open-request]');
+    if(openRequest)return openRequestDetail(openRequest.dataset.openRequest);
     const action=event.target.closest('[data-action]');
     if(action){
       if(action.dataset.action==='new-task')return openNewTask();
