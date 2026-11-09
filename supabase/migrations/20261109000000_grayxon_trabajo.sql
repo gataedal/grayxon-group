@@ -736,6 +736,16 @@ grant select, insert, update, delete on public.gx_task_comments to authenticated
 grant select on public.gx_task_activity to authenticated;
 grant select, insert, delete on public.gx_task_attachments to authenticated;
 
+-- Las funciones SECURITY DEFINER usadas exclusivamente por triggers no deben
+-- exponerse como RPCs invocables por usuarios o clientes anónimos.
+revoke all on function public.gx_validate_task_assignment() from public, anon, authenticated;
+revoke all on function public.gx_log_task_activity() from public, anon, authenticated;
+revoke all on function public.gx_log_task_comment_activity() from public, anon, authenticated;
+revoke all on function public.gx_set_task_comment_author_name() from public, anon, authenticated;
+revoke all on function public.gx_log_task_attachment_activity() from public, anon, authenticated;
+revoke all on function public.gx_notify_task_changes() from public, anon, authenticated;
+revoke all on function public.gx_notify_task_requests() from public, anon, authenticated;
+
 revoke all on function public.gx_is_internal_member() from public, anon;
 revoke all on function public.gx_task_member_update(uuid,text,text) from public, anon;
 revoke all on function public.gx_task_review(uuid,boolean,text) from public, anon;
