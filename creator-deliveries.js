@@ -212,7 +212,8 @@
     if(!isCreatorDelivery&&!isRequesterReview)return;
     e.preventDefault();e.stopImmediatePropagation();
     (async()=>{
-      const uid=currentUserId||await getSessionAndRole();
+      const {data:sessionData}=await sb.auth.getSession();
+      const uid=currentUserId||sessionData?.session?.user?.id;
       if(!uid)return;
       const {data}=await sb.from('notifications').select('id,user_id,type,link_page,link_target,read_at').eq('id',notification.dataset.notificationId).eq('user_id',uid).maybeSingle();
       if(!data)return;
@@ -221,7 +222,10 @@
         window.location.href='./grayxon-trabajo.html?task='+encodeURIComponent(data.link_target||'');
         return;
       }
-      if(data.type==='creator_delivery'&&data.link_page==='creator-delivery')openScreen(data.link_target);
+      if(data.type==='creator_delivery'&&data.link_page==='creator-delivery'){
+        const creatorUid=currentUserId||await getSessionAndRole();
+        if(creatorUid)openScreen(data.link_target);
+      }
     })();
   },true);
 
