@@ -45,16 +45,17 @@
     root.hidden = !isAuthed;
   }
 
-  async function signOut() {
-    await sb.auth.signOut();
-    state.session = null;
-    state.member = null;
+  function showAccessMessage(message) {
+    const messageEl = document.getElementById('gxLoginMessage');
+    const errorEl = document.getElementById('gxLoginError');
+    if (messageEl) messageEl.textContent = message;
+    if (errorEl) errorEl.textContent = '';
     setAuthView(false);
   }
 
   async function loadMember() {
     const user = state.session?.user;
-    if (!user) return signOut();
+    if (!user) return showAccessMessage('Tu sesión del portal no está activa. Ingresa al portal Grayxon y vuelve a abrir esta sección.');
     const { data, error } = await sb
       .from('gx_internal_members')
       .select('id,user_id,email,display_name,access_level,job_title,department_id,active,department:gx_departments(name)')
@@ -63,14 +64,11 @@
 
     if (error) {
       console.error('[Grayxon Trabajo] membership lookup', error);
-      document.getElementById('gxLoginError').textContent = 'No se pudo validar tu acceso. Intenta de nuevo.';
-      setAuthView(false);
+      showAccessMessage('No se pudo validar tu acceso en este momento. Vuelve al portal e inténtalo nuevamente.');
       return;
     }
     if (!data || data.active !== true) {
-      await sb.auth.signOut();
-      document.getElementById('gxLoginError').textContent = 'Esta cuenta no tiene una membresía operativa activa. Solicita acceso a administración.';
-      setAuthView(false);
+      showAccessMessage('Esta cuenta no tiene acceso a Grayxon Trabajo. Si consideras que es un error, comunícate con administración.');
       return;
     }
 
@@ -91,14 +89,14 @@
     if (error) console.warn('[Grayxon Trabajo] session', error.message);
     state.session = data?.session || null;
     if (state.session) await loadMember();
-    else setAuthView(false);
+    else showAccessMessage('Para entrar a Grayxon Trabajo, primero inicia sesión en el portal Grayxon con tu cuenta habitual.');
 
     sb.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') return;
       state.session = session;
       setTimeout(() => {
         if (session) loadMember();
-        else setAuthView(false);
+        else showAccessMessage('Tu sesión del portal finalizó. Vuelve al portal Grayxon para ingresar de nuevo.');
       }, 0);
     });
   }
@@ -599,17 +597,9 @@
     if(reassign)return reassignTask(reassign.dataset.reassign);
   });
 
-  document.getElementById('gxLoginForm').addEventListener('submit',async event=>{
-    event.preventDefault();
-    const errorEl=document.getElementById('gxLoginError');
-    errorEl.textContent='';
-    const email=document.getElementById('gxLoginEmail').value.trim().toLowerCase();
-    const password=document.getElementById('gxLoginPassword').value;
-    const {error}=await sb.auth.signInWithPassword({email,password});
-    if(error){errorEl.textContent='No se pudo iniciar sesión. Verifica el correo y la contraseña.';return}
+  document.getElementById('gxLogout').addEventListener('click', () => {
+    window.location.href = 'portal.html';
   });
-
-  document.getElementById('gxLogout').addEventListener('click',signOut);
 
   init();
 })();
