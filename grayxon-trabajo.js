@@ -18,7 +18,7 @@
 
   const state = {
     session: null, member: null, isAdmin: false, tab: 'home',
-    tasks: [], requests: [], members: [], departments: [], activity: []
+    tasks: [], requests: [], members: [], departments: [], activity: [], creators: []
   };
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
@@ -127,13 +127,17 @@
       .select('id,task_id,actor_name,action,details,created_at,task:gx_tasks!gx_task_activity_task_id_fkey(title)')
       .order('created_at', { ascending: false })
       .limit(80);
+    const creatorQuery = sb.from('profiles')
+      .select('id,username,full_name,tiktok_username,manager_id')
+      .eq('role','creator').eq('active',true).order('username');
 
-    const [tasks, requests, members, departments, activity] = await Promise.all([
+    const [tasks, requests, members, departments, activity, creators] = await Promise.all([
       queryRows(taskQuery, 'tasks'),
       queryRows(requestQuery, 'requests'),
       queryRows(memberQuery, 'members'),
       queryRows(departmentQuery, 'departments'),
-      queryRows(activityQuery, 'activity')
+      queryRows(activityQuery, 'activity'),
+      queryRows(creatorQuery, 'team creators')
     ]);
     const memberByUser = new Map(members.map(m => [m.user_id, m]));
     const departmentById = new Map(departments.map(d => [d.id, d]));
@@ -150,6 +154,7 @@
     state.members = members;
     state.departments = departments;
     state.activity = activity;
+    state.creators = creators;
   }
 
   function handleNotificationTarget() {
@@ -197,13 +202,15 @@
 
   function requestCard(request) {
     const requester = request.requester?.display_name || 'Integrante';
+    const creator = state.creators.find(c=>c.id===request.creator_user_id);
+    const creatorLabel = creator ? (creator.tiktok_username || creator.username || creator.full_name || 'Creador') : '';
     let actions = '';
     if (state.isAdmin && request.status === 'pending') {
       actions = '<div class="gxt-actions"><button class="gxt-btn" data-request-action="approve" data-request-id="'+request.id+'">Aprobar</button><button class="gxt-btn danger" data-request-action="reject" data-request-id="'+request.id+'">Rechazar</button></div>';
     } else if (state.isAdmin && request.status === 'approved') {
       actions = '<div class="gxt-actions"><button class="gxt-btn primary" data-request-action="convert" data-request-id="'+request.id+'">Convertir en tarea</button></div>';
     }
-    return '<details id="gx-request-'+request.id+'" data-request-id="'+request.id+'" class="gxt-accordion gxt-request-accordion"><summary><div class="gxt-accordion-main"><strong>'+esc(request.title)+'</strong><div class="gxt-card-meta"><span class="gxt-chip">'+esc(requestLabels[request.status] || request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span>'+(state.isAdmin?'<span class="gxt-chip">Solicitó: '+esc(requester)+'</span>':'')+'<span class="gxt-chip">'+dateLabel(request.created_at)+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p>'+esc(request.description || 'Sin detalles adicionales.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">'+esc(request.department?.name || 'Sin área')+'</span></div><div class="gxt-actions"><button type="button" class="gxt-btn ghost" data-open-request="'+request.id+'">Abrir solicitud y conversación</button></div>'+actions+'</div></details>';
+    return '<details id="gx-request-'+request.id+'" data-request-id="'+request.id+'" class="gxt-accordion gxt-request-accordion"><summary><div class="gxt-accordion-main"><strong>'+esc(request.title)+'</strong><div class="gxt-card-meta"><span class="gxt-chip">'+esc(requestLabels[request.status] || request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span>'+(state.isAdmin?'<span class="gxt-chip">Solicitó: '+esc(requester)+'</span>':'')+(creatorLabel?'<span class="gxt-chip">Para @'+esc(creatorLabel)+'</span>':'')+'<span class="gxt-chip">'+dateLabel(request.created_at)+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p>'+esc(request.description || 'Sin detalles adicionales.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">'+esc(request.department?.name || 'Sin área')+'</span></div><div class="gxt-actions"><button type="button" class="gxt-btn ghost" data-open-request="'+request.id+'">Abrir solicitud y conversación</button></div>'+actions+'</div></details>';
   }
 
   function renderDashboard() {
@@ -394,6 +401,7 @@
       '<div class="gxt-field full"><label>Explica tu solicitud</label><textarea name="description" required placeholder="Describe qué necesitas y por qué."></textarea></div>'+
       '<div class="gxt-field"><label>Área relacionada</label><select name="department_id">'+activeDepartmentsOptions(state.member.department_id)+'</select></div>'+
       '<div class="gxt-field"><label>Urgencia</label><select name="urgency"><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>'+
+      '<div class="gxt-field full"><label>¿Es una entrega para un creador? (opcional)</label><select name="creator_user_id"><option value="">No aplica · Solicitud interna/general</option>'+state.creators.map(c=>'<option value="'+c.id+'">@'+esc(c.tiktok_username||c.username||c.full_name||'Creador')+'</option>').join('')+'</select><small class="gxt-hint">Solo aparecen los creadores de tu equipo. Si la solicitud no es para un creador, déjalo en “No aplica”.</small></div>'+
       '<div class="gxt-field full"><label>Archivos adjuntos</label><input name="files" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp,.txt,.zip"><small class="gxt-hint">Puedes adjuntar hasta 5 archivos de máximo 20 MB cada uno.</small></div>'+
       '</div><div class="gxt-modal-actions"><button type="button" class="gxt-btn ghost" data-close-modal>Cancelar</button><button class="gxt-btn primary" type="submit">Enviar solicitud</button></div></form>');
     document.getElementById('gxNewRequestForm').addEventListener('submit', createRequest);
@@ -410,7 +418,8 @@
       title: String(form.get('title')||'').trim(),
       description: String(form.get('description')||'').trim(),
       department_id: String(form.get('department_id')||'') || null,
-      urgency: String(form.get('urgency')||'normal')
+      urgency: String(form.get('urgency')||'normal'),
+      creator_user_id: String(form.get('creator_user_id')||'') || null
     }).select('id').single();
     if (error) return toast('No se pudo enviar la solicitud: '+error.message);
     const uploadedPaths = [];
@@ -558,7 +567,10 @@
     const attachments=[...taskAttachments,...sharedAttachments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     const isAssignee = task.assigned_to === state.session.user.id;
     const canProgress = !state.isAdmin && isAssignee && !['submitted','completed'].includes(task.status);
-    const canReview = state.isAdmin && task.status === 'submitted';
+    const isRequesterForCreatorDelivery = !!task.creator_user_id && task.requester_id === state.session?.user?.id;
+    const canReviewCreatorDelivery = isRequesterForCreatorDelivery && task.status === 'submitted';
+    const canReviewAdminTask = state.isAdmin && !task.creator_user_id && task.status === 'submitted';
+    const canReview = canReviewCreatorDelivery || canReviewAdminTask;
     const attachmentHtml = await Promise.all(attachments.map(async a=>{
       const bucket=a.request_id?'gx-internal-request-files':'gx-internal-task-files';
       const { data } = await sb.storage.from(bucket).createSignedUrl(a.object_path,1800);
@@ -569,9 +581,11 @@
     const progressHtml = canProgress
       ? '<form id="gxProgressForm"><div class="gxt-form-grid"><div class="gxt-field"><label>Estado</label><select name="status"><option value="in_progress" '+(task.status==='in_progress'?'selected':'')+'>En progreso</option><option value="blocked" '+(task.status==='blocked'?'selected':'')+'>Bloqueada</option><option value="submitted">Entregada para revisión</option></select></div><div class="gxt-field full"><label>Comentario de avance (opcional)</label><textarea name="comment" placeholder="Describe lo que avanzaste o lo que entregas."></textarea></div></div><div class="gxt-actions"><button class="gxt-btn primary" type="submit">Guardar avance</button></div></form>'
       : '';
-    const reviewHtml = canReview
-      ? '<div class="gxt-status-note">El responsable entregó esta tarea. Solo administración puede aprobarla o solicitar correcciones.</div><div class="gxt-field"><label>Observaciones de revisión</label><textarea id="gxReviewFeedback" placeholder="Escribe los ajustes necesarios o una nota de aprobación."></textarea></div><div class="gxt-actions"><button class="gxt-btn primary" data-review="approve" data-task-id="'+task.id+'">Aprobar y completar</button><button class="gxt-btn danger" data-review="return" data-task-id="'+task.id+'">Solicitar correcciones</button></div>'
-      : '';
+    const reviewHtml = canReviewCreatorDelivery
+      ? '<div class="gxt-status-note"><strong>La propuesta está lista.</strong><br>Revísala. Si la apruebas, el contenido se publicará en el portal del creador seleccionado.</div><div class="gxt-field"><label>Observaciones (si solicitas cambios)</label><textarea id="gxReviewFeedback" placeholder="Indica qué debe ajustarse si todavía no está lista."></textarea></div><div class="gxt-actions"><button class="gxt-btn primary" data-delivery-review="approve" data-task-id="'+task.id+'">Aprobar y enviar al creador</button><button class="gxt-btn danger" data-delivery-review="return" data-task-id="'+task.id+'">Solicitar cambios</button></div>'
+      : canReviewAdminTask
+        ? '<div class="gxt-status-note">El responsable entregó esta tarea. Solo administración puede aprobarla o solicitar correcciones.</div><div class="gxt-field"><label>Observaciones de revisión</label><textarea id="gxReviewFeedback" placeholder="Escribe los ajustes necesarios o una nota de aprobación."></textarea></div><div class="gxt-actions"><button class="gxt-btn primary" data-review="approve" data-task-id="'+task.id+'">Aprobar y completar</button><button class="gxt-btn danger" data-review="return" data-task-id="'+task.id+'">Solicitar correcciones</button></div>'
+        : '';
     const reassignHtml = state.isAdmin
       ? '<div class="gxt-field"><label>Responsable</label><div class="gxt-actions"><select id="gxReassignSelect" style="flex:1;min-width:180px;background:#090c10;border:1px solid #343b45;border-radius:9px;color:#fff;padding:10px">'+activeMembersOptions(task.assigned_to)+'</select><button class="gxt-btn" data-reassign="'+task.id+'">Reasignar</button></div></div>'
       : '';
@@ -641,6 +655,18 @@
     const { error } = await sb.rpc('gx_task_review', {p_task_id:taskId,p_approved:approve,p_feedback:feedback});
     if (error) return toast('No se pudo revisar la tarea: '+error.message);
     closeModal(); await refresh(); toast(approve?'Tarea aprobada y completada.':'Tarea devuelta para correcciones.');
+  }
+
+  async function reviewCreatorDelivery(taskId, approve) {
+    const feedback = String(document.getElementById('gxReviewFeedback')?.value || '').trim();
+    if (!approve && !feedback) return toast('Cuéntale al encargado qué debe corregir.');
+    const { error } = await sb.rpc('gx_creator_delivery_review', {
+      p_task_id:taskId,p_approved:approve,p_feedback:feedback
+    });
+    if (error) return toast('No se pudo procesar la propuesta: '+error.message);
+    closeModal();
+    await refresh();
+    toast(approve?'Contenido aprobado y enviado al creador.':'La propuesta volvió al encargado para ajustes.');
   }
 
   async function reassignTask(taskId) {
@@ -739,6 +765,8 @@
     if(download){downloadAttachment(download.dataset.downloadFile,download.dataset.fileName,download);return;}
     const preview=event.target.closest('[data-preview-file]');
     if(preview)return openFilePreview(preview.dataset.previewFile,preview.dataset.fileName,preview.dataset.fileMime);
+    const deliveryReview=event.target.closest('[data-delivery-review]');
+    if(deliveryReview)return reviewCreatorDelivery(deliveryReview.dataset.taskId,deliveryReview.dataset.deliveryReview==='approve');
     const review=event.target.closest('[data-review]');
     if(review)return reviewTask(review.dataset.taskId,review.dataset.review==='approve');
     const reassign=event.target.closest('[data-reassign]');
