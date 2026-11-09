@@ -279,7 +279,7 @@
       const detail = a.details || {};
       let summary = a.action === 'created' ? 'Creó la tarea' :
         a.action === 'status_changed' ? 'Cambió estado: '+(statusLabels[detail.from]||detail.from)+' → '+(statusLabels[detail.to]||detail.to) :
-        a.action === 'reassigned' ? 'Reasignó la tarea' : 'Actualizó la tarea';
+        a.action === 'reassigned' ? 'Reasignó la tarea' : a.action === 'comment_added' ? 'Añadió un comentario' : a.action === 'attachment_added' ? 'Adjuntó una evidencia' : 'Actualizó la tarea';
       return '<tr><td>'+dateTimeLabel(a.created_at)+'</td><td>'+esc(a.actor?.display_name || 'Sistema')+'</td><td>'+esc(a.task?.title || 'Tarea')+'</td><td>'+esc(summary)+'</td></tr>';
     }).join('');
     main.innerHTML = pageHead('Actividad','Registro de cambios y movimientos de las tareas.', '')+
@@ -433,7 +433,7 @@
       return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir evidencia</a></p>':'')+'</div>';
     }));
     const commentHtml = comments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author?.display_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
-    const activityHtml = activity.map(a=>'<div class="gxt-comment"><strong>'+esc(a.actor?.display_name||'Sistema')+'</strong><small>'+dateTimeLabel(a.created_at)+'</small><p>'+esc(a.action==='created'?'Creó la tarea':a.action==='status_changed'?'Cambió el estado':'Actualizó la tarea')+'</p></div>').join('');
+    const activityHtml = activity.map(a=>'<div class="gxt-comment"><strong>'+esc(a.actor?.display_name||'Sistema')+'</strong><small>'+dateTimeLabel(a.created_at)+'</small><p>'+esc(a.action==='created'?'Creó la tarea':a.action==='status_changed'?'Cambió el estado':a.action==='comment_added'?'Añadió un comentario':a.action==='attachment_added'?'Adjuntó una evidencia':a.action==='reassigned'?'Reasignó la tarea':'Actualizó la tarea')+'</p></div>').join('');
     const progressHtml = canProgress
       ? '<form id="gxProgressForm"><div class="gxt-form-grid"><div class="gxt-field"><label>Estado</label><select name="status"><option value="in_progress" '+(task.status==='in_progress'?'selected':'')+'>En progreso</option><option value="blocked" '+(task.status==='blocked'?'selected':'')+'>Bloqueada</option><option value="submitted">Entregada para revisión</option></select></div><div class="gxt-field full"><label>Comentario de avance (opcional)</label><textarea name="comment" placeholder="Describe lo que avanzaste o lo que entregas."></textarea></div></div><div class="gxt-actions"><button class="gxt-btn primary" type="submit">Guardar avance</button></div></form>'
       : '';
@@ -448,7 +448,7 @@
       '<section class="gxt-panel"><p>'+esc(task.description||'Sin descripción adicional.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">Inicio: '+dateLabel(task.starts_at)+'</span><span class="gxt-chip">Vence: '+dateLabel(task.due_at)+'</span></div>'+reassignHtml+reviewHtml+progressHtml+'</section>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Comentarios y avances</h2></div><div class="gxt-list">'+commentHtml+'</div><form id="gxCommentForm" style="margin-top:12px"><div class="gxt-field"><label>Agregar comentario</label><textarea name="body" required placeholder="Escribe un comentario o actualización."></textarea></div><button class="gxt-btn" type="submit">Publicar comentario</button></form></section>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Evidencias y archivos</h2></div><div class="gxt-list">'+(attachmentHtml.join('')||'<div class="gxt-empty">No se han adjuntado evidencias.</div>')+'</div><form id="gxUploadForm" style="margin-top:12px"><div class="gxt-field"><label>Adjuntar evidencia (máximo 20 MB)</label><input type="file" name="file" required></div><button class="gxt-btn" type="submit">Subir archivo</button></form></section>'+
-      (state.isAdmin?'<section class="gxt-panel"><div class="gxt-panel-head"><h2>Historial</h2></div><div class="gxt-list">'+(activityHtml||'<div class="gxt-empty">Sin movimientos registrados.</div>')+'</div></section>':''),
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Historial de actividad</h2></div><div class="gxt-list">'+(activityHtml||'<div class="gxt-empty">Sin movimientos registrados.</div>')+'</div></section>',
       true
     );
 
