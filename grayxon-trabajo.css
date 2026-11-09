@@ -233,7 +233,9 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 
 
 /* Archivos seleccionados antes de publicar en el chat */
-.gxt-selected-files{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.gxt-chat-compose{flex-wrap:wrap!important}
+.gxt-selected-files{display:flex;flex-wrap:wrap;gap:7px;width:100%;flex:0 0 100%;margin:0 0 2px;order:-1}
+.gxt-selected-files:empty{display:none}
 .gxt-selected-file{display:flex;align-items:center;gap:9px;max-width:100%;padding:6px 8px 6px 10px;border:1px solid #3b5961;border-radius:10px;background:linear-gradient(145deg,#14272d,#10191f);color:#dce9ed;font-size:10px}
 .gxt-selected-file span{min-width:0;overflow-wrap:anywhere}
 .gxt-selected-file button{width:23px;height:23px;flex:0 0 23px;border:1px solid #76505a;border-radius:7px;background:#321b22;color:#ff9cae;font-size:17px;line-height:1;cursor:pointer}
@@ -254,3 +256,13 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-preview-review textarea{width:100%;min-height:78px;resize:vertical;padding:10px;border:1px solid #394955;border-radius:10px;background:#090f14;color:#f2f5f7;font:inherit;font-size:12px}
 .gxt-preview-review .gxt-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px}
 .gxt-preview-review .gxt-actions .gxt-btn{min-height:38px}
+
+/* Adjuntos de imagen dentro de las burbujas del chat */
+.gxt-chat-image-attachment{display:flex;flex-direction:column;gap:7px;max-width:min(100%,340px);margin-top:5px}
+.gxt-chat-image-open{display:block;padding:0;border:1px solid #344650;border-radius:12px;overflow:hidden;background:#080d12;cursor:zoom-in;max-width:100%}
+.gxt-chat-image-open img{display:block;max-width:100%;width:auto;height:auto;max-height:300px;object-fit:contain}
+.gxt-chat-image-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;font-size:10px;color:#aab6c2}
+.gxt-chat-image-meta>span{min-width:0;overflow-wrap:anywhere;flex:1}
+.gxt-chat-image-meta .gxt-btn{min-height:28px;padding:4px 9px;font-size:10px}
+.gxt-selected-file{max-width:100%}
+.gxt-selected-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
