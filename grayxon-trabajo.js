@@ -161,7 +161,8 @@
     const params = new URLSearchParams(window.location.search);
     const taskId = params.get('task');
     const requestId = params.get('request');
-    if (taskId && state.tasks.some(t => t.id === taskId)) {
+    if (taskId) {
+      // A requester may review a creator-targeted task without being its assignee.
       state.tab = 'tasks';
       renderPage();
       openTaskDetail(taskId);
@@ -476,8 +477,10 @@
     const commentHtml = allComments.map(c=>'<article class="gxt-chat-message '+(c.author_name===state.member?.display_name?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-author">'+esc(c.author_name||'Integrante')+'</div><p>'+esc(c.body)+'</p><time>'+dateTimeLabel(c.created_at)+'</time></div></article>').join('') || '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación con una actualización o adjunta un archivo.</div>';
     const requester = request.requester?.display_name || 'Integrante';
     const adminNote = request.admin_note ? '<div class="gxt-status-note"><strong>Observación de administración</strong><br>'+esc(request.admin_note)+'</div>' : '';
+    const targetCreator = state.creators.find(c=>c.id===request.creator_user_id);
+    const targetCreatorName = targetCreator ? (targetCreator.tiktok_username || targetCreator.username || targetCreator.full_name) : '';
     openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
-      '<section class="gxt-request-origin"><div class="gxt-section-kicker">SOLICITUD ORIGINAL</div><div class="gxt-request-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span></div><div class="gxt-request-description">'+esc(request.description||'Sin detalles adicionales.')+'</div>'+adminNote+'</section>'+
+      '<section class="gxt-request-origin"><div class="gxt-section-kicker">SOLICITUD ORIGINAL</div><div class="gxt-request-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span>'+(targetCreatorName?'<span class="gxt-chip">Entrega para @'+esc(targetCreatorName)+'</span>':'')+'</div><div class="gxt-request-description">'+esc(request.description||'Sin detalles adicionales.')+'</div>'+adminNote+'</section>'+
       '<section class="gxt-followup-section"><div class="gxt-followup-heading"><div><div class="gxt-section-kicker">CONVERSACIÓN Y EVIDENCIAS</div><h3>Seguimiento</h3><p>Mensajes y archivos compartidos entre las personas relacionadas con esta solicitud.</p></div><span class="gxt-followup-count">'+(allComments.length+attachmentHtml.length)+' elementos</span></div><div class="gxt-list">'+commentHtml+(attachmentHtml.join('')||'')+'</div><form id="gxRequestCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxRequestFiles" title="Adjuntar archivos">＋</label><input id="gxRequestFiles" name="files" type="file" multiple hidden><button class="gxt-btn primary" type="submit">Enviar</button></div></div><div class="gxt-compose-hint"><span id="gxSelectedFiles">Puedes enviar texto, archivos o ambos.</span><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>',true);
     const commentForm = document.getElementById('gxRequestCommentForm');
     const fileInput = document.getElementById('gxRequestFiles');
