@@ -2,7 +2,7 @@
   const cfg = window.GRAYXON_CONFIG;
   if (!window.supabase || !cfg?.SUPABASE_URL || !cfg?.SUPABASE_PUBLISHABLE_KEY) return;
   const client = window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
-  let checking=false, checkedUserId=null, observer=null;
+  let checking=false, retryRequested=false, checkedUserId=null, observer=null, syncTimer=null, memberCache={userId:null,allowed:false};
 
   function removeCard(){
     document.getElementById('gxTrabajoDashboardCard')?.remove();
@@ -32,18 +32,29 @@
     return null;
   }
 
-  async function syncDashboardCard(force=false){
-    if(checking)return;
+  async function syncDashboardCard(){
+    if(checking){retryRequested=true;return;}
     checking=true;
+    retryRequested=false;
     try{
-      const target=getDashboardTarget();
-      if(!target){removeCard();return;}
+      const targetBefore=getDashboardTarget();
+      if(!targetBefore){removeCard();return;}
       const {data,error:sessionError}=await client.auth.getSession();
       const user=data?.session?.user;
-      if(sessionError||!user){removeCard();return;}
-      if(!force&&checkedUserId===user.id&&document.getElementById('gxTrabajoDashboardCard'))return;
-      const {data:member,error}=await client.from('gx_internal_members').select('id,active').eq('user_id',user.id).maybeSingle();
-      if(error||!member||member.active!==true){removeCard();return;}
+      if(sessionError||!user){removeCard();memberCache={userId:null,allowed:false};return;}
+
+      let allowed=memberCache.userId===user.id?memberCache.allowed:null;
+      if(allowed===null){
+        const {data:member,error}=await client.from('gx_internal_members').select('id,active').eq('user_id',user.id).maybeSingle();
+        allowed=!error&&!!member&&member.active===true;
+        memberCache={userId:user.id,allowed};
+      }
+      if(!allowed){removeCard();return;}
+
+      // La aplicación puede reconstruir el dashboard mientras se consulta Supabase.
+      // Volver a buscar el contenedor justo antes de insertar evita usar un nodo obsoleto.
+      const target=getDashboardTarget();
+      if(!target||!target.grid.isConnected){retryRequested=true;return;}
 
       installStyles();
       let card=document.getElementById('gxTrabajoDashboardCard');
@@ -59,20 +70,32 @@
       checkedUserId=user.id;
     }catch(error){
       console.warn('[Grayxon Trabajo] No se pudo sincronizar la tarjeta del dashboard:',error?.message||error);
-      removeCard();
-    }finally{checking=false;}
+    }finally{
+      checking=false;
+      if(retryRequested){
+        retryRequested=false;
+        setTimeout(syncDashboardCard,120);
+      }
+    }
+  }
+
+  function scheduleSync(){
+    if(syncTimer)clearTimeout(syncTimer);
+    syncTimer=setTimeout(()=>{syncTimer=null;syncDashboardCard()},100);
   }
 
   function observeDashboard(){
     if(observer)return;
-    observer=new MutationObserver(()=>syncDashboardCard());
+    observer=new MutationObserver(scheduleSync);
     observer.observe(document.body,{childList:true,subtree:true});
-    syncDashboardCard(true);
+    scheduleSync();
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',observeDashboard,{once:true});
   else observeDashboard();
-  window.addEventListener('load',()=>syncDashboardCard(true),{once:true});
-  window.addEventListener('hashchange',()=>{checkedUserId=null;syncDashboardCard(true)});
-  client.auth.onAuthStateChange(()=>{checkedUserId=null;setTimeout(()=>syncDashboardCard(true),0)});
+  window.addEventListener('load',scheduleSync,{once:true});
+  window.addEventListener('hashchange',scheduleSync);
+  client.auth.onAuthStateChange(()=>{memberCache={userId:null,allowed:false};scheduleSync()});
+  // Respaldo tras los ciclos de render iniciales del portal.
+  [300,900,1800,3000].forEach(delay=>setTimeout(scheduleSync,delay));
 })();
