@@ -10,7 +10,11 @@ function resolveTarget(data) {
   const uuidMatch = value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
   // Grayxon Trabajo notifications open the isolated internal workspace.
-  if (page === 'grayxon-trabajo') return `./grayxon-trabajo.html?task=${encodeURIComponent(value)}`;
+  if (page === 'grayxon-trabajo') {
+    const notificationType = String(data?.type || nested?.type || '').toLowerCase();
+    const targetParam = notificationType.startsWith('internal_request') ? 'request' : 'task';
+    return `./grayxon-trabajo.html?${targetParam}=${encodeURIComponent(value)}`;
+  }
 
   // Official thread notifications open the exact publication in the thread.
   if (page === 'event-post') return `./portal.html?grayxonPush=1&page=event-post&target=${encodeURIComponent(value)}#events`;
