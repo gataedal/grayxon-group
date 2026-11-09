@@ -327,6 +327,15 @@
     return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small>'+authorLine+'</div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'">Ver</button><button type="button" class="gxt-btn" data-download-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'">Descargar</button></div></article>';
   }
 
+  function attachmentUploaderName(userId,context={}) {
+    const member=state.members.find(item=>item.user_id===userId);
+    if(member?.display_name)return member.display_name;
+    if(userId===state.session?.user?.id)return state.member?.display_name||'Tú';
+    if(context.requester_id===userId)return context.requester?.display_name||'Solicitante';
+    if(context.created_by===userId)return 'Administración';
+    return state.isAdmin?'Integrante':'Administración';
+  }
+
   function renderChatTimeline(comments,attachments) {
     const items=[
       ...comments.map(item=>({kind:'message',created_at:item.created_at,author_id:item.author_id,author_name:item.author_name||'Integrante',body:item.body})),
@@ -480,11 +489,11 @@
     const requestFileRows=await Promise.all([
       ...attachments.map(async a=>{
         const {data}=await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800);
-        return {...a,uploader_name:state.members.find(m=>m.user_id===a.uploaded_by)?.display_name||'Integrante',signed_url:data?.signedUrl||null};
+        return {...a,uploader_name:attachmentUploaderName(a.uploaded_by,request),signed_url:data?.signedUrl||null};
       }),
       ...legacyAttachments.map(async a=>{
         const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(a.object_path,1800);
-        return {...a,uploader_name:state.members.find(m=>m.user_id===a.uploaded_by)?.display_name||'Integrante',signed_url:data?.signedUrl||null};
+        return {...a,uploader_name:attachmentUploaderName(a.uploaded_by,request),signed_url:data?.signedUrl||null};
       })
     ]);
     const allComments=[...comments,...legacyComments];
@@ -592,12 +601,12 @@
     const chatFileRows=await Promise.all(attachments.map(async a=>{
       const bucket=a.request_id?'gx-internal-request-files':'gx-internal-task-files';
       const {data}=await sb.storage.from(bucket).createSignedUrl(a.object_path,1800);
-      return {...a,uploader_name:state.members.find(m=>m.user_id===a.uploaded_by)?.display_name||'Integrante',signed_url:data?.signedUrl||null};
+      return {...a,uploader_name:attachmentUploaderName(a.uploaded_by,task),signed_url:data?.signedUrl||null};
     }));
     const chatHtml=renderChatTimeline(comments,chatFileRows);
     const proposalAttachmentHtml = await Promise.all(proposalFiles.map(async f=>{
       const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(f.object_path,1800);
-      const uploader=state.members.find(m=>m.user_id===f.uploaded_by)?.display_name||'Integrante';
+      const uploader=attachmentUploaderName(f.uploaded_by,task);
       return fileAttachmentCard(f,data?.signedUrl,uploader);
     }));
     const proposalHtml = task.creator_user_id
