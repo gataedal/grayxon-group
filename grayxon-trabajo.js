@@ -320,10 +320,24 @@
     if (event.target === modalRoot) closeModal();
   }
 
-  function fileAttachmentCard(file,url) {
-    if(!url) return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+'</small><span>No fue posible abrir el archivo</span></div></article>';
+  function fileAttachmentCard(file,url,uploadedBy='') {
+    const authorLine=uploadedBy?'<small class="gxt-file-uploader">Enviado por '+esc(uploadedBy)+'</small>':'';
+    if(!url) return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+'</small>'+authorLine+'<span>No fue posible abrir el archivo</span></div></article>';
     const mime=esc(file.mime_type||'');
-    return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small></div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'">Ver</button><button type="button" class="gxt-btn" data-download-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'">Descargar</button></div></article>';
+    return '<article class="gxt-file-card"><div class="gxt-file-icon">📎</div><div class="gxt-file-info"><strong>'+esc(file.file_name)+'</strong><small>'+dateTimeLabel(file.created_at)+' · '+esc(file.mime_type||'Archivo adjunto')+'</small>'+authorLine+'</div><div class="gxt-file-actions"><button type="button" class="gxt-btn ghost" data-preview-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'" data-file-mime="'+mime+'">Ver</button><button type="button" class="gxt-btn" data-download-file="'+esc(url)+'" data-file-name="'+esc(file.file_name)+'">Descargar</button></div></article>';
+  }
+
+  function renderChatTimeline(comments,attachments) {
+    const items=[
+      ...comments.map(item=>({kind:'message',created_at:item.created_at,author_id:item.author_id,author_name:item.author_name||'Integrante',body:item.body})),
+      ...attachments.map(item=>({kind:'file',created_at:item.created_at,author_id:item.uploaded_by,author_name:item.uploader_name||'Integrante',file:item,url:item.signed_url||null}))
+    ].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    if(!items.length)return '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación con una actualización o adjunta un archivo.</div>';
+    return items.map(item=>{
+      const mine=item.author_id?item.author_id===state.session?.user?.id:item.author_name===state.member?.display_name;
+      const content=item.kind==='message'?'<p>'+esc(item.body)+'</p>':fileAttachmentCard(item.file,item.url);
+      return '<article class="gxt-chat-message '+(mine?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-message-head"><strong class="gxt-chat-author">'+esc(item.author_name)+'</strong><time>'+dateTimeLabel(item.created_at)+'</time></div>'+content+'</div></article>';
+    }).join('');
   }
 
   async function downloadAttachment(url,name,button) {
@@ -458,30 +472,30 @@
     }
     if (!request) return toast('No se pudo encontrar la solicitud o no tienes acceso.');
     const [comments, attachments, legacyComments, legacyAttachments] = await Promise.all([
-      queryRows(sb.from('gx_task_request_comments').select('id,body,author_name,created_at').eq('request_id',requestId).order('created_at'), 'request comments'),
+      queryRows(sb.from('gx_task_request_comments').select('id,author_id,body,author_name,created_at').eq('request_id',requestId).order('created_at'), 'request comments'),
       queryRows(sb.from('gx_task_request_attachments').select('*').eq('request_id',requestId).order('created_at'), 'request attachments'),
-      request.converted_task_id ? queryRows(sb.from('gx_task_comments').select('id,body,author_name,created_at').eq('task_id',request.converted_task_id).order('created_at'),'legacy task comments') : Promise.resolve([]),
+      request.converted_task_id ? queryRows(sb.from('gx_task_comments').select('id,author_id,body,author_name,created_at').eq('task_id',request.converted_task_id).order('created_at'),'legacy task comments') : Promise.resolve([]),
       request.converted_task_id ? queryRows(sb.from('gx_task_attachments').select('*').eq('task_id',request.converted_task_id).order('created_at'),'legacy task attachments') : Promise.resolve([])
     ]);
-    const attachmentHtml = await Promise.all([
+    const requestFileRows=await Promise.all([
       ...attachments.map(async a=>{
-        const { data } = await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800);
-        return fileAttachmentCard(a,data?.signedUrl);
+        const {data}=await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800);
+        return {...a,uploader_name:state.members.find(m=>m.user_id===a.uploaded_by)?.display_name||'Integrante',signed_url:data?.signedUrl||null};
       }),
       ...legacyAttachments.map(async a=>{
-        const { data } = await sb.storage.from('gx-internal-task-files').createSignedUrl(a.object_path,1800);
-        return fileAttachmentCard(a,data?.signedUrl);
+        const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(a.object_path,1800);
+        return {...a,uploader_name:state.members.find(m=>m.user_id===a.uploaded_by)?.display_name||'Integrante',signed_url:data?.signedUrl||null};
       })
     ]);
-    const allComments=[...comments,...legacyComments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-    const commentHtml = allComments.map(c=>'<article class="gxt-chat-message '+(c.author_name===state.member?.display_name?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-author">'+esc(c.author_name||'Integrante')+'</div><p>'+esc(c.body)+'</p><time>'+dateTimeLabel(c.created_at)+'</time></div></article>').join('') || '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación con una actualización o adjunta un archivo.</div>';
+    const allComments=[...comments,...legacyComments];
+    const chatHtml=renderChatTimeline(allComments,requestFileRows);
     const requester = request.requester?.display_name || 'Integrante';
     const adminNote = request.admin_note ? '<div class="gxt-status-note"><strong>Observación de administración</strong><br>'+esc(request.admin_note)+'</div>' : '';
     const targetCreator = state.creators.find(c=>c.id===request.creator_user_id);
     const targetCreatorName = targetCreator ? (targetCreator.tiktok_username || targetCreator.username || targetCreator.full_name) : '';
     openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
       '<section class="gxt-request-origin"><div class="gxt-section-kicker">SOLICITUD ORIGINAL</div><div class="gxt-request-meta"><span class="gxt-chip">'+esc(requestLabels[request.status]||request.status)+'</span><span class="gxt-chip">'+esc(request.urgency)+'</span><span class="gxt-chip">'+esc(request.department?.name||'Sin área')+'</span>'+(targetCreatorName?'<span class="gxt-chip">Entrega para @'+esc(targetCreatorName)+'</span>':'')+'</div><div class="gxt-request-description">'+esc(request.description||'Sin detalles adicionales.')+'</div>'+adminNote+'</section>'+
-      '<section class="gxt-followup-section"><div class="gxt-followup-heading"><div><div class="gxt-section-kicker">CONVERSACIÓN Y EVIDENCIAS</div><h3>Seguimiento</h3><p>Mensajes y archivos compartidos entre las personas relacionadas con esta solicitud.</p></div><span class="gxt-followup-count">'+(allComments.length+attachmentHtml.length)+' elementos</span></div><div class="gxt-list">'+commentHtml+(attachmentHtml.join('')||'')+'</div><form id="gxRequestCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxRequestFiles" title="Adjuntar archivos">＋</label><input id="gxRequestFiles" name="files" type="file" multiple hidden><button class="gxt-btn primary" type="submit">Enviar</button></div></div><div class="gxt-compose-hint"><span id="gxSelectedFiles">Puedes enviar texto, archivos o ambos.</span><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>',true);
+      '<section class="gxt-followup-section"><div class="gxt-followup-heading"><div><div class="gxt-section-kicker">CONVERSACIÓN Y EVIDENCIAS</div><h3>Seguimiento</h3><p>Mensajes y archivos compartidos entre las personas relacionadas con esta solicitud.</p></div><span class="gxt-followup-count">'+(allComments.length+requestFileRows.length)+' elementos</span></div><div class="gxt-chat-thread">'+chatHtml+'</div><form id="gxRequestCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxRequestFiles" title="Adjuntar archivos">＋</label><input id="gxRequestFiles" name="files" type="file" multiple hidden><button class="gxt-btn primary" type="submit">Enviar</button></div></div><div class="gxt-compose-hint"><span id="gxSelectedFiles">Puedes enviar texto, archivos o ambos.</span><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>',true);
     const commentForm = document.getElementById('gxRequestCommentForm');
     const fileInput = document.getElementById('gxRequestFiles');
     if(fileInput) fileInput.addEventListener('change',()=>{const label=document.getElementById('gxSelectedFiles');if(label)label.textContent=fileInput.files.length?Array.from(fileInput.files).map(f=>f.name).join(' · '):'Puedes enviar texto, archivos o ambos.';});
@@ -560,37 +574,38 @@
     }
     if (!task) return toast('No se pudo encontrar la tarea.');
     const [taskComments, taskAttachments, activity, sharedComments, sharedAttachments, proposalFiles] = await Promise.all([
-      queryRows(sb.from('gx_task_comments').select('id,body,author_name,created_at').eq('task_id',taskId).order('created_at'), 'task comments'),
+      queryRows(sb.from('gx_task_comments').select('id,author_id,body,author_name,created_at').eq('task_id',taskId).order('created_at'), 'task comments'),
       queryRows(sb.from('gx_task_attachments').select('*').eq('task_id',taskId).order('created_at'), 'task attachments'),
       queryRows(sb.from('gx_task_activity').select('id,action,details,actor_name,created_at').eq('task_id',taskId).order('created_at',{ascending:false}).limit(20), 'task activity'),
-      task.source_request_id ? queryRows(sb.from('gx_task_request_comments').select('id,body,author_name,created_at').eq('request_id',task.source_request_id).order('created_at'),'shared request comments') : Promise.resolve([]),
+      task.source_request_id ? queryRows(sb.from('gx_task_request_comments').select('id,author_id,body,author_name,created_at').eq('request_id',task.source_request_id).order('created_at'),'shared request comments') : Promise.resolve([]),
       task.source_request_id ? queryRows(sb.from('gx_task_request_attachments').select('*').eq('request_id',task.source_request_id).order('created_at'),'shared request attachments') : Promise.resolve([]),
       task.creator_user_id ? queryRows(sb.from('gx_creator_delivery_proposal_files').select('*').eq('task_id',taskId).gte('created_at',task.reviewed_at||task.created_at).order('created_at'),'creator proposal files') : Promise.resolve([])
     ]);
-    const comments=[...taskComments,...sharedComments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-    const attachments=[...taskAttachments,...sharedAttachments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    const comments=[...taskComments,...sharedComments];
+    const attachments=[...taskAttachments,...sharedAttachments];
     const isAssignee = task.assigned_to === state.session.user.id;
     const canProgress = isAssignee && !['submitted','completed'].includes(task.status);
     const isRequesterForCreatorDelivery = !!task.creator_user_id && task.requester_id === state.session?.user?.id;
     const canReviewCreatorDelivery = isRequesterForCreatorDelivery && task.status === 'submitted';
     const canReviewAdminTask = state.isAdmin && !task.creator_user_id && task.status === 'submitted';
     const canReview = canReviewCreatorDelivery || canReviewAdminTask;
-    const attachmentHtml = await Promise.all(attachments.map(async a=>{
+    const chatFileRows=await Promise.all(attachments.map(async a=>{
       const bucket=a.request_id?'gx-internal-request-files':'gx-internal-task-files';
-      const { data } = await sb.storage.from(bucket).createSignedUrl(a.object_path,1800);
-      return fileAttachmentCard(a,data?.signedUrl);
+      const {data}=await sb.storage.from(bucket).createSignedUrl(a.object_path,1800);
+      return {...a,uploader_name:state.members.find(m=>m.user_id===a.uploaded_by)?.display_name||'Integrante',signed_url:data?.signedUrl||null};
     }));
+    const chatHtml=renderChatTimeline(comments,chatFileRows);
     const proposalAttachmentHtml = await Promise.all(proposalFiles.map(async f=>{
       const {data}=await sb.storage.from('gx-internal-task-files').createSignedUrl(f.object_path,1800);
-      return fileAttachmentCard(f,data?.signedUrl);
+      const uploader=state.members.find(m=>m.user_id===f.uploaded_by)?.display_name||'Integrante';
+      return fileAttachmentCard(f,data?.signedUrl,uploader);
     }));
     const proposalHtml = task.creator_user_id
-      ? '<section class="gxt-panel gxt-creator-proposal"><div class="gxt-panel-head"><div><h2>Propuesta final para el creador</h2><p class="gxt-hint">Estos archivos son los únicos que se enviarán al creador si el solicitante los aprueba.</p></div></div><div class="gxt-list">'+(proposalAttachmentHtml.join('')||'<div class="gxt-empty">Todavía no hay archivos en la propuesta final.</div>')+'</div>'+(canProgress&&isAssignee?'<form id="gxCreatorProposalForm" class="gxt-proposal-upload"><div class="gxt-field"><label>Adjuntar archivos finales</label><input type="file" name="files" multiple accept="image/*,video/*,.pdf,.zip"><small class="gxt-hint">Hasta 5 archivos por carga · máximo 20 MB cada uno. Las evidencias del chat no se publican al creador.</small></div><button type="submit" class="gxt-btn primary">Adjuntar a la propuesta</button></form>':'')+'</section>'
+      ? '<section class="gxt-panel gxt-creator-proposal"><div class="gxt-panel-head"><div><div class="gxt-section-kicker">ENTREGA PARA EL CREADOR</div><h2>Propuesta final</h2><p class="gxt-hint">Los archivos quedan en revisión. Solo se publicarán cuando quien solicitó el contenido los apruebe.</p></div></div><div class="gxt-list">'+(proposalAttachmentHtml.join('')||'<div class="gxt-empty">Todavía no hay archivos en la propuesta final.</div>')+'</div>'+(canProgress&&isAssignee?'<form id="gxCreatorProposalForm" class="gxt-proposal-upload"><div class="gxt-field"><label>Adjuntar archivos finales</label><input type="file" name="files" multiple accept="image/*,video/*,.pdf,.zip"><small class="gxt-hint">Hasta 5 archivos por carga · máximo 20 MB cada uno. Las evidencias del chat no se publican al creador.</small></div><button type="submit" class="gxt-btn">Guardar archivos en la propuesta</button></form>'+(proposalFiles.length?'<div class="gxt-proposal-submit"><div><strong>¿Ya está lista?</strong><small>Envía la propuesta a quien la solicitó para que pueda revisarla.</small></div><button type="button" class="gxt-btn primary" data-submit-proposal="'+task.id+'">Enviar propuesta a revisión</button></div>':''):'')+'</section>'
       : '';
-    const commentHtml = comments.map(c=>'<article class="gxt-chat-message '+(c.author_name===state.member?.display_name?'mine':'')+'"><div class="gxt-chat-bubble"><div class="gxt-chat-author">'+esc(c.author_name||'Integrante')+'</div><p>'+esc(c.body)+'</p><time>'+dateTimeLabel(c.created_at)+'</time></div></article>').join('') || '<div class="gxt-chat-empty">Todavía no hay mensajes. Inicia la conversación.</div>';
     const activityHtml = activity.map(a=>'<div class="gxt-comment"><strong>'+esc(a.actor_name||'Sistema')+'</strong><small>'+dateTimeLabel(a.created_at)+'</small><p>'+esc(a.action==='created'?'Creó la tarea':a.action==='status_changed'?'Cambió el estado':a.action==='comment_added'?'Añadió un comentario':a.action==='attachment_added'?'Adjuntó una evidencia':a.action==='reassigned'?'Reasignó la tarea':'Actualizó la tarea')+'</p></div>').join('');
     const progressHtml = canProgress
-      ? '<form id="gxProgressForm"><div class="gxt-form-grid"><div class="gxt-field"><label>Estado</label><select name="status"><option value="in_progress" '+(task.status==='in_progress'?'selected':'')+'>En progreso</option><option value="blocked" '+(task.status==='blocked'?'selected':'')+'>Bloqueada</option><option value="submitted">Entregada para revisión</option></select></div><div class="gxt-field full"><label>Comentario de avance (opcional)</label><textarea name="comment" placeholder="Describe lo que avanzaste o lo que entregas."></textarea></div></div><div class="gxt-actions"><button class="gxt-btn primary" type="submit">Guardar avance</button></div></form>'
+      ? '<form id="gxProgressForm"><div class="gxt-form-grid"><div class="gxt-field"><label>Estado</label><select name="status"><option value="in_progress" '+(task.status==='in_progress'?'selected':'')+'>En progreso</option><option value="blocked" '+(task.status==='blocked'?'selected':'')+'>Bloqueada</option>'+(!task.creator_user_id?'<option value="submitted">Entregada para revisión</option>':'')+'</select></div><div class="gxt-field full"><label>Comentario de avance (opcional)</label><textarea name="comment" placeholder="Describe lo que avanzaste o lo que necesitas comunicar."></textarea></div></div><div class="gxt-actions"><button class="gxt-btn primary" type="submit">Guardar avance</button></div></form>'
       : '';
     const reviewHtml = canReviewCreatorDelivery
       ? '<div class="gxt-status-note"><strong>La propuesta está lista.</strong><br>Revísala. Si la apruebas, el contenido se publicará en el portal del creador seleccionado.</div><div class="gxt-field"><label>Observaciones (si solicitas cambios)</label><textarea id="gxReviewFeedback" placeholder="Indica qué debe ajustarse si todavía no está lista."></textarea></div><div class="gxt-actions"><button class="gxt-btn primary" data-delivery-review="approve" data-task-id="'+task.id+'">Aprobar y enviar al creador</button><button class="gxt-btn danger" data-delivery-review="return" data-task-id="'+task.id+'">Solicitar cambios</button></div>'
@@ -602,13 +617,21 @@
       : '';
     openModal(task.title, 'Creada por administración · '+(task.assignee?.display_name||'Responsable'), 
       '<div class="gxt-card-meta">'+taskChip(task.status)+'<span class="gxt-chip">'+esc(priorityLabels[task.priority]||task.priority)+'</span><span class="gxt-chip">'+esc(task.department?.name||'Sin área')+'</span></div>'+
-      '<section class="gxt-panel"><p>'+esc(task.description||'Sin descripción adicional.')+'</p><div class="gxt-card-meta"><span class="gxt-chip">Inicio: '+dateLabel(task.starts_at)+'</span><span class="gxt-chip">Vence: '+dateLabel(task.due_at)+'</span></div>'+reassignHtml+reviewHtml+progressHtml+'</section>'+proposalHtml+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Seguimiento</h2></div><div class="gxt-list">'+commentHtml+(attachmentHtml.join('')||'')+'</div><form id="gxCommentForm" style="margin-top:12px"><div class="gxt-field"><label>Mensaje (opcional si adjuntas archivos)</label><textarea name="body" maxlength="5000" placeholder="Escribe una actualización o respuesta."></textarea></div><div class="gxt-field"><label>Adjuntar archivos o imágenes</label><input type="file" name="files" multiple><small class="gxt-hint">Hasta 5 archivos, máximo 20 MB cada uno. Se conserva el formato original.</small></div><button class="gxt-btn" type="submit">Publicar en seguimiento</button></form></section>'+
+      '<section class="gxt-panel gxt-task-overview"><div class="gxt-section-kicker">RESUMEN DE LA TAREA</div><div class="gxt-task-description">'+esc(task.description||'Sin descripción adicional.')+'</div><div class="gxt-card-meta"><span class="gxt-chip">Inicio: '+dateLabel(task.starts_at)+'</span><span class="gxt-chip">Vence: '+dateLabel(task.due_at)+'</span></div>'+reassignHtml+reviewHtml+progressHtml+'</section>'+proposalHtml+
+      '<section class="gxt-panel gxt-task-conversation"><div class="gxt-panel-head"><div><div class="gxt-section-kicker">CONVERSACIÓN DEL EQUIPO</div><h2>Seguimiento</h2></div><span class="gxt-followup-count">'+(comments.length+chatFileRows.length)+' elementos</span></div><div class="gxt-chat-thread">'+chatHtml+'</div><form id="gxCommentForm" class="gxt-followup-composer"><div class="gxt-chat-compose"><textarea name="body" maxlength="5000" placeholder="Escribe un mensaje o adjunta archivos..."></textarea><div class="gxt-chat-compose-actions"><label class="gxt-attach-btn" for="gxTaskFiles" title="Adjuntar archivos">＋</label><input id="gxTaskFiles" type="file" name="files" multiple hidden><button class="gxt-btn primary" type="submit">Enviar</button></div></div><div class="gxt-compose-hint"><span id="gxTaskSelectedFiles">Puedes enviar texto, archivos o ambos.</span><small>Máximo 5 archivos · 20 MB cada uno</small></div></form></section>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Historial de actividad</h2></div><div class="gxt-list">'+(activityHtml||'<div class="gxt-empty">Sin movimientos registrados.</div>')+'</div></section>',
       true
     );
 
     const proposalForm = document.getElementById('gxCreatorProposalForm');
+    const submitProposalButton=document.querySelector('[data-submit-proposal]');
+    if(submitProposalButton)submitProposalButton.addEventListener('click',async()=>{
+      if(!proposalFiles.length)return toast('Adjunta al menos un archivo antes de enviar la propuesta.');
+      submitProposalButton.disabled=true;submitProposalButton.textContent='Enviando a revisión...';
+      const {error}=await sb.rpc('gx_task_member_update',{p_task_id:task.id,p_status:'submitted',p_comment:'Propuesta final enviada a revisión.'});
+      if(error){submitProposalButton.disabled=false;submitProposalButton.textContent='Enviar propuesta a revisión';return toast('No se pudo enviar la propuesta: '+error.message);}
+      closeModal();await refresh();toast('Propuesta enviada a revisión. La persona solicitante recibirá una notificación.');await openTaskDetail(task.id);
+    });
     if(proposalForm)proposalForm.addEventListener('submit',async event=>{
       event.preventDefault();
       const files=Array.from(new FormData(proposalForm).getAll('files')).filter(file=>file instanceof File&&file.size>0);
@@ -643,6 +666,8 @@
       closeModal(); await refresh(); toast('Avance actualizado.');
     });
 
+    const taskFileInput=document.getElementById('gxTaskFiles');
+    if(taskFileInput)taskFileInput.addEventListener('change',()=>{const label=document.getElementById('gxTaskSelectedFiles');if(label)label.textContent=taskFileInput.files.length?Array.from(taskFileInput.files).map(f=>f.name).join(' · '):'Puedes enviar texto, archivos o ambos.';});
     const commentForm = document.getElementById('gxCommentForm');
     if (commentForm) commentForm.addEventListener('submit', async event=>{
       event.preventDefault();
