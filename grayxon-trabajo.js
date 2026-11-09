@@ -112,12 +112,11 @@
   }
 
   async function loadData() {
-    const taskQuery = sb.from('gx_tasks')
-      .select('*,assignee:gx_internal_members!gx_tasks_assigned_to_fkey(display_name,job_title),department:gx_departments(name)')
-      .order('created_at', { ascending: false });
-    const requestQuery = sb.from('gx_task_requests')
-      .select('*,requester:gx_internal_members!gx_task_requests_requester_id_fkey(display_name,job_title),department:gx_departments(name)')
-      .order('created_at', { ascending: false });
+    // Keep primary records independent from embedded relations. RLS on related
+    // member rows can otherwise make PostgREST return empty/error results for
+    // the whole list even when the task/request itself is readable.
+    const taskQuery = sb.from('gx_tasks').select('*').order('created_at', { ascending: false });
+    const requestQuery = sb.from('gx_task_requests').select('*').order('created_at', { ascending: false });
     const memberQuery = sb.from('gx_internal_members')
       .select('id,user_id,email,display_name,access_level,job_title,department_id,active,department:gx_departments(name)')
       .order('display_name');
@@ -136,8 +135,18 @@
       queryRows(departmentQuery, 'departments'),
       queryRows(activityQuery, 'activity')
     ]);
-    state.tasks = tasks;
-    state.requests = requests;
+    const memberByUser = new Map(members.map(m => [m.user_id, m]));
+    const departmentById = new Map(departments.map(d => [d.id, d]));
+    state.tasks = tasks.map(task => ({
+      ...task,
+      assignee: memberByUser.has(task.assigned_to) ? memberByUser.get(task.assigned_to) : null,
+      department: departmentById.has(task.department_id) ? departmentById.get(task.department_id) : null
+    }));
+    state.requests = requests.map(request => ({
+      ...request,
+      requester: memberByUser.has(request.requester_id) ? memberByUser.get(request.requester_id) : null,
+      department: departmentById.has(request.department_id) ? departmentById.get(request.department_id) : null
+    }));
     state.members = members;
     state.departments = departments;
     state.activity = activity;
@@ -402,7 +411,7 @@
     let request = state.requests.find(r=>r.id===requestId);
     if (!request) {
       const { data } = await sb.from('gx_task_requests')
-        .select('*,requester:gx_internal_members!gx_task_requests_requester_id_fkey(display_name,job_title),department:gx_departments(name)')
+        .select('*')
         .eq('id',requestId).maybeSingle();
       request = data;
     }
@@ -502,7 +511,7 @@
   async function openTaskDetail(taskId) {
     let task = state.tasks.find(t=>t.id===taskId);
     if (!task) {
-      const { data } = await sb.from('gx_tasks').select('*,assignee:gx_internal_members!gx_tasks_assigned_to_fkey(display_name,job_title),department:gx_departments(name)').eq('id',taskId).maybeSingle();
+      const { data } = await sb.from('gx_tasks').select('*').eq('id',taskId).maybeSingle();
       task = data;
     }
     if (!task) return toast('No se pudo encontrar la tarea.');
