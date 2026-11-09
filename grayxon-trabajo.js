@@ -228,7 +228,7 @@
       ? 'Supervisa las tareas, entregas y solicitudes del equipo interno.'
       : 'Aquí encuentras tus responsabilidades y el estado de cada entrega.';
     const actions = state.isAdmin
-      ? '<button class="gxt-btn primary" data-action="new-task">＋ Crear tarea</button>'
+      ? '<button class="gxt-btn primary" data-action="new-task">＋ Crear tarea</button><button class="gxt-btn" data-action="new-request">Nueva solicitud</button>'
       : '<button class="gxt-btn primary" data-action="new-request">＋ Nueva solicitud</button>';
     main.innerHTML = pageHead(title,description,actions)+
       '<div class="gxt-metrics">'+metricHtml+'</div>'+
@@ -245,7 +245,7 @@
 
   function renderRequestsPage() {
     const list = state.requests.map(requestCard).join('') || '<div class="gxt-empty">No hay solicitudes para mostrar.</div>';
-    main.innerHTML = pageHead(state.isAdmin?'Solicitudes del equipo':'Mis solicitudes',state.isAdmin?'Revisa, aprueba, rechaza o convierte las solicitudes en tareas.':'Envía solicitudes al administrador y consulta únicamente las que tú has creado.',state.isAdmin?'':'<button class="gxt-btn primary" data-action="new-request">＋ Nueva solicitud</button>')+
+    main.innerHTML = pageHead(state.isAdmin?'Solicitudes del equipo':'Mis solicitudes',state.isAdmin?'Revisa, aprueba, rechaza o convierte las solicitudes en tareas.':'Envía solicitudes al administrador y consulta únicamente las que tú has creado.', '<button class="gxt-btn primary" data-action="new-request">＋ Nueva solicitud</button>')+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+state.requests.length+' solicitudes</h2></div><div class="gxt-list">'+list+'</div></section>';
   }
 
