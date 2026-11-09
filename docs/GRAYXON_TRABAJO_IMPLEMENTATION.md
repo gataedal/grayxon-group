@@ -68,3 +68,12 @@ La página independiente es `grayxon-trabajo.html`. Los integrantes operativos n
 ## Reversión
 
 El archivo `supabase/rollback/20261109000000_grayxon_trabajo.sql` elimina exclusivamente los objetos de Grayxon Trabajo. Es destructivo para los datos del módulo y no debe ejecutarse sin exportar antes las tareas, solicitudes, comentarios, actividad y archivos creados.
+
+## Hallazgos de validación antes de producción
+
+- Las operaciones de creación de solicitudes y tareas usan privilegios por columna: los integrantes no pueden insertar solicitudes ya aprobadas/convertidas y ningún cliente puede marcar directamente una tarea como completada. Los cambios de estado pasan por las RPC con validación.
+- Las funciones `SECURITY DEFINER` usadas solo por triggers tienen revocado el permiso de ejecución directa para `PUBLIC`, `anon` y `authenticated`.
+- El calendario existente tenía una referencia a `managerIds` antes de inicializarla en el flujo de managers. Se corrigió únicamente dentro del bloque del calendario porque impedía cargar esa vista.
+- La tabla de notificaciones existente y su trigger de push están conectados. Sin embargo, la página independiente de Grayxon Trabajo todavía no registra suscripciones Web Push. La entrega push depende de que cada cuenta tenga una fila activa en `push_subscriptions`; se debe implementar/probar el alta de suscripción para nuevos colaboradores.
+- Debe probarse el acceso al calendario existente con una cuenta operativa nueva que no tenga fila en `profiles`. Esa cuenta se crea intencionalmente solo en Auth y `gx_internal_members`, no como creador ni manager.
+- No se han ejecutado pruebas de integración con la migración aplicada: producción permanece intacta y no se autorizó una rama de base de datos de pago. No considerar el módulo listo para producción hasta realizar pruebas en un entorno aislado.
