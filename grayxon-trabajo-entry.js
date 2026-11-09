@@ -15,13 +15,19 @@
     try {
       const { data } = await client.auth.getSession();
       const user = data?.session?.user;
-      if (!user) return;
+      if (!user) {
+        document.getElementById('gxTrabajoEntry')?.remove();
+        return;
+      }
       const { data: member, error } = await client
         .from('gx_internal_members')
         .select('id,active')
         .eq('user_id', user.id)
         .maybeSingle();
-      if (error || !member || member.active !== true) return;
+      if (error || !member || member.active !== true) {
+        document.getElementById('gxTrabajoEntry')?.remove();
+        return;
+      }
 
       const host = document.querySelector('.header-actions');
       if (!host) return;
