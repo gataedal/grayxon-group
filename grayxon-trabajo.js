@@ -407,15 +407,24 @@
       request = data;
     }
     if (!request) return toast('No se pudo encontrar la solicitud o no tienes acceso.');
-    const [comments, attachments] = await Promise.all([
+    const [comments, attachments, legacyComments, legacyAttachments] = await Promise.all([
       queryRows(sb.from('gx_task_request_comments').select('id,body,author_name,created_at').eq('request_id',requestId).order('created_at'), 'request comments'),
-      queryRows(sb.from('gx_task_request_attachments').select('*').eq('request_id',requestId).order('created_at'), 'request attachments')
+      queryRows(sb.from('gx_task_request_attachments').select('*').eq('request_id',requestId).order('created_at'), 'request attachments'),
+      request.converted_task_id ? queryRows(sb.from('gx_task_comments').select('id,body,author_name,created_at').eq('task_id',request.converted_task_id).order('created_at'),'legacy task comments') : Promise.resolve([]),
+      request.converted_task_id ? queryRows(sb.from('gx_task_attachments').select('*').eq('task_id',request.converted_task_id).order('created_at'),'legacy task attachments') : Promise.resolve([])
     ]);
-    const attachmentHtml = await Promise.all(attachments.map(async a=>{
-      const { data } = await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800,{download:a.file_name});
-      return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir</a> · <a href="'+esc(data.signedUrl)+'">Descargar '+esc(a.file_name)+'</a></p>':'<p>No fue posible generar el enlace del archivo.</p>')+'</div>';
-    }));
-    const commentHtml = comments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
+    const attachmentHtml = await Promise.all([
+      ...attachments.map(async a=>{
+        const { data } = await sb.storage.from('gx-internal-request-files').createSignedUrl(a.object_path,1800,{download:a.file_name});
+        return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir</a> · <a href="'+esc(data.signedUrl)+'">Descargar '+esc(a.file_name)+'</a></p>':'<p>No fue posible generar el enlace del archivo.</p>')+'</div>';
+      }),
+      ...legacyAttachments.map(async a=>{
+        const { data } = await sb.storage.from('gx-internal-task-files').createSignedUrl(a.object_path,1800,{download:a.file_name});
+        return '<div class="gxt-comment"><strong>📎 '+esc(a.file_name)+'</strong><small>'+dateTimeLabel(a.created_at)+'</small>'+(data?.signedUrl?'<p><a href="'+esc(data.signedUrl)+'" target="_blank" rel="noopener">Abrir</a> · <a href="'+esc(data.signedUrl)+'">Descargar '+esc(a.file_name)+'</a></p>':'<p>No fue posible generar el enlace del archivo.</p>')+'</div>';
+      })
+    ]);
+    const allComments=[...comments,...legacyComments].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    const commentHtml = allComments.map(c=>'<div class="gxt-comment"><strong>'+esc(c.author_name||'Integrante')+'</strong><small>'+dateTimeLabel(c.created_at)+'</small><p>'+esc(c.body)+'</p></div>').join('') || '<div class="gxt-empty">Todavía no hay comentarios.</div>';
     const requester = request.requester?.display_name || 'Integrante';
     const adminNote = request.admin_note ? '<div class="gxt-status-note"><strong>Observación de administración</strong><br>'+esc(request.admin_note)+'</div>' : '';
     openModal(request.title,'Solicitud de '+requester+' · '+dateLabel(request.created_at),
