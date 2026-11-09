@@ -14,7 +14,7 @@
     if(document.getElementById('gxCreatorDeliveriesStyles'))return;
     const style=document.createElement('style');style.id='gxCreatorDeliveriesStyles';
     style.textContent=`
-      #gxCreatorDeliveriesScreen{position:fixed;inset:0;z-index:9000;overflow:auto;background:radial-gradient(ellipse at 12% 0%,#17212a 0%,#080a0d 42%,#070809 100%);color:#f4f6f8;padding:calc(env(safe-area-inset-top,0px) + 15px) 16px calc(env(safe-area-inset-bottom,0px) + 28px);box-sizing:border-box}
+      #gxCreatorDeliveriesScreen{position:fixed;inset:0 0 calc(84px + env(safe-area-inset-bottom,0px));z-index:9000;overflow:auto;background:radial-gradient(ellipse at 12% 0%,#17212a 0%,#080a0d 42%,#070809 100%);color:#f4f6f8;padding:calc(env(safe-area-inset-top,0px) + 15px) 16px calc(env(safe-area-inset-bottom,0px) + 28px);box-sizing:border-box}
       #gxCreatorDeliveriesScreen[hidden]{display:none!important}
       .gx-delivery-shell{width:min(900px,100%);margin:0 auto}
       .gx-delivery-head{display:flex;align-items:center;gap:13px;padding:4px 0 18px;border-bottom:1px solid #29323c}
@@ -200,6 +200,11 @@
   }
 
   document.addEventListener('click',e=>{
+    const bottomButton=e.target.closest('#grayxonBottomNav [data-gx-bottom]');
+    if(bottomButton&&screen&&!screen.hidden){
+      if(bottomButton.dataset.gxBottom==='deliveries'){e.preventDefault();e.stopImmediatePropagation();closeScreen();return;}
+      closeScreen();
+    }
     const button=e.target.closest('[data-gx-bottom="deliveries"]');
     if(button){e.preventDefault();e.stopImmediatePropagation();openScreen();return;}
     const notification=e.target.closest('[data-notification-id]');

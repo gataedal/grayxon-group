@@ -805,7 +805,7 @@
         const {error:submitError}=await sb.rpc('gx_task_member_update',{p_task_id:task.id,p_status:'submitted',p_comment:'Propuesta final enviada a revisión.'});
         if(submitError){if(sendButton){sendButton.disabled=false;syncChatFiles()}return toast('Los archivos se guardaron, pero no se pudo enviar la propuesta a revisión: '+submitError.message);}
       }
-      closeModal();await refresh();await openTaskDetail(task.id);
+      await refresh();await openTaskDetail(task.id);
       toast(asFinalProposal?'Propuesta final enviada a revisión.':'Seguimiento publicado.');
     });
 
