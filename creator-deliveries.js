@@ -94,7 +94,7 @@
     if(error||!data?.session?.user?.id)return null;
     const uid=data.session.user.id;
     const {data:profile,error:profileError}=await sb.from('profiles').select('id,role,active').eq('id',uid).maybeSingle();
-    if(profileError||profile?.role!=='creator'||profile.active!==true)return null;
+    if(profileError||profile?.role!=='creator'||profile.active!==true){currentUserId=null;return null;}
     currentUserId=uid;
     return uid;
   }
