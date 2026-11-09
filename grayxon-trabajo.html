@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080a0d">
   <meta name="color-scheme" content="dark">
+  <script>
+    // El portal autentica en www.grayxongroup.com; mantener el mismo origen para compartir la sesión Supabase.
+    if (location.hostname === 'grayxongroup.com') {
+      location.replace('https://www.grayxongroup.com' + location.pathname + location.search + location.hash);
+    }
+  </script>
   <title>Grayxon Trabajo</title>
   <link rel="icon" type="image/png" href="assets/grayxon-logo.png">
   <link rel="stylesheet" href="grayxon-trabajo.css?v=2">
