@@ -266,3 +266,5 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-chat-image-meta .gxt-btn{min-height:28px;padding:4px 9px;font-size:10px}
 .gxt-selected-file{max-width:100%}
 .gxt-selected-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.gxt-chip.status-cancelled{border-color:#59616c;background:#242a32;color:#c2c9d1}
