@@ -5,6 +5,8 @@ const CFG = window.GRAYXON_CONFIG || {};
 const LOGIN_EMAIL_DOMAIN = 'users.grayxongroup.com';
 const LEGACY_LOGIN_EMAIL_DOMAIN = 'users.grayxon.local';
 const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_PUBLISHABLE_KEY);
+// Cliente único compartido por los módulos que se ejecutan dentro del portal.
+window.GRAYXON_SUPABASE_CLIENT = sb;
 
 
 // GRAYXON PUSH V2
