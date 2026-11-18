@@ -7484,7 +7484,8 @@ async function updateGrayxonPresence(){
 }
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { updateGrayxonPresence(); loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(['admin','manager','creator'].includes(profile?.role)) { registerGrayxonPush({requestPermission:false}).catch(()=>{}); setTimeout(()=>showGrayxonPushPrompt(),500); } } });
-setInterval(() => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='manager' && managerView==='dashboard') refreshManagerLiveDashboardCard(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); if(current==='space'||current==='manager'||current==='admin') refreshMyPendingPaymentsBadge(); if(current==='space'||current==='manager'||current==='admin'||current==='events') gxEventsRefreshUnreadCount().catch(()=>{}); } }, 5000);
+// Actualización de respaldo moderada: los contadores de eventos tienen su propio refresco y el LIVE del creador su watcher dedicado.
+setInterval(() => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='manager' && managerView==='dashboard') refreshManagerLiveDashboardCard(); if(current==='space'||current==='manager'||current==='admin') refreshMyPendingPaymentsBadge(); } }, 30000);
 
 window.addEventListener('popstate', () => {
   const hashPage = window.location.hash.replace(/^#/, '');
