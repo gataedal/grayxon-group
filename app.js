@@ -487,7 +487,19 @@ function restoreLiveNotificationDiagnostic() {
   } catch (_) {}
 }
 
+function ensureNotificationsRealtime(){
+  const uid=session?.user?.id;
+  if(!uid){if(window.__gxNotificationsRealtimeChannel){try{sb.removeChannel(window.__gxNotificationsRealtimeChannel);}catch(_){}window.__gxNotificationsRealtimeChannel=null;window.__gxNotificationsRealtimeUserId=null;}return;}
+  if(window.__gxNotificationsRealtimeUserId===uid&&window.__gxNotificationsRealtimeChannel)return;
+  if(window.__gxNotificationsRealtimeChannel){try{sb.removeChannel(window.__gxNotificationsRealtimeChannel);}catch(_){}}
+  window.__gxNotificationsRealtimeUserId=uid;
+  window.__gxNotificationsRealtimeChannel=sb.channel('gx-notifications-'+uid)
+    .on('postgres_changes',{event:'*',schema:'public',table:'notifications',filter:'user_id=eq.'+uid},()=>loadNotifications())
+    .subscribe(state=>{if(state==='CHANNEL_ERROR'||state==='TIMED_OUT')console.warn('Notificaciones Realtime:',state);});
+}
+
 async function loadNotifications() {
+  ensureNotificationsRealtime();
   if (!session?.user?.id) { notifications = []; updateNotificationsUI(); return; }
   // Mostrar todo lo de los últimos 7 días y conservar también pendientes más antiguas.
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -2319,18 +2331,28 @@ function ensureCreatorDashboardTrainingRealtime(){
   try{
     host._gxTrainingChannel=sb.channel('gx-creator-training-dashboard')
       .on('postgres_changes',{event:'*',schema:'public',table:'live_trainings'},()=>{
-        if(current==='space')loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
+        if(current==='space'&&profile?.role==='creator'){
+          loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
+          refreshLiveTrainingCard().catch(error=>console.warn('Creator LIVE card refresh failed:',error));
+        }
+        if(profile?.role==='manager'&&managerView==='dashboard')refreshManagerLiveDashboardCard();
       })
       .on('postgres_changes',{event:'*',schema:'public',table:'live_training_audience'},()=>{
-        if(current==='space')loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
+        if(current==='space'&&profile?.role==='creator'){
+          loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
+          refreshLiveTrainingCard().catch(error=>console.warn('Creator LIVE card refresh failed:',error));
+        }
+        if(profile?.role==='manager'&&managerView==='dashboard')refreshManagerLiveDashboardCard();
       })
       .subscribe();
   }catch(error){console.warn('Training realtime subscription:',error?.message||error);}
   if(!host._gxTrainingPollTimer){
     host._gxTrainingPollTimer=setInterval(()=>{
-      if(current==='space'&&session?.user?.id&&profile?.role==='creator')
+      if(current==='space'&&session?.user?.id&&profile?.role==='creator'){
         loadCreatorDashboardTrainingHighlight().catch(error=>console.warn('Creator dashboard highlight failed:',error));
-    },10000);
+        refreshLiveTrainingCard().catch(error=>console.warn('Creator LIVE fallback refresh failed:',error));
+      }
+    },60000);
   }
 }
 async function loadCreatorDashboardTrainingHighlight(expectedNav=navGeneration){
@@ -2387,6 +2409,7 @@ async function loadCreatorDashboardTrainingHighlight(expectedNav=navGeneration){
   }catch(error){console.warn('Grayxon dashboard training highlight:',error?.message||error);hide();}
 }
 async function loadCreatorDashboardEventHighlights(expectedNav=navGeneration){
+  ensureEventsGlobalRealtime();
   const host=document.getElementById('gxCreatorEventHighlights');
   if(!host||!session?.user?.id||profile?.role!=='creator'||current!=='space')return;
   ensureCreatorDashboardEventStyles();
@@ -2904,8 +2927,21 @@ async function refreshLiveTrainingCard(){
   }
 }
 
+function ensureManagerLiveTrainingRealtime(){
+  const uid=session?.user?.id;
+  if(!uid)return;
+  if(window.__gxManagerLiveRealtimeUserId===uid&&window.__gxManagerLiveRealtimeChannel)return;
+  if(window.__gxManagerLiveRealtimeChannel){try{sb.removeChannel(window.__gxManagerLiveRealtimeChannel);}catch(_){}}
+  window.__gxManagerLiveRealtimeUserId=uid;
+  window.__gxManagerLiveRealtimeChannel=sb.channel('gx-manager-live-training-'+uid)
+    .on('postgres_changes',{event:'*',schema:'public',table:'live_trainings'},()=>{if(profile?.role==='manager'&&managerView==='dashboard')refreshManagerLiveDashboardCard();})
+    .on('postgres_changes',{event:'*',schema:'public',table:'live_training_audience'},()=>{if(profile?.role==='manager'&&managerView==='dashboard')refreshManagerLiveDashboardCard();})
+    .subscribe(state=>{if(state==='CHANNEL_ERROR'||state==='TIMED_OUT')console.warn('Manager LIVE Realtime:',state);});
+}
+
 async function refreshManagerLiveDashboardCard(){
   if(profile?.role!=='manager' || managerView!=='dashboard') return;
+  ensureManagerLiveTrainingRealtime();
   const status=document.querySelector('#manager [data-manager-live-status]');
   if(!status) return;
   try{
@@ -2931,14 +2967,7 @@ function stopCreatorLiveDashboardWatcher(){
 function startCreatorLiveDashboardWatcher(){
   stopCreatorLiveDashboardWatcher();
   if(profile?.role!=='creator' || current!=='space' || !session?.user?.id)return;
-  const token=creatorLiveDashboardWatcherToken;
   refreshLiveTrainingCard();
-  creatorLiveDashboardWatcher=setInterval(()=>{
-    if(token!==creatorLiveDashboardWatcherToken || current!=='space' || profile?.role!=='creator'){
-      stopCreatorLiveDashboardWatcher(); return;
-    }
-    refreshLiveTrainingCard();
-  },5000);
 }
 
 function cleanupGrayxonLiveCall() {
@@ -7484,7 +7513,8 @@ async function updateGrayxonPresence(){
 }
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && session) { updateGrayxonPresence(); loadNotifications(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); refreshGrayxonPwaPreferenceUI(); if(['admin','manager','creator'].includes(profile?.role)) { registerGrayxonPush({requestPermission:false}).catch(()=>{}); setTimeout(()=>showGrayxonPushPrompt(),500); } } });
-setInterval(() => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='manager' && managerView==='dashboard') refreshManagerLiveDashboardCard(); if(profile?.role==='creator' && current==='space') refreshLiveTrainingCard(); if(current==='space'||current==='manager'||current==='admin') refreshMyPendingPaymentsBadge(); if(current==='space'||current==='manager'||current==='admin'||current==='events') gxEventsRefreshUnreadCount().catch(()=>{}); } }, 5000);
+// Realtime es la vía principal; este intervalo de 60 s solo recupera cambios si se pierde algún evento.
+setInterval(() => { if (!document.hidden && session) { loadNotifications(); if(profile?.role==='manager' && managerView==='dashboard') refreshManagerLiveDashboardCard(); if(current==='space'||current==='manager'||current==='admin') refreshMyPendingPaymentsBadge(); } }, 60000);
 
 window.addEventListener('popstate', () => {
   const hashPage = window.location.hash.replace(/^#/, '');
@@ -8785,7 +8815,29 @@ function gxEventsDashboardCardMarkup(variant){
   if(variant==='admin')return `<button type="button" class="admin-dashboard-card gx-events-dashboard-card" data-gx-open-events><span class="admin-dashboard-card-icon">🎉</span><span class="admin-dashboard-card-copy"><strong>Eventos Matrix</strong><small>Administra eventos, misiones, premios y ranking.</small><span class="gx-ann-unread-badge hidden" data-gx-event-unread-badge aria-live="polite"><b>0</b> publicaciones sin leer</span></span><span class="admin-dashboard-card-arrow">›</span></button>`;
   return `<button type="button" class="space-card card gx-events-dashboard-card" data-gx-open-events><span class="space-card-icon">🎉</span><div class="space-card-main"><div class="space-card-top"><strong>Eventos Grayxon</strong><span>›</span></div><p>Consulta eventos, misiones y clasificación.</p><div class="space-progress"><span style="width:100%"></span></div><span class="gx-ann-unread-badge hidden" data-gx-event-unread-badge><b>0</b> pendientes por revisar</span></div><span class="space-card-arrow">›</span></button>`;
 }
-function gxEventsInjectDashboardCard(){if(!session?.user?.id||!profile?.role)return;let target=null,variant='space';if(profile.role==='creator'){/* Creator event discovery lives in the featured event highlight above progress. Do not re-add the legacy duplicate card. */if(document.querySelector('#space #gxCreatorEventHighlights'))return;target=document.querySelector('#space .creator-dashboard-grid');variant='creator';}else if(profile.role==='manager'){target=document.querySelector('#manager .manager-dashboard-grid');variant='manager';}else if(profile.role==='admin'){target=document.querySelector('#admin .admin-dashboard-grid');variant='admin';}if(!target)target=document.querySelector('#space #spaceCards');if(!target||target.querySelector('[data-gx-open-events]'))return;const markup=gxEventsDashboardCardMarkup(variant);const holder=document.createElement('div');holder.innerHTML=markup.trim();const card=holder.firstElementChild;let anchor=null;if(variant==='admin')anchor=target.querySelector('[data-admin="formation"]');else{anchor=[...target.querySelectorAll('button')].find(x=>/entrenamientos/i.test(x.innerText||''))||null;}if(anchor)target.insertBefore(card,anchor);else target.appendChild(card);gxEventsRefreshUnreadCount().catch(()=>{});}
+function ensureEventsGlobalRealtime(){
+  const uid=session?.user?.id;
+  if(!uid)return;
+  if(window.__gxEventsGlobalRealtimeUserId===uid&&window.__gxEventsGlobalRealtimeChannel)return;
+  if(window.__gxEventsGlobalRealtimeChannel){try{sb.removeChannel(window.__gxEventsGlobalRealtimeChannel);}catch(_){}}
+  window.__gxEventsGlobalRealtimeUserId=uid;
+  window.__gxEventsGlobalRealtimeChannel=sb.channel('gx-events-feed-'+uid)
+    .on('postgres_changes',{event:'*',schema:'public',table:'gx_events'},payload=>{
+      const changed=payload?.new?.id||payload?.old?.id;
+      if(payload?.eventType==='DELETE'&&changed)gxEventsCache=gxEventsCache.filter(ev=>ev.id!==changed);
+      else if(payload?.new?.id){const index=gxEventsCache.findIndex(ev=>ev.id===payload.new.id);if(index>=0)gxEventsCache[index]=payload.new;else gxEventsCache.push(payload.new);}
+      if(profile?.role==='creator'&&current==='space')loadCreatorDashboardEventHighlights().catch(e=>console.warn('Eventos dashboard Realtime:',e));
+      if(current==='events'){
+        if(gxEventsSelectedId){
+          const eventId=gxEventsSelectedId;
+          if(payload?.new?.id===eventId||payload?.old?.id===eventId)gxEventsReloadDashboard(eventId,true).catch(e=>console.warn('Evento actualizado:',e));
+        }else gxEventsPage().catch(e=>console.warn('Listado de eventos Realtime:',e));
+      }
+    })
+    .subscribe(state=>{if(state==='CHANNEL_ERROR'||state==='TIMED_OUT')console.warn('Eventos Realtime global:',state);});
+}
+
+function gxEventsInjectDashboardCard(){if(!session?.user?.id||!profile?.role)return;ensureEventsGlobalRealtime();let target=null,variant='space';if(profile.role==='creator'){/* Creator event discovery lives in the featured event highlight above progress. Do not re-add the legacy duplicate card. */if(document.querySelector('#space #gxCreatorEventHighlights'))return;target=document.querySelector('#space .creator-dashboard-grid');variant='creator';}else if(profile.role==='manager'){target=document.querySelector('#manager .manager-dashboard-grid');variant='manager';}else if(profile.role==='admin'){target=document.querySelector('#admin .admin-dashboard-grid');variant='admin';}if(!target)target=document.querySelector('#space #spaceCards');if(!target||target.querySelector('[data-gx-open-events]'))return;const markup=gxEventsDashboardCardMarkup(variant);const holder=document.createElement('div');holder.innerHTML=markup.trim();const card=holder.firstElementChild;let anchor=null;if(variant==='admin')anchor=target.querySelector('[data-admin="formation"]');else{anchor=[...target.querySelectorAll('button')].find(x=>/entrenamientos/i.test(x.innerText||''))||null;}if(anchor)target.insertBefore(card,anchor);else target.appendChild(card);gxEventsRefreshUnreadCount().catch(()=>{});}
 
 async function gxEventsMarkPostRead(postId,eventId){
   if(!session?.user?.id||!postId||!eventId)return;
@@ -8898,6 +8950,7 @@ async function gxEventsRefreshUnreadCount(){if(!session?.user?.id||!sb)return 0;
 async function gxEventsMarkRead(eventId){if(!session?.user?.id||!eventId)return;const {error}=await sb.from('gx_event_reads').upsert({event_id:eventId,user_id:session.user.id},{onConflict:'event_id,user_id',ignoreDuplicates:true});if(error&&error.code!=='23505'&&!/duplicate key/i.test(error.message||''))console.warn('Eventos: lectura',error.message);gxEventsRefreshUnreadCount().catch(()=>{});}
 
 async function gxEventsPage(){
+  ensureEventsGlobalRealtime();
   const host=ensureEventsPage();if(!session?.user?.id){host.innerHTML=authTpl();return;}
   host.classList.toggle('gxev-event-fullscreen',!!gxEventsSelectedId);document.body.classList.toggle('gxev-event-fullscreen-open',!!gxEventsSelectedId);
   host.innerHTML=`<div class="gxev-wrap"><div class="gxev-top"><div><h1>Eventos Grayxon</h1><div class="gxev-muted">Tu centro de eventos, misiones y clasificación compartida.</div></div><div class="gxev-actions">${gxEventsAdmin()?'<button type="button" class="gxev-btn primary" data-gxev-create>＋ Crear evento</button>':''}</div></div><div id="gxevPageStatus" class="gxev-muted" style="display:none;margin-bottom:12px"></div><div id="gxevPageBody"></div></div>`;
@@ -9602,7 +9655,7 @@ async function gxEventsGenerateRound(phaseId=null){if(!gxEventsAdmin())return;co
 async function gxEventsSaveMatchSchedule(matchId){if(!gxEventsAdmin())return;const m=gxEventsDashboardData?.matches.find(x=>x.id===matchId);if(!m)return;const input=document.querySelector(`[data-gxev-match-schedule="${matchId}"]`);const raw=String(input?.value||'');if(!raw)return toast('Selecciona la fecha y hora de la batalla.');const round=(gxEventsDashboardData?.rounds||[]).find(r=>r.id===m.round_id),phase=(gxEventsDashboardData?.phases||[]).find(p=>p.id===round?.phase_id);const selected=new Date(raw+'-05:00');if(!Number.isFinite(selected.getTime()))return toast('La fecha y hora no son válidas.');if(phase){const start=new Date(phase.starts_at),end=new Date(phase.ends_at);if(selected<start||selected>end)return toast('El horario debe estar dentro del rango de la fase seleccionada.');}const btn=document.querySelector(`[data-gxev-save-schedule="${matchId}"]`);if(btn)btn.disabled=true;try{const r=await sb.from('gx_event_matches').update({scheduled_at:selected.toISOString(),updated_at:new Date().toISOString()}).eq('id',matchId);if(r.error)return toast('No se pudo guardar el horario: '+r.error.message);const notify=await sb.rpc('gx_events_notify_match_update',{p_match_id:matchId});if(notify.error)console.warn('No se pudo notificar el cambio de horario:',notify.error);toast(notify.error?'Horario guardado, pero falló la notificación.':'Fecha y hora guardadas y notificadas ✓');await gxEventsReloadDashboard(gxEventsSelectedId,true);}finally{if(btn?.isConnected)btn.disabled=false;}}
 async function gxEventsSaveMatch(matchId){if(!gxEventsAdmin())return;const m=gxEventsDashboardData?.matches.find(x=>x.id===matchId);if(!m)return;const select=document.querySelector(`[data-gxev-match-result="${matchId}"]`),sa=document.querySelector(`[data-gxev-score-a="${matchId}"]`),sbx=document.querySelector(`[data-gxev-score-b="${matchId}"]`),value=String(select?.value||'');if(!value)return toast('Selecciona ganador o empate.');const winner=value==='a'?m.participant_a_id:value==='b'?m.participant_b_id:null,scoreA=sa?.value===''?null:Number(sa?.value),scoreB=sbx?.value===''?null:Number(sbx?.value);const r=await sb.rpc('gx_events_save_match_result',{p_match_id:matchId,p_winner_participant_id:winner,p_score_a:scoreA,p_score_b:scoreB,p_notes:null});if(r.error)return toast(r.error.message);toast('Resultado guardado y avisos enviados ✓');await gxEventsReloadDashboard(gxEventsSelectedId,true);}
 
-(function gxEventsBindModuleV23(){if(window.__gxEventsModuleV23Bound)return;window.__gxEventsModuleV23Bound=true;document.addEventListener('change',e=>{if(e.target?.id==='gxevParticipantCsv')gxEventsChange(e);},{capture:true});document.addEventListener('click',async e=>{const b=e.target.closest?.('[data-gx-open-events]');if(!b)return;e.preventDefault();if(!session?.user?.id){nav('auth');return;}gxEventsSelectedId=null;gxPendingEventTarget=null;gxPendingEventPostTarget=null;gxPendingEventTab=null;gxEventsExitFullscreen();try{const {data,error}=await sb.rpc('gx_events_latest_unread_post');const latest=!error&&Array.isArray(data)?data[0]:null;if(latest?.event_id&&latest?.post_id){gxPendingEventTarget=latest.event_id;gxPendingEventPostTarget=latest.post_id;gxPendingEventTab='thread';}}catch(err){console.warn('Eventos: abrir publicación pendiente',err);}nav('events');});const refresh=()=>{gxEventsInjectDashboardCard();if(session?.user?.id){gxEventsRefreshUnreadCount().catch(()=>{});gxMissionsRefreshUnreadBadge().catch(()=>{});}};window.addEventListener('focus',refresh);window.addEventListener('pageshow',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});const observer=new MutationObserver(ms=>{let maybe=false;for(const m of ms)for(const n of Array.from(m.addedNodes||[])){if(n.nodeType!==1)continue;if(n.matches?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards')||n.querySelector?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards'))maybe=true;}if(maybe)gxEventsInjectDashboardCard();});observer.observe(document.body,{childList:true,subtree:true});setTimeout(refresh,250);setTimeout(refresh,1200);setInterval(()=>{if(!document.hidden&&session?.user?.id){gxEventsRefreshUnreadCount().catch(()=>{});gxMissionsRefreshUnreadBadge().catch(()=>{});}},30000);})();
+(function gxEventsBindModuleV23(){if(window.__gxEventsModuleV23Bound)return;window.__gxEventsModuleV23Bound=true;document.addEventListener('change',e=>{if(e.target?.id==='gxevParticipantCsv')gxEventsChange(e);},{capture:true});document.addEventListener('click',async e=>{const b=e.target.closest?.('[data-gx-open-events]');if(!b)return;e.preventDefault();if(!session?.user?.id){nav('auth');return;}gxEventsSelectedId=null;gxPendingEventTarget=null;gxPendingEventPostTarget=null;gxPendingEventTab=null;gxEventsExitFullscreen();try{const {data,error}=await sb.rpc('gx_events_latest_unread_post');const latest=!error&&Array.isArray(data)?data[0]:null;if(latest?.event_id&&latest?.post_id){gxPendingEventTarget=latest.event_id;gxPendingEventPostTarget=latest.post_id;gxPendingEventTab='thread';}}catch(err){console.warn('Eventos: abrir publicación pendiente',err);}nav('events');});const refresh=()=>{gxEventsInjectDashboardCard();if(session?.user?.id){gxEventsRefreshUnreadCount().catch(()=>{});gxMissionsRefreshUnreadBadge().catch(()=>{});}};window.addEventListener('focus',refresh);window.addEventListener('pageshow',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});const observer=new MutationObserver(ms=>{let maybe=false;for(const m of ms)for(const n of Array.from(m.addedNodes||[])){if(n.nodeType!==1)continue;if(n.matches?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards')||n.querySelector?.('.creator-dashboard-grid,.manager-dashboard-grid,.admin-dashboard-grid,#spaceCards'))maybe=true;}if(maybe)gxEventsInjectDashboardCard();});observer.observe(document.body,{childList:true,subtree:true});setTimeout(refresh,250);setTimeout(refresh,1200);setInterval(()=>{if(!document.hidden&&session?.user?.id){gxEventsRefreshUnreadCount().catch(()=>{});gxMissionsRefreshUnreadBadge().catch(()=>{});if(current==='events'){if(gxEventsSelectedId)gxEventsReloadDashboard(gxEventsSelectedId,true).catch(()=>{});else gxEventsPage().catch(()=>{});}}},60000);})();
 
 /* Restore only the three requested LiveKit call panels: chat, More, participants. */
 (()=> {
