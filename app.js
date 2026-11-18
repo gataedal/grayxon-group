@@ -2407,6 +2407,7 @@ async function loadCreatorDashboardTrainingHighlight(expectedNav=navGeneration){
   }catch(error){console.warn('Grayxon dashboard training highlight:',error?.message||error);hide();}
 }
 async function loadCreatorDashboardEventHighlights(expectedNav=navGeneration){
+  ensureEventsGlobalRealtime();
   const host=document.getElementById('gxCreatorEventHighlights');
   if(!host||!session?.user?.id||profile?.role!=='creator'||current!=='space')return;
   ensureCreatorDashboardEventStyles();
@@ -8820,6 +8821,9 @@ function ensureEventsGlobalRealtime(){
   window.__gxEventsGlobalRealtimeUserId=uid;
   window.__gxEventsGlobalRealtimeChannel=sb.channel('gx-events-feed-'+uid)
     .on('postgres_changes',{event:'*',schema:'public',table:'gx_events'},payload=>{
+      const changed=payload?.new?.id||payload?.old?.id;
+      if(payload?.eventType==='DELETE'&&changed)gxEventsCache=gxEventsCache.filter(ev=>ev.id!==changed);
+      else if(payload?.new?.id){const index=gxEventsCache.findIndex(ev=>ev.id===payload.new.id);if(index>=0)gxEventsCache[index]=payload.new;else gxEventsCache.push(payload.new);}
       if(profile?.role==='creator'&&current==='space')loadCreatorDashboardEventHighlights().catch(e=>console.warn('Eventos dashboard Realtime:',e));
       if(current==='events'){
         if(gxEventsSelectedId){
