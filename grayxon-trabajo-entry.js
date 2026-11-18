@@ -1,7 +1,6 @@
 (() => {
-  const cfg = window.GRAYXON_CONFIG;
-  if (!window.supabase || !cfg?.SUPABASE_URL || !cfg?.SUPABASE_PUBLISHABLE_KEY) return;
-  const client = window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  const client = window.GRAYXON_SUPABASE_CLIENT;
+  if (!client) { console.warn('[Grayxon Trabajo] No está disponible el cliente de autenticación compartido.'); return; }
   let checking=false, retryRequested=false, checkedUserId=null, observer=null, syncTimer=null, memberCache={userId:null,allowed:false};
 
   function removeCard(){
