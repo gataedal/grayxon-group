@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Caixun TV Controller</string>
+    <string name="screen_title">Caixun TV Controller</string>
+    <string name="screen_subtitle">Control local para Android TV</string>
+</resources>
