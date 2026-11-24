@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - caixun-tv-controller
+      - caixun-tv-controller-enhanced
     paths:
       - "caixun-tv-controller/**"
       - ".github/workflows/caixun-tv-controller.yml"
