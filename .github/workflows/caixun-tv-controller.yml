@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-debug-apk:
-    name: Build debug APK
+    name: Build debug APK and lint
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -38,9 +38,9 @@ jobs:
           gradle-version: "8.7"
           cache-provider: basic
 
-      - name: Build debug APK
+      - name: Build and run Android Lint
         working-directory: caixun-tv-controller
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:lintDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
