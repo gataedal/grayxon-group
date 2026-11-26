@@ -78,6 +78,14 @@ begin
  exception when others then
   if sqlerrm='Partial aggregate evaluation should have failed' then raise; end if;
  end;
+ -- Unknown source granularity must not be usable to bypass the daily-data guard.
+ begin
+  perform public.gx_save_creator_followup_import('unknown.xlsx',v_manager_user::text||'/test.xlsx',
+   repeat('e',64),'2026-11-01','2026-11-07',null,null,'unknown',v_payload);
+  raise exception 'Unknown source granularity must not permit a classified evaluation';
+ exception when others then
+  if sqlerrm='Unknown source granularity must not permit a classified evaluation' then raise; end if;
+ end;
  begin
   perform public.gx_save_creator_followup_import('test.xlsx',v_manager_user::text||'/test.xlsx',
    repeat('a',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily',v_payload);
