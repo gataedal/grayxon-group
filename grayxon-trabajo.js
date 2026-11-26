@@ -358,7 +358,9 @@
       '<label class="gxt-field"><span>Desde</span><input id="gxFollowupStart" type="date"></label><label class="gxt-field"><span>Hasta</span><input id="gxFollowupEnd" type="date"></label></div>'+
       '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-preview disabled>Analizar archivo</button><span id="gxFollowupFileName" class="gxt-muted">Ningún archivo seleccionado</span></div>'+
       '<div id="gxFollowupPreview" class="gxt-followup-preview"><div class="gxt-status-note">Selecciona un Excel y el rango que deseas evaluar. Los datos no se guardarán todavía.</div></div></section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Reglas de evaluación</h2></div><p>Las metas mensuales iniciales son 90 horas LIVE y 22 días válidos. La recomendación de constancia es 2 h 30 min diarios, 6 días por semana.</p><div class="gxt-status-note">Si el Excel contiene cifras acumuladas, solo se podrá evaluar exactamente el periodo exportado. Para rangos más cortos necesitaremos el reporte diario de TikTok.</div></section>';
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Reglas de evaluación</h2></div><p>Las metas mensuales iniciales son 90 horas LIVE y 22 días válidos. La recomendación de constancia es 2 h 30 min diarios, 6 días por semana.</p><div class="gxt-status-note">Si el Excel contiene cifras acumuladas, solo se podrá evaluar exactamente el periodo exportado. Para rangos más cortos necesitaremos el reporte diario de TikTok.</div></section>'+
+      '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>';
+    loadFollowupHistory();
     const fileInput=document.getElementById('gxFollowupFile');
     const button=main.querySelector('[data-followup-preview]');
     fileInput?.addEventListener('change',()=>{
@@ -442,6 +444,43 @@
     }
   }
 
+  async function loadFollowupHistory() {
+    const host=document.getElementById('gxFollowupHistory');
+    if(!host)return;
+    try{
+      const {data,error}=await sb.from('gx_creator_followup_imports')
+        .select('id,file_name,selected_start_date,selected_end_date,source_start_date,source_end_date,status,created_at,gx_creator_followup_evaluations(creator_username_snapshot,classification,diamonds,live_seconds,valid_live_days)')
+        .order('created_at',{ascending:false}).limit(100);
+      if(error)throw error;
+      const groups=new Map();
+      (data||[]).forEach(item=>{
+        const key=String(item.created_at||'').slice(0,7)||'Sin fecha';
+        const list=groups.get(key)||[];list.push(item);groups.set(key,list);
+      });
+      const monthLabel=key=>{
+        if(key==='Sin fecha')return key;
+        const [y,m]=key.split('-').map(Number);
+        return new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,1)));
+      };
+      const blocks=Array.from(groups.entries()).map(([month,items])=>{
+        const rows=items.map(item=>{
+          const results=item.gx_creator_followup_evaluations||[];
+          const classes={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
+          return '<article class="gxt-followup-history-item"><div class="gxt-panel-head"><div><strong>'+esc(item.file_name)+'</strong><small>'+dateTimeLabel(item.created_at)+' · '+esc(item.selected_start_date)+' a '+esc(item.selected_end_date)+'</small></div><span class="gxt-chip">'+esc(item.status)+'</span></div>'+
+            '<div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+
+            results.map(r=>'<tr><td>@'+esc(r.creator_username_snapshot)+'</td><td>'+esc(classes[r.classification]||r.classification)+'</td><td>'+Number(r.diamonds||0).toLocaleString('es-CO')+'</td><td>'+ (r.live_seconds==null?'—':(Number(r.live_seconds)/3600).toFixed(2)+' h')+'</td><td>'+(r.valid_live_days==null?'—':esc(r.valid_live_days))+'</td></tr>').join('')+
+            '</tbody></table></div></article>';
+        }).join('');
+        return '<div class="gxt-followup-history-month"><h3>'+esc(monthLabel(month))+'</h3>'+rows+'</div>';
+      }).join('');
+      host.innerHTML='<div class="gxt-panel-head"><h2>Historial de evaluaciones</h2><span class="gxt-chip">'+(data||[]).length+' importaciones</span></div>'+
+        (blocks||'<div class="gxt-empty">Todavía no hay evaluaciones guardadas.</div>');
+    }catch(error){
+      console.error('[Gestión · Seguimiento] history',error);
+      host.innerHTML='<div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-status-note gxt-followup-warning">No se pudo cargar el historial: '+esc(error.message||'Error de consulta')+'</div>';
+    }
+  }
+
   async function saveFollowupImport() {
     const preview=window.grayxonFollowupPreview;
     const file=window.grayxonFollowupFile;
@@ -480,6 +519,7 @@
       if(saveError)throw new Error('El archivo se subió, pero no se pudo registrar la evaluación: '+saveError.message);
       toast('Evaluación guardada correctamente.');
       targetReloadFollowup(importId);
+      loadFollowupHistory();
     }catch(error){
       if(objectPath)await sb.storage.from('gx-creator-followup-reports').remove([objectPath]).catch(()=>{});
       console.error('[Gestión · Seguimiento] save import',error);
