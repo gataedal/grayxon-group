@@ -362,6 +362,7 @@
       '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Gestión individual</h2><p>Registra contactos, compromisos y planes de acción sin perder el historial.</p></div>'+
       '<label class="gxt-field"><span>Creador</span><select id="gxFollowupCreator"><option value="">Cargando creadores…</option></select></label>'+
+      '<form id="gxFollowupPhoneForm" class="gxt-followup-workspace-card"><h3>Teléfono de contacto</h3><label class="gxt-field"><span>Número (incluye indicativo)</span><input id="gxFollowupPhone" name="phone" maxlength="25" placeholder="+57 300 000 0000"></label><button class="gxt-btn primary" type="submit">Guardar teléfono</button></form>'+
       '<div class="gxt-followup-workspace-grid">'+
       '<form id="gxFollowupNoteForm" class="gxt-followup-workspace-card"><h3>Observación o compromiso</h3><label class="gxt-field"><span>Tipo</span><select name="note_type"><option value="observation">Observación</option><option value="commitment">Compromiso</option><option value="response">Respuesta</option><option value="review">Revisión</option></select></label><label class="gxt-field"><span>Detalle</span><textarea name="body" maxlength="5000" required></textarea></label><button class="gxt-btn primary" type="submit">Guardar registro</button></form>'+
       '<form id="gxFollowupContactForm" class="gxt-followup-workspace-card"><h3>Registro de contacto</h3><label class="gxt-field"><span>Estado</span><select name="contact_status"><option value="initiated">Contacto iniciado</option><option value="confirmed">Contacto confirmado</option><option value="pending_response">Pendiente de respuesta</option><option value="responded">Respondió</option></select></label><label class="gxt-field"><span>Canal</span><select name="channel"><option value="whatsapp">WhatsApp</option><option value="phone">Llamada</option><option value="other">Otro</option></select></label><label class="gxt-field"><span>Mensaje o resumen</span><textarea name="message_text" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Guardar contacto</button></form>'+
@@ -463,6 +464,15 @@
       if(error)throw error;
       followupCreatorCache=creators||[];
       select.innerHTML='<option value="">Selecciona un creador</option>'+followupCreatorCache.map(p=>'<option value="'+esc(p.id)+'" '+(!p.manager_id?'disabled':'')+'>'+esc(p.full_name||p.username)+' · @'+esc(p.username)+(p.manager_id?'':' (sin manager asignado)')+'</option>').join('');
+      select.addEventListener('change',async()=>{
+        const creator=followupCreatorCache.find(p=>p.id===select.value);
+        const phone=document.getElementById('gxFollowupPhone');
+        if(phone)phone.value='';
+        if(!creator)return;
+        const {data,error}=await sb.from('profile_details').select('phone').eq('user_id',creator.id).maybeSingle();
+        if(error){toast('No se pudo consultar el teléfono: '+error.message);return;}
+        if(phone)phone.value=data?.phone||'';
+      });
       const [notes,contacts,plans,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').order('created_at',{ascending:false}).limit(30),
@@ -492,7 +502,11 @@
     const data=new FormData(form);
     const common={creator_user_id:creator.id,manager_id:state.isAdmin?creator.manager_id:state.member.id,created_by:state.session.user.id};
     let table,payload;
-    if(form.id==='gxFollowupNoteForm'){
+    if(form.id==='gxFollowupPhoneForm'){
+      const {error}=await sb.rpc('gx_manager_update_creator_phone',{p_creator_id:creator.id,p_phone:String(data.get('phone')||'').trim()||null});
+      if(error)return toast('No se pudo guardar el teléfono: '+error.message);
+      toast('Teléfono actualizado correctamente.');return;
+    }else if(form.id==='gxFollowupNoteForm'){
       table='gx_creator_followup_notes';
       payload={...common,note_type:String(data.get('note_type')),body:String(data.get('body')||'').trim()};
     }else if(form.id==='gxFollowupContactForm'){
@@ -1214,7 +1228,7 @@
   });
 
   main.addEventListener('submit',event=>{
-    const form=event.target.closest('#gxFollowupNoteForm,#gxFollowupContactForm,#gxActionPlanForm,#gxFollowupReminderForm');
+    const form=event.target.closest('#gxFollowupPhoneForm,#gxFollowupNoteForm,#gxFollowupContactForm,#gxActionPlanForm,#gxFollowupReminderForm');
     if(form)submitFollowupRecord(form,event);
   });
 
