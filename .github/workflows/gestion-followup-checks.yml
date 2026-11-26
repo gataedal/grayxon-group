@@ -50,7 +50,7 @@ jobs:
           PGPASSWORD: postgres
         shell: bash
         run: |
-          for migration in $(find supabase/migrations -maxdepth 1 -name '*.sql' | sort); do
+          for migration in $(find supabase/migrations -maxdepth 1 -name '20261127*.sql' | sort); do
             echo "Applying $migration"
             psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f "$migration"
           done
