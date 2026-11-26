@@ -554,7 +554,9 @@
       table='gx_creator_followup_reminders';
       const local=String(data.get('scheduled_at')||'');
       if(!local)return toast('Selecciona fecha y hora para el recordatorio.');
-      payload={...common,scheduled_at:new Date(local).toISOString(),timezone:'America/Bogota',note:String(data.get('note')||'').trim()||null};
+      const scheduledAt=window.GRAYXON_FOLLOWUP_CALCULATIONS?.toBogotaISOString(local);
+      if(!scheduledAt)return toast('La fecha y hora del recordatorio no son válidas.');
+      payload={...common,scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('note')||'').trim()||null};
     }else return;
     const {error}=await sb.from(table).insert(payload);
     if(error)return toast('No se pudo guardar: '+error.message);
