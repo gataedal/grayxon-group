@@ -44,6 +44,23 @@ begin
  values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','Propuesta test','pending_manager_review');
  insert into public.gx_creator_followup_evaluations(import_id,creator_user_id,creator_username_snapshot,manager_id_snapshot,classification)
  values(v_import,'20000000-0000-0000-0000-000000000002','creator_b','30000000-0000-0000-0000-000000000002','on_track');
+ -- A manager cannot import a creator assigned to another manager.
+ begin
+  perform public.gx_save_creator_followup_import('foreign.xlsx',v_manager_user::text||'/test.xlsx',
+   repeat('b',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily',
+   jsonb_build_array(jsonb_build_object('creator_user_id','20000000-0000-0000-0000-000000000002','classification','on_track')));
+  raise exception 'Cross-team creator import should have failed';
+ exception when others then
+  if sqlerrm='Cross-team creator import should have failed' then raise; end if;
+ end;
+ -- Selected dates must be covered by the source file period.
+ begin
+  perform public.gx_save_creator_followup_import('period.xlsx',v_manager_user::text||'/test.xlsx',
+   repeat('c',64),'2026-11-01','2026-11-07','2026-11-02','2026-11-07','daily',v_payload);
+  raise exception 'Out-of-source period should have failed';
+ exception when others then
+  if sqlerrm='Out-of-source period should have failed' then raise; end if;
+ end;
  begin
   perform public.gx_save_creator_followup_import('test.xlsx',v_manager_user::text||'/test.xlsx',
    repeat('a',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily',v_payload);
