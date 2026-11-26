@@ -547,7 +547,7 @@ main > footer,
 
 /* Video vertical con laterales ambientales y sección compacta en móvil. */
 #beneficios .gx-video-frame{position:relative;width:100%;height:clamp(300px,58svh,560px);overflow:hidden;border-radius:13px;background:#080b11;isolation:isolate}
-#beneficios .gx-video-backdrop{position:absolute;inset:-8%;width:116%!important;height:116%!important;max-height:none!important;aspect-ratio:auto!important;object-fit:cover!important;filter:blur(22px) brightness(.42);opacity:.9;pointer-events:none}
+#beneficios .gx-video-frame{background:radial-gradient(ellipse at 50% 18%,rgba(37,244,238,.13),transparent 48%),linear-gradient(145deg,#111b27,#080b12)}
 #beneficios .gx-video-main{position:relative;z-index:1;display:block;width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;object-fit:contain!important;background:transparent!important;margin:0 auto;border-radius:0}
 @media(max-width:720px){
  #beneficios.section{min-height:0!important;height:auto!important;justify-content:flex-start!important;padding-top:8px!important;padding-bottom:18px!important;gap:8px!important}
@@ -603,8 +603,7 @@ main > footer,
     <div class="gx-benefits-video">
       <div class="source-video-heading"><span>✦</span><div><strong>Beneficios y requisitos</strong><small>Descubre todo lo que tenemos para acompañarte.</small></div></div>
       <div class="gx-video-frame">
-        <video class="gx-video-backdrop" autoplay muted loop playsinline preload="metadata" aria-hidden="true" src="./assets/Beneficios_y_requisitos.mp4"></video>
-        <video class="gx-video-main" controls playsinline preload="metadata" src="./assets/Beneficios_y_requisitos.mp4"></video>
+        <video class="gx-video-main" controls playsinline preload="none" data-src="./assets/Beneficios_y_requisitos.mp4"></video>
       </div>
       <div class="gx-benefits-actions">
         <button type="button" class="btn continue-whatsapp" id="gx-open-benefits">DETALLES <span aria-hidden="true">↗</span></button>
@@ -959,6 +958,32 @@ main > footer,
   window.addEventListener('resize',update);
   window.addEventListener('load',update);
   update();
+})();
+</script>
+<script>
+/* Carga el único video cuando la sección se aproxima al área visible. */
+(function(){
+  const video=document.querySelector('#beneficios .gx-video-main[data-src]');
+  if(!video)return;
+  let loaded=false;
+  const loadVideo=()=>{
+    if(loaded)return;
+    loaded=true;
+    video.src=video.dataset.src;
+    video.removeAttribute('data-src');
+    video.load();
+  };
+  if('IntersectionObserver' in window){
+    const observer=new IntersectionObserver(entries=>{
+      if(entries.some(entry=>entry.isIntersecting)){
+        loadVideo();
+        observer.disconnect();
+      }
+    },{rootMargin:'300px 0px'});
+    observer.observe(video);
+  }else{
+    loadVideo();
+  }
 })();
 </script>
 </body></html>
