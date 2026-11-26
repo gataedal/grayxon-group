@@ -51,30 +51,34 @@ begin
   select count(*)
     into v_total_videos
   from public.lessons l
-  where l.published = true
+  where l.id in (
+      'eed00a62-1b8a-45fb-bab3-60a7b12462c9'::uuid,
+      '07ae251c-29dc-42d8-b7d2-d486948c444d'::uuid,
+      'a581d37a-0fdb-4fde-8371-b221fe7ac2ce'::uuid,
+      '375a9472-2d97-474e-b603-c44996b28678'::uuid,
+      '4cbdfda7-e057-4758-8b18-0f2c91919dce'::uuid
+    )
+    and l.published = true
     and l.type = 'video'
-    and l.video_path is not null
-    and l.module_id in (
-      'a676aec5-1514-4640-8884-8e9e02b2e90a'::uuid,
-      'b7666174-c171-48ed-afe2-970b47c0c8fa'::uuid,
-      '5d5e7196-7f15-4d9e-a53e-6940b21d5a75'::uuid
-    );
+    and l.video_path is not null;
 
   select count(distinct l.id)
     into v_completed_videos
   from public.lessons l
   join public.lesson_progress lp
     on lp.lesson_id = l.id and lp.user_id = v_user_id
-  where l.published = true
+  where l.id in (
+      'eed00a62-1b8a-45fb-bab3-60a7b12462c9'::uuid,
+      '07ae251c-29dc-42d8-b7d2-d486948c444d'::uuid,
+      'a581d37a-0fdb-4fde-8371-b221fe7ac2ce'::uuid,
+      '375a9472-2d97-474e-b603-c44996b28678'::uuid,
+      '4cbdfda7-e057-4758-8b18-0f2c91919dce'::uuid
+    )
+    and l.published = true
     and l.type = 'video'
-    and l.video_path is not null
-    and l.module_id in (
-      'a676aec5-1514-4640-8884-8e9e02b2e90a'::uuid,
-      'b7666174-c171-48ed-afe2-970b47c0c8fa'::uuid,
-      '5d5e7196-7f15-4d9e-a53e-6940b21d5a75'::uuid
-    );
+    and l.video_path is not null;
 
-  if v_total_videos = 0 or v_completed_videos < v_total_videos then
+  if v_total_videos <> 5 or v_completed_videos <> 5 then
     return false;
   end if;
 
