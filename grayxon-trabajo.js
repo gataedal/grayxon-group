@@ -466,7 +466,6 @@
       followupCreatorCache=creators||[];
       select.innerHTML='<option value="">Selecciona un creador</option>'+followupCreatorCache.map(p=>'<option value="'+esc(p.id)+'" '+(!p.manager_id?'disabled':'')+'>'+esc(p.full_name||p.username)+' · @'+esc(p.username)+(p.manager_id?'':' (sin manager asignado)')+'</option>').join('');
       const planSelect=document.getElementById('gxActionPlanSelect');
-      if(planSelect)planSelect.innerHTML='<option value="">Selecciona un plan</option>'+((window.gxFollowupPlans||[]).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+' · @'+esc(followupCreatorCache.find(x=>x.id===p.creator_user_id)?.username||'creador')+'</option>').join(''));
       select.addEventListener('change',async()=>{
         const creator=followupCreatorCache.find(p=>p.id===select.value);
         const phone=document.getElementById('gxFollowupPhone');
@@ -486,8 +485,8 @@
       const failed=[notes,contacts,plans,planUpdates,reminders].find(x=>x.error);
       if(failed)throw failed.error;
       window.gxFollowupPlans=plans.data||[];
-      if(planSelect)planSelect.innerHTML='<option value="">Selecciona un plan</option>'+window.gxFollowupPlans.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+' · '+esc(name(p.creator_user_id))+'</option>').join('');
       const name=id=>{const p=followupCreatorCache.find(x=>x.id===id);return p?'@'+p.username:'Creador';};
+      if(planSelect)planSelect.innerHTML='<option value="">Selecciona un plan</option>'+window.gxFollowupPlans.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+' · '+esc(name(p.creator_user_id))+'</option>').join('');
       const rows=[
         ...(notes.data||[]).map(x=>({date:x.created_at,title:'Nota · '+x.note_type,creator:name(x.creator_user_id),detail:x.body})),
         ...(contacts.data||[]).map(x=>({date:x.created_at,title:'Contacto · '+x.contact_status,creator:name(x.creator_user_id),detail:(x.channel||'')+' · '+(x.message_text||'')})),
