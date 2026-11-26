@@ -173,9 +173,11 @@
       },
       restriction: mixedPeriods
         ? 'El archivo mezcla varios periodos de datos. Sepáralos en archivos independientes antes de evaluar.'
-        : exactPeriod
-          ? (allMetricsPresent ? null : 'Hay creadores sin todas las métricas necesarias. Revisa los datos faltantes antes de evaluar.')
-          : 'El Excel contiene cifras acumuladas para ' + sourcePeriod.start + ' a ' + sourcePeriod.end + '. No es posible calcular un subperiodo sin exportación diaria de TikTok.'
+        : invalidPeriodRows > 0
+          ? 'Hay filas con periodos inválidos. Corrige el archivo antes de evaluar para no excluir actividad.'
+          : exactPeriod
+            ? (allMetricsPresent ? null : 'Hay creadores sin todas las métricas necesarias. Revisa los datos faltantes antes de evaluar.')
+            : 'El Excel contiene cifras acumuladas para ' + sourcePeriod.start + ' a ' + sourcePeriod.end + '. No es posible calcular un subperiodo sin exportación diaria de TikTok.'
     };
   }
 
