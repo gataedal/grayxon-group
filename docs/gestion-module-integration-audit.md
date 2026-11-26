@@ -173,3 +173,22 @@ Políticas observadas:
 - No se modificará esta validación de forma general: primero hay que separar el acceso al área operativa interna (Tareas/Solicitudes/Equipo) del acceso a Seguimiento para managers, y mantener RLS en las tablas existentes.
 - La siguiente implementación debe permitir que un manager autorizado entre a la sección Seguimiento sin concederle automáticamente acceso a tareas internas, solicitudes internas, áreas, actividad ni calendarios del personal.
 - Este control de acceso debe resolverse antes de mostrar el flujo de importación a managers o permitirles consultar datos de sus creadores.
+
+
+## 14. Acceso de manager separado del equipo interno
+
+- Se implementó en la rama una ruta de autenticación independiente para cuentas manager del portal.
+- La validación exige: perfil `profiles` con `role='manager'` y `active=true`, `manager_id` presente, y registro correspondiente en `managers` con el mismo `id`, `user_id` autenticado y `active=true`.
+- La navegación de manager se limita a Seguimiento y Reportes.
+- Para cuentas manager no se ejecuta `loadData()`: no se consultan tareas internas, solicitudes, miembros internos, departamentos, actividad ni calendario.
+- Se conserva sin cambios la ruta existente de `gx_internal_members` para personal interno y administración.
+- El acceso a Seguimiento es únicamente una puerta de entrada en esta etapa: las consultas de creadores, importaciones y acciones aún no están habilitadas. La autorización real de datos deberá implementarse y probarse también mediante RLS/RPC en Supabase; ocultar pestañas no se considera seguridad suficiente.
+- No se han modificado políticas ni tablas de Supabase.
+
+## 15. Pendientes técnicos actualizados
+
+- [x] Ruta frontend separada para manager, sin cargar las consultas de Gestión interna.
+- [ ] Ejecutar los tests del parser y del cálculo en un entorno Node/CI con los archivos reales del repositorio.
+- [ ] Añadir y validar una dependencia XLSX de versión fijada, antes de activar el selector de archivos.
+- [ ] Diseñar RLS/RPC específicas para importaciones y evaluaciones por manager y admin.
+- [ ] Construir previsualización visible y confirmación de importación.
