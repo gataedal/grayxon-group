@@ -8,7 +8,7 @@
   const toastEl = document.getElementById('gxToast');
 
   if (!window.supabase || !cfg?.SUPABASE_URL || !cfg?.SUPABASE_PUBLISHABLE_KEY) {
-    document.getElementById('gxLoginError').textContent = 'No se pudo iniciar el módulo. Recarga la página.';
+    document.getElementById('gxLoginError').textContent = 'No se pudo iniciar Gestión. Recarga la página.';
     return;
   }
 
@@ -64,12 +64,12 @@
       .maybeSingle();
 
     if (error) {
-      console.error('[Grayxon Trabajo] membership lookup', error);
+      console.error('[Gestión Grayxon] membership lookup', error);
       showAccessMessage('No se pudo validar tu acceso en este momento. Vuelve al portal e inténtalo nuevamente.');
       return;
     }
     if (!data || data.active !== true) {
-      showAccessMessage('Esta cuenta no tiene acceso a Grayxon Trabajo. Si consideras que es un error, comunícate con administración.');
+      showAccessMessage('Esta cuenta no tiene acceso a Gestión. Si consideras que es un error, comunícate con administración.');
       return;
     }
 
@@ -87,10 +87,10 @@
 
   async function init() {
     const { data, error } = await sb.auth.getSession();
-    if (error) console.warn('[Grayxon Trabajo] session', error.message);
+    if (error) console.warn('[Gestión Grayxon] session', error.message);
     state.session = data?.session || null;
     if (state.session) await loadMember();
-    else showAccessMessage('Para entrar a Grayxon Trabajo, primero inicia sesión en el portal Grayxon con tu cuenta habitual.');
+    else showAccessMessage('Para entrar a Gestión, primero inicia sesión en el portal Grayxon con tu cuenta habitual.');
 
     sb.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') return;
@@ -105,7 +105,7 @@
   async function queryRows(query, label) {
     const { data, error } = await query;
     if (error) {
-      console.warn('[Grayxon Trabajo] ' + label, error.message);
+      console.warn('[Gestión Grayxon] ' + label, error.message);
       return [];
     }
     return data || [];
