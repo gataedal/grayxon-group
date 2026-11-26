@@ -49,16 +49,9 @@ No basta con que los archivos existan. En un proyecto de prueba independiente:
 - Registrar fecha, versión de CLI, destino de prueba, recuentos y resultado.
 - Mantener producción intacta hasta que la restauración de prueba sea satisfactoria.
 
-## Cambios preparados para Seguimiento (pendientes de aplicar)
+## Cambios preparados para Seguimiento (pendientes de implementar)
 
-La migración `20261126180000_gx_creator_followup_core.sql` prepara:
-- Tablas separadas de importaciones y evaluaciones históricas.
-- Bucket privado `gx-followup-imports`, límite 20 MB y formatos Excel/CSV.
-- Rutas de objeto con UID del uploader e ID de importación.
-- Lectura de archivos limitada por la importación registrada y su ámbito admin/manager.
-- RPC transaccional `gx_save_creator_followup_import`: valida sesión, alcance del manager, objeto existente, metadatos, duplicados y evaluaciones; inserta importación y resultados en una sola transacción.
-- Las evaluaciones conservan snapshots y no exponen UPDATE/DELETE al cliente.
-- Se reutilizan `public.is_admin()` y `public.current_manager_id()`; no se crean roles ni se modifican políticas de tablas actuales.
+**La migración SQL anterior fue retirada de la rama el 26/11/2026 porque estaba malformada y no era segura para aplicar.** No se debe recuperar ni ejecutar esa versión. Aún no existe una migración válida lista para despliegue. El diseño previsto contempla tablas aisladas de importaciones/evaluaciones, Storage privado y una RPC transaccional; cada elemento debe reconstruirse y probarse en un PostgreSQL efímero antes de considerarlo listo. La interfaz actual solo previsualiza el Excel en el navegador: no persiste archivos ni evaluaciones.
 
 ## Secuencia segura de activación y prueba
 
@@ -74,9 +67,9 @@ La migración `20261126180000_gx_creator_followup_core.sql` prepara:
 
 - No hay evidencia de un respaldo lógico descargado y verificado.
 - No hay evidencia de copia externa de objetos Storage ni de restauración de prueba.
-- La migración sigue siendo un archivo de preparación en la rama de feature; no está aplicada en Supabase.
+- La migración SQL anterior fue retirada por errores de sintaxis; no hay migración de Seguimiento lista ni aplicada.
 - El bucket de Seguimiento aún no existe en producción.
-- La interfaz de previsualización actual no debe considerarse persistencia activada hasta integrar y probar la RPC y el flujo de carga privado.
+- La interfaz de previsualización actual no persiste archivos ni evaluaciones; falta implementar el flujo privado y probarlo.
 
 ## Referencias oficiales
 
