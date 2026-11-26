@@ -620,9 +620,38 @@
   }
 
   function renderReportsPage() {
-    main.innerHTML = pageHead('Reportes','Consulta de reportes de Gestión.')+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Reportes</h2><span class="gxt-chip">Próximamente</span></div>'+
-      '<p>Este espacio queda reservado para los reportes de Gestión. Su contenido y funcionamiento se configurarán en una siguiente etapa.</p></section>';
+    main.innerHTML=pageHead('Reportes','Resumen de las evaluaciones de los últimos 90 días.')+
+      '<section class="gxt-panel" id="gxFollowupReports"><div class="gxt-empty">Calculando indicadores…</div></section>';
+    loadFollowupReports();
+  }
+
+  async function loadFollowupReports() {
+    const host=document.getElementById('gxFollowupReports');
+    if(!host)return;
+    try{
+      const since=new Date(Date.now()-90*86400000).toISOString();
+      const {data,error}=await sb.from('gx_creator_followup_evaluations')
+        .select('creator_user_id,creator_username_snapshot,classification,diamonds,live_seconds,valid_live_days,created_at')
+        .gte('created_at',since).order('created_at',{ascending:false}).limit(2000);
+      if(error)throw error;
+      const rows=data||[];
+      const counts={high_risk:0,observation:0,on_track:0,early_review:0,not_evaluable:0,needs_daily_data:0};
+      rows.forEach(r=>{counts[r.classification]=(counts[r.classification]||0)+1;});
+      const diamonds=rows.reduce((n,r)=>n+Number(r.diamonds||0),0);
+      const hours=rows.reduce((n,r)=>n+Number(r.live_seconds||0),0)/3600;
+      const latest=new Map();
+      rows.forEach(r=>{if(!latest.has(r.creator_user_id))latest.set(r.creator_user_id,r);});
+      const risk=Array.from(latest.values()).filter(r=>['high_risk','observation','early_review'].includes(r.classification)).slice(0,12);
+      const labels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
+      host.innerHTML='<div class="gxt-panel-head"><h2>Indicadores · últimos 90 días</h2><span class="gxt-chip">'+rows.length+' evaluaciones</span></div>'+
+        '<div class="gxt-followup-summary"><div><strong>'+rows.length.toLocaleString('es-CO')+'</strong><small>Evaluaciones</small></div><div><strong>'+diamonds.toLocaleString('es-CO')+'</strong><small>Diamantes reportados</small></div><div><strong>'+hours.toFixed(1)+' h</strong><small>Horas LIVE</small></div></div>'+
+        '<div class="gxt-followup-report-grid">'+Object.keys(counts).map(k=>'<div class="gxt-followup-report-stat"><strong>'+counts[k]+'</strong><small>'+labels[k]+'</small></div>').join('')+'</div>'+
+        '<h3>Creadores para revisar</h3>'+
+        (risk.length?'<div class="gxt-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Estado más reciente</th><th>Fecha</th></tr></thead><tbody>'+risk.map(r=>'<tr><td>@'+esc(r.creator_username_snapshot)+'</td><td>'+labels[r.classification]+'</td><td>'+dateTimeLabel(r.created_at)+'</td></tr>').join('')+'</tbody></table></div>':'<div class="gxt-empty">No hay casos recientes clasificados para revisión.</div>');
+    }catch(error){
+      console.error('[Gestión · Reportes] load',error);
+      host.innerHTML='<div class="gxt-status-note gxt-followup-warning">No se pudieron cargar los reportes: '+esc(error.message||'Error de consulta')+'</div>';
+    }
   }
 
   function renderPage() {
