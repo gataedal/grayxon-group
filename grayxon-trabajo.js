@@ -17,7 +17,7 @@
   });
 
   const state = {
-    session: null, member: null, isAdmin: false, tab: 'home',
+    session: null, member: null, isAdmin: false, isManager: false, tab: 'home',
     tasks: [], requests: [], members: [], departments: [], activity: [], creators: []
   };
 
@@ -68,21 +68,65 @@
       showAccessMessage('No se pudo validar tu acceso en este momento. Vuelve al portal e inténtalo nuevamente.');
       return;
     }
-    if (!data || data.active !== true) {
-      showAccessMessage('Esta cuenta no tiene acceso a Gestión. Si consideras que es un error, comunícate con administración.');
+    if (data && data.active === true) {
+      state.member = data;
+      state.isAdmin = data.access_level === 'admin';
+      state.isManager = false;
+      document.getElementById('gxUserName').textContent = data.display_name || user.email || 'Equipo Grayxon';
+      document.getElementById('gxUserJob').textContent = [data.job_title, data.department?.name].filter(Boolean).join(' · ');
+      document.getElementById('gxAccessBadge').textContent = state.isAdmin ? 'Administración' : 'Operativo';
+      setAuthView(true);
+      await loadData();
+      renderNav();
+      renderPage();
+      handleNotificationTarget();
       return;
     }
 
-    state.member = data;
-    state.isAdmin = data.access_level === 'admin';
-    document.getElementById('gxUserName').textContent = data.display_name || user.email || 'Equipo Grayxon';
-    document.getElementById('gxUserJob').textContent = [data.job_title, data.department?.name].filter(Boolean).join(' · ');
-    document.getElementById('gxAccessBadge').textContent = state.isAdmin ? 'Administración' : 'Operativo';
+    // Managers use a separate, least-privilege entry path. Their profile and
+    // linked managers row must both be active and point to the same auth user.
+    const { data: profile, error: profileError } = await sb
+      .from('profiles')
+      .select('id,role,active,manager_id,full_name')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (profileError) {
+      console.error('[Gestión Grayxon] manager profile lookup', profileError);
+      showAccessMessage('No se pudo validar tu acceso de manager. Inténtalo nuevamente.');
+      return;
+    }
+    if (profile?.role !== 'manager' || profile.active !== true || !profile.manager_id) {
+      showAccessMessage('Esta cuenta no tiene acceso a Gestión. Si consideras que es un error, comunícate con administración.');
+      return;
+    }
+    const { data: managerRow, error: managerError } = await sb
+      .from('managers')
+      .select('id,user_id,name,active')
+      .eq('id', profile.manager_id)
+      .eq('user_id', user.id)
+      .eq('active', true)
+      .maybeSingle();
+    if (managerError || !managerRow) {
+      if (managerError) console.error('[Gestión Grayxon] manager record lookup', managerError);
+      showAccessMessage('No se pudo confirmar el registro activo de este manager.');
+      return;
+    }
+
+    state.member = {
+      id: managerRow.id, user_id: user.id, display_name: managerRow.name || profile.full_name || user.email,
+      access_level: 'manager', active: true
+    };
+    state.isAdmin = false;
+    state.isManager = true;
+    state.tab = 'followup';
+    document.getElementById('gxUserName').textContent = state.member.display_name;
+    document.getElementById('gxUserJob').textContent = 'Manager · Seguimiento de creadores';
+    document.getElementById('gxAccessBadge').textContent = 'Manager';
     setAuthView(true);
-    await loadData();
+    // Deliberately do not load internal gx_tasks, requests, staff, departments,
+    // activity or calendar for manager accounts.
     renderNav();
     renderPage();
-    handleNotificationTarget();
   }
 
   async function init() {
@@ -112,6 +156,7 @@
   }
 
   async function loadData() {
+    if (state.isManager) return;
     // Keep primary records independent from embedded relations. RLS on related
     // member rows can otherwise make PostgREST return empty/error results for
     // the whole list even when the task/request itself is readable.
@@ -176,15 +221,17 @@
   }
 
   function renderNav() {
-    const items = state.isAdmin
-      ? [
-          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
-          ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
-        ]
-      : [
-          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
-          ['calendar','▦','Calendario']
-        ];
+    const items = state.isManager
+      ? [['followup','◎','Seguimiento'],['reports','▥','Reportes']]
+      : state.isAdmin
+        ? [
+            ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
+            ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
+          ]
+        : [
+            ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
+            ['calendar','▦','Calendario']
+          ];
     nav.innerHTML = items.map(([key,icon,label]) =>
       '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span>'+label+'</button>'
     ).join('');
@@ -319,6 +366,10 @@
 
   function renderPage() {
     renderNav();
+    if (state.isManager) {
+      if (state.tab === 'reports') return renderReportsPage();
+      return renderFollowupPage();
+    }
     if (state.tab === 'tasks') return renderTasksPage();
     if (state.tab === 'requests') return renderRequestsPage();
     if (state.tab === 'team' && state.isAdmin) return renderTeamPage();
