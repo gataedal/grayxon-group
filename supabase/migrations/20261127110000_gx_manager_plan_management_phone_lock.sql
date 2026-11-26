@@ -1,36 +1,9 @@
 begin;
 
--- Los managers gestionan los planes de los creadores que tienen asignados.
--- El permiso se limita a columnas operativas: nunca permite cambiar creador/manager.
+-- El avance y el estado del plan solo se modifican mediante la RPC atómica.
+-- Se evita una actualización directa que pueda omitir el registro de historial.
 drop policy if exists gx_action_plans_update on public.gx_creator_action_plans;
-create policy gx_action_plans_update on public.gx_creator_action_plans
-for update to authenticated
-using (
-  public.is_admin()
-  or (
-    manager_id=public.current_manager_id()
-    and exists (
-      select 1 from public.profiles p
-      where p.id=creator_user_id
-        and p.role='creator'
-        and p.manager_id=public.current_manager_id()
-    )
-  )
-)
-with check (
-  public.is_admin()
-  or (
-    manager_id=public.current_manager_id()
-    and exists (
-      select 1 from public.profiles p
-      where p.id=creator_user_id
-        and p.role='creator'
-        and p.manager_id=public.current_manager_id()
-    )
-  )
-);
-grant update(title,objective,success_criteria,status,target_date,updated_at)
-on public.gx_creator_action_plans to authenticated;
+revoke update on public.gx_creator_action_plans from authenticated;
 
 -- El manager puede registrar como aplicada una actualización de su propio plan.
 -- Se conserva el registro en gx_creator_action_plan_updates como historial.
