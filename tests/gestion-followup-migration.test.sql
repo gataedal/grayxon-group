@@ -28,6 +28,14 @@ begin
  if not exists(select 1 from public.gx_creator_followup_evaluations where import_id=v_import and creator_user_id=v_creator) then
   raise exception 'Expected evaluation row was not persisted';
  end if;
+ -- Add a second creator assigned to another manager; manager A must not read it.
+ insert into auth.users(id) values('10000000-0000-0000-0000-000000000002'),('20000000-0000-0000-0000-000000000002');
+ insert into public.managers(id,user_id,active) values('30000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002',true);
+ insert into public.profiles(id,role,active,manager_id,username)
+ values('10000000-0000-0000-0000-000000000002','manager',true,'30000000-0000-0000-0000-000000000002','manager_b'),
+       ('20000000-0000-0000-0000-000000000002','creator',true,'30000000-0000-0000-0000-000000000002','creator_b');
+ insert into public.gx_creator_followup_evaluations(import_id,creator_user_id,creator_username_snapshot,manager_id_snapshot,classification)
+ values(v_import,'20000000-0000-0000-0000-000000000002','creator_b','30000000-0000-0000-0000-000000000002','on_track');
  begin
   perform public.gx_save_creator_followup_import('test.xlsx',v_manager_user::text||'/test.xlsx',
    repeat('a',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily',v_payload);
@@ -36,3 +44,12 @@ begin
   if sqlerrm='Duplicate import should have failed' then raise; end if;
  end;
 end $$;
+
+set role authenticated;
+do $$
+declare v_count integer;
+begin
+ select count(*) into v_count from public.gx_creator_followup_evaluations;
+ if v_count<>1 then raise exception 'Manager RLS should expose only the assigned creator; got %',v_count; end if;
+end $$;
+reset role;
