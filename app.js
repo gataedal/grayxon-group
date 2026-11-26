@@ -1530,7 +1530,7 @@ function profileTpl(){
   ensureGrayxonPreferencesStyles();ensureProfileSettingsStyles();
   if(!session||!profile)return authTpl();
   return '<div class="profile-page gx-profile-settings">'+
-    (profile.role==='creator' ? '<section class="card creator-onboarding-avatar"><h2>Tu foto de perfil</h2><div class="creator-profile-manager-row"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">'+(profileDetails?.avatar_url?'<img src="'+esc(profileDetails.avatar_url)+'" alt="Foto de perfil">':'<span>'+esc(profileInitial())+'</span>')+'<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto">✎</button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-profile-manager-info"><strong>Agrega una foto clara</strong><small id="profileAvatarStatus" aria-live="polite">'+(profileDetails?.avatar_url?'Foto agregada':'La foto es necesaria para completar tu perfil')+'</small></div></div></section>' : '')+
+    (isOnboardingCreator() ? '<section class="card creator-onboarding-avatar"><h2>Tu foto de perfil</h2><div class="creator-profile-manager-row"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">'+(profileDetails?.avatar_url?'<img src="'+esc(profileDetails.avatar_url)+'" alt="Foto de perfil">':'<span>'+esc(profileInitial())+'</span>')+'<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto">✎</button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-profile-manager-info"><strong>Agrega una foto clara</strong><small id="profileAvatarStatus" aria-live="polite">'+(profileDetails?.avatar_url?'Foto agregada':'La foto es necesaria para completar tu perfil')+'</small></div></div></section>' : '')+
     (isOnboardingCreator() ? '<section class="card creator-onboarding-step"><div class="eyebrow">PRIMEROS PASOS</div><h2>Completa tu perfil</h2><p class="muted">Registra tus datos personales y agrega una foto. No necesitas ingresar dirección ni información de pagos.</p><button type="button" class="secondary" data-profile-section="personal">Completar datos personales</button>'+(isOnboardingProfileComplete()?'<button type="button" class="primary" data-onboarding-start>Continuar a Formación →</button>':'')+'</section>' : '')+
     (profile.role==='creator' ? '<section class="card creator-profile-manager-card" id="creatorProfileManagerCard"><h2><span style="color:#25F4EE">♙</span> Tu manager</h2><div class="creator-profile-manager-row"><div class="creator-profile-manager-avatar creator-profile-manager-fallback">♙</div><div class="creator-profile-manager-info"><strong>Consultando tu equipo…</strong><small>Un momento</small></div></div></section>' : '')+
     '<section class="gx-profile-settings-heading"><h2>Tu información</h2><p>Administra los datos asociados a tu cuenta.</p></section>'+
@@ -4402,26 +4402,28 @@ async function trainingTpl(options = {}) {
     const mb = moduleOrder.get(b.module_id) ?? 9999;
     return ma - mb || (a.sort_order ?? 0) - (b.sort_order ?? 0);
   });
-  const totalLessons = orderedLessons.length;
-  const totalDone = orderedLessons.filter(l => done.has(l.id)).length;
+  const progressLessons = isOnboardingCreator() ? getRequiredOnboardingVideos(orderedLessons) : orderedLessons;
+  const totalLessons = progressLessons.length;
+  const totalDone = progressLessons.filter(l => done.has(l.id)).length;
   const totalPct = totalLessons ? Math.round(totalDone / totalLessons * 100) : 0;
   const nextPending = isOnboardingCreator() ? getRequiredOnboardingVideos(orderedLessons).find(l => !done.has(l.id)) : orderedLessons.find(l => !done.has(l.id));
 
   const moduleData = (modules || []).map((m, mi) => {
     const ml = orderedLessons.filter(l => l.module_id === m.id);
-    const md = ml.filter(l => done.has(l.id)).length;
-    const complete = ml.length > 0 && md === ml.length;
-    return { m, mi, ml, md, complete, pct: ml.length ? Math.round(md / ml.length * 100) : 0 };
+    const progressForModule = isOnboardingCreator() ? ml.filter(isOnboardingVideo) : ml;
+    const md = progressForModule.filter(l => done.has(l.id)).length;
+    const complete = progressForModule.length > 0 && md === progressForModule.length;
+    return { m, mi, ml, md, complete, progressTotal: progressForModule.length, pct: progressForModule.length ? Math.round(md / progressForModule.length * 100) : 0 };
   });
   const pendingModules = moduleData.filter(x => !x.complete);
   const completedModules = moduleData.filter(x => x.complete);
 
   const moduleCard = (x) => {
-    const {m, mi, ml, md, complete, pct} = x;
+    const {m, mi, ml, md, complete, progressTotal, pct} = x;
     const isNext = ml.some(l => l.id === nextPending?.id);
     return `<article class="library-module-card ${complete ? 'is-complete' : ''} ${isNext ? 'is-next-module' : ''}" data-formation-module-card="${m.id}">
       <div class="library-module-cover cover-${mi % 4}"><span class="library-cover-number">${String(mi+1).padStart(2,'0')}</span><span class="library-cover-symbol">${complete ? '✓' : isNext ? '▶' : '◈'}</span><span class="library-cover-tag">${complete ? 'COMPLETADO' : isNext ? 'EN CURSO' : 'MÓDULO'}</span></div>
-      <div class="library-module-body"><div class="library-module-meta"><span>${ml.length} ${ml.length===1?'contenido':'contenidos'}</span><span>${md}/${ml.length}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="true"><span>Ver contenidos</span><b>⌄</b></button></div>
+      <div class="library-module-body"><div class="library-module-meta"><span>${isOnboardingCreator()?progressTotal+' videos':ml.length+' '+(ml.length===1?'contenido':'contenidos')}</span><span>${md}/${progressTotal}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="true"><span>Ver contenidos</span><b>⌄</b></button></div>
       <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${isOnboardingCreator()?(isOnboardingVideo(l)&&!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''):(!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':'')}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':isOnboardingCreator()&&!isOnboardingVideo(l)?'Abrir ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
     </article>`;
   };
@@ -4433,7 +4435,7 @@ async function trainingTpl(options = {}) {
       <div><span class="library-eyebrow">TU ESPACIO DE APRENDIZAJE</span><h1>Biblioteca</h1><p class="library-subtitle">Todo lo que necesitas para seguir creciendo, en un solo lugar.</p></div>
       ${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Mi espacio</button>'}
     </div>
-    <div class="library-progress-summary"><div><span>TU PROGRESO</span><strong>${totalPct}%</strong><small>${totalDone} de ${totalLessons} contenidos completados</small></div><div class="library-progress-track"><span style="width:${totalPct}%"></span></div></div>
+    <div class="library-progress-summary"><div><span>TU PROGRESO</span><strong>${totalPct}%</strong><small>${totalDone} de ${totalLessons} ${isOnboardingCreator()?'videos obligatorios':'contenidos'} completados</small></div><div class="library-progress-track"><span style="width:${totalPct}%"></span></div></div>
     ${nextPending ? `<section class="library-continue"><div class="library-continue-art"><span>▶</span></div><div class="library-continue-copy"><span class="library-eyebrow">CONTINÚA APRENDIENDO</span><h2>${esc(nextPending.title)}</h2><p>${esc(nextPending.description || (modules || []).find(m => m.id === nextPending.module_id)?.title || 'Tu siguiente contenido')}</p><button type="button" class="library-continue-button" data-lesson="${nextPending.id}">Continuar <b>→</b></button></div></section>` : `<section class="library-all-done"><strong>¡Has completado tu biblioteca!</strong><p>Terminaste todos los contenidos disponibles.</p></section>`}
     <div class="library-collections">
       ${sectionHtml('Explora los módulos',pendingModules,'No tienes contenidos pendientes.','pending')}
