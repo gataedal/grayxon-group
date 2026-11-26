@@ -280,3 +280,18 @@ Esto confirma que las dos consultas de validación del acceso manager (perfil pr
 - La consulta de administradores internos frente a `public.is_admin()` confirmó que los administradores activos de `gx_internal_members` también están reconocidos por la función SQL de administración en el estado actual de producción.
 - GitHub informa el PR como integrable, pero sigue divergente respecto de `main` (la rama de desarrollo contiene commits posteriores y aún está detrás de la rama principal). No se ha fusionado ni se ha desplegado.
 - El conector de GitHub disponible no expuso ejecuciones de CI ni estados de comprobación para los últimos commits; por tanto, las pruebas automatizadas siguen pendientes de confirmación. No se declara validación completa.
+
+
+## 20. Estado consolidado de la rama limpia — 26/11/2026
+
+Esta sección prevalece sobre los estados históricos descritos en apartados anteriores, que documentan etapas previas.
+
+- La integración vigente está en `feature/gestion-module-clean-2026-11-26`, creada directamente desde `main` actual para conservar las mejoras recientes del portal. El PR vigente es el #146; el PR #144 anterior se cerró sin fusionar.
+- La rama vigente está 4 commits por delante de `main`, 0 por detrás, y conserva 23 archivos de cambio. No hay cambios aplicados a producción.
+- Los workflows de Gestión y Formación en vivo pasaron correctamente en el commit `aa9ca39d`. Después se endureció el permiso de actualización de planes para exigir la RPC atómica y se añadió una prueba para impedir el bypass. Esos cambios también pasaron ambos workflows.
+- Se ajustó el workflow para que también se ejecute en pushes a la rama limpia. La ejecución más reciente para ese ajuste está en curso; no se considera aprobada hasta que termine.
+- La lectura directa de Supabase confirma PostgreSQL 17.11, migraciones de producción hasta `20261110013339`, cero tablas públicas de Seguimiento y cero ramas de desarrollo Supabase. Las políticas existentes permiten a managers leer los perfiles y teléfonos de sus creadores asignados, pero no editar esos teléfonos.
+- La migración de planes ya no concede UPDATE directo a managers; el estado y el avance se guardan por la RPC transaccional, con verificación de pertenencia y bloqueo de fila.
+- Los Advisors de producción muestran avisos preexistentes en funciones SECURITY DEFINER expuestas a anon, dos funciones con search_path mutable y cuatro tablas RLS sin políticas. No se han modificado porque son hallazgos del esquema existente y están fuera del alcance de Gestión; deben revisarse por separado antes de un hardening general.
+- La sección Reportes sigue siendo un placeholder deliberado. Los recordatorios se almacenan y muestran en Gestión, pero todavía no envían notificaciones automáticas.
+- **Bloqueo real para activar:** no existe aún un respaldo verificable de PostgreSQL/Storage ni una restauración probada. La rama de backup protege únicamente el código. No se debe aplicar ninguna migración ni desplegar hasta resolverlo.
