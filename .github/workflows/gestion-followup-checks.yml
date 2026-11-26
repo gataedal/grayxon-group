@@ -22,6 +22,38 @@ on:
       - '.github/workflows/gestion-followup-checks.yml'
 
 jobs:
+  postgres-migration-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: grayxon_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d grayxon_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Build isolated Supabase schema fixture
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f tests/fixtures/gestion-followup-schema.sql
+      - name: Apply Gestión migration to ephemeral PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f supabase/migrations/20261127090000_gx_creator_followup_core.sql
+      - name: Verify manager import persistence and duplicate protection
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f tests/gestion-followup-migration.test.sql
+
   node-tests:
     runs-on: ubuntu-latest
     steps:
