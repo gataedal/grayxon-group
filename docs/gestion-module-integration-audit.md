@@ -212,3 +212,26 @@ Políticas observadas:
 - Revisar la migración SQL con el esquema actual y ejecutar pruebas RLS para admin, manager asignado, manager no asignado y creator en un entorno de pruebas/restauración.
 - Implementar Storage privado, hash de archivo y persistencia transaccional después de contar con respaldo recuperable.
 - Añadir una vista clara para discrepancias entre el usuario de TikTok y los perfiles Grayxon, sin permitir que el manager consulte perfiles fuera de su alcance.
+
+
+## 18. Endurecimiento y verificación del 26 de noviembre
+
+### CI de frontend y parser
+- El workflow `Gestión follow-up checks` terminó con conclusión `success` en el commit `f8a6f5b36cb059034029e75b9ef78ad6832ebe9d`.
+- Se completaron correctamente los pasos de sintaxis JavaScript, pruebas de cálculos y pruebas del parser Excel.
+- La previsualización ahora bloquea archivos con varios periodos mezclados, evita evaluar métricas ambiguas y no enlaza automáticamente usuarios cuando hay más de un perfil coincidente.
+- El selector de periodo y los mensajes de previsualización contemplan el caso de periodos mezclados sin intentar calcular resultados parciales.
+
+### Revisión de Supabase en modo solo lectura
+- Se confirmó que `public.current_manager_id()` existe, no recibe argumentos y devuelve `uuid`; obtiene el manager activo vinculado al usuario autenticado.
+- Se confirmó que `public.is_admin()` existe, no recibe argumentos y devuelve `boolean`; verifica perfil admin activo.
+- Se verificaron las tablas `profiles`, `managers`, `teams`, `profile_details` y el flujo existente `gx_creator_deliveries`.
+- Las políticas actuales permiten a managers consultar creadores asignados y sus datos de perfil; la actualización de teléfono continúa limitada al propio perfil o administración. No se abrió ninguna política existente.
+- Se observó que el esquema de importaciones debía validar también la relación entre manager y equipo seleccionado. Se añadió al SQL de desarrollo un trigger de validación que impide a managers registrar importaciones de otro manager y evita asociar un equipo a un manager distinto.
+- La migración sigue siendo un borrador versionado en la rama; no fue aplicada. No se crearon tablas, funciones, triggers, buckets ni políticas en Supabase.
+
+### Bloqueos de seguridad y recuperación
+- El respaldo Git de la rama `backup/pre-gestion-2026-11-26` solo protege el código. No sustituye un respaldo lógico de PostgreSQL ni una copia independiente de Storage.
+- Antes de aplicar SQL o habilitar persistencia se requiere obtener y verificar ambos respaldos y documentar cómo restaurarlos.
+- El archivo Excel fuente deberá guardarse en un bucket privado, con políticas de Storage restringidas y rutas que no permitan acceso cruzado entre managers. El bucket no se ha creado.
+- Las evaluaciones deben seguir siendo snapshots históricos no editables desde el cliente; cualquier re-procesamiento debe ser una operación explícita y auditable.
