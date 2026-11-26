@@ -367,6 +367,7 @@
       '<form id="gxFollowupNoteForm" class="gxt-followup-workspace-card"><h3>Observación o compromiso</h3><label class="gxt-field"><span>Tipo</span><select name="note_type"><option value="observation">Observación</option><option value="commitment">Compromiso</option><option value="response">Respuesta</option><option value="review">Revisión</option></select></label><label class="gxt-field"><span>Detalle</span><textarea name="body" maxlength="5000" required></textarea></label><button class="gxt-btn primary" type="submit">Guardar registro</button></form>'+
       '<form id="gxFollowupContactForm" class="gxt-followup-workspace-card"><h3>Registro de contacto</h3><label class="gxt-field"><span>Estado</span><select name="contact_status"><option value="initiated">Contacto iniciado</option><option value="confirmed">Contacto confirmado</option><option value="pending_response">Pendiente de respuesta</option><option value="responded">Respondió</option></select></label><label class="gxt-field"><span>Canal</span><select name="channel"><option value="whatsapp">WhatsApp</option><option value="phone">Llamada</option><option value="other">Otro</option></select></label><label class="gxt-field"><span>Mensaje o resumen</span><textarea name="message_text" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Guardar contacto</button></form>'+
       '<form id="gxActionPlanForm" class="gxt-followup-workspace-card"><h3>Plan de acción</h3><label class="gxt-field"><span>Título</span><input name="title" maxlength="180" required></label><label class="gxt-field"><span>Objetivo</span><textarea name="objective" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Criterio de éxito</span><textarea name="success_criteria" maxlength="3000"></textarea></label><label class="gxt-field"><span>Fecha objetivo</span><input name="target_date" type="date"></label><button class="gxt-btn primary" type="submit">Crear plan</button></form>'+
+      '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card"><h3>Propuesta de actualización</h3><label class="gxt-field"><span>Plan</span><select id="gxActionPlanSelect" name="plan_id" required><option value="">Primero crea un plan</option></select></label><label class="gxt-field"><span>Avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Cambios propuestos</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Enviar a revisión</button></form>'+
       '<form id="gxFollowupReminderForm" class="gxt-followup-workspace-card"><h3>Recordatorio</h3><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="scheduled_at" type="datetime-local" required></label><label class="gxt-field"><span>Nota</span><textarea name="note" maxlength="2000"></textarea></label><button class="gxt-btn primary" type="submit">Programar recordatorio</button></form>'+
       '</div><div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';
     loadFollowupHistory();
@@ -464,6 +465,8 @@
       if(error)throw error;
       followupCreatorCache=creators||[];
       select.innerHTML='<option value="">Selecciona un creador</option>'+followupCreatorCache.map(p=>'<option value="'+esc(p.id)+'" '+(!p.manager_id?'disabled':'')+'>'+esc(p.full_name||p.username)+' · @'+esc(p.username)+(p.manager_id?'':' (sin manager asignado)')+'</option>').join('');
+      const planSelect=document.getElementById('gxActionPlanSelect');
+      if(planSelect)planSelect.innerHTML='<option value="">Selecciona un plan</option>'+((window.gxFollowupPlans||[]).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+' · @'+esc(followupCreatorCache.find(x=>x.id===p.creator_user_id)?.username||'creador')+'</option>').join(''));
       select.addEventListener('change',async()=>{
         const creator=followupCreatorCache.find(p=>p.id===select.value);
         const phone=document.getElementById('gxFollowupPhone');
@@ -473,26 +476,41 @@
         if(error){toast('No se pudo consultar el teléfono: '+error.message);return;}
         if(phone)phone.value=data?.phone||'';
       });
-      const [notes,contacts,plans,reminders]=await Promise.all([
+      const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,target_date,created_at').order('created_at',{ascending:false}).limit(30),
+        sb.from('gx_creator_action_plan_updates').select('id,plan_id,progress_summary,proposed_changes,status,created_at,review_note').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_reminders').select('id,creator_user_id,scheduled_at,status,note').order('scheduled_at',{ascending:true}).limit(30)
       ]);
-      const failed=[notes,contacts,plans,reminders].find(x=>x.error);
+      const failed=[notes,contacts,plans,planUpdates,reminders].find(x=>x.error);
       if(failed)throw failed.error;
+      window.gxFollowupPlans=plans.data||[];
+      if(planSelect)planSelect.innerHTML='<option value="">Selecciona un plan</option>'+window.gxFollowupPlans.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+' · '+esc(name(p.creator_user_id))+'</option>').join('');
       const name=id=>{const p=followupCreatorCache.find(x=>x.id===id);return p?'@'+p.username:'Creador';};
       const rows=[
         ...(notes.data||[]).map(x=>({date:x.created_at,title:'Nota · '+x.note_type,creator:name(x.creator_user_id),detail:x.body})),
         ...(contacts.data||[]).map(x=>({date:x.created_at,title:'Contacto · '+x.contact_status,creator:name(x.creator_user_id),detail:(x.channel||'')+' · '+(x.message_text||'')})),
         ...(plans.data||[]).map(x=>({date:x.created_at,title:'Plan · '+x.title,creator:name(x.creator_user_id),detail:x.objective+' · '+x.status})),
+        ...(planUpdates.data||[]).map(x=>({date:x.created_at,title:'Propuesta · '+x.status,creator:(plans.data||[]).find(p=>p.id===x.plan_id)?name((plans.data||[]).find(p=>p.id===x.plan_id).creator_user_id):'Creador',detail:x.progress_summary+' '+(x.proposed_changes||''),updateId:x.id,status:x.status})),
         ...(reminders.data||[]).map(x=>({date:x.scheduled_at,title:'Recordatorio · '+x.status,creator:name(x.creator_user_id),detail:x.note||'Sin nota'}))
       ].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60);
-      host.innerHTML=rows.length?'<div class="gxt-panel-head"><h3>Actividad reciente</h3><span class="gxt-chip">'+rows.length+' registros</span></div>'+rows.map(x=>'<div class="gxt-followup-operation"><strong>'+esc(x.title)+'</strong><small>'+esc(x.creator)+' · '+dateTimeLabel(x.date)+'</small><p>'+esc(x.detail)+'</p></div>').join(''):'<div class="gxt-empty">Todavía no hay contactos, notas, planes ni recordatorios.</div>';
+      host.innerHTML=rows.length?'<div class="gxt-panel-head"><h3>Actividad reciente</h3><span class="gxt-chip">'+rows.length+' registros</span></div>'+rows.map(x=>'<div class="gxt-followup-operation"><strong>'+esc(x.title)+'</strong><small>'+esc(x.creator)+' · '+dateTimeLabel(x.date)+'</small><p>'+esc(x.detail)+'</p>'+(x.updateId&&state.isAdmin&&x.status==='pending_manager_review'?'<div class="gxt-actions"><button class="gxt-btn primary" data-review-plan-update="'+esc(x.updateId)+'" data-review-decision="approved">Aprobar cambios</button><button class="gxt-btn ghost" data-review-plan-update="'+esc(x.updateId)+'" data-review-decision="rejected">Rechazar</button></div>':'')+'</div>').join(''):'<div class="gxt-empty">Todavía no hay contactos, notas, planes ni recordatorios.</div>';
     }catch(error){
       console.error('[Gestión · Seguimiento] workspace',error);
       host.innerHTML='<div class="gxt-status-note gxt-followup-warning">No se pudieron cargar los registros: '+esc(error.message||'Error de consulta')+'</div>';
     }
+  }
+
+  async function reviewActionPlanUpdate(updateId,decision) {
+    if(!state.isAdmin)return toast('Solo administración puede revisar estas propuestas.');
+    if(!['approved','rejected'].includes(decision))return;
+    const {error}=await sb.from('gx_creator_action_plan_updates').update({
+      status:decision,reviewed_by:state.session.user.id,reviewed_at:new Date().toISOString()
+    }).eq('id',updateId).eq('status','pending_manager_review');
+    if(error)return toast('No se pudo revisar la propuesta: '+error.message);
+    toast(decision==='approved'?'Cambios aprobados.':'Propuesta rechazada.');
+    loadFollowupWorkspace();
   }
 
   async function submitFollowupRecord(form,event) {
@@ -519,6 +537,10 @@
       table='gx_creator_action_plans';
       payload={...common,title:String(data.get('title')||'').trim(),objective:String(data.get('objective')||'').trim(),
         success_criteria:String(data.get('success_criteria')||'').trim()||null,target_date:String(data.get('target_date')||'')||null};
+    }else if(form.id==='gxActionPlanUpdateForm'){
+      table='gx_creator_action_plan_updates';
+      payload={plan_id:String(data.get('plan_id')||''),progress_summary:String(data.get('progress_summary')||'').trim(),
+        proposed_changes:String(data.get('proposed_changes')||'').trim()||null,status:'pending_manager_review'};
     }else if(form.id==='gxFollowupReminderForm'){
       table='gx_creator_followup_reminders';
       const local=String(data.get('scheduled_at')||'');
@@ -1258,11 +1280,13 @@
   });
 
   main.addEventListener('submit',event=>{
-    const form=event.target.closest('#gxFollowupPhoneForm,#gxFollowupNoteForm,#gxFollowupContactForm,#gxActionPlanForm,#gxFollowupReminderForm');
+    const form=event.target.closest('#gxFollowupPhoneForm,#gxFollowupNoteForm,#gxFollowupContactForm,#gxActionPlanForm,#gxActionPlanUpdateForm,#gxFollowupReminderForm');
     if(form)submitFollowupRecord(form,event);
   });
 
   main.addEventListener('click',event=>{
+    const reviewPlan=event.target.closest('[data-review-plan-update]');
+    if(reviewPlan)return reviewActionPlanUpdate(reviewPlan.dataset.reviewPlanUpdate,reviewPlan.dataset.reviewDecision);
     const followupPreview=event.target.closest('[data-followup-preview]');
     if(followupPreview)return previewFollowupImport();
     const cancel=event.target.closest('[data-cancel-task]');
