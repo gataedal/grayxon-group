@@ -40,6 +40,11 @@ assert.equal(mixed.sourcePeriod, null);
 assert.equal(mixed.canEvaluate, false);
 assert.match(mixed.restriction, /mezcla varios periodos/);
 
+matrix = [headers, ...data, ['periodo incorrecto', '999', 'fila_sin_periodo', 'Equipo A', 'manager@test', '2025-01-01', '100', '1000', '10h', '2']];
+const invalidPeriod = parser.parseWorkbook(workbook, '2026-11-01', '2026-11-23');
+assert.equal(invalidPeriod.canEvaluate, false);
+assert.match(invalidPeriod.restriction, /periodos inválidos/);
+
 assert.equal(parser.parseDurationHours('130h 55min 50s'), 130 + 55/60 + 50/3600);
 assert.equal(parser.parseDurationHours('2h 30min'), 2.5);
 assert.equal(parser.parseDurationHours('2h 90min'), null);
