@@ -9,6 +9,12 @@ on:
       - 'grayxon-followup-*.js'
       - 'grayxon-trabajo.js'
       - 'grayxon-trabajo-entry.js'
+      - 'grayxon-trabajo.html'
+      - 'grayxon-trabajo.css'
+      - 'portal.html'
+      - 'grayxon-trabajo.html'
+      - 'grayxon-trabajo.css'
+      - 'portal.html'
       - 'tests/grayxon-followup-*.test.js'
       - 'tests/gestion-followup-migration.test.sql'
       - 'tests/fixtures/gestion-followup-schema.sql'
@@ -26,6 +32,7 @@ on:
       - 'tests/gestion-followup-migration.test.sql'
       - 'tests/fixtures/gestion-followup-schema.sql'
       - 'supabase/migrations/20261127*.sql'
+      - 'docs/gestion-preflight-backup-and-release.md'
       - '.github/workflows/gestion-followup-checks.yml'
 
 jobs:
