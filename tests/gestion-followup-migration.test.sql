@@ -124,6 +124,13 @@ begin
      and progress_summary='Avance registrado por manager' and status='approved') then
   raise exception 'La RPC debe registrar el avance de forma atómica';
  end if;
+ begin
+  update public.gx_creator_action_plans set status='paused'
+   where id='50000000-0000-0000-0000-000000000001';
+  raise exception 'Manager must not bypass the atomic plan update RPC';
+ exception when insufficient_privilege then
+  null;
+ end;
  if (select count(*) from storage.objects where bucket_id='gx-creator-followup-reports')<>1 then
   raise exception 'Manager A must only read their own uploaded Excel file';
  end if;
