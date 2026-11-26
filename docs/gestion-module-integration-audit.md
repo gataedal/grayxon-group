@@ -133,3 +133,13 @@ Políticas observadas:
 - [ ] Diseño final de tablas/RLS.
 - [ ] Implementación de Seguimiento.
 - [ ] Pruebas de integración y despliegue.
+
+
+## 10. Avance de implementación en rama de desarrollo
+
+- Se añadió la navegación integrada de Gestión con las secciones Tareas, Solicitudes, Seguimiento y Reportes, conservando el acceso a Resumen y las herramientas administrativas existentes.
+- Seguimiento y Reportes tienen por ahora una pantalla de entrada explícita. No se presentan como funcionalidades terminadas ni se guardan datos ficticios.
+- La pantalla de Seguimiento informa que los archivos agregados no permiten reconstruir periodos arbitrarios cuando no contienen filas diarias.
+- Se verificó el flujo actual de entregas a creadores: utiliza las tablas `gx_creator_deliveries` y `gx_creator_delivery_files`, con publicación después de aprobación. La futura vista Planes de acción debe quedar separada de Multimedia y reutilizar el acceso del portal, sin mezclar ambos tipos de entrega.
+- La consulta de estructura y migraciones de Supabase fue de solo lectura. No se aplicaron migraciones, no se alteraron tablas ni políticas, y no se escribieron registros ni archivos de Storage.
+- Próximo paso técnico: diseñar y revisar las tablas de importaciones, evaluaciones por periodo, parámetros, contactos, observaciones, recordatorios y planes de acción; luego preparar SQL versionado en esta rama y probarlo en un entorno recuperable antes de aplicarlo a producción.
