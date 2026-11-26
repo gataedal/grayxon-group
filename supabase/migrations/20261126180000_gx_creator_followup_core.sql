@@ -65,6 +65,46 @@ create index if not exists gx_creator_followup_evaluations_creator_history_idx
 create index if not exists gx_creator_followup_evaluations_manager_classification_idx
   on public.gx_creator_followup_evaluations(manager_id_snapshot, classification, evaluated_end_date desc);
 
+-- Impide asociar una importación a un equipo que no corresponda al manager.
+-- Los administradores pueden importar de forma global (manager_id/team_id NULL)
+-- o seleccionar un manager activo y uno de sus equipos.
+create or replace function public.gx_validate_creator_followup_import()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+begin
+  if public.is_admin() then
+    if new.manager_id is null and new.team_id is not null then
+      raise exception 'Una importación global no puede quedar asociada a un equipo.' using errcode = '22023';
+    end if;
+    if new.manager_id is not null and not exists (
+      select 1 from public.managers m where m.id = new.manager_id and m.active is true
+    ) then
+      raise exception 'El manager seleccionado no está activo.' using errcode = '22023';
+    end if;
+  else
+    if new.manager_id is distinct from public.current_manager_id() then
+      raise exception 'Solo puedes registrar importaciones de tu propio equipo.' using errcode = '42501';
+    end if;
+  end if;
+
+  if new.team_id is not null and not exists (
+    select 1 from public.teams t where t.id = new.team_id and t.manager_id = new.manager_id
+  ) then
+    raise exception 'El equipo seleccionado no pertenece al manager indicado.' using errcode = '42501';
+  end if;
+
+  return new;
+end;
+$;
+
+drop trigger if exists gx_creator_followup_import_scope on public.gx_creator_followup_imports;
+create trigger gx_creator_followup_import_scope
+before insert on public.gx_creator_followup_imports
+for each row execute function public.gx_validate_creator_followup_import();
+
 alter table public.gx_creator_followup_imports enable row level security;
 alter table public.gx_creator_followup_evaluations enable row level security;
 
