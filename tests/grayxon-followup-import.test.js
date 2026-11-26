@@ -30,7 +30,7 @@ assert.equal(preview.rows[0].diamonds, 809090);
 assert.ok(Math.abs(preview.rows[0].liveHours - (130 + 55/60 + 50/3600)) < 1e-9);
 assert.equal(preview.rows[0].validDays, 22);
 assert.equal(preview.canEvaluate, true);
-assert.equal(preview.granularity, 'aggregate');
+assert.equal(preview.granularity, 'period_aggregate');
 
 const partial = parser.parseWorkbook(
   { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } },
