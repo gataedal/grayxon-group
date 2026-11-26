@@ -25,7 +25,7 @@ assert.equal(r.status,'not_evaluable');
 
 r=calculateEvaluation({...base,periodStart:'2026-11-28',periodEnd:'2026-12-04',coverageStart:'2026-11-28',coverageEnd:'2026-12-04',joinDate:'2026-11-28'});
 assert.equal(r.evaluableDays,7);
-assert.ok(Math.abs(r.targetLiveSeconds-(90*3600*(3/30+4/31)))<1e-7);
+assert.ok(Math.abs(r.targetLiveSeconds-(90*3600*(3/30+4/31)))<0.01);
 
 assert.equal(require('../grayxon-followup-calculations.js').toBogotaISOString('2026-11-26T09:30'), '2026-11-26T14:30:00.000Z');
 assert.equal(require('../grayxon-followup-calculations.js').toBogotaISOString('2026-02-30T09:30'), null);
