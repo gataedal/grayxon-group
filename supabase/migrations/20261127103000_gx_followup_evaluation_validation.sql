@@ -53,11 +53,11 @@ begin
     raise exception 'Las fechas evaluadas están fuera del rango seleccionado';
   end if;
 
-  if v_import.source_granularity='period_aggregate'
+  if v_import.source_granularity<>'daily'
      and (v_import.source_start_date is distinct from v_import.selected_start_date
        or v_import.source_end_date is distinct from v_import.selected_end_date)
      and new.classification not in ('needs_daily_data','not_evaluable') then
-    raise exception 'Un archivo agregado no permite evaluar un subperiodo sin datos diarios';
+    raise exception 'La fuente no contiene datos diarios suficientes para evaluar este periodo';
   end if;
 
   if new.classification in ('high_risk','observation','on_track','early_review') then
