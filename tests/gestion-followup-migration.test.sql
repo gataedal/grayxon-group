@@ -42,8 +42,16 @@ begin
  values('50000000-0000-0000-0000-000000000001',v_creator,v_manager_id,'Plan test','Objetivo de prueba',v_manager_user);
  insert into public.gx_creator_action_plan_updates(id,plan_id,progress_summary,status)
  values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','Propuesta test','pending_manager_review');
- insert into public.gx_creator_followup_evaluations(import_id,creator_user_id,creator_username_snapshot,manager_id_snapshot,classification)
- values(v_import,'20000000-0000-0000-0000-000000000002','creator_b','30000000-0000-0000-0000-000000000002','on_track');
+ insert into public.gx_creator_followup_evaluations(
+  import_id,creator_user_id,creator_username_snapshot,manager_id_snapshot,
+  evaluated_start_date,evaluated_end_date,evaluable_days,valid_live_days,live_seconds,diamonds,
+  target_valid_days,target_live_seconds,valid_days_pct,live_hours_pct,classification,raw_metrics
+ )
+ values(
+  v_import,'20000000-0000-0000-0000-000000000002','creator_b','30000000-0000-0000-0000-000000000002',
+  '2026-11-01','2026-11-07',7,5,64800,1000,
+  5.1333,75600,97.4026,85.7143,'on_track','{}'::jsonb
+ );
  -- A manager cannot import a creator assigned to another manager.
  begin
   perform public.gx_save_creator_followup_import('foreign.xlsx',v_manager_user::text||'/test.xlsx',
