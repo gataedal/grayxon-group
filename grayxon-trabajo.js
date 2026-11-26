@@ -390,18 +390,29 @@
       (creatorData||[]).forEach(creator=>{
         [creator.tiktok_username,creator.username].filter(Boolean).forEach(value=>byTikTok.set(String(value).replace(/^@/,'').toLowerCase(),creator));
       });
-      preview.rows=preview.rows.map(row=>({...row,profile:byTikTok.get(row.username.toLowerCase())||null}));
+      preview.rows=preview.rows.map(row=>{
+        const profile=byTikTok.get(row.username.toLowerCase())||null;
+        const evaluation=window.GRAYXON_FOLLOWUP_CALCULATIONS?.calculateEvaluation({
+          periodStart:start,periodEnd:end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
+          granularity:preview.granularity,joinDate:row.joinedAt,
+          validLiveDays:row.validDays,liveSeconds:row.liveHours==null?null:Math.round(row.liveHours*3600),
+          monthlyLiveHours:90,monthlyValidDays:22,earlyReviewMinDays:5,
+          consistencyHoursPerDay:2.5,consistencyDaysPerWeek:6
+        })||{status:'not_evaluable',reason:'No está disponible el motor de evaluación.'};
+        return {...row,profile,evaluation};
+      });
       preview.summary.matched=preview.rows.filter(row=>row.profile).length;
       preview.summary.unmatched=preview.rows.length-preview.summary.matched;
       window.grayxonFollowupPreview=preview;
       const period=preview.sourcePeriod;
       const status=preview.canEvaluate?'El archivo cubre exactamente el periodo seleccionado.':'El archivo no permite evaluar el rango seleccionado.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
-      const rows=preview.rows.map(row=>'<tr><td>@'+esc(row.username)+'</td><td>'+esc(row.profile?.full_name||'No vinculado')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+ (row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+ (row.validDays==null?'—':row.validDays)+'</td><td>'+(row.profile?'Vinculado':'Revisar perfil')+'</td></tr>').join('');
+      const classLabels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
+      const rows=preview.rows.map(row=>'<tr><td>@'+esc(row.username)+'</td><td>'+esc(row.profile?.full_name||'No vinculado')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+ (row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+ (row.validDays==null?'—':row.validDays)+'</td><td>'+(row.profile?'Vinculado':'Revisar perfil')+'</td><td>'+esc(classLabels[row.evaluation.classification||row.evaluation.status]||row.evaluation.status)+'</td></tr>').join('');
       target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
         '<div class="gxt-status-note">'+esc(status)+' Periodo del archivo: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
-        '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Perfil Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Perfil Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Perfil</th><th>Evaluación</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
         '<div class="gxt-status-note">Esta es una previsualización. Todavía no se han guardado evaluaciones ni se ha modificado ningún perfil.</div>';
     }catch(error){
       console.error('[Gestión · Seguimiento] import preview',error);
