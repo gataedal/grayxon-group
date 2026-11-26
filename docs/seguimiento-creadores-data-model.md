@@ -12,7 +12,7 @@ Objetivo: habilitar Seguimiento dentro de Gestión sin duplicar perfiles, teléf
 - Cada importación conserva su archivo de origen, autor, equipo/manager, periodo solicitado, periodo real cubierto, formato detectado y estado de procesamiento.
 - Cada resultado por creador es una evaluación inmutable ligada a una importación y a un snapshot de parámetros.
 - Las reimportaciones no borran resultados previos. Una nueva versión queda enlazada a la importación sustituida y se marca explícitamente como vigente o reemplazada.
-- Observaciones, contactos, compromisos, recordatorios y planes de acción son registros históricos propios; no se sobrescriben con la siguiente evaluación.
+- Las evaluaciones y sus importaciones son inmutables. Los managers pueden gestionar y actualizar los planes de trabajo de sus creadores asignados; cada avance se conserva como registro histórico. Los contactos, observaciones y recordatorios mantienen su historial.
 - Las comparaciones entre evaluaciones se permiten solo cuando las coberturas temporales son comparables y la fuente ofrece granularidad suficiente.
 
 ## 2. Entidades propuestas
