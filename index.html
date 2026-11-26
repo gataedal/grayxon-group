@@ -424,7 +424,6 @@ main > footer,
 <script>
 /* Si se abre la portada sin una ruta pública específica, reutiliza la sesión existente. */
 (function () {
-  if (window.location.hash) return;
   (async function redirectAuthenticatedVisitor() {
     try {
       var cfg = window.GRAYXON_CONFIG;
@@ -433,7 +432,7 @@ main > footer,
       var client = window.supabase.createClient(
         cfg.SUPABASE_URL,
         cfg.SUPABASE_PUBLISHABLE_KEY,
-        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }
+        { auth: { persistSession: true, autoRefreshToken: false, detectSessionInUrl: false } }
       );
       var result = await client.auth.getSession();
       if (result.error) throw result.error;
