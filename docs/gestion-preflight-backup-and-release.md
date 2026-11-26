@@ -51,7 +51,7 @@ No basta con que los archivos existan. En un proyecto de prueba independiente:
 
 ## Cambios preparados para Seguimiento (pendientes de implementar)
 
-**La migración SQL anterior fue retirada de la rama el 26/11/2026 porque estaba malformada y no era segura para aplicar.** No se debe recuperar ni ejecutar esa versión. Aún no existe una migración válida lista para despliegue. El diseño previsto contempla tablas aisladas de importaciones/evaluaciones, Storage privado y una RPC transaccional; cada elemento debe reconstruirse y probarse en un PostgreSQL efímero antes de considerarlo listo. La interfaz actual solo previsualiza el Excel en el navegador: no persiste archivos ni evaluaciones.
+**La migración defectuosa anterior fue retirada.** En la rama de trabajo ya hay dos migraciones nuevas: esquema aislado de importaciones/evaluaciones, parámetros, contactos, notas, recordatorios y planes de acción; y políticas RLS de escritura para operaciones de manager. Se añadió bucket privado, RPC transaccional para guardar el archivo y sus evaluaciones, guardado desde la interfaz y consulta de historial. Estas migraciones aún no se han aplicado a Supabase; solo deben considerarse candidatas hasta que pasen las pruebas automatizadas y la revisión de permisos.
 
 ## Secuencia segura de activación y prueba
 
@@ -67,9 +67,9 @@ No basta con que los archivos existan. En un proyecto de prueba independiente:
 
 - No hay evidencia de un respaldo lógico descargado y verificado.
 - No hay evidencia de copia externa de objetos Storage ni de restauración de prueba.
-- La migración SQL anterior fue retirada por errores de sintaxis; no hay migración de Seguimiento lista ni aplicada.
+- Las migraciones nuevas aún no tienen resultado de CI confirmado y no se han aplicado a Supabase.
 - El bucket de Seguimiento aún no existe en producción.
-- La interfaz de previsualización actual no persiste archivos ni evaluaciones; falta implementar el flujo privado y probarlo.
+- El flujo de persistencia ya está implementado en la rama, pero todavía debe pasar pruebas automatizadas y pruebas reales con cuentas aisladas. Contactos, notas, recordatorios y planes de acción tienen esquema y permisos preparados; falta terminar sus pantallas y operaciones de usuario.
 
 ## Referencias oficiales
 
