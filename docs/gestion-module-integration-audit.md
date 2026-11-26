@@ -192,3 +192,23 @@ Políticas observadas:
 - [ ] Añadir y validar una dependencia XLSX de versión fijada, antes de activar el selector de archivos.
 - [ ] Diseñar RLS/RPC específicas para importaciones y evaluaciones por manager y admin.
 - [ ] Construir previsualización visible y confirmación de importación.
+
+
+## 16. Previsualización funcional de Excel
+
+- Se añadió la librería SheetJS fijada a la versión 0.18.5 en la página integrada de Gestión.
+- La sección Seguimiento ya muestra selector de archivo Excel y campos Desde/Hasta. El botón Analizar archivo lee el libro en el navegador sin subirlo ni guardarlo.
+- El parser identifica usuarios y métricas, omite duplicados y reporta advertencias. Después consulta `profiles` con la sesión autenticada; el manager recibe únicamente los creadores que las políticas existentes de `profiles` le permiten consultar, mientras administración conserva su alcance actual.
+- Los usuarios importados se vinculan con `tiktok_username` o `username`. Los no vinculados quedan marcados para revisión y no se asignan a un perfil por aproximación.
+- La vista previa usa el motor de evaluación existente para mostrar clasificación, con los valores iniciales acordados (90 horas, 22 días, 5 días mínimos y umbrales 50/80). Si el rango seleccionado no coincide con el agregado, el motor devuelve `needs_daily_data`.
+- Se añadió diseño responsive para escritorio y móvil.
+- Se preparó `supabase/migrations/20261126180000_gx_creator_followup_core.sql` con tablas de importaciones/evaluaciones y RLS basada exclusivamente en `public.is_admin()` y `public.current_manager_id()`. Es un archivo de migración en GitHub, no aplicado.
+- No se añadieron roles ni permisos generales nuevos. No se modificaron policies de tablas existentes ni datos de Supabase. El archivo Excel se procesa localmente en el navegador y todavía no se persiste.
+
+## 17. Validaciones pendientes antes de persistir
+
+- Ejecutar y revisar el workflow de GitHub Actions con los archivos reales.
+- Probar el formato del Excel original en el navegador con la versión fijada de SheetJS.
+- Revisar la migración SQL con el esquema actual y ejecutar pruebas RLS para admin, manager asignado, manager no asignado y creator en un entorno de pruebas/restauración.
+- Implementar Storage privado, hash de archivo y persistencia transaccional después de contar con respaldo recuperable.
+- Añadir una vista clara para discrepancias entre el usuario de TikTok y los perfiles Grayxon, sin permitir que el manager consulte perfiles fuera de su alcance.
