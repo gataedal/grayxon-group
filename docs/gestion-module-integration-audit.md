@@ -28,7 +28,12 @@ El módulo actual ya está conectado al portal:
 **Gestión**
 1. **Tareas** — conservar el flujo actual de asignación, conversación, evidencias y aprobación.
 2. **Solicitudes** — conservar el flujo actual de solicitud, revisión, conversión en tarea e historial.
-3. **Seguimiento** — incorporar el flujo de acompañamiento y seguimiento de creadores descrito en la especificación.
+3. **Seguimiento** — integrar la especificación «Seguimiento creadores»: importación de reportes TikTok, evaluación por período, contactos/WhatsApp, observaciones, compromisos, recordatorios e historial.
+4. **Reportes** — sección prevista y acordada; queda creada/preparada en la estructura, pero su contenido y funcionamiento se definirán después. No se debe inventar ahora un flujo de informes del trabajo del manager.
+
+En Seguimiento, el manager puede crear planes de acción por creador con objetivos. En cargas posteriores, el sistema compara el progreso con esos objetivos y prepara una actualización para revisión del manager antes de registrarla. El historial se organiza por mes.
+
+En el área de entregas del creador, mantener separadas las vistas «Multimedia» y «Planes de acción». Los planes se presentan inicialmente como informe y con el aviso: «Si tienes dudas o sugerencias, contacta a tu manager».
 
 Las vistas de Equipo, Áreas, Actividad y Calendario se mantienen como herramientas administrativas/auxiliares, sin duplicar el calendario global del portal.
 
@@ -113,7 +118,7 @@ Políticas observadas:
 1. Obtener y verificar una copia lógica de la base de datos y una copia independiente de los objetos de Storage.
 2. Definir si TikTok puede exportar actividad diaria o si se utilizarán snapshots históricos con diferencias verificables.
 3. Definir la operación segura para que un manager actualice el teléfono de un creador asignado.
-4. Confirmar qué significa “reporte de manager” dentro de Gestión: informe del trabajo del propio manager o reporte de seguimiento de sus creadores. La especificación actual cubre principalmente lo segundo.
+4. Definir más adelante el contenido de la sección Reportes, tal como quedó acordado. No volver a solicitar al usuario que decida si Reportes forma parte de Gestión: ya está definido.
 
 ## 8. Estado
 
@@ -124,6 +129,7 @@ Políticas observadas:
 - [x] Renombre inicial de la identidad visible a Gestión en la rama de desarrollo.
 - [ ] Respaldo lógico verificable de base de datos.
 - [ ] Respaldo de objetos Storage.
+- [ ] Preparar la sección Reportes sin contenido funcional hasta que se configure posteriormente.
 - [ ] Diseño final de tablas/RLS.
 - [ ] Implementación de Seguimiento.
 - [ ] Pruebas de integración y despliegue.
