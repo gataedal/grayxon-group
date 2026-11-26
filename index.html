@@ -410,6 +410,90 @@ main > footer,
    Si se habilitan FAQ o testimonios, el script cambia el destino y el indicador vuelve a aparecer. */
 [data-scroll-cue][href="#contacto"]{display:none!important}
 
+
+/* Rediseño aislado de la sección pública Beneficios y requisitos */
+#beneficios .gx-benefits-stage{width:min(100%,1000px);margin:0 auto;display:grid;grid-template-columns:minmax(280px,1fr) minmax(240px,.72fr);gap:24px;align-items:center}
+#beneficios .gx-benefits-video{min-width:0;padding:18px;border:1px solid #2b3442;border-radius:20px;background:radial-gradient(ellipse at 50% 0%,rgba(37,244,238,.08),transparent 55%),linear-gradient(145deg,#111722,#090c13);box-shadow:0 22px 60px #0005}
+#beneficios .gx-benefits-video video{display:block;width:min(100%,430px);max-height:72svh;aspect-ratio:9/16;object-fit:contain;background:#000;margin:0 auto;border-radius:13px}
+#beneficios .gx-benefits-actions{display:grid;gap:13px}
+#beneficios .gx-info-button{display:grid;grid-template-columns:46px minmax(0,1fr) 20px;align-items:center;gap:13px;width:100%;min-height:84px;padding:16px;border:1px solid #3a5360;border-radius:15px;background:linear-gradient(110deg,rgba(254,44,139,.13),rgba(145,77,255,.12),rgba(37,244,238,.10)),#101722;color:#fff;text-align:left;box-shadow:inset 0 1px #ffffff12;transition:.2s}
+#beneficios .gx-info-button:hover{border-color:#25f4ee;transform:translateY(-2px);box-shadow:0 10px 30px #0005,0 0 22px #25f4ee14}
+#beneficios .gx-info-button>span:first-child{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:#182630;color:#25f4ee;font-size:22px}
+#beneficios .gx-info-button strong,#beneficios .gx-info-button small{display:block}
+#beneficios .gx-info-button strong{font-size:14px}
+#beneficios .gx-info-button small{margin-top:5px;color:#aeb9c8;font-size:11px;line-height:1.5}
+#beneficios .gx-info-button>b{color:#25f4ee;font-size:18px}
+#beneficios .gx-benefits-actions .continue-whatsapp{width:100%;min-width:0;min-height:58px}
+#beneficios .gx-benefits-dialog{width:min(960px,calc(100% - 32px));max-width:none;max-height:min(90svh,940px);padding:0;border:1px solid #344354;border-radius:22px;background:#090d14;color:#f5f7fb;box-shadow:0 28px 100px #000c;overflow:hidden}
+#beneficios .gx-benefits-dialog::backdrop{background:rgba(1,3,8,.82);backdrop-filter:blur(8px)}
+#beneficios .gx-dialog-shell{display:flex;flex-direction:column;max-height:min(90svh,940px)}
+#beneficios .gx-dialog-top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;padding:25px 30px 21px;border-bottom:1px solid #263241;background:radial-gradient(ellipse at 90% 0%,#25f4ee13,transparent 45%),linear-gradient(130deg,#111a26,#0a0e16)}
+#beneficios .gx-dialog-kicker{color:#25f4ee;font-size:9px;font-weight:900;letter-spacing:.2em}
+#beneficios .gx-dialog-top h2{margin:8px 0 5px;font-size:clamp(25px,4vw,36px)}
+#beneficios .gx-dialog-top p{margin:0;color:#aeb9c8;font-size:12px;line-height:1.6}
+#beneficios .gx-dialog-close{flex:0 0 40px;width:40px;height:40px;border:1px solid #465365;border-radius:50%;background:#141c28;color:#fff;font-size:27px;line-height:1;cursor:pointer}
+#beneficios .gx-dialog-close:hover{border-color:#25f4ee;color:#25f4ee}
+#beneficios .gx-dialog-content{overflow:auto;padding:24px 30px 28px;overscroll-behavior:contain}
+#beneficios .gx-info-section{margin:0 0 28px}
+#beneficios .gx-info-heading{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
+#beneficios .gx-info-heading>span{flex:0 0 38px;width:38px;height:38px;display:grid;place-items:center;border:1px solid #31505a;border-radius:11px;background:#102027;color:#25f4ee;font-size:11px;font-weight:900}
+#beneficios .gx-info-heading h3{margin:1px 0 5px;font-size:19px}
+#beneficios .gx-info-heading p{margin:0;color:#aeb9c8;font-size:12px;line-height:1.6}
+#beneficios .gx-offer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#beneficios .gx-offer-grid article{display:flex;gap:11px;padding:14px;border:1px solid #283545;border-radius:13px;background:linear-gradient(145deg,#111925,#0c1119)}
+#beneficios .gx-offer-grid i{flex:0 0 29px;width:29px;height:29px;display:grid;place-items:center;border-radius:9px;background:#14262c;color:#25f4ee;font-style:normal}
+#beneficios .gx-offer-grid strong{font-size:12px}
+#beneficios .gx-offer-grid p{margin:5px 0 0;color:#aeb9c8;font-size:11px;line-height:1.55}
+#beneficios .gx-bonus-rule{padding:15px;border:1px solid #3b4c5d;border-radius:13px;background:linear-gradient(110deg,#141e2a,#101820);margin-bottom:12px}
+#beneficios .gx-bonus-rule>strong{display:block;font-size:12px;margin-bottom:10px}
+#beneficios .gx-bonus-rule>div{display:flex;flex-wrap:wrap;gap:8px}
+#beneficios .gx-bonus-rule span{padding:7px 10px;border:1px solid #2f5960;border-radius:8px;background:#0c2025;color:#bffbf5;font-size:11px;font-weight:700}
+#beneficios .gx-bonus-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#beneficios .gx-bonus-card{padding:15px;border:1px solid #293545;border-radius:13px;background:#0d131d}
+#beneficios .gx-bonus-card h4{margin:0 0 6px;font-size:13px}
+#beneficios .gx-bonus-card>p{margin:0 0 12px;color:#aeb9c8;font-size:10px;line-height:1.5}
+#beneficios .gx-tier-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#beneficios .gx-tier-list span{display:flex;justify-content:space-between;gap:8px;padding:8px 9px;border:1px solid #293545;border-radius:8px;background:#090e15;color:#cbd4df;font-size:10px}
+#beneficios .gx-tier-list b{color:#25f4ee}
+#beneficios .gx-bonus-foot{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+#beneficios .gx-bonus-foot>div{padding:13px;border-left:2px solid #fe2c8b;background:#11141c}
+#beneficios .gx-bonus-foot strong{font-size:11px}
+#beneficios .gx-bonus-foot p{margin:5px 0 0;color:#aeb9c8;font-size:10px;line-height:1.6}
+#beneficios .gx-resource-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+#beneficios .gx-resource-list>div{display:flex;gap:11px;align-items:center;padding:12px;border:1px solid #283545;border-radius:11px;background:#0e141e}
+#beneficios .gx-resource-list b{color:#25f4ee;font-size:11px}
+#beneficios .gx-resource-list strong,#beneficios .gx-resource-list small{display:block}
+#beneficios .gx-resource-list strong{font-size:11px}
+#beneficios .gx-resource-list small{margin-top:4px;color:#aeb9c8;font-size:10px;line-height:1.5}
+#beneficios .gx-requirements{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0;padding:0}
+#beneficios .gx-requirements li{position:relative;padding:12px 12px 12px 35px;border:1px solid #293545;border-radius:11px;background:#0e141e;color:#d8e0ea;font-size:11px;line-height:1.55}
+#beneficios .gx-requirements li:before{content:"✓";position:absolute;left:13px;top:11px;color:#25f4ee;font-weight:900}
+#beneficios .gx-dialog-bottom{display:flex;justify-content:space-between;gap:15px;align-items:center;padding-top:16px;border-top:1px solid #263241}
+#beneficios .gx-dialog-bottom span{color:#25f4ee;font-family:Georgia,serif;font-style:italic;font-size:17px}
+#beneficios .gx-dialog-bottom small{color:#8794a6;font-size:9px;text-align:right;line-height:1.5}
+@media(max-width:720px){
+ #beneficios .gx-benefits-stage{grid-template-columns:minmax(0,1fr);gap:14px;max-width:520px}
+ #beneficios .gx-benefits-video{padding:13px}
+ #beneficios .gx-benefits-video video{width:min(100%,360px);max-height:58svh}
+ #beneficios .gx-benefits-actions{grid-template-columns:1fr 1fr;align-items:stretch;gap:9px}
+ #beneficios .gx-info-button{grid-template-columns:34px minmax(0,1fr);gap:8px;min-height:70px;padding:10px}
+ #beneficios .gx-info-button>span:first-child{width:33px;height:33px;font-size:17px}
+ #beneficios .gx-info-button strong{font-size:11px}
+ #beneficios .gx-info-button small{font-size:9px}
+ #beneficios .gx-info-button>b{display:none}
+ #beneficios .gx-benefits-actions .continue-whatsapp{min-width:0;padding:10px 8px;font-size:10px;letter-spacing:.04em}
+ #beneficios .gx-benefits-dialog{width:calc(100% - 16px);max-height:94svh;border-radius:17px}
+ #beneficios .gx-dialog-shell{max-height:94svh}
+ #beneficios .gx-dialog-top{padding:18px 16px 15px}
+ #beneficios .gx-dialog-content{padding:18px 15px 22px}
+ #beneficios .gx-offer-grid,#beneficios .gx-bonus-columns,#beneficios .gx-bonus-foot,#beneficios .gx-resource-list,#beneficios .gx-requirements{grid-template-columns:1fr}
+ #beneficios .gx-info-section{margin-bottom:23px}
+ #beneficios .gx-info-heading h3{font-size:17px}
+ #beneficios .gx-dialog-bottom{align-items:flex-start;flex-direction:column}
+ #beneficios .gx-dialog-bottom small{text-align:left}
+}
+@media(max-width:390px){#beneficios .gx-benefits-actions{grid-template-columns:1fr}#beneficios .gx-benefits-video video{max-height:52svh}}
+
 </style><script>
 /* Mantiene compatibles los enlaces profundos existentes del portal y las notificaciones. */
 (function(){
@@ -450,55 +534,63 @@ main > footer,
 <main><div class="intro-panel"><section class="hero" id="inicio"><div class="inner"><div class="copy"><div class="eyebrow">AGENCIA OFICIAL DE TIKTOK LIVE EN LATAM</div><h1>CREA.<br> CONECTA.<br><span class="grad">MONETIZA.</span></h1><p class="desc">En Grayxon Group te damos las herramientas, el acompañamiento y las oportunidades para llevar tu talento en TikTok LIVE al siguiente nivel.</p><div class="actions"><a class="btn primary" href="https://www.tiktok.com/link/v2?aid=1988&lang=es-419&scene=bio_url&target=https%3A%2F%2Fwww.tiktok.com%2Ft%2FZMSuLy1fa%2F" target="_blank" rel="noopener">◉ &nbsp; ÚNETE AHORA ↗</a><a class="btn secondary" href="#beneficios">Beneficios y requisitos</a></div></div><div class="tagline">Tu talento<br><span class="grad">sin límites</span></div></div><a class="scroll-cue" href="#agencia" data-scroll-cue>DESLIZA PARA DESCUBRIR <span>↓</span></a></section>
 <section class="stats"><div class="stat"><span class="ico">♧</span><div><b>+500</b><small>Talentos en LATAM</small></div></div><div class="stat"><span class="ico">♜</span><div><b>Eventos exclusivos</b><small>y bonos</small></div></div><div class="stat"><span class="ico">◎</span><div><b>Soporte 24/7</b><small>en toda LATAM</small></div></div></section></div>
 <section class="section" id="agencia"><div class="center"><div class="kicker">Crece con Grayxon</div><h2>MÁS QUE UNA AGENCIA<br><span class="grad">Somos tu equipo</span></h2><p class="sub">Te acompañamos en cada paso para que crezcas, te formes y conviertas tu talento en oportunidades reales a través de TikTok LIVE.</p></div><div class="cards"><article class="card"><i>♢</i><h3>Nuevas oportunidades</h3><p>Desarrolla tu contenido y conecta con nuevas posibilidades.</p></article><article class="card"><i>♧</i><h3>Una comunidad real</h3><p>Crece junto a un equipo que comparte experiencias.</p></article><article class="card"><i>♧</i><h3>Soporte personalizado</h3><p>Recibe orientación y apoyo durante tu proceso.</p></article></div><a class="scroll-cue section-scroll-cue" href="#beneficios" data-scroll-cue>DESLIZA PARA DESCUBRIR <span>↓</span></a></section>
-<section class="section" id="beneficios" style="padding-top:0"><div class="center"><div class="kicker">Crece con nosotros</div><h2>Beneficios y requisitos</h2><p class="sub">Conoce lo que ofrecemos y las condiciones generales para formar parte de Grayxon Group.</p></div><div class="source-benefits">
-  <div class="source-video">
-    <div class="source-video-heading"><span>🎥</span><div><strong>Conoce Grayxon</strong><small>Información para comenzar tu proceso.</small></div></div>
-    <video controls playsinline preload="metadata" src="./assets/Beneficios_y_requisitos.mp4"></video>
+<section class="section" id="beneficios" style="padding-top:0">
+  <div class="center">
+    <div class="kicker">Crece con nosotros</div>
+    <h2>Beneficios y requisitos</h2>
+    <p class="sub">Conoce Grayxon, descubre lo que ponemos a tu disposición y revisa las condiciones para comenzar.</p>
   </div>
-  
-</div>
-<div class="public-benefit-dropdowns" id="requisitos">
-  <details class="public-dropdown">
-    <summary class="public-drop-summary"><span class="public-drop-icon">🤝</span><span class="public-drop-copy"><strong>¿Qué te ofrecemos?</strong><small>Beneficios y acompañamiento Grayxon.</small></span><span class="public-drop-arrow">⌄</span></summary>
-    <div class="public-drop-content">
-      <p class="public-drop-intro">Estos son los beneficios descritos en el contenido actual de Grayxon:</p>
-      <div class="offer-benefit-grid">
-  <article class="offer-benefit"><span>✦</span><div><strong>Acompañamiento</strong><p>Te orientamos durante tu proceso en TikTok LIVE.</p></div></article>
-  <article class="offer-benefit"><span>◈</span><div><strong>Soporte personalizado</strong><p>Recibe apoyo según tus dudas y necesidades.</p></div></article>
-  <article class="offer-benefit"><span>↗</span><div><strong>Resultados reales</strong><p>Da seguimiento a tus avances y evolución en LIVE, sin promesas de resultados garantizados.</p></div></article>
-  <article class="offer-benefit"><span>▤</span><div><strong>Entrenamientos</strong><p>Accede a sesiones y material formativo para seguir aprendiendo.</p></div></article>
-  <article class="offer-benefit"><span>✧</span><div><strong>Actividades y novedades</strong><p>Mantente al tanto de la información y las actividades de la agencia.</p></div></article>
-  <article class="offer-benefit"><span>◎</span><div><strong>Orientación en LIVE</strong><p>Recibe orientación para desarrollar tu propio proceso.</p></div></article>
-</div>
-    <details class="public-dropdown public-bonus-dropdown">
-    <summary class="public-drop-summary"><span class="public-drop-icon">💎</span><span class="public-drop-copy"><strong>Bonificaciones</strong><small>Programa, condiciones, rangos y formas de pago.</small></span><span class="public-drop-arrow">⌄</span></summary>
-    <details><summary>💎 1. ¿Qué puedes ganar?</summary><p>Además de las recompensas de TikTok, puedes ganar bonos mensuales por tu producción.</p><ul><li>Bonos por mantener e incrementar tu producción.</li><li>Más herramientas para ayudarte a crecer.</li><li>Acompañamiento de un equipo que quiere verte crecer.</li></ul></details>
-    <details><summary>📅 2. ¿Cómo ganar tu bono?</summary><p>Para que tu producción sea válida y puedas participar en el programa, debes cumplir:</p><ul><li>90 horas al mes.</li><li>22 días válidos.</li><li>Cumplir las condiciones del programa.</li></ul><p class="source-note">Los bonos están sujetos a las condiciones del programa. Si una sanción genera un débito para la agencia relacionado con el creador, el valor correspondiente podrá descontarse del bono generado por ese creador.</p></details>
-    <details><summary>💰 3. ¿Cuánto puedes ganar?</summary>
-      <h4>Bono por mantener tu producción</h4><div class="source-tiers"><span>100K <b>$15</b></span><span>150K <b>$25</b></span><span>300K <b>$40</b></span><span>500K <b>$60</b></span><span>800K <b>$90</b></span><span>1.2M <b>$130</b></span><span>1.8M <b>$200</b></span></div>
-      <h4>Bono por incrementar 10% o más tu producción</h4><div class="source-tiers"><span>100K <b>hasta $40</b></span><span>150K <b>hasta $60</b></span><span>300K <b>hasta $100</b></span><span>500K <b>hasta $140</b></span><span>800K <b>hasta $220</b></span><span>1.2M <b>hasta $320</b></span><span>1.8M <b>hasta $500</b></span></div>
-    </details>
-    <details><summary>🎁 4. ¿Cómo recibes tu bono?</summary><p>Una vez cumplas las condiciones del programa y generes tu bono, podrás recibirlo mediante:</p><ul><li>Regalos de TikTok.</li><li>PayPal.</li><li>Tu cuenta bancaria local.</li></ul></details>
-    <details><summary>🚀 5. Todo lo que tienes en Grayxon para seguir creciendo</summary><ul><li>Academia Grayxon: cursos, guías y tutoriales disponibles 24/7.</li><li>Capacitaciones en vivo y entrenamientos semanales.</li><li>Acompañamiento personalizado para resolver tus dudas.</li><li>Soporte especializado con restricciones, bloqueos, apelaciones y errores.</li><li>Comunidad Grayxon, actividades, concursos y eventos.</li></ul></details>
-    <details><summary>✨ 6. Tú también puedes</summary><p>No importa dónde estás hoy. Lo importante es cuánto puedes crecer mañana.</p><ul><li>💎 $100K → puedes.</li><li>💎 $300K → puedes.</li><li>💎 $1 MILLÓN → también puedes.</li></ul><p>Crecer juntos. Llegar más lejos.</p></details>
-  </details></div>
-  </details>
-  <details class="public-dropdown">
-    <summary class="public-drop-summary"><span class="public-drop-icon">📋</span><span class="public-drop-copy"><strong>Requisitos de ingreso</strong><small>Revisa las condiciones antes de iniciar tu proceso.</small></span><span class="public-drop-arrow">⌄</span></summary>
-    <div class="public-drop-content">
-      <ul>
-        <li>Ser mayor de 18 años.</li>
-        <li>Residir en un país de LATAM habilitado para el proceso.</li>
-        <li>No pertenecer simultáneamente a otra agencia de TikTok LIVE.</li>
-        <li>No utilizar múltiples cuentas para el proceso de ingreso.</li>
-        <li>Tener disponibilidad para desarrollar tu proceso en TikTok LIVE.</li>
-      </ul>
+  <div class="gx-benefits-stage">
+    <div class="gx-benefits-video">
+      <div class="source-video-heading"><span>🎥</span><div><strong>Conoce Grayxon</strong><small>Todo lo que necesitas saber para comenzar tu proceso.</small></div></div>
+      <video controls playsinline preload="metadata" src="./assets/Beneficios_y_requisitos.mp4"></video>
     </div>
-  </details>
-</div>
-<div class="continue-cta-wrap">
-  <a class="btn continue-whatsapp" href="https://api.whatsapp.com/send/?phone=573126283007&text=Hola%2C%20quiero%20continuar%20mi%20proceso&type=phone_number&app_absent=0" target="_blank" rel="noopener noreferrer" aria-label="Continuar mi proceso por WhatsApp">CONTINUAR MI PROCESO <span aria-hidden="true">↗</span></a>
-</div><a class="scroll-cue section-scroll-cue" href="#contacto" data-scroll-cue>DESLIZA PARA DESCUBRIR <span>↓</span></a></section>
+    <div class="gx-benefits-actions">
+      <button type="button" class="gx-info-button" id="gx-open-benefits"><span>✦</span><span><strong>Beneficios y requisitos</strong><small>Conoce todo lo que Grayxon tiene para ti</small></span><b>↗</b></button>
+      <a class="btn continue-whatsapp" href="https://api.whatsapp.com/send/?phone=573126283007&text=Hola%2C%20quiero%20continuar%20mi%20proceso&type=phone_number&app_absent=0" target="_blank" rel="noopener noreferrer" aria-label="Continuar mi proceso por WhatsApp">CONTINUAR MI PROCESO <span aria-hidden="true">↗</span></a>
+    </div>
+  </div>
+  <dialog class="gx-benefits-dialog" id="gx-benefits-dialog" aria-labelledby="gx-dialog-title">
+    <div class="gx-dialog-shell">
+      <div class="gx-dialog-top">
+        <div><span class="gx-dialog-kicker">GRAYXON GROUP · TIKTOK LIVE</span><h2 id="gx-dialog-title">Crece con nosotros</h2><p>Beneficios, bonificaciones y requisitos para formar parte de nuestro equipo.</p></div>
+        <button type="button" class="gx-dialog-close" id="gx-close-benefits" aria-label="Cerrar">×</button>
+      </div>
+      <div class="gx-dialog-content">
+        <section class="gx-info-section">
+          <div class="gx-info-heading"><span>01</span><div><h3>Lo que te ofrecemos</h3><p>Un equipo que te acompaña para desarrollar tu proceso en TikTok LIVE.</p></div></div>
+          <div class="gx-offer-grid">
+            <article><i>✦</i><div><strong>Acompañamiento</strong><p>Orientación durante tu proceso y apoyo para avanzar en TikTok LIVE.</p></div></article>
+            <article><i>◈</i><div><strong>Soporte personalizado</strong><p>Atención a tus dudas y necesidades según cada situación.</p></div></article>
+            <article><i>↗</i><div><strong>Seguimiento de tu evolución</strong><p>Orientación para revisar tus avances y oportunidades de mejora, sin prometer resultados garantizados.</p></div></article>
+            <article><i>▤</i><div><strong>Entrenamientos</strong><p>Capacitaciones, sesiones formativas y material para fortalecer tus habilidades.</p></div></article>
+            <article><i>✧</i><div><strong>Actividades y eventos</strong><p>Participación en actividades, concursos, novedades y experiencias de la comunidad.</p></div></article>
+            <article><i>◎</i><div><strong>Orientación en LIVE</strong><p>Recomendaciones para desarrollar tu contenido y tu propio proceso.</p></div></article>
+          </div>
+        </section>
+        <section class="gx-info-section gx-bonus-section">
+          <div class="gx-info-heading"><span>02</span><div><h3>Programa de bonificaciones</h3><p>Además de las recompensas de TikTok, puedes participar por bonos mensuales de acuerdo con tu producción y las condiciones del programa.</p></div></div>
+          <div class="gx-bonus-rule"><strong>Condiciones para participar</strong><div><span>90 horas al mes</span><span>22 días válidos</span><span>Cumplir las condiciones del programa</span></div></div>
+          <div class="gx-bonus-columns">
+            <div class="gx-bonus-card"><h4>💎 Bono por mantener tu producción</h4><p>Valores de referencia según el nivel de producción.</p><div class="gx-tier-list"><span>100K <b>$15</b></span><span>150K <b>$25</b></span><span>300K <b>$40</b></span><span>500K <b>$60</b></span><span>800K <b>$90</b></span><span>1.2M <b>$130</b></span><span>1.8M <b>$200</b></span></div></div>
+            <div class="gx-bonus-card"><h4>🚀 Bono por incrementar 10% o más</h4><p>Bonificación de hasta los siguientes valores, según el nivel alcanzado.</p><div class="gx-tier-list"><span>100K <b>Hasta $40</b></span><span>150K <b>Hasta $60</b></span><span>300K <b>Hasta $100</b></span><span>500K <b>Hasta $140</b></span><span>800K <b>Hasta $220</b></span><span>1.2M <b>Hasta $320</b></span><span>1.8M <b>Hasta $500</b></span></div></div>
+          </div>
+          <div class="gx-bonus-foot"><div><strong>¿Cómo puedes recibir tu bono?</strong><p>Mediante regalos de TikTok, PayPal o tu cuenta bancaria local, según las condiciones y validaciones del programa.</p></div><div><strong>Importante</strong><p>Los bonos están sujetos a las condiciones del programa. Si una sanción genera un débito para la agencia relacionado con el creador, el valor correspondiente podrá descontarse del bono generado por ese creador.</p></div></div>
+        </section>
+        <section class="gx-info-section">
+          <div class="gx-info-heading"><span>03</span><div><h3>Herramientas para seguir creciendo</h3><p>Recursos y espacios disponibles para acompañar tu desarrollo.</p></div></div>
+          <div class="gx-resource-list"><div><b>01</b><span><strong>Academia Grayxon</strong><small>Cursos, guías y tutoriales disponibles 24/7.</small></span></div><div><b>02</b><span><strong>Capacitaciones en vivo</strong><small>Entrenamientos y sesiones semanales.</small></span></div><div><b>03</b><span><strong>Soporte especializado</strong><small>Orientación con restricciones, bloqueos, apelaciones y errores.</small></span></div><div><b>04</b><span><strong>Comunidad Grayxon</strong><small>Actividades, concursos, eventos y espacios para compartir.</small></span></div></div>
+        </section>
+        <section class="gx-info-section gx-requirements-section">
+          <div class="gx-info-heading"><span>04</span><div><h3>Requisitos de ingreso</h3><p>Antes de continuar, asegúrate de cumplir estas condiciones.</p></div></div>
+          <ul class="gx-requirements"><li>Ser mayor de 18 años.</li><li>Residir en un país de Latinoamérica habilitado para el proceso.</li><li>No pertenecer simultáneamente a otra agencia de TikTok LIVE.</li><li>No utilizar múltiples cuentas para el proceso de ingreso.</li><li>Tener disponibilidad para desarrollar tu proceso en TikTok LIVE.</li></ul>
+        </section>
+        <div class="gx-dialog-bottom"><span>Tu talento, sin límites.</span><small>Los programas, bonos y beneficios se rigen por sus condiciones vigentes.</small></div>
+      </div>
+    </div>
+  </dialog>
+  <a class="scroll-cue section-scroll-cue" href="#contacto" data-scroll-cue>DESLIZA PARA DESCUBRIR <span>↓</span></a>
+</section>
 <section class="section" id="faq-section" hidden aria-labelledby="faq-title">
   <div class="extra-section-inner">
     <div class="extra-kicker">TE AYUDAMOS A COMENZAR</div>
@@ -750,6 +842,24 @@ main > footer,
     const el=document.getElementById(id);
     if(el && 'MutationObserver' in window) new MutationObserver(updateGrayxonScrollCues).observe(el,{attributes:true,attributeFilter:['hidden','style','class']});
   });
+})();
+</script>
+
+
+<script>
+(function(){
+  const section=document.getElementById('beneficios');
+  if(!section) return;
+  const dialog=section.querySelector('#gx-benefits-dialog');
+  const open=section.querySelector('#gx-open-benefits');
+  const close=section.querySelector('#gx-close-benefits');
+  if(!dialog||!open||!close||typeof dialog.showModal!=='function') return;
+  open.addEventListener('click',()=>{dialog.showModal();document.body.style.overflow='hidden';});
+  function closeDialog(){if(dialog.open) dialog.close();document.body.style.overflow='';}
+  close.addEventListener('click',closeDialog);
+  dialog.addEventListener('click',event=>{if(event.target===dialog) closeDialog();});
+  dialog.addEventListener('close',()=>{document.body.style.overflow='';});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&dialog.open) closeDialog();});
 })();
 </script>
 
