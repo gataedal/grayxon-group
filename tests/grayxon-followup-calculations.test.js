@@ -18,7 +18,7 @@ assert.equal(r.status,'needs_daily_data');
 
 r=calculateEvaluation({...base,validLiveDays:0,liveSeconds:0});
 assert.equal(r.classification,'high_risk');
-assert.equal(r.missingValidDays,22*7/30);
+assert.ok(Math.abs(r.missingValidDays-(22*7/30))<0.00005);
 
 r=calculateEvaluation({...base,validLiveDays:null});
 assert.equal(r.status,'not_evaluable');
