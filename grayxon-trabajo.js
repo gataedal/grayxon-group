@@ -353,9 +353,60 @@
 
   function renderFollowupPage() {
     main.innerHTML = pageHead('Seguimiento de creadores','Evaluaciones por periodo, contacto, observaciones y planes de acción del equipo.')+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Seguimiento de creadores</h2><span class="gxt-chip">En preparación</span></div>'+
-      '<p>Esta sección reunirá las evaluaciones importadas desde TikTok LIVE, el historial mensual y los compromisos de cada creador.</p>'+
-      '<div class="gxt-status-note">La importación y evaluación se habilitarán cuando esté lista la estructura de datos y se pueda validar el respaldo de la información. Los reportes agregados no se dividirán artificialmente en periodos más cortos.</div></section>';
+      '<section class="gxt-panel gxt-followup-import"><div class="gxt-panel-head"><div><h2>Importar reporte de TikTok LIVE</h2><p>Sube el Excel para revisar los datos antes de registrar una evaluación.</p></div><span class="gxt-chip">Vista previa</span></div>'+
+      '<div class="gxt-followup-upload-grid"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label>'+
+      '<label class="gxt-field"><span>Desde</span><input id="gxFollowupStart" type="date"></label><label class="gxt-field"><span>Hasta</span><input id="gxFollowupEnd" type="date"></label></div>'+
+      '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-preview disabled>Analizar archivo</button><span id="gxFollowupFileName" class="gxt-muted">Ningún archivo seleccionado</span></div>'+
+      '<div id="gxFollowupPreview" class="gxt-followup-preview"><div class="gxt-status-note">Selecciona un Excel y el rango que deseas evaluar. Los datos no se guardarán todavía.</div></div></section>'+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Reglas de evaluación</h2></div><p>Las metas mensuales iniciales son 90 horas LIVE y 22 días válidos. La recomendación de constancia es 2 h 30 min diarios, 6 días por semana.</p><div class="gxt-status-note">Si el Excel contiene cifras acumuladas, solo se podrá evaluar exactamente el periodo exportado. Para rangos más cortos necesitaremos el reporte diario de TikTok.</div></section>';
+    const fileInput=document.getElementById('gxFollowupFile');
+    const button=main.querySelector('[data-followup-preview]');
+    fileInput?.addEventListener('change',()=>{
+      const file=fileInput.files?.[0]||null;
+      document.getElementById('gxFollowupFileName').textContent=file?file.name:'Ningún archivo seleccionado';
+      button.disabled=!file;
+    });
+  }
+
+  async function previewFollowupImport() {
+    const fileInput=document.getElementById('gxFollowupFile');
+    const start=document.getElementById('gxFollowupStart')?.value;
+    const end=document.getElementById('gxFollowupEnd')?.value;
+    const target=document.getElementById('gxFollowupPreview');
+    const file=fileInput?.files?.[0];
+    if(!file)return toast('Selecciona primero el Excel de TikTok.');
+    if(!start||!end||start>end)return toast('Selecciona un rango de fechas válido.');
+    if(!window.XLSX||!window.GRAYXON_FOLLOWUP_IMPORT)return toast('No está disponible el lector de Excel. Recarga la página e inténtalo nuevamente.');
+    target.innerHTML='<div class="gxt-status-note">Leyendo el archivo y validando los datos…</div>';
+    try{
+      const buffer=await file.arrayBuffer();
+      const workbook=window.XLSX.read(buffer,{type:'array',cellDates:true});
+      const preview=window.GRAYXON_FOLLOWUP_IMPORT.parseWorkbook(workbook,start,end);
+      const {data:creatorData,error:creatorError}=await sb.from('profiles')
+        .select('id,username,full_name,tiktok_username,manager_id,created_at')
+        .eq('role','creator').eq('active',true);
+      if(creatorError)throw new Error('No se pudieron consultar los creadores autorizados: '+creatorError.message);
+      const byTikTok=new Map();
+      (creatorData||[]).forEach(creator=>{
+        [creator.tiktok_username,creator.username].filter(Boolean).forEach(value=>byTikTok.set(String(value).replace(/^@/,'').toLowerCase(),creator));
+      });
+      preview.rows=preview.rows.map(row=>({...row,profile:byTikTok.get(row.username.toLowerCase())||null}));
+      preview.summary.matched=preview.rows.filter(row=>row.profile).length;
+      preview.summary.unmatched=preview.rows.length-preview.summary.matched;
+      window.grayxonFollowupPreview=preview;
+      const period=preview.sourcePeriod;
+      const status=preview.canEvaluate?'El archivo cubre exactamente el periodo seleccionado.':'El archivo no permite evaluar el rango seleccionado.';
+      const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
+      const rows=preview.rows.map(row=>'<tr><td>@'+esc(row.username)+'</td><td>'+esc(row.profile?.full_name||'No vinculado')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+ (row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+ (row.validDays==null?'—':row.validDays)+'</td><td>'+(row.profile?'Vinculado':'Revisar perfil')+'</td></tr>').join('');
+      target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
+        '<div class="gxt-status-note">'+esc(status)+' Periodo del archivo: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
+        (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
+        '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Perfil Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="gxt-status-note">Esta es una previsualización. Todavía no se han guardado evaluaciones ni se ha modificado ningún perfil.</div>';
+    }catch(error){
+      console.error('[Gestión · Seguimiento] import preview',error);
+      target.innerHTML='<div class="gxt-status-note gxt-followup-warning">'+esc(error.message||'No se pudo analizar el archivo.')+'</div>';
+    }
   }
 
   function renderReportsPage() {
@@ -967,6 +1018,8 @@
   });
 
   main.addEventListener('click',event=>{
+    const followupPreview=event.target.closest('[data-followup-preview]');
+    if(followupPreview)return previewFollowupImport();
     const cancel=event.target.closest('[data-cancel-task]');
     if(cancel)return cancelTask(cancel.dataset.cancelTask);
     const removeTask=event.target.closest('[data-delete-task]');
