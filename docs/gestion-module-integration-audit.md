@@ -227,7 +227,7 @@ Políticas observadas:
 - Se confirmó que `public.is_admin()` existe, no recibe argumentos y devuelve `boolean`; verifica perfil admin activo.
 - Se verificaron las tablas `profiles`, `managers`, `teams`, `profile_details` y el flujo existente `gx_creator_deliveries`.
 - Las políticas actuales permiten a managers consultar creadores asignados y sus datos de perfil; la actualización de teléfono continúa limitada al propio perfil o administración. No se abrió ninguna política existente.
-- Se observó que el esquema de importaciones debía validar también la relación entre manager y equipo seleccionado. Se añadió al SQL de desarrollo un trigger de validación que impide a managers registrar importaciones de otro manager y evita asociar un equipo a un manager distinto.
+- La RPC de guardado valida en servidor que cada creador pertenezca al manager autenticado. El esquema de importación no recibe un equipo elegido por el navegador; el equipo y manager de cada evaluación se toman del perfil existente.
 - La migración sigue siendo un borrador versionado en la rama; no fue aplicada. No se crearon tablas, funciones, triggers, buckets ni políticas en Supabase.
 
 ### Bloqueos de seguridad y recuperación
@@ -239,14 +239,16 @@ Políticas observadas:
 
 ## 19. Preparación de persistencia y preflight de despliegue
 
-- Se amplió el borrador de migración para guardar metadatos del archivo original (bucket, ruta privada, tamaño, MIME y SHA-256), manteniendo el límite de 20 MB.
-- Se añadió el bucket privado propuesto `gx-followup-imports` con lectura de objetos limitada a importaciones registradas y al alcance de admin/manager. La carga inicial queda bajo una carpeta con el UID del usuario autenticado.
-- Se añadió la RPC `gx_save_creator_followup_import` para registrar archivo y evaluaciones en una sola transacción. Verifica sesión, ámbito del manager, ruta del objeto, existencia del archivo, duplicado por hash/equipo/periodo y consistencia de filas; si falla una evaluación, se revierte toda la operación.
-- El cliente conserva solo permiso de lectura en las tablas nuevas; la persistencia queda centralizada en la RPC. Se mantienen los helpers actuales y no se abren permisos de tablas existentes.
+- Se añadieron migraciones aditivas para parámetros, importaciones, evaluaciones, contactos, notas, recordatorios y planes de acción, sin modificar tablas existentes.
+- El bucket `gx-creator-followup-reports` es privado, con límite de 20 MB; la carga usa una carpeta con el UID autenticado y la lectura de archivos se limita a importaciones visibles para ese manager o administración.
+- La RPC `gx_save_creator_followup_import` valida sesión, ámbito del manager, ruta/objeto, hash duplicado, creadores activos asignados y consistencia del lote. El registro de importación y las evaluaciones se guardan en una sola transacción.
+- Se añadió una RPC estrecha `gx_manager_update_creator_phone` para editar únicamente `profile_details.phone` de creadores asignados; no se amplió la política general UPDATE de `profile_details`.
+- La interfaz ya permite guardar archivos/evaluaciones, consultar historial mensual, registrar contactos, notas, recordatorios y planes de acción, consultar indicadores y editar el teléfono del creador. Los recordatorios quedan almacenados como registros; el envío de notificaciones automáticas todavía no está conectado.
 - Se añadió `docs/gestion-preflight-backup-and-release.md` con el procedimiento de respaldo lógico, respaldo independiente de Storage, verificación de restauración y secuencia de activación aislada. Las instrucciones distinguen expresamente que el dump de PostgreSQL no incluye los archivos binarios de Storage.
 - El workflow ahora también se dispara cuando cambia la migración de Seguimiento, de modo que la preparación SQL no queda fuera del circuito de validación de Gestión.
-- **No se ha creado el bucket, no se ha aplicado la migración, no se han modificado políticas reales, no se han cargado archivos y no se ha desplegado el portal.**
-- La persistencia sigue pendiente de validación en un proyecto Supabase de staging y de completar respaldos recuperables. El hash se usa como identificador de duplicados aportado por el cliente; no se presenta como verificación criptográfica independiente del contenido en el servidor.
+- **No se ha creado el bucket, no se han aplicado migraciones, no se han modificado políticas reales, no se han cargado archivos y no se ha desplegado el portal.**
+- Se agregó un workflow con PostgreSQL efímero para ejecutar las migraciones nuevas y probar persistencia, duplicados, RLS de manager y RPC de teléfono. El resultado todavía no está confirmado.
+- El hash SHA-256 se calcula en el navegador y se utiliza para detección de duplicados; el servidor no vuelve a descargar y recalcular el archivo.
 
 
 ## 18. Verificación adicional de RLS para la entrada de managers (26/11/2026)
@@ -261,7 +263,7 @@ Esto confirma que las dos consultas de validación del acceso manager (perfil pr
 
 ## 19. Retiro de migración defectuosa y validación automatizada
 
-- La migración SQL inicial de Seguimiento se retiró de la rama de feature porque contenía sintaxis truncada/duplicada. No debe aplicarse ni recuperarse como base de despliegue.
-- El workflow de Gestión ahora instala `pglast` en el runner efímero de GitHub Actions y analiza sintácticamente cada archivo `supabase/migrations/*.sql`, además de las pruebas JavaScript existentes.
-- Esta validación SQL es sintáctica; no demuestra compatibilidad semántica con el esquema real ni sustituye las pruebas RLS y transaccionales en PostgreSQL temporal.
-- La eliminación de la migración no altera el proyecto Supabase. Consulta de solo lectura posterior: 0 tablas, 0 políticas y 0 bucket de Seguimiento.
+- La primera migración SQL de Seguimiento se retiró por errores de sintaxis. Se reconstruyó desde cero en tres migraciones nuevas, aisladas en la rama de feature.
+- El workflow instala `pglast`, revisa la sintaxis de las migraciones y dispone de un servicio PostgreSQL efímero para ejecutar las tres migraciones y probar guardado, duplicados, aislamiento de manager y RPC de teléfono.
+- La prueba efímera usa un fixture mínimo compatible con las estructuras reales consultadas. No sustituye una prueba integral en un proyecto Supabase de staging ni la validación con cuentas reales y Storage API.
+- Consulta de solo lectura en producción después de los cambios: 0 tablas públicas de Seguimiento. No se aplicó ninguna migración ni se creó el bucket real.
