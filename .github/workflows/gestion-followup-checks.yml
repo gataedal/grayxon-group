@@ -45,10 +45,15 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f tests/fixtures/gestion-followup-schema.sql
-      - name: Apply Gestión migration to ephemeral PostgreSQL
+      - name: Apply all repository migrations to ephemeral PostgreSQL
         env:
           PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f supabase/migrations/20261127090000_gx_creator_followup_core.sql
+        shell: bash
+        run: |
+          for migration in $(find supabase/migrations -maxdepth 1 -name '*.sql' | sort); do
+            echo "Applying $migration"
+            psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f "$migration"
+          done
       - name: Verify manager import persistence and duplicate protection
         env:
           PGPASSWORD: postgres
