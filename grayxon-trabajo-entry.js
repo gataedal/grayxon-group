@@ -1,6 +1,6 @@
 (() => {
   const client = window.GRAYXON_SUPABASE_CLIENT;
-  if (!client) { console.warn('[Grayxon Trabajo] No está disponible el cliente de autenticación compartido.'); return; }
+  if (!client) { console.warn('[Gestión Grayxon] No está disponible el cliente de autenticación compartido.'); return; }
   let checking=false, retryRequested=false, checkedUserId=null, observer=null, syncTimer=null, memberCache={userId:null,allowed:false};
 
   function removeCard(){
@@ -62,13 +62,13 @@
         card.id='gxTrabajoDashboardCard';
         card.href='./grayxon-trabajo.html';
         card.className='admin-dashboard-card manager-dashboard-card gx-trabajo-dashboard-card';
-        card.setAttribute('aria-label','Abrir Grayxon Trabajo');
-        card.innerHTML='<span class="gx-trabajo-card-icon" aria-hidden="true">▤</span><span class="gx-trabajo-card-copy"><strong>Grayxon Trabajo</strong><small>Consulta tus tareas, solicitudes y actividades del equipo.</small></span><span class="gx-trabajo-card-arrow" aria-hidden="true">›</span>';
+        card.setAttribute('aria-label','Abrir Gestión');
+        card.innerHTML='<span class="gx-trabajo-card-icon" aria-hidden="true">▤</span><span class="gx-trabajo-card-copy"><strong>Gestión</strong><small>Organiza tareas, solicitudes y seguimiento del equipo.</small></span><span class="gx-trabajo-card-arrow" aria-hidden="true">›</span>';
       }
       if(card.parentElement!==target.grid)target.grid.appendChild(card);
       checkedUserId=user.id;
     }catch(error){
-      console.warn('[Grayxon Trabajo] No se pudo sincronizar la tarjeta del dashboard:',error?.message||error);
+      console.warn('[Gestión Grayxon] No se pudo sincronizar la tarjeta del dashboard:',error?.message||error);
     }finally{
       checking=false;
       if(retryRequested){
