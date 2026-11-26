@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/gestion-module-2026-11-26
+      - feature/gestion-module-clean-2026-11-26
     paths:
       - 'grayxon-followup-*.js'
       - 'grayxon-trabajo.js'
