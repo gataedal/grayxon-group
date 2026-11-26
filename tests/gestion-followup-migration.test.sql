@@ -28,9 +28,8 @@ begin
  if not exists(select 1 from public.gx_creator_followup_evaluations where import_id=v_import and creator_user_id=v_creator) then
   raise exception 'Expected evaluation row was not persisted';
  end if;
- perform public.gx_manager_update_creator_phone(v_creator,'+573001234567');
- if not exists(select 1 from public.profile_details where user_id=v_creator and phone='+573001234567') then
-  raise exception 'Manager phone RPC did not persist the creator phone';
+ if to_regprocedure('public.gx_manager_update_creator_phone(uuid,text)') is not null then
+  raise exception 'La RPC de edición de teléfono para managers debe estar eliminada';
  end if;
  -- Add a second creator assigned to another manager; manager A must not read it.
  insert into auth.users(id) values('10000000-0000-0000-0000-000000000002'),('20000000-0000-0000-0000-000000000002');
@@ -102,10 +101,17 @@ declare v_count integer; v_rows integer;
 begin
  select count(*) into v_count from public.gx_creator_followup_evaluations;
  if v_count<>1 then raise exception 'Manager RLS should expose only the assigned creator; got %',v_count; end if;
+ update public.gx_creator_action_plans set status='completed',updated_at=now()
+ where id='50000000-0000-0000-0000-000000000001';
+ get diagnostics v_rows=row_count;
+ if v_rows<>1 then raise exception 'Manager must be able to update their own creator action plan'; end if;
+ insert into public.gx_creator_action_plan_updates(plan_id,progress_summary,proposed_changes,status,reviewed_by,reviewed_at)
+ values('50000000-0000-0000-0000-000000000001','Avance registrado por manager','Se actualizó el estado','approved',auth.uid(),now());
  begin
-  update public.gx_creator_action_plan_updates set status='approved' where id='60000000-0000-0000-0000-000000000001';
-  get diagnostics v_rows=row_count;
-  if v_rows<>0 then raise exception 'Manager must not approve an action-plan proposal'; end if;
+  update public.profile_details set phone='+573001234567' where user_id='20000000-0000-0000-0000-000000000001';
+  raise exception 'Manager must not update creator phone';
+ exception when insufficient_privilege then
+  null;
  end;
 end $$;
 reset role;
