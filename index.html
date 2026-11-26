@@ -419,6 +419,33 @@ main > footer,
   if (isPortalRoute) window.location.replace('./portal.html' + window.location.search + hash);
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js?v=20261020"></script>
+<script>
+/* Si se abre la portada sin una ruta pública específica, reutiliza la sesión existente. */
+(function () {
+  if (window.location.hash) return;
+  (async function redirectAuthenticatedVisitor() {
+    try {
+      var cfg = window.GRAYXON_CONFIG;
+      if (!window.supabase || typeof window.supabase.createClient !== 'function' ||
+          !cfg || !cfg.SUPABASE_URL || !cfg.SUPABASE_PUBLISHABLE_KEY) return;
+      var client = window.supabase.createClient(
+        cfg.SUPABASE_URL,
+        cfg.SUPABASE_PUBLISHABLE_KEY,
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }
+      );
+      var result = await client.auth.getSession();
+      if (result.error) throw result.error;
+      if (result.data && result.data.session) {
+        window.location.replace('./portal.html' + window.location.search);
+      }
+    } catch (error) {
+      console.warn('No se pudo comprobar la sesión al abrir Grayxon:', error);
+    }
+  })();
+})();
+</script>
 </head><body>
 <div class="top"></div><header><nav class="nav"><a class="logo" href="#inicio" style="color:white;text-decoration:none">GRAYXON<small>GROUP</small></a><div class="links"></div><a class="login-cta" id="login" href="./portal.html#auth">Iniciar sesión</a></nav></header>
 <main><div class="intro-panel"><section class="hero" id="inicio"><div class="inner"><div class="copy"><div class="eyebrow">AGENCIA OFICIAL DE TIKTOK LIVE EN LATAM</div><h1>CREA.<br> CONECTA.<br><span class="grad">MONETIZA.</span></h1><p class="desc">En Grayxon Group te damos las herramientas, el acompañamiento y las oportunidades para llevar tu talento en TikTok LIVE al siguiente nivel.</p><div class="actions"><a class="btn primary" href="https://www.tiktok.com/link/v2?aid=1988&lang=es-419&scene=bio_url&target=https%3A%2F%2Fwww.tiktok.com%2Ft%2FZMSuLy1fa%2F" target="_blank" rel="noopener">◉ &nbsp; ÚNETE AHORA ↗</a><a class="btn secondary" href="#beneficios">Beneficios y requisitos</a></div></div><div class="tagline">Tu talento<br><span class="grad">sin límites</span></div></div><a class="scroll-cue" href="#agencia" data-scroll-cue>DESLIZA PARA DESCUBRIR <span>↓</span></a></section>
