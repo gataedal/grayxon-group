@@ -31,4 +31,10 @@ assert.equal(require('../grayxon-followup-calculations.js').toBogotaISOString('2
 assert.equal(require('../grayxon-followup-calculations.js').toBogotaISOString('2026-02-30T09:30'), null);
 assert.equal(require('../grayxon-followup-calculations.js').toBogotaISOString('2026-11-26T25:30'), null);
 
+
+r=calculateEvaluation({...base,highRiskThresholdPct:70,observationThresholdPct:90,validLiveDays:5,liveSeconds:18*3600});
+assert.equal(r.classification,'observation');
+r=calculateEvaluation({...base,highRiskThresholdPct:70,observationThresholdPct:90,validLiveDays:3,liveSeconds:10*3600});
+assert.equal(r.classification,'high_risk');
+
 console.log('Seguimiento calculations: 6 assertion groups plus Colombia timezone checks passed.');
