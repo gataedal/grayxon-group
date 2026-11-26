@@ -362,12 +362,12 @@
       '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Gestión individual</h2><p>Registra contactos, compromisos y planes de acción sin perder el historial.</p></div>'+
       '<label class="gxt-field"><span>Creador</span><select id="gxFollowupCreator"><option value="">Cargando creadores…</option></select></label>'+
-      '<form id="gxFollowupPhoneForm" class="gxt-followup-workspace-card"><h3>Teléfono de contacto</h3><label class="gxt-field"><span>Número (incluye indicativo)</span><input id="gxFollowupPhone" name="phone" maxlength="25" placeholder="+57 300 000 0000"></label><button class="gxt-btn primary" type="submit">Guardar teléfono</button></form>'+
+      '<div class="gxt-followup-workspace-card" id="gxFollowupPhoneReadOnly"><h3>Teléfono registrado</h3><p class="gxt-muted">Consulta de solo lectura. Los cambios del número los realiza administración desde los datos del creador.</p><strong id="gxFollowupPhoneValue">Selecciona un creador para consultar su teléfono.</strong></div>'+
       '<div class="gxt-followup-workspace-grid">'+
       '<form id="gxFollowupNoteForm" class="gxt-followup-workspace-card"><h3>Observación o compromiso</h3><label class="gxt-field"><span>Tipo</span><select name="note_type"><option value="observation">Observación</option><option value="commitment">Compromiso</option><option value="response">Respuesta</option><option value="review">Revisión</option></select></label><label class="gxt-field"><span>Detalle</span><textarea name="body" maxlength="5000" required></textarea></label><button class="gxt-btn primary" type="submit">Guardar registro</button></form>'+
       '<form id="gxFollowupContactForm" class="gxt-followup-workspace-card"><h3>Registro de contacto</h3><label class="gxt-field"><span>Estado</span><select name="contact_status"><option value="initiated">Contacto iniciado</option><option value="confirmed">Contacto confirmado</option><option value="pending_response">Pendiente de respuesta</option><option value="responded">Respondió</option></select></label><label class="gxt-field"><span>Canal</span><select name="channel"><option value="whatsapp">WhatsApp</option><option value="phone">Llamada</option><option value="other">Otro</option></select></label><label class="gxt-field"><span>Mensaje o resumen</span><textarea name="message_text" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Guardar contacto</button></form>'+
       '<form id="gxActionPlanForm" class="gxt-followup-workspace-card"><h3>Plan de acción</h3><label class="gxt-field"><span>Título</span><input name="title" maxlength="180" required></label><label class="gxt-field"><span>Objetivo</span><textarea name="objective" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Criterio de éxito</span><textarea name="success_criteria" maxlength="3000"></textarea></label><label class="gxt-field"><span>Fecha objetivo</span><input name="target_date" type="date"></label><button class="gxt-btn primary" type="submit">Crear plan</button></form>'+
-      '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card"><h3>Propuesta de actualización</h3><label class="gxt-field"><span>Plan</span><select id="gxActionPlanSelect" name="plan_id" required><option value="">Primero crea un plan</option></select></label><label class="gxt-field"><span>Avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Cambios propuestos</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Enviar a revisión</button></form>'+
+      '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card"><h3>Actualizar plan de trabajo</h3><label class="gxt-field"><span>Plan</span><select id="gxActionPlanSelect" name="plan_id" required><option value="">Primero crea un plan</option></select></label><label class="gxt-field"><span>Avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Cambios propuestos</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Enviar a revisión</button></form>'+
       '<form id="gxFollowupReminderForm" class="gxt-followup-workspace-card"><h3>Recordatorio</h3><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="scheduled_at" type="datetime-local" required></label><label class="gxt-field"><span>Nota</span><textarea name="note" maxlength="2000"></textarea></label><button class="gxt-btn primary" type="submit">Programar recordatorio</button></form>'+
       '</div><div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';
     loadFollowupHistory();
@@ -478,12 +478,12 @@
       const planSelect=document.getElementById('gxActionPlanSelect');
       select.addEventListener('change',async()=>{
         const creator=followupCreatorCache.find(p=>p.id===select.value);
-        const phone=document.getElementById('gxFollowupPhone');
-        if(phone)phone.value='';
-        if(!creator)return;
+        const phone=document.getElementById('gxFollowupPhoneValue');
+        if(phone)phone.textContent='Consultando…';
+        if(!creator){if(phone)phone.textContent='Selecciona un creador para consultar su teléfono.';return;}
         const {data,error}=await sb.from('profile_details').select('phone').eq('user_id',creator.id).maybeSingle();
-        if(error){toast('No se pudo consultar el teléfono: '+error.message);return;}
-        if(phone)phone.value=data?.phone||'';
+        if(error){if(phone)phone.textContent='No se pudo consultar el teléfono.';toast('No se pudo consultar el teléfono: '+error.message);return;}
+        if(phone)phone.textContent=data?.phone||'Este creador no tiene un teléfono registrado. Solicita a administración que lo agregue.';
         if(planSelect){
           const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
           planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(plan=>'<option value="'+esc(plan.id)+'">'+esc(plan.title)+'</option>').join('');
@@ -537,11 +537,7 @@
     const data=new FormData(form);
     const common={creator_user_id:creator.id,manager_id:state.isAdmin?creator.manager_id:state.member.id,created_by:state.session.user.id};
     let table,payload;
-    if(form.id==='gxFollowupPhoneForm'){
-      const {error}=await sb.rpc('gx_manager_update_creator_phone',{p_creator_id:creator.id,p_phone:String(data.get('phone')||'').trim()||null});
-      if(error)return toast('No se pudo guardar el teléfono: '+error.message);
-      toast('Teléfono actualizado correctamente.');return;
-    }else if(form.id==='gxFollowupNoteForm'){
+    if(form.id==='gxFollowupNoteForm'){
       table='gx_creator_followup_notes';
       payload={...common,note_type:String(data.get('note_type')),body:String(data.get('body')||'').trim()};
     }else if(form.id==='gxFollowupContactForm'){
@@ -555,11 +551,19 @@
       payload={...common,title:String(data.get('title')||'').trim(),objective:String(data.get('objective')||'').trim(),
         success_criteria:String(data.get('success_criteria')||'').trim()||null,target_date:String(data.get('target_date')||'')||null};
     }else if(form.id==='gxActionPlanUpdateForm'){
-      table='gx_creator_action_plan_updates';
       const selectedPlan=(window.gxFollowupPlans||[]).find(plan=>plan.id===String(data.get('plan_id')||''));
       if(!selectedPlan||selectedPlan.creator_user_id!==creator.id)return toast('Selecciona un plan que pertenezca al creador elegido.');
-      payload={plan_id:selectedPlan.id,progress_summary:String(data.get('progress_summary')||'').trim(),
-        proposed_changes:String(data.get('proposed_changes')||'').trim()||null,status:'pending_manager_review'};
+      const progress=String(data.get('progress_summary')||'').trim();
+      if(!progress)return toast('Describe el avance del plan.');
+      const now=new Date().toISOString();
+      const {error:updateLogError}=await sb.from('gx_creator_action_plan_updates').insert({
+        plan_id:selectedPlan.id,progress_summary:progress,proposed_changes:String(data.get('proposed_changes')||'').trim()||null,
+        status:'approved',reviewed_by:state.session.user.id,reviewed_at:now
+      });
+      if(updateLogError)return toast('No se pudo guardar el historial del plan: '+updateLogError.message);
+      const {error:planError}=await sb.from('gx_creator_action_plans').update({status:String(data.get('plan_status')||'active'),updated_at:now}).eq('id',selectedPlan.id);
+      if(planError)return toast('El avance quedó registrado, pero no se pudo actualizar el estado del plan: '+planError.message);
+      form.reset();toast('Plan actualizado correctamente.');loadFollowupWorkspace();return;
     }else if(form.id==='gxFollowupReminderForm'){
       table='gx_creator_followup_reminders';
       const local=String(data.get('scheduled_at')||'');
@@ -663,40 +667,10 @@
   }
 
   function renderReportsPage() {
-    main.innerHTML=pageHead('Reportes','Resumen de las evaluaciones de los últimos 90 días.')+
-      '<section class="gxt-panel" id="gxFollowupReports"><div class="gxt-empty">Calculando indicadores…</div></section>';
-    loadFollowupReports();
+    main.innerHTML=pageHead('Reportes','Esta sección se habilitará en una etapa posterior.')+
+      '<section class="gxt-panel"><div class="gxt-empty">Reportes todavía no está habilitado.</div></section>';
   }
 
-  async function loadFollowupReports() {
-    const host=document.getElementById('gxFollowupReports');
-    if(!host)return;
-    try{
-      const since=new Date(Date.now()-90*86400000).toISOString();
-      const {data,error}=await sb.from('gx_creator_followup_evaluations')
-        .select('creator_user_id,creator_username_snapshot,classification,diamonds,live_seconds,valid_live_days,created_at')
-        .gte('created_at',since).order('created_at',{ascending:false}).limit(2000);
-      if(error)throw error;
-      const rows=data||[];
-      const latest=new Map();
-      rows.forEach(r=>{if(!latest.has(r.creator_user_id))latest.set(r.creator_user_id,r);});
-      const latestRows=Array.from(latest.values());
-      const counts={high_risk:0,observation:0,on_track:0,early_review:0,not_evaluable:0,needs_daily_data:0};
-      latestRows.forEach(r=>{counts[r.classification]=(counts[r.classification]||0)+1;});
-      const diamonds=latestRows.reduce((n,r)=>n+Number(r.diamonds||0),0);
-      const hours=latestRows.reduce((n,r)=>n+Number(r.live_seconds||0),0)/3600;
-      const risk=latestRows.filter(r=>['high_risk','observation','early_review'].includes(r.classification)).slice(0,12);
-      const labels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
-      host.innerHTML='<div class="gxt-panel-head"><h2>Indicadores · últimos 90 días</h2><span class="gxt-chip">'+latestRows.length+' creadores</span></div>'+
-        '<div class="gxt-followup-summary"><div><strong>'+rows.length.toLocaleString('es-CO')+'</strong><small>Evaluaciones</small></div><div><strong>'+diamonds.toLocaleString('es-CO')+'</strong><small>Diamantes reportados</small></div><div><strong>'+hours.toFixed(1)+' h</strong><small>Horas LIVE</small></div></div>'+
-        '<div class="gxt-followup-report-grid">'+Object.keys(counts).map(k=>'<div class="gxt-followup-report-stat"><strong>'+counts[k]+'</strong><small>'+labels[k]+'</small></div>').join('')+'</div>'+
-        '<h3>Creadores para revisar</h3>'+
-        (risk.length?'<div class="gxt-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Estado más reciente</th><th>Fecha</th></tr></thead><tbody>'+risk.map(r=>'<tr><td>@'+esc(r.creator_username_snapshot)+'</td><td>'+labels[r.classification]+'</td><td>'+dateTimeLabel(r.created_at)+'</td></tr>').join('')+'</tbody></table></div>':'<div class="gxt-empty">No hay casos recientes clasificados para revisión.</div>');
-    }catch(error){
-      console.error('[Gestión · Reportes] load',error);
-      host.innerHTML='<div class="gxt-status-note gxt-followup-warning">No se pudieron cargar los reportes: '+esc(error.message||'Error de consulta')+'</div>';
-    }
-  }
 
   function renderPage() {
     renderNav();
