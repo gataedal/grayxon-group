@@ -268,3 +268,27 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-selected-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .gxt-chip.status-cancelled{border-color:#59616c;background:#242a32;color:#c2c9d1}
+
+
+/* Seguimiento de creadores · importación y previsualización */
+.gxt-followup-import{display:grid;gap:16px}
+.gxt-followup-upload-grid{display:grid;grid-template-columns:minmax(220px,2fr) repeat(2,minmax(150px,1fr));gap:12px}
+.gxt-followup-upload-grid .gxt-field{display:grid;gap:7px;color:#aab7c3;font-size:11px;font-weight:700}
+.gxt-followup-upload-grid input{width:100%;min-width:0;min-height:42px;padding:9px 10px;border:1px solid #344650;border-radius:10px;background:#0c1319;color:#edf4f7;font:inherit}
+.gxt-followup-import .gxt-panel-head p{margin:5px 0 0;color:#91a0ad;font-size:11px}
+.gxt-followup-preview{display:grid;gap:12px;min-width:0}
+.gxt-followup-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.gxt-followup-summary>div{display:grid;gap:4px;padding:12px;border:1px solid #2d414b;border-radius:12px;background:linear-gradient(145deg,#14232b,#10171d)}
+.gxt-followup-summary strong{font-size:20px;color:#eaf7f7}
+.gxt-followup-summary small,.gxt-muted{font-size:10px;color:#94a4b0}
+.gxt-followup-warning{border-color:#795c36!important;background:#2b2115!important;color:#f4d5a3!important}
+.gxt-followup-warnings{font-size:11px;color:#aab8c4}
+.gxt-followup-warnings ul{margin:6px 0;padding-left:20px}
+.gxt-followup-table-wrap{max-width:100%;overflow:auto;border:1px solid #293b45;border-radius:12px}
+.gxt-followup-table{width:100%;min-width:680px;border-collapse:collapse;font-size:11px}
+.gxt-followup-table th,.gxt-followup-table td{padding:10px 12px;border-bottom:1px solid #263640;text-align:left;white-space:nowrap}
+.gxt-followup-table th{background:#111d24;color:#a9c0c7;font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.gxt-followup-table td{color:#e0e9ed}
+.gxt-followup-table tr:last-child td{border-bottom:0}
+@media(max-width:700px){.gxt-followup-upload-grid{grid-template-columns:1fr 1fr}.gxt-followup-upload-grid .gxt-field:first-child{grid-column:1/-1}}
+@media(max-width:420px){.gxt-followup-upload-grid{grid-template-columns:1fr}.gxt-followup-upload-grid .gxt-field:first-child{grid-column:auto}.gxt-followup-summary>div{padding:9px}.gxt-followup-summary strong{font-size:17px}}
