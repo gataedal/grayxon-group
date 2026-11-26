@@ -6,7 +6,9 @@ on:
       - feature/gestion-module-2026-11-26
     paths:
       - 'grayxon-followup-*.js'
+      - 'grayxon-trabajo.js'
       - 'tests/grayxon-followup-*.test.js'
+      - 'grayxon-trabajo.js'
       - '.github/workflows/gestion-followup-checks.yml'
   pull_request:
     branches:
@@ -24,6 +26,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Check Gestión JavaScript syntax
+        run: node --check grayxon-trabajo.js && node --check grayxon-followup-import.js && node --check grayxon-followup-calculations.js
       - name: Test evaluation calculations
         run: node tests/grayxon-followup-calculations.test.js
       - name: Test Excel import parser
