@@ -75,8 +75,8 @@
     const minimumDays = Number(input.earlyReviewMinDays ?? 5);
     let classification;
     if (evaluableDays<minimumDays) classification='early_review';
-    else if (validDaysPct<50 || liveHoursPct<50) classification='high_risk';
-    else if (validDaysPct<80 || liveHoursPct<80) classification='observation';
+    else if (validDaysPct<Number(input.highRiskThresholdPct ?? 50) || liveHoursPct<Number(input.highRiskThresholdPct ?? 50)) classification='high_risk';
+    else if (validDaysPct<Number(input.observationThresholdPct ?? 80) || liveHoursPct<Number(input.observationThresholdPct ?? 80)) classification='observation';
     else classification='on_track';
 
     return {
