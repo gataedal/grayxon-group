@@ -383,15 +383,29 @@
       const workbook=window.XLSX.read(buffer,{type:'array',cellDates:true});
       const preview=window.GRAYXON_FOLLOWUP_IMPORT.parseWorkbook(workbook,start,end);
       const {data:creatorData,error:creatorError}=await sb.from('profiles')
-        .select('id,username,full_name,tiktok_username,manager_id,created_at')
+        .select('id,username,full_name,tiktok_username,tiktok_creator_id,manager_id,created_at')
         .eq('role','creator').eq('active',true);
       if(creatorError)throw new Error('No se pudieron consultar los creadores autorizados: '+creatorError.message);
-      const byTikTok=new Map();
+      const byTikTok=new Map(), byCreatorId=new Map();
+      const addIndex=(map,key,creator)=>{
+        if(!key)return;
+        const normalized=String(key).replace(/^@/,'').trim().toLowerCase();
+        if(!normalized)return;
+        const list=map.get(normalized)||[];
+        if(!list.some(item=>item.id===creator.id))list.push(creator);
+        map.set(normalized,list);
+      };
       (creatorData||[]).forEach(creator=>{
-        [creator.tiktok_username,creator.username].filter(Boolean).forEach(value=>byTikTok.set(String(value).replace(/^@/,'').toLowerCase(),creator));
+        addIndex(byTikTok,creator.tiktok_username,creator);
+        addIndex(byTikTok,creator.username,creator);
+        addIndex(byCreatorId,creator.tiktok_creator_id,creator);
       });
       preview.rows=preview.rows.map(row=>{
-        const profile=byTikTok.get(row.username.toLowerCase())||null;
+        const idMatches=row.creatorId?byCreatorId.get(row.creatorId)||[]:[];
+        const usernameMatches=byTikTok.get(row.username.toLowerCase())||[];
+        const matches=idMatches.length?idMatches:usernameMatches;
+        const profile=matches.length===1?matches[0]:null;
+        const linkStatus=matches.length>1?'ambiguous':profile?'linked':'unmatched';
         const evaluation=window.GRAYXON_FOLLOWUP_CALCULATIONS?.calculateEvaluation({
           periodStart:start,periodEnd:end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
           granularity:preview.granularity,joinDate:row.joinedAt,
@@ -399,13 +413,14 @@
           monthlyLiveHours:90,monthlyValidDays:22,earlyReviewMinDays:5,
           consistencyHoursPerDay:2.5,consistencyDaysPerWeek:6
         })||{status:'not_evaluable',reason:'No está disponible el motor de evaluación.'};
-        return {...row,profile,evaluation};
+        return {...row,profile,linkStatus,evaluation};
       });
-      preview.summary.matched=preview.rows.filter(row=>row.profile).length;
-      preview.summary.unmatched=preview.rows.length-preview.summary.matched;
+      preview.summary.matched=preview.rows.filter(row=>row.linkStatus==='linked').length;
+      preview.summary.ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous').length;
+      preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='unmatched').length;
       window.grayxonFollowupPreview=preview;
       const period=preview.sourcePeriod;
-      const status=preview.canEvaluate?'El archivo cubre exactamente el periodo seleccionado.':'El archivo no permite evaluar el rango seleccionado.';
+      const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo cubre exactamente el periodo seleccionado.':'El archivo no permite evaluar el rango seleccionado.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
       const classLabels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
       const rows=preview.rows.map(row=>'<tr><td>@'+esc(row.username)+'</td><td>'+esc(row.profile?.full_name||'No vinculado')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+ (row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+ (row.validDays==null?'—':row.validDays)+'</td><td>'+(row.profile?'Vinculado':'Revisar perfil')+'</td><td>'+esc(classLabels[row.evaluation.classification||row.evaluation.status]||row.evaluation.status)+'</td></tr>').join('');
