@@ -69,7 +69,7 @@ No basta con que los archivos existan. En un proyecto de prueba independiente:
 - No hay evidencia de copia externa de objetos Storage ni de restauración de prueba.
 - Las migraciones nuevas aún no tienen resultado de CI confirmado y no se han aplicado a Supabase.
 - El bucket de Seguimiento aún no existe en producción.
-- El flujo de persistencia ya está implementado en la rama, pero todavía debe pasar pruebas automatizadas y pruebas reales con cuentas aisladas. Contactos, notas, recordatorios y planes de acción tienen esquema y permisos preparados; falta terminar sus pantallas y operaciones de usuario.
+- El flujo de persistencia ya está implementado en la rama, pero todavía debe pasar pruebas automatizadas y pruebas reales con cuentas aisladas. Contactos, notas, recordatorios y planes de acción ya tienen formularios y guardado desde Gestión. El envío de notificaciones automáticas para recordatorios sigue pendiente; por ahora quedan registrados y visibles en el módulo.
 
 ## Referencias oficiales
 
