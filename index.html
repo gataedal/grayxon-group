@@ -494,6 +494,37 @@ main > footer,
 }
 @media(max-width:390px){#beneficios .gx-benefits-actions{grid-template-columns:1fr}#beneficios .gx-benefits-video video{max-height:52svh}}
 
+
+/* Ajustes de composición y espaciado móvil para el bloque de video */
+#beneficios .gx-section-kicker{text-align:center;margin:0 auto 12px}
+#beneficios .gx-benefits-stage{width:min(100%,760px);margin:0 auto;display:block}
+#beneficios .gx-benefits-video{width:100%;min-width:0;padding:16px;border:1px solid #2b3442;border-radius:20px;background:radial-gradient(ellipse at 50% 0%,rgba(37,244,238,.08),transparent 55%),linear-gradient(145deg,#111722,#090c13);box-shadow:0 22px 60px #0005}
+#beneficios .source-video-heading{margin:0 0 12px}
+#beneficios .source-video-heading strong{font-size:15px;letter-spacing:.01em}
+#beneficios .source-video-heading small{font-size:11px}
+#beneficios .gx-benefits-video video{display:block;width:100%;height:clamp(360px,64svh,650px);max-height:none;aspect-ratio:9/16;object-fit:contain;background:#030406;margin:0 auto;border-radius:12px}
+#beneficios .gx-benefits-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+#beneficios .gx-benefits-actions .btn{width:100%;min-width:0;min-height:52px;margin:0;cursor:pointer}
+#beneficios .gx-benefits-actions button{font-family:inherit}
+@media(max-width:720px){
+ #beneficios{scroll-margin-top:10px}
+ #beneficios .gx-section-kicker{margin-bottom:9px}
+ #beneficios .gx-benefits-stage{width:100%;max-width:560px}
+ #beneficios .gx-benefits-video{padding:12px;border-radius:17px}
+ #beneficios .source-video-heading{margin-bottom:9px}
+ #beneficios .source-video-heading strong{font-size:13px}
+ #beneficios .source-video-heading small{font-size:10px}
+ #beneficios .gx-benefits-video video{width:100%;height:clamp(320px,58svh,560px);max-height:none;aspect-ratio:9/16}
+ #beneficios .gx-benefits-actions{gap:8px;margin-top:10px}
+ #beneficios .gx-benefits-actions .btn{min-height:48px;padding:12px 9px;font-size:10px;letter-spacing:.035em;white-space:nowrap}
+}
+@media(max-width:390px){
+ #beneficios .gx-benefits-video{padding:9px}
+ #beneficios .gx-benefits-video video{height:54svh}
+ #beneficios .gx-benefits-actions{gap:7px;margin-top:8px}
+ #beneficios .gx-benefits-actions .btn{font-size:9px;padding:10px 6px}
+}
+
 </style><script>
 /* Mantiene compatibles los enlaces profundos existentes del portal y las notificaciones. */
 (function(){
@@ -535,19 +566,15 @@ main > footer,
 <section class="stats"><div class="stat"><span class="ico">♧</span><div><b>+500</b><small>Talentos en LATAM</small></div></div><div class="stat"><span class="ico">♜</span><div><b>Eventos exclusivos</b><small>y bonos</small></div></div><div class="stat"><span class="ico">◎</span><div><b>Soporte 24/7</b><small>en toda LATAM</small></div></div></section></div>
 <section class="section" id="agencia"><div class="center"><div class="kicker">Crece con Grayxon</div><h2>MÁS QUE UNA AGENCIA<br><span class="grad">Somos tu equipo</span></h2><p class="sub">Te acompañamos en cada paso para que crezcas, te formes y conviertas tu talento en oportunidades reales a través de TikTok LIVE.</p></div><div class="cards"><article class="card"><i>♢</i><h3>Nuevas oportunidades</h3><p>Desarrolla tu contenido y conecta con nuevas posibilidades.</p></article><article class="card"><i>♧</i><h3>Una comunidad real</h3><p>Crece junto a un equipo que comparte experiencias.</p></article><article class="card"><i>♧</i><h3>Soporte personalizado</h3><p>Recibe orientación y apoyo durante tu proceso.</p></article></div><a class="scroll-cue section-scroll-cue" href="#beneficios" data-scroll-cue>DESLIZA PARA DESCUBRIR <span>↓</span></a></section>
 <section class="section" id="beneficios" style="padding-top:0">
-  <div class="center">
-    <div class="kicker">Crece con nosotros</div>
-    <h2>Beneficios y requisitos</h2>
-    <p class="sub">Conoce Grayxon, descubre lo que ponemos a tu disposición y revisa las condiciones para comenzar.</p>
-  </div>
+  <div class="gx-section-kicker"><div class="kicker">Crecer con nosotros</div></div>
   <div class="gx-benefits-stage">
     <div class="gx-benefits-video">
-      <div class="source-video-heading"><span>🎥</span><div><strong>Conoce Grayxon</strong><small>Todo lo que necesitas saber para comenzar tu proceso.</small></div></div>
+      <div class="source-video-heading"><span>✦</span><div><strong>Beneficios y requisitos</strong><small>Descubre todo lo que tenemos para acompañarte.</small></div></div>
       <video controls playsinline preload="metadata" src="./assets/Beneficios_y_requisitos.mp4"></video>
-    </div>
-    <div class="gx-benefits-actions">
-      <button type="button" class="gx-info-button" id="gx-open-benefits"><span>✦</span><span><strong>Beneficios y requisitos</strong><small>Conoce todo lo que Grayxon tiene para ti</small></span><b>↗</b></button>
-      <a class="btn continue-whatsapp" href="https://api.whatsapp.com/send/?phone=573126283007&text=Hola%2C%20quiero%20continuar%20mi%20proceso&type=phone_number&app_absent=0" target="_blank" rel="noopener noreferrer" aria-label="Continuar mi proceso por WhatsApp">CONTINUAR MI PROCESO <span aria-hidden="true">↗</span></a>
+      <div class="gx-benefits-actions">
+        <button type="button" class="btn continue-whatsapp" id="gx-open-benefits">DETALLES <span aria-hidden="true">↗</span></button>
+        <a class="btn continue-whatsapp" href="https://api.whatsapp.com/send/?phone=573126283007&text=Hola%2C%20quiero%20continuar%20mi%20proceso&type=phone_number&app_absent=0" target="_blank" rel="noopener noreferrer" aria-label="Continuar mi proceso por WhatsApp">CONTINUAR MI PROCESO <span aria-hidden="true">↗</span></a>
+      </div>
     </div>
   </div>
   <dialog class="gx-benefits-dialog" id="gx-benefits-dialog" aria-labelledby="gx-dialog-title">
