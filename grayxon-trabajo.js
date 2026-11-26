@@ -178,11 +178,11 @@
   function renderNav() {
     const items = state.isAdmin
       ? [
-          ['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
+          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
           ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
         ]
       : [
-          ['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
+          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
           ['calendar','▦','Calendario']
         ];
     nav.innerHTML = items.map(([key,icon,label]) =>
