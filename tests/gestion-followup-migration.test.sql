@@ -38,6 +38,10 @@ begin
  insert into public.profiles(id,role,active,manager_id,username)
  values('10000000-0000-0000-0000-000000000002','manager',true,'30000000-0000-0000-0000-000000000002','manager_b'),
        ('20000000-0000-0000-0000-000000000002','creator',true,'30000000-0000-0000-0000-000000000002','creator_b');
+ insert into public.gx_creator_action_plans(id,creator_user_id,manager_id,title,objective,created_by)
+ values('50000000-0000-0000-0000-000000000001',v_creator,v_manager_id,'Plan test','Objetivo de prueba',v_manager_user);
+ insert into public.gx_creator_action_plan_updates(id,plan_id,progress_summary,status)
+ values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','Propuesta test','pending_manager_review');
  insert into public.gx_creator_followup_evaluations(import_id,creator_user_id,creator_username_snapshot,manager_id_snapshot,classification)
  values(v_import,'20000000-0000-0000-0000-000000000002','creator_b','30000000-0000-0000-0000-000000000002','on_track');
  begin
@@ -56,5 +60,11 @@ declare v_count integer;
 begin
  select count(*) into v_count from public.gx_creator_followup_evaluations;
  if v_count<>1 then raise exception 'Manager RLS should expose only the assigned creator; got %',v_count; end if;
-end $$;
+ begin
+  update public.gx_creator_action_plan_updates set status='approved' where id='60000000-0000-0000-0000-000000000001';
+  raise exception 'Manager must not approve an action-plan proposal';
+ exception when insufficient_privilege then
+  null;
+ end;
+end $;
 reset role;
