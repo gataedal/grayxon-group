@@ -65,5 +65,5 @@ begin
   get diagnostics v_rows=row_count;
   if v_rows<>0 then raise exception 'Manager must not approve an action-plan proposal'; end if;
  end;
-end $;
+end $$;
 reset role;
