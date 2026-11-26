@@ -1720,9 +1720,9 @@ function authTpl() {
   </section>`;
 }
 
-const ONBOARDING_MODULE_IDS = new Set(['a676aec5-1514-4640-8884-8e9e02b2e90a','b7666174-c171-48ed-afe2-970b47c0c8fa','5d5e7196-7f15-4d9e-a53e-6940b21d5a75']);
+const ONBOARDING_LESSON_IDS = new Set(['eed00a62-1b8a-45fb-bab3-60a7b12462c9','07ae251c-29dc-42d8-b7d2-d486948c444d','a581d37a-0fdb-4fde-8371-b221fe7ac2ce','375a9472-2d97-474e-b603-c44996b28678','4cbdfda7-e057-4758-8b18-0f2c91919dce']);
 function isOnboardingCreator(){return profile?.role==='creator'&&profile?.onboarding_required===true&&!profile?.onboarding_completed_at;}
-function isOnboardingVideo(lesson){return !!lesson&&ONBOARDING_MODULE_IDS.has(lesson.module_id)&&lesson.type==='video'&&!!lesson.video_path;}
+function isOnboardingVideo(lesson){return !!lesson&&ONBOARDING_LESSON_IDS.has(lesson.id)&&lesson.type==='video'&&!!lesson.video_path;}
 function getRequiredOnboardingVideos(lessons=window._lessons||[]){return lessons.filter(isOnboardingVideo);}
 function isOnboardingProfileComplete(){const d=profileDetails||{};return !!(String(d.email||'').trim()&&String(d.phone||'').trim()&&d.birth_date&&String(d.country||'').trim()&&String(d.state_region||'').trim()&&String(d.city||'').trim()&&(String(d.avatar_path||'').trim()||String(d.avatar_url||'').trim()));}
 async function getProfile() {
@@ -1730,9 +1730,15 @@ async function getProfile() {
   try {
     const query = sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,must_change_password,onboarding_required,onboarding_completed_at').eq('id', session.user.id).maybeSingle();
     const result = await Promise.race([query, new Promise(resolve => setTimeout(() => resolve({data:null,error:new Error('timeout')}), 5000))]);
-    if (result?.data) return result.data;
-  } catch(e) {}
-  return { id: session.user.id, username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador', full_name: session.user.user_metadata?.full_name || '', role:'creator', active:true, team_id:null, manager_id:null, must_change_password:false, onboarding_required:false, onboarding_completed_at:null };
+    if (result?.error || !result?.data) {
+      console.error('No se pudo verificar el perfil autenticado:', result?.error || 'Perfil no encontrado');
+      return null;
+    }
+    return result.data;
+  } catch(e) {
+    console.error('No se pudo verificar el perfil autenticado:', e);
+    return null;
+  }
 }
 
 async function loadCreatorAssignment(){
@@ -4716,6 +4722,14 @@ async function renderSelectedLesson(l) {
 async function openLesson(id, options = {}) {
   const l = getLessonById(id);
   if (!l) return;
+  if (isOnboardingCreator() && isOnboardingVideo(l)) {
+    const done = window._done || new Set();
+    const nextRequired = getRequiredOnboardingVideos().find(item => !done.has(item.id));
+    if (!done.has(l.id) && nextRequired?.id !== l.id) {
+      toast('Completa primero el video anterior para continuar.');
+      return;
+    }
+  }
   selectedLesson = l;
 
   if(!options.skipReload){
@@ -7043,6 +7057,13 @@ async function login() {
 
   session = data.session;
   profile = await getProfile();
+  if (!profile) {
+    await sb.auth.signOut();
+    session = null;
+    $('#loginErr').textContent = 'No pudimos verificar tu cuenta. Intenta iniciar sesión nuevamente en unos segundos.';
+    updateHeaderAccessUI();
+    return;
+  }
   document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator');
   document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager');
   await loadProfileDetails();
@@ -7175,8 +7196,21 @@ async function init() {
 
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager'); await loadProfileDetails(); await loadNotifications(); updateGrayxonPresence(); }
-  else updateNotificationsUI();
+  if (session) {
+    profile = await getProfile();
+    if (!profile) {
+      await sb.auth.signOut();
+      session = null;
+      profile = null;
+      updateNotificationsUI();
+    } else {
+      document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator');
+      document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager');
+      await loadProfileDetails();
+      await loadNotifications();
+      updateGrayxonPresence();
+    }
+  } else updateNotificationsUI();
   updateHeaderAccessUI();
 
   // The push service sends page/target in the query string. Restore the intended
