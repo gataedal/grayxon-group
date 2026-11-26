@@ -294,8 +294,8 @@ begin
   if jsonb_typeof(coalesce(p_evaluations, '[]'::jsonb)) <> 'array' then
     raise exception 'Las evaluaciones deben enviarse como una lista.' using errcode = '22023';
   end if;
-  if p_row_count < 0 or p_row_count <> jsonb_array_length(coalesce(p_evaluations, '[]'::jsonb)) then
-    raise exception 'El número de filas no coincide con las evaluaciones.' using errcode = '22023';
+  if p_row_count < 0 or p_row_count < jsonb_array_length(coalesce(p_evaluations, '[]'::jsonb)) then
+    raise exception 'El total de filas no puede ser menor que las evaluaciones registradas.' using errcode = '22023';
   end if;
 
   if p_storage_path is null
