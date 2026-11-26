@@ -267,3 +267,16 @@ Esto confirma que las dos consultas de validación del acceso manager (perfil pr
 - El workflow instala `pglast`, revisa la sintaxis de las migraciones y dispone de un servicio PostgreSQL efímero para ejecutar las tres migraciones y probar guardado, duplicados, aislamiento de manager y RPC de teléfono.
 - La prueba efímera usa un fixture mínimo compatible con las estructuras reales consultadas. No sustituye una prueba integral en un proyecto Supabase de staging ni la validación con cuentas reales y Storage API.
 - Consulta de solo lectura en producción después de los cambios: 0 tablas públicas de Seguimiento. No se aplicó ninguna migración ni se creó el bucket real.
+
+
+## 12. Revisión técnica adicional — 2026-11-26
+
+- La RPC de importación valida ahora que el objeto exista en el bucket privado y que su propietario coincida con el usuario autenticado.
+- La RPC rechaza periodos de origen incompletos, invertidos o que no cubran el rango seleccionado.
+- Las propuestas de avance solo se pueden aprobar/rechazar desde administración; el manager puede crear propuestas, pero no alterar su revisión.
+- Se retiraron permisos de UPDATE para contactos, notas, planes y recordatorios mientras la interfaz solo ofrece registro de nuevos eventos. Esto evita conceder permisos de edición que aún no están implementados.
+- La selección de planes de acción se filtra por el creador seleccionado y la interfaz valida esa relación antes de guardar una propuesta.
+- Las pruebas SQL incluyen aislamiento entre equipos, duplicados, límites del periodo y restricción de aprobación.
+- La consulta de administradores internos frente a `public.is_admin()` confirmó que los administradores activos de `gx_internal_members` también están reconocidos por la función SQL de administración en el estado actual de producción.
+- GitHub informa el PR como integrable, pero sigue divergente respecto de `main` (la rama de desarrollo contiene commits posteriores y aún está detrás de la rama principal). No se ha fusionado ni se ha desplegado.
+- El conector de GitHub disponible no expuso ejecuciones de CI ni estados de comprobación para los últimos commits; por tanto, las pruebas automatizadas siguen pendientes de confirmación. No se declara validación completa.
