@@ -143,3 +143,15 @@ Políticas observadas:
 - Se verificó el flujo actual de entregas a creadores: utiliza las tablas `gx_creator_deliveries` y `gx_creator_delivery_files`, con publicación después de aprobación. La futura vista Planes de acción debe quedar separada de Multimedia y reutilizar el acceso del portal, sin mezclar ambos tipos de entrega.
 - La consulta de estructura y migraciones de Supabase fue de solo lectura. No se aplicaron migraciones, no se alteraron tablas ni políticas, y no se escribieron registros ni archivos de Storage.
 - Próximo paso técnico: diseñar y revisar las tablas de importaciones, evaluaciones por periodo, parámetros, contactos, observaciones, recordatorios y planes de acción; luego preparar SQL versionado en esta rama y probarlo en un entorno recuperable antes de aplicarlo a producción.
+
+
+## 11. Modelo de datos y cálculo inicial
+
+- Se añadió `docs/seguimiento-creadores-data-model.md` con el diseño de importaciones, evaluaciones inmutables, parámetros versionados, contactos, recordatorios, notas y planes de acción.
+- El diseño reutiliza `profile_details.phone` como fuente única del teléfono; no crea una agenda paralela. La edición por manager queda condicionada a una RPC estrecha que valide la asignación del creador.
+- Se añadió `grayxon-followup-calculations.js` como módulo puro, separado de DOM y Supabase, y su archivo de pruebas `tests/grayxon-followup-calculations.test.js`.
+- El cálculo prorratea metas por días evaluables y calendario de cada mes, contempla incorporaciones recientes y periodos que cruzan meses, conserva metas decimales y devuelve faltantes nunca negativos.
+- Los agregados que no coinciden exactamente con el periodo seleccionado se bloquean como `needs_daily_data`; no se inventan valores diarios.
+- Se cargó el helper en la página de Gestión, pero todavía no está conectado a la importación Excel ni a escrituras de base de datos.
+- Se ejecutó una comprobación local con Node.js para los casos principales: rango de 7 días, ingreso reciente, agregado no divisible, riesgo alto, métrica faltante y periodo que cruza dos meses. Resultado: pruebas satisfactorias.
+- El diseño de datos sigue siendo una propuesta; no existe migración aplicada ni cambio de esquema en Supabase.
