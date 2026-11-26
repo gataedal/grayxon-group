@@ -406,13 +406,15 @@
         const matches=idMatches.length?idMatches:usernameMatches;
         const profile=matches.length===1?matches[0]:null;
         const linkStatus=matches.length>1?'ambiguous':profile?'linked':'unmatched';
-        const evaluation=window.GRAYXON_FOLLOWUP_CALCULATIONS?.calculateEvaluation({
-          periodStart:start,periodEnd:end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
-          granularity:preview.granularity,joinDate:row.joinedAt,
-          validLiveDays:row.validDays,liveSeconds:row.liveHours==null?null:Math.round(row.liveHours*3600),
-          monthlyLiveHours:90,monthlyValidDays:22,earlyReviewMinDays:5,
-          consistencyHoursPerDay:2.5,consistencyDaysPerWeek:6
-        })||{status:'not_evaluable',reason:'No está disponible el motor de evaluación.'};
+        const evaluation=preview.mixedPeriods
+          ? {status:'needs_daily_data',reason:'El archivo mezcla periodos y debe separarse antes de evaluar.'}
+          : window.GRAYXON_FOLLOWUP_CALCULATIONS?.calculateEvaluation({
+              periodStart:start,periodEnd:end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
+              granularity:preview.granularity,joinDate:row.joinedAt,
+              validLiveDays:row.validDays,liveSeconds:row.liveHours==null?null:Math.round(row.liveHours*3600),
+              monthlyLiveHours:90,monthlyValidDays:22,earlyReviewMinDays:5,
+              consistencyHoursPerDay:2.5,consistencyDaysPerWeek:6
+            })||{status:'not_evaluable',reason:'No está disponible el motor de evaluación.'};
         return {...row,profile,linkStatus,evaluation};
       });
       preview.summary.matched=preview.rows.filter(row=>row.linkStatus==='linked').length;
