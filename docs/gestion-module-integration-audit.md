@@ -155,3 +155,21 @@ Políticas observadas:
 - Se cargó el helper en la página de Gestión, pero todavía no está conectado a la importación Excel ni a escrituras de base de datos.
 - Se ejecutó una comprobación local con Node.js para los casos principales: rango de 7 días, ingreso reciente, agregado no divisible, riesgo alto, métrica faltante y periodo que cruza dos meses. Resultado: pruebas satisfactorias.
 - El diseño de datos sigue siendo una propuesta; no existe migración aplicada ni cambio de esquema en Supabase.
+
+
+## 12. Lector de Excel: primera implementación aislada
+
+- Se añadió `grayxon-followup-import.js`, un parser de previsualización que identifica las columnas del Excel real de TikTok: periodo, ID, usuario, grupo, agente, incorporación, días desde incorporación, diamantes, duración LIVE y días válidos.
+- El parser convierte duraciones como `130h 55min 50s` a horas decimales, normaliza nombres de usuario y omite duplicados dentro del archivo dejando advertencias.
+- Se exige que el periodo seleccionado coincida exactamente con el periodo acumulado del archivo para habilitar evaluación. Si el manager elige un subperiodo, el parser devuelve una restricción explicativa y no habilita cálculos.
+- Se añadió `tests/grayxon-followup-import.test.js` con casos del formato real: lectura de filas, duración, métricas y bloqueo de subperiodos.
+- El parser se carga en la página de Gestión, pero aún no hay selector de archivo ni previsualización visible. Tampoco se ha incorporado la librería XLSX/SheetJS al HTML: se deja pendiente hasta seleccionar y validar una dependencia concreta, evitando introducir un CDN no auditado.
+- No se ha conectado a Supabase ni persiste archivos o resultados.
+
+## 13. Hallazgo de autorización que bloquea la integración de managers
+
+- La página actual de Gestión valida el acceso exclusivamente consultando `gx_internal_members` por `auth.uid()`.
+- El rol `manager` de `profiles` no concede por sí mismo acceso a esta página. Por tanto, no se debe asumir que los managers actuales pueden entrar en Gestión.
+- No se modificará esta validación de forma general: primero hay que separar el acceso al área operativa interna (Tareas/Solicitudes/Equipo) del acceso a Seguimiento para managers, y mantener RLS en las tablas existentes.
+- La siguiente implementación debe permitir que un manager autorizado entre a la sección Seguimiento sin concederle automáticamente acceso a tareas internas, solicitudes internas, áreas, actividad ni calendarios del personal.
+- Este control de acceso debe resolverse antes de mostrar el flujo de importación a managers o permitirles consultar datos de sus creadores.
