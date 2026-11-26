@@ -86,3 +86,22 @@ No basta con que los archivos existan. En un proyecto de prueba independiente:
 - Supabase producción permanece intacto: migraciones hasta `20261110013339`, sin tablas nuevas de Seguimiento, sin bucket nuevo y sin ramas de desarrollo Supabase.
 - No se ha obtenido un dump PostgreSQL descargado ni una copia de Storage con manifiesto/checksum. Tampoco se ha probado una restauración. Por tanto, el bloqueo de respaldo sigue vigente.
 - El PR #146 permanece en borrador, sin merge ni despliegue.
+
+### Inventario real de Storage (consulta de solo lectura, 26/11/2026)
+
+El proyecto tiene 10 buckets con objetos: 142 archivos y aproximadamente 304 MB según `storage.objects.metadata.size`. El inventario por bucket fue:
+
+| Bucket | Objetos | Bytes |
+|---|---:|---:|
+| announcement-media | 13 | 27,349,283 |
+| gx-earning-program-media | 2 | 3,578,330 |
+| gx-event-media | 44 | 32,051,145 |
+| gx-internal-request-files | 14 | 2,275,280 |
+| gx-internal-task-files | 3 | 616,433 |
+| gx-payment-receipts | 1 | 122,429 |
+| profile-avatars | 53 | 41,462,605 |
+| public-assets | 6 | 3,078,485 |
+| training-resources | 1 | 8,229,209 |
+| training-videos | 5 | 185,286,605 |
+
+El bucket `gx-referral-assets` existe, pero no tiene objetos en el inventario. El bucket nuevo de Seguimiento no existe. Este inventario no es un respaldo: no contiene los binarios ni demuestra que se puedan restaurar. Priorizar especialmente `training-videos`, que representa alrededor de 185 MB.
