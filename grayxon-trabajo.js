@@ -443,6 +443,16 @@
       preview.summary.matched=preview.rows.filter(row=>row.linkStatus==='linked').length;
       preview.summary.ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous').length;
       preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='unmatched').length;
+      const linkedProfiles=preview.rows.filter(row=>row.profile).map(row=>row.profile);
+      const uniqueProfileIds=[...new Set(linkedProfiles.map(profile=>profile.id))];
+      const {data:phoneRows,error:phoneError}=uniqueProfileIds.length
+        ? await sb.from('profile_details').select('user_id,phone').in('user_id',uniqueProfileIds)
+        : {data:[],error:null};
+      if(phoneError)throw new Error('No se pudieron verificar los teléfonos de los creadores: '+phoneError.message);
+      const phoneByUser=new Map((phoneRows||[]).map(row=>[row.user_id,String(row.phone||'').trim()]));
+      const missingPhones=linkedProfiles.filter(profile=>!phoneByUser.get(profile.id))
+        .filter((profile,index,all)=>all.findIndex(item=>item.id===profile.id)===index);
+      preview.missingPhones=missingPhones;
       window.grayxonFollowupPreview=preview;
       window.grayxonFollowupFile=file;
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
@@ -452,6 +462,9 @@
       const rows=preview.rows.map(row=>'<tr><td>@'+esc(row.username)+'</td><td>'+esc(row.profile?.full_name||'No vinculado')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+ (row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+ (row.validDays==null?'—':row.validDays)+'</td><td>'+(row.profile?'Vinculado':'Revisar perfil')+'</td><td>'+esc(classLabels[row.evaluation.classification||row.evaluation.status]||row.evaluation.status)+'</td></tr>').join('');
       target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
         '<div class="gxt-status-note">'+esc(status)+' Periodo del archivo: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
+        (missingPhones.length
+          ? '<section class="gxt-status-note gxt-followup-warning"><strong>Datos de contacto pendientes</strong><p>'+missingPhones.length+' creadores vinculados no tienen teléfono registrado. Puedes copiar sus datos de identificación y solicitar a administración que agregue el número en su perfil.</p><ul>'+missingPhones.map(profile=>'<li><strong>'+esc(profile.full_name||profile.username||'Creador')+'</strong> · @'+esc(profile.username||'')+' · ID TikTok: '+esc(profile.tiktok_creator_id||'No registrado')+' <button type="button" class="gxt-btn" data-copy-missing-phone="'+esc(profile.id)+'">Copiar datos</button></li>').join('')+'</ul></section>'
+          : '<div class="gxt-status-note">Todos los creadores vinculados tienen teléfono registrado.</div>')+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
         '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Perfil Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Perfil</th><th>Evaluación</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
         '<div class="gxt-status-note">Esta es una previsualización. Todavía no se han guardado evaluaciones ni se ha modificado ningún perfil.</div>'+
@@ -459,6 +472,15 @@
           ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar evaluación</button></div>'
           : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que todos los perfiles estén vinculados y que el reporte permita evaluar exactamente el periodo seleccionado.</div>');
       target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
+      target.querySelectorAll('[data-copy-missing-phone]').forEach(button=>{
+        button.addEventListener('click',async()=>{
+          const profile=missingPhones.find(item=>item.id===button.dataset.copyMissingPhone);
+          if(!profile)return;
+          const text='Nombre: '+(profile.full_name||'')+'\\nUsuario Grayxon: @'+(profile.username||'')+'\\nUsuario TikTok: @'+(profile.tiktok_username||profile.username||'')+'\\nID TikTok: '+(profile.tiktok_creator_id||'No registrado');
+          try{await navigator.clipboard.writeText(text);toast('Datos del creador copiados.');}
+          catch(error){toast('No fue posible copiar automáticamente. Selecciona y copia los datos manualmente.');}
+        });
+      });
     }catch(error){
       console.error('[Gestión · Seguimiento] import preview',error);
       target.innerHTML='<div class="gxt-status-note gxt-followup-warning">'+esc(error.message||'No se pudo analizar el archivo.')+'</div>';
@@ -555,14 +577,13 @@
       if(!selectedPlan||selectedPlan.creator_user_id!==creator.id)return toast('Selecciona un plan que pertenezca al creador elegido.');
       const progress=String(data.get('progress_summary')||'').trim();
       if(!progress)return toast('Describe el avance del plan.');
-      const now=new Date().toISOString();
-      const {error:updateLogError}=await sb.from('gx_creator_action_plan_updates').insert({
-        plan_id:selectedPlan.id,progress_summary:progress,proposed_changes:String(data.get('proposed_changes')||'').trim()||null,
-        status:'approved',reviewed_by:state.session.user.id,reviewed_at:now
+      const {error:updateError}=await sb.rpc('gx_manager_update_creator_action_plan',{
+        p_plan_id:selectedPlan.id,
+        p_progress_summary:progress,
+        p_proposed_changes:String(data.get('proposed_changes')||'').trim()||null,
+        p_new_status:String(data.get('plan_status')||'active')
       });
-      if(updateLogError)return toast('No se pudo guardar el historial del plan: '+updateLogError.message);
-      const {error:planError}=await sb.from('gx_creator_action_plans').update({status:String(data.get('plan_status')||'active'),updated_at:now}).eq('id',selectedPlan.id);
-      if(planError)return toast('El avance quedó registrado, pero no se pudo actualizar el estado del plan: '+planError.message);
+      if(updateError)return toast('No se pudo actualizar el plan ni registrar el avance: '+updateError.message);
       form.reset();toast('Plan actualizado correctamente.');loadFollowupWorkspace();return;
     }else if(form.id==='gxFollowupReminderForm'){
       table='gx_creator_followup_reminders';
