@@ -8,7 +8,7 @@ on:
       - 'grayxon-followup-*.js'
       - 'grayxon-trabajo.js'
       - 'tests/grayxon-followup-*.test.js'
-      - 'supabase/migrations/*gx_creator_followup*.sql'
+      - 'supabase/migrations/*.sql'
       - 'docs/gestion-preflight-backup-and-release.md'
       - '.github/workflows/gestion-followup-checks.yml'
   pull_request:
@@ -16,8 +16,9 @@ on:
       - main
     paths:
       - 'grayxon-followup-*.js'
+      - 'grayxon-trabajo.js'
       - 'tests/grayxon-followup-*.test.js'
-      - 'supabase/migrations/*gx_creator_followup*.sql'
+      - 'supabase/migrations/*.sql'
       - '.github/workflows/gestion-followup-checks.yml'
 
 jobs:
@@ -34,3 +35,18 @@ jobs:
         run: node tests/grayxon-followup-calculations.test.js
       - name: Test Excel import parser
         run: node tests/grayxon-followup-import.test.js
+      - name: Install PostgreSQL SQL parser
+        run: python -m pip install --disable-pip-version-check pglast
+      - name: Parse every repository SQL migration
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from pglast import parse_sql
+
+          files = sorted(Path("supabase/migrations").glob("*.sql"))
+          for path in files:
+              parse_sql(path.read_text(encoding="utf-8"))
+              print(f"SQL syntax OK: {path}")
+          print(f"Validated {len(files)} migration file(s).")
+          PY
