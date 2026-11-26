@@ -1,0 +1,95 @@
+name: Gestión follow-up checks
+
+on:
+  push:
+    branches:
+      - feature/gestion-module-2026-11-26
+    paths:
+      - 'grayxon-followup-*.js'
+      - 'grayxon-trabajo.js'
+      - 'grayxon-trabajo-entry.js'
+      - 'tests/grayxon-followup-*.test.js'
+      - 'tests/gestion-followup-migration.test.sql'
+      - 'tests/fixtures/gestion-followup-schema.sql'
+      - 'supabase/migrations/20261127*.sql'
+      - 'docs/gestion-preflight-backup-and-release.md'
+      - '.github/workflows/gestion-followup-checks.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'grayxon-followup-*.js'
+      - 'grayxon-trabajo.js'
+      - 'grayxon-trabajo-entry.js'
+      - 'tests/grayxon-followup-*.test.js'
+      - 'tests/gestion-followup-migration.test.sql'
+      - 'tests/fixtures/gestion-followup-schema.sql'
+      - 'supabase/migrations/20261127*.sql'
+      - '.github/workflows/gestion-followup-checks.yml'
+
+jobs:
+  postgres-migration-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: grayxon_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d grayxon_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Build isolated Supabase schema fixture
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f tests/fixtures/gestion-followup-schema.sql
+      - name: Apply Gestión migrations to ephemeral PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        shell: bash
+        run: |
+          for migration in $(find supabase/migrations -maxdepth 1 -name '20261127*.sql' | sort); do
+            echo "Applying $migration"
+            psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: Verify manager import persistence and duplicate protection
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d grayxon_test -v ON_ERROR_STOP=1 -f tests/gestion-followup-migration.test.sql
+
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check Gestión JavaScript syntax
+        run: node --check grayxon-trabajo.js && node --check grayxon-trabajo-entry.js && node --check grayxon-followup-import.js && node --check grayxon-followup-calculations.js
+      - name: Test evaluation calculations
+        run: node tests/grayxon-followup-calculations.test.js
+      - name: Test Excel import parser
+        run: node tests/grayxon-followup-import.test.js
+      - name: Install PostgreSQL SQL parser
+        run: python -m pip install --disable-pip-version-check pglast
+      - name: Parse Gestión SQL migrations
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from pglast import parse_sql
+
+          files = sorted(Path("supabase/migrations").glob("20261127*.sql"))
+          for path in files:
+              parse_sql(path.read_text(encoding="utf-8"))
+              print(f"SQL syntax OK: {path}")
+          print(f"Validated {len(files)} Gestión migration file(s).")
+          PY
