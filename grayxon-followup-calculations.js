@@ -83,10 +83,10 @@
       status:'evaluated', classification,
       evaluatedStart:iso(evaluableStart), evaluatedEnd:iso(end), evaluableDays,
       validLiveDays:validDays, liveSeconds,
-      targetValidDays:targetDays, targetLiveSeconds,
-      missingValidDays:Math.max(0,targetDays-validDays),
+      targetValidDays:Number(targetDays.toFixed(4)), targetLiveSeconds:Number(targetLiveSeconds.toFixed(2)),
+      missingValidDays:Math.max(0,Number((targetDays-validDays).toFixed(4))),
       missingLiveSeconds:Math.max(0,targetLiveSeconds-liveSeconds),
-      validDaysPct, liveHoursPct,
+      validDaysPct:Number(validDaysPct.toFixed(4)), liveHoursPct:Number(liveHoursPct.toFixed(4)),
       consistencyRecommendation:{hoursPerDay:Number(input.consistencyHoursPerDay ?? 2.5),daysPerWeek:Number(input.consistencyDaysPerWeek ?? 6)}
     };
   }
