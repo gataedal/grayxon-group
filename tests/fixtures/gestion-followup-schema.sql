@@ -20,3 +20,7 @@ $$;
 create function public.is_admin() returns boolean language sql stable security definer set search_path=public as $$
  select exists(select 1 from public.profiles where id=auth.uid() and role='admin' and active)
 $$;
+
+grant usage on schema auth,storage,public to authenticated;
+grant execute on function auth.uid() to authenticated;
+grant select on public.profiles,public.managers,public.teams to authenticated;
