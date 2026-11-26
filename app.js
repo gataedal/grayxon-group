@@ -1530,6 +1530,8 @@ function profileTpl(){
   ensureGrayxonPreferencesStyles();ensureProfileSettingsStyles();
   if(!session||!profile)return authTpl();
   return '<div class="profile-page gx-profile-settings">'+
+    (profile.role==='creator' ? '<section class="card creator-onboarding-avatar"><h2>Tu foto de perfil</h2><div class="creator-profile-manager-row"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">'+(profileDetails?.avatar_url?'<img src="'+esc(profileDetails.avatar_url)+'" alt="Foto de perfil">':'<span>'+esc(profileInitial())+'</span>')+'<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto">✎</button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-profile-manager-info"><strong>Agrega una foto clara</strong><small id="profileAvatarStatus" aria-live="polite">'+(profileDetails?.avatar_url?'Foto agregada':'La foto es necesaria para completar tu perfil')+'</small></div></div></section>' : '')+
+    (isOnboardingCreator() ? '<section class="card creator-onboarding-step"><div class="eyebrow">PRIMEROS PASOS</div><h2>Completa tu perfil</h2><p class="muted">Registra tus datos personales y agrega una foto. No necesitas ingresar dirección ni información de pagos.</p><button type="button" class="secondary" data-profile-section="personal">Completar datos personales</button>'+(isOnboardingProfileComplete()?'<button type="button" class="primary" data-onboarding-start>Continuar a Formación →</button>':'')+'</section>' : '')+
     (profile.role==='creator' ? '<section class="card creator-profile-manager-card" id="creatorProfileManagerCard"><h2><span style="color:#25F4EE">♙</span> Tu manager</h2><div class="creator-profile-manager-row"><div class="creator-profile-manager-avatar creator-profile-manager-fallback">♙</div><div class="creator-profile-manager-info"><strong>Consultando tu equipo…</strong><small>Un momento</small></div></div></section>' : '')+
     '<section class="gx-profile-settings-heading"><h2>Tu información</h2><p>Administra los datos asociados a tu cuenta.</p></section>'+
     '<div><button type="button" class="gx-profile-setting-row" data-profile-section="personal" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"/></svg></span><span class="gx-profile-setting-copy"><strong>Datos personales</strong><small>Correo, teléfono, fecha de nacimiento y ubicación</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPersonal"></div></div>'+
@@ -1591,9 +1593,34 @@ function openProfileSection(section){
   target.scrollIntoView?.({behavior:'smooth',block:'nearest'});
 }
 async function saveProfilePersonal(){
-  const err=document.getElementById('gxProfilePersonalError'),btn=document.getElementById('gxSavePersonal');if(err)err.textContent='';if(!session?.user?.id)return;if(btn)btn.disabled=true;
-  try{const uid=session.user.id;const data={user_id:uid,email:document.getElementById('pEmail')?.value.trim()||null,phone:document.getElementById('pPhone')?.value.trim()||null,country:document.getElementById('pCountry')?.value||null,state_region:document.getElementById('pState')?.value.trim()||null,city:document.getElementById('pCity')?.value.trim()||null,address:document.getElementById('pAddress')?.value.trim()||null,birth_date:document.getElementById('pBirthDate')?.value||null,updated_at:new Date().toISOString()};const {error}=await sb.from('profile_details').upsert(data);if(error)throw error;await loadProfileDetails();updateProfileBadge();closeProfileSection('personal');toast('Cambio exitoso ✓');}
-  catch(e){if(err)err.textContent=e?.message||'No se pudieron guardar los datos personales.';}finally{if(btn)btn.disabled=false;}
+  const err=document.getElementById('gxProfilePersonalError'),btn=document.getElementById('gxSavePersonal');
+  if(err)err.textContent='';
+  if(!session?.user?.id)return;
+  if(btn)btn.disabled=true;
+  try{
+    const uid=session.user.id;
+    const email=document.getElementById('pEmail')?.value.trim()||'';
+    const phone=document.getElementById('pPhone')?.value.trim()||'';
+    const country=document.getElementById('pCountry')?.value||'';
+    const state_region=document.getElementById('pState')?.value.trim()||'';
+    const city=document.getElementById('pCity')?.value.trim()||'';
+    const birth_date=document.getElementById('pBirthDate')?.value||'';
+    if(isOnboardingCreator()&&(!email||!phone||!country||!state_region||!city||!birth_date)){
+      if(err)err.textContent='Completa correo, teléfono, fecha de nacimiento, país, departamento y ciudad. La dirección es opcional.';
+      return;
+    }
+    const data={user_id:uid,email:email||null,phone:phone||null,country:country||null,state_region:state_region||null,city:city||null,address:document.getElementById('pAddress')?.value.trim()||null,birth_date:birth_date||null,updated_at:new Date().toISOString()};
+    const {error}=await sb.from('profile_details').upsert(data);
+    if(error)throw error;
+    await loadProfileDetails();updateProfileBadge();
+    if(isOnboardingCreator()&&!isOnboardingProfileComplete()){
+      if(err)err.textContent='Ahora agrega tu foto de perfil para continuar.';
+      return;
+    }
+    closeProfileSection('personal');toast('Cambio exitoso ✓');
+    if(isOnboardingCreator())nav('training');
+  }catch(e){if(err)err.textContent=e?.message||'No se pudieron guardar los datos personales.';}
+  finally{if(btn)btn.disabled=false;}
 }
 async function saveProfilePayments(){
   const err=document.getElementById('gxProfilePaymentError'),btn=document.getElementById('gxSavePayments');if(err)err.textContent='';if(!session?.user?.id)return;if(btn)btn.disabled=true;
@@ -6756,26 +6783,27 @@ function bind() {
   ensureGrayxonPreferencesStyles();
   $('#installGrayxonDashboard')?.addEventListener('click',installGrayxonApp);
   refreshGrayxonPwaPreferenceUI();
-  const avatarRoot=$('#space');
-  if(avatarRoot && !avatarRoot.dataset.avatarControlsBound){
+  [$('#space'),$('#profile')].filter(Boolean).forEach(avatarRoot=>{
+    if(avatarRoot.dataset.avatarControlsBound)return;
     avatarRoot.dataset.avatarControlsBound='true';
     avatarRoot.addEventListener('click',event=>{
       const edit=event.target?.closest?.('#profilePhotoEdit');
       if(!edit)return;
       event.preventDefault();
-      const input=$('#profileAvatar');
-      if(input) input.click();
+      const input=avatarRoot.querySelector('#profileAvatar');
+      if(input)input.click();
     });
     avatarRoot.addEventListener('change',event=>{
-      if(event.target?.id==='profileAvatar') uploadProfileAvatar();
+      if(event.target?.id==='profileAvatar')uploadProfileAvatar();
     });
     avatarRoot.addEventListener('error',event=>{
       if(event.target?.matches?.('.creator-dashboard-avatar-editable img')){
-        const status=$('#profileAvatarStatus');
+        const status=avatarRoot.querySelector('#profileAvatarStatus');
         if(status)status.textContent='No se pudo cargar la foto guardada. Intenta subirla nuevamente.';
       }
     },true);
-  }
+  });
+  $('#profile')?.querySelector('[data-onboarding-start]')?.addEventListener('click',()=>nav('training'));
   $('#saveHome')?.addEventListener('click', saveHome);
   $('#saveBenefits')?.addEventListener('click', saveBenefits);
   if ($('#gxAppIconFile')) { $('#gxAppIconFile').addEventListener('change', previewGxAppIcon); $('#gxSaveAppIcon')?.addEventListener('click', saveGxAppIcon); }
@@ -6875,7 +6903,7 @@ async function uploadProfileAvatar(){
     if(saveErr) throw new Error('La imagen se subió, pero no se pudo guardar el perfil: '+saveErr.message);
     profileDetails={...(profileDetails||{}),avatar_path:path,avatar_url:url};
     updateProfileBadge();
-    const avatar=$('#space .creator-dashboard-avatar-editable');
+    const avatar=document.querySelector('#space .creator-dashboard-avatar-editable, #profile .creator-dashboard-avatar-editable');
     if(avatar){
       let image=avatar.querySelector('img');
       if(!image){image=document.createElement('img');image.alt='Foto de perfil';avatar.insertBefore(image,avatar.querySelector('#profilePhotoEdit')||avatar.firstChild);}
