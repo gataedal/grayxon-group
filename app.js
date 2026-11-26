@@ -1248,6 +1248,7 @@ function nav(p, push = true) {
   if (p === 'events' && typeof ensureEventsPage === 'function') ensureEventsPage();
   if (p === 'force-password' && !session) p = 'auth';
   if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
+  if (session && isOnboardingCreator() && !['profile','training','force-password','auth'].includes(p)) p = 'profile';
   // Sin sesión, Inicio debe volver a la portada pública nueva y no mostrar la portada antigua del portal.
   if (!session && p === 'home') {
     window.location.replace('./index.html?v=20261019');
@@ -1386,7 +1387,7 @@ async function render(){
   if(current==='training')await trainingTpl();
   if(current==='live-training')await liveTrainingTpl();
   if(current==='missions')await missionsTpl();
-  if(current==='profile'){ $('#profile').innerHTML=await profileTpl(); if(profile?.role==='creator') loadCreatorProfileManager(); }
+  if(current==='profile'){ await loadProfileDetails(); $('#profile').innerHTML=await profileTpl(); if(profile?.role==='creator') loadCreatorProfileManager(); }
   bind(); updateHeaderAccessUI(); if(current==='profile') ensureCreatorNotificationMenuAction(); updateProfileBadge(); updateNotificationsUI(); updateCreatorSpaceFloat(); updateCreatorTopNav();
   if(session && ['space','manager','admin'].includes(current)) gxRefreshAnnouncementUnreadCount();
   $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===current || (b.dataset.page==='space' && current==='manager')));
@@ -1642,7 +1643,7 @@ async function saveFirstPassword(){
   const {data:completeData,error:profileError}=await sb.functions.invoke('complete-first-login',{body:{password:a,confirm_password:b}});
   if(profileError||completeData?.error){if(err)err.textContent=completeData?.error||profileError?.message||'No se pudo completar el cambio de contraseña.';if(btn)btn.disabled=false;return;}
   profile.must_change_password=false;toast('Contraseña actualizada ✓');
-  nav(profile.role==='admin'?'admin':profile.role==='manager'?'manager':'space');
+  nav(profile.role==='admin'?'admin':profile.role==='manager'?'manager':isOnboardingCreator()?'profile':'space');
 }
 
 function authTpl() {
@@ -1692,14 +1693,19 @@ function authTpl() {
   </section>`;
 }
 
+const ONBOARDING_MODULE_IDS = new Set(['a676aec5-1514-4640-8884-8e9e02b2e90a','b7666174-c171-48ed-afe2-970b47c0c8fa','5d5e7196-7f15-4d9e-a53e-6940b21d5a75']);
+function isOnboardingCreator(){return profile?.role==='creator'&&profile?.onboarding_required===true&&!profile?.onboarding_completed_at;}
+function isOnboardingVideo(lesson){return !!lesson&&ONBOARDING_MODULE_IDS.has(lesson.module_id)&&lesson.type==='video'&&!!lesson.video_path;}
+function getRequiredOnboardingVideos(lessons=window._lessons||[]){return lessons.filter(isOnboardingVideo);}
+function isOnboardingProfileComplete(){const d=profileDetails||{};return !!(String(d.email||'').trim()&&String(d.phone||'').trim()&&d.birth_date&&String(d.country||'').trim()&&String(d.state_region||'').trim()&&String(d.city||'').trim()&&(String(d.avatar_path||'').trim()||String(d.avatar_url||'').trim()));}
 async function getProfile() {
   if (!session) return null;
   try {
-    const query = sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,must_change_password').eq('id', session.user.id).maybeSingle();
+    const query = sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,must_change_password,onboarding_required,onboarding_completed_at').eq('id', session.user.id).maybeSingle();
     const result = await Promise.race([query, new Promise(resolve => setTimeout(() => resolve({data:null,error:new Error('timeout')}), 5000))]);
     if (result?.data) return result.data;
   } catch(e) {}
-  return { id: session.user.id, username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador', full_name: session.user.user_metadata?.full_name || '', role:'creator', active:true, team_id:null, manager_id:null, must_change_password:false };
+  return { id: session.user.id, username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador', full_name: session.user.user_metadata?.full_name || '', role:'creator', active:true, team_id:null, manager_id:null, must_change_password:false, onboarding_required:false, onboarding_completed_at:null };
 }
 
 async function loadCreatorAssignment(){
@@ -4354,6 +4360,8 @@ async function trainingTpl(options = {}) {
     return;
   }
 
+  if(isOnboardingCreator()){await loadProfileDetails();if(!isOnboardingProfileComplete()){nav('profile');toast('Completa tus datos personales y agrega tu foto para continuar.');return;}}
+
   const [{ data: modules }, { data: lessons }, { data: progress }] = await Promise.all([
     sb.from('modules').select('id,title,description,sort_order').eq('published', true).order('sort_order'),
     sb.from('lessons').select('id,module_id,title,description,type,content,video_path,resource_path,sort_order').eq('published', true).order('sort_order'),
@@ -4370,7 +4378,7 @@ async function trainingTpl(options = {}) {
   const totalLessons = orderedLessons.length;
   const totalDone = orderedLessons.filter(l => done.has(l.id)).length;
   const totalPct = totalLessons ? Math.round(totalDone / totalLessons * 100) : 0;
-  const nextPending = orderedLessons.find(l => !done.has(l.id));
+  const nextPending = isOnboardingCreator() ? getRequiredOnboardingVideos(orderedLessons).find(l => !done.has(l.id)) : orderedLessons.find(l => !done.has(l.id));
 
   const moduleData = (modules || []).map((m, mi) => {
     const ml = orderedLessons.filter(l => l.module_id === m.id);
@@ -4387,7 +4395,7 @@ async function trainingTpl(options = {}) {
     return `<article class="library-module-card ${complete ? 'is-complete' : ''} ${isNext ? 'is-next-module' : ''}" data-formation-module-card="${m.id}">
       <div class="library-module-cover cover-${mi % 4}"><span class="library-cover-number">${String(mi+1).padStart(2,'0')}</span><span class="library-cover-symbol">${complete ? '✓' : isNext ? '▶' : '◈'}</span><span class="library-cover-tag">${complete ? 'COMPLETADO' : isNext ? 'EN CURSO' : 'MÓDULO'}</span></div>
       <div class="library-module-body"><div class="library-module-meta"><span>${ml.length} ${ml.length===1?'contenido':'contenidos'}</span><span>${md}/${ml.length}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="true"><span>Ver contenidos</span><b>⌄</b></button></div>
-      <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
+      <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${isOnboardingCreator()?(isOnboardingVideo(l)&&!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''):(!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':'')}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
     </article>`;
   };
 
@@ -4461,7 +4469,7 @@ function syncFormationLessonListState(){
   const lessons = window._lessons || [];
   const modules = window._modules || [];
   const done = window._done || new Set();
-  const nextPending = lessons.find(l => !done.has(l.id)) || null;
+  const nextPending = isOnboardingCreator() ? getRequiredOnboardingVideos(lessons).find(l => !done.has(l.id)) || null : lessons.find(l => !done.has(l.id)) || null;
 
   for(const lesson of lessons){
     const button = document.querySelector(`#training [data-lesson="${CSS.escape(lesson.id)}"]`);
@@ -4623,6 +4631,19 @@ async function advanceAfterLesson(id, options = {}){
     return;
   }
 
+  if(isOnboardingCreator()){
+    const required=getRequiredOnboardingVideos();
+    if(required.length&&required.every(item=>window._done.has(item.id))){
+      const {data:completed,error}=await sb.rpc('complete_creator_onboarding');
+      if(!error&&completed===true){
+        profile.onboarding_completed_at=new Date().toISOString();
+        const view=$('#lessonView');
+        if(view){view.classList.remove('hidden');view.classList.add('lesson-focus-active');const whatsapp='https://api.whatsapp.com/send/?phone=573126283007&text=Ya%20complete%20mis%20primeros%20pasos&type=phone_number&app_absent=0';view.innerHTML=`<div class="formation-complete-state"><div class="formation-complete-icon">✓</div><h2>¡Primeros pasos completados!</h2><p>Terminaste los videos obligatorios. Tu acceso al portal está habilitado.</p><a class="continue-whatsapp" href="${whatsapp}" target="_blank" rel="noopener noreferrer">CONTINUAR POR WHATSAPP ↗</a><button type="button" class="primary" id="onboardingEnter">Entrar al portal</button></div>`;$('#onboardingEnter')?.addEventListener('click',()=>nav('space'));}
+        return;
+      }
+      if(error)console.error('ONBOARDING COMPLETION ERROR:',error);
+    }
+  }
   renderFormationCompletedState();
 }
 
