@@ -178,10 +178,13 @@
   function renderNav() {
     const items = state.isAdmin
       ? [
-          ['home','⌂','Resumen'],['tasks','▤','Todas las tareas'],['requests','↗','Solicitudes'],
+          ['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
           ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
         ]
-      : [['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Mis solicitudes'],['calendar','▦','Calendario']];
+      : [
+          ['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
+          ['calendar','▦','Calendario']
+        ];
     nav.innerHTML = items.map(([key,icon,label]) =>
       '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span>'+label+'</button>'
     ).join('');
@@ -301,6 +304,19 @@
       '<section class="gxt-panel"><div class="gxt-table-wrap"><table class="gxt-table"><thead><tr><th>Fecha</th><th>Integrante</th><th>Tarea</th><th>Movimiento</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(rows?'':'<div class="gxt-empty">Todavía no hay actividad registrada.</div>')+'</section>';
   }
 
+  function renderFollowupPage() {
+    main.innerHTML = pageHead('Seguimiento de creadores','Evaluaciones por periodo, contacto, observaciones y planes de acción del equipo.')+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Seguimiento de creadores</h2><span class="gxt-chip">En preparación</span></div>'+
+      '<p>Esta sección reunirá las evaluaciones importadas desde TikTok LIVE, el historial mensual y los compromisos de cada creador.</p>'+
+      '<div class="gxt-status-note">La importación y evaluación se habilitarán cuando esté lista la estructura de datos y se pueda validar el respaldo de la información. Los reportes agregados no se dividirán artificialmente en periodos más cortos.</div></section>';
+  }
+
+  function renderReportsPage() {
+    main.innerHTML = pageHead('Reportes','Consulta de reportes de Gestión.')+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Reportes</h2><span class="gxt-chip">Próximamente</span></div>'+
+      '<p>Este espacio queda reservado para los reportes de Gestión. Su contenido y funcionamiento se configurarán en una siguiente etapa.</p></section>';
+  }
+
   function renderPage() {
     renderNav();
     if (state.tab === 'tasks') return renderTasksPage();
@@ -309,6 +325,8 @@
     if (state.tab === 'departments' && state.isAdmin) return renderDepartmentsPage();
     if (state.tab === 'activity' && state.isAdmin) return renderActivityPage();
     if (state.tab === 'calendar') return renderCalendarLinkPage();
+    if (state.tab === 'followup') return renderFollowupPage();
+    if (state.tab === 'reports') return renderReportsPage();
     renderDashboard();
   }
 
