@@ -1,0 +1,30 @@
+name: Gestión follow-up checks
+
+on:
+  push:
+    branches:
+      - feature/gestion-module-2026-11-26
+    paths:
+      - 'grayxon-followup-*.js'
+      - 'tests/grayxon-followup-*.test.js'
+      - '.github/workflows/gestion-followup-checks.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'grayxon-followup-*.js'
+      - 'tests/grayxon-followup-*.test.js'
+      - '.github/workflows/gestion-followup-checks.yml'
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Test evaluation calculations
+        run: node tests/grayxon-followup-calculations.test.js
+      - name: Test Excel import parser
+        run: node tests/grayxon-followup-import.test.js
