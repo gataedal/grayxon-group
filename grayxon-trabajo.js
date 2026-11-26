@@ -361,7 +361,6 @@
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Reglas de evaluación</h2></div><p>Las metas mensuales iniciales son 90 horas LIVE y 22 días válidos. La recomendación de constancia es 2 h 30 min diarios, 6 días por semana.</p><div class="gxt-status-note">Si el Excel contiene cifras acumuladas, solo se podrá evaluar exactamente el periodo exportado. Para rangos más cortos necesitaremos el reporte diario de TikTok.</div></section>';
     const fileInput=document.getElementById('gxFollowupFile');
     const button=main.querySelector('[data-followup-preview]');
-    main.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
     fileInput?.addEventListener('change',()=>{
       const file=fileInput.files?.[0]||null;
       document.getElementById('gxFollowupFileName').textContent=file?file.name:'Ningún archivo seleccionado';
@@ -436,6 +435,7 @@
         (preview.canEvaluate && preview.summary.matched===preview.summary.creators && preview.rows.every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
           ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar evaluación</button></div>'
           : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que todos los perfiles estén vinculados y que el reporte permita evaluar exactamente el periodo seleccionado.</div>');
+      target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
     }catch(error){
       console.error('[Gestión · Seguimiento] import preview',error);
       target.innerHTML='<div class="gxt-status-note gxt-followup-warning">'+esc(error.message||'No se pudo analizar el archivo.')+'</div>';
