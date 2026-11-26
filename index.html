@@ -544,6 +544,19 @@ main > footer,
   #beneficios .gx-benefits-video video { height:40svh;max-height:340px; }
 }
 
+
+/* Video vertical con laterales ambientales y sección compacta en móvil. */
+#beneficios .gx-video-frame{position:relative;width:100%;height:clamp(300px,58svh,560px);overflow:hidden;border-radius:13px;background:#080b11;isolation:isolate}
+#beneficios .gx-video-backdrop{position:absolute;inset:-8%;width:116%!important;height:116%!important;max-height:none!important;aspect-ratio:auto!important;object-fit:cover!important;filter:blur(22px) brightness(.42);opacity:.9;pointer-events:none}
+#beneficios .gx-video-main{position:relative;z-index:1;display:block;width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;object-fit:contain!important;background:transparent!important;margin:0 auto;border-radius:0}
+@media(max-width:720px){
+ #beneficios.section{min-height:0!important;height:auto!important;justify-content:flex-start!important;padding-top:8px!important;padding-bottom:18px!important;gap:8px!important}
+ #beneficios .gx-benefits-stage{margin-top:0!important}
+ #beneficios .gx-video-frame{height:clamp(300px,54svh,470px)}
+ #beneficios .gx-benefits-video{padding:9px}
+}
+@media(max-width:390px){#beneficios .gx-video-frame{height:clamp(280px,48svh,400px)}}
+
 </style><script>
 /* Mantiene compatibles los enlaces profundos existentes del portal y las notificaciones. */
 (function(){
@@ -589,7 +602,10 @@ main > footer,
   <div class="gx-benefits-stage">
     <div class="gx-benefits-video">
       <div class="source-video-heading"><span>✦</span><div><strong>Beneficios y requisitos</strong><small>Descubre todo lo que tenemos para acompañarte.</small></div></div>
-      <video controls playsinline preload="metadata" src="./assets/Beneficios_y_requisitos.mp4"></video>
+      <div class="gx-video-frame">
+        <video class="gx-video-backdrop" autoplay muted loop playsinline preload="metadata" aria-hidden="true" src="./assets/Beneficios_y_requisitos.mp4"></video>
+        <video class="gx-video-main" controls playsinline preload="metadata" src="./assets/Beneficios_y_requisitos.mp4"></video>
+      </div>
       <div class="gx-benefits-actions">
         <button type="button" class="btn continue-whatsapp" id="gx-open-benefits">DETALLES <span aria-hidden="true">↗</span></button>
         <a class="btn continue-whatsapp" href="https://api.whatsapp.com/send/?phone=573126283007&text=Hola%2C%20quiero%20continuar%20mi%20proceso&type=phone_number&app_absent=0" target="_blank" rel="noopener noreferrer" aria-label="Continuar mi proceso por WhatsApp">CONTINUAR MI PROCESO <span aria-hidden="true">↗</span></a>
