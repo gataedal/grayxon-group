@@ -28,6 +28,10 @@ begin
  if not exists(select 1 from public.gx_creator_followup_evaluations where import_id=v_import and creator_user_id=v_creator) then
   raise exception 'Expected evaluation row was not persisted';
  end if;
+ perform public.gx_manager_update_creator_phone(v_creator,'+573001234567');
+ if not exists(select 1 from public.profile_details where user_id=v_creator and phone='+573001234567') then
+  raise exception 'Manager phone RPC did not persist the creator phone';
+ end if;
  -- Add a second creator assigned to another manager; manager A must not read it.
  insert into auth.users(id) values('10000000-0000-0000-0000-000000000002'),('20000000-0000-0000-0000-000000000002');
  insert into public.managers(id,user_id,active) values('30000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002',true);
