@@ -97,6 +97,7 @@
     const seen = new Set();
     const periods = new Map();
     let sheetUsed = null;
+    let invalidPeriodRows = 0;
 
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName];
@@ -112,6 +113,7 @@
         if (!username) continue;
         const period = parsePeriod(row[columns.period]);
         if (!period) {
+          invalidPeriodRows++;
           warnings.push('Fila ' + (i + 1) + ': no se pudo interpretar el periodo.');
           continue;
         }
@@ -160,7 +162,7 @@
       mixedPeriods,
       selectedPeriod: { start, end },
       exactPeriod,
-      canEvaluate: !mixedPeriods && exactPeriod && allMetricsPresent,
+      canEvaluate: !mixedPeriods && invalidPeriodRows === 0 && exactPeriod && allMetricsPresent,
       granularity: dailyMetricsAvailable ? 'daily' : 'period_aggregate',
       rows,
       warnings: Array.from(new Set(warnings.concat(mixedPeriods ? ['El archivo contiene más de un periodo de datos. No se permite evaluar ni guardar esta importación.'] : []))),
