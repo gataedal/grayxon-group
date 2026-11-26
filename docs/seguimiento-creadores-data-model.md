@@ -126,7 +126,7 @@ Actualizaciones:
 - `id`, `plan_id`, `evaluation_id` nullable, `progress_summary`, `proposed_changes`, `status` (`draft`, `pending_manager_review`, `approved`, `rejected`).
 - `created_at`, `reviewed_by`, `reviewed_at`, `review_note`.
 
-Las evaluaciones futuras pueden generar una propuesta de actualización del plan, pero no modificarlo automáticamente. El manager revisa y aprueba antes de registrar cambios. Esto preserva la decisión acordada.
+El manager puede actualizar directamente el plan de sus creadores asignados. Cada avance queda registrado en `gx_creator_action_plan_updates` como historial de gestión; no requiere aprobación administrativa.
 
 ## 3. Fórmula y reglas de evaluación
 
@@ -157,7 +157,7 @@ Antes de habilitar evaluaciones por periodos cortos, probar un export de TikTok 
 
 - Fuente única del teléfono: `profile_details.phone`.
 - No añadir `phone` a ninguna tabla de Seguimiento.
-- La edición por manager debe implementarse mediante una RPC estrecha que valide en servidor que el usuario autenticado es manager activo y que `profiles.manager_id` del creador coincide con `current_manager_id()`; admin puede editar cualquier creador.
+- Los managers solo pueden consultar el teléfono; no pueden insertarlo ni modificarlo. Administración agrega o corrige el número desde los datos del creador. La RPC de edición para managers debe permanecer eliminada.
 - No ampliar una policy general de UPDATE de `profile_details` para todos los managers.
 - RLS en las tablas nuevas debe limitar al manager a su equipo actual y al admin a todos los equipos. Además, las operaciones de escritura deben validar el manager/creador en triggers o RPCs para evitar suplantación mediante IDs enviados desde el navegador.
 - Cuentas con rol creator no deben tener permisos sobre las tablas de Seguimiento.
@@ -180,7 +180,7 @@ Antes de habilitar evaluaciones por periodos cortos, probar un export de TikTok 
 6. Implementar cálculo puro con pruebas para periodos 3/7/15 días, mes completo, alta reciente, límites de mes, datos ausentes y reimportación.
 7. Implementar contactos/WhatsApp, confirmación manual y recordatorios.
 8. Implementar observaciones/compromisos e historial mensual.
-9. Implementar planes de acción y propuestas de actualización pendientes de aprobación.
+9. Permitir que los managers creen, actualicen y gestionen directamente sus planes; conservar el historial de avances.
 10. Implementar la vista de administración, filtros por manager/equipo y parámetros versionados.
 11. Añadir la vista **Planes de acción** separada de **Multimedia** en entregas del creador, mostrando inicialmente el informe y el aviso acordado: “Si tienes dudas o sugerencias, contacta a tu manager”.
 12. Pruebas RLS por admin, manager asignado, manager no asignado y creator; pruebas de persistencia y responsive.
