@@ -247,3 +247,21 @@ Políticas observadas:
 - El workflow ahora también se dispara cuando cambia la migración de Seguimiento, de modo que la preparación SQL no queda fuera del circuito de validación de Gestión.
 - **No se ha creado el bucket, no se ha aplicado la migración, no se han modificado políticas reales, no se han cargado archivos y no se ha desplegado el portal.**
 - La persistencia sigue pendiente de validación en un proyecto Supabase de staging y de completar respaldos recuperables. El hash se usa como identificador de duplicados aportado por el cliente; no se presenta como verificación criptográfica independiente del contenido en el servidor.
+
+
+## 18. Verificación adicional de RLS para la entrada de managers (26/11/2026)
+
+Consulta de solo lectura a `pg_policies` en el proyecto de producción:
+
+- `profiles`: el usuario puede leer su propio perfil; los managers tienen además lectura de creadores asignados mediante `current_manager_id()`.
+- `managers`: existe una política de lectura del propio registro mediante `id = current_manager_id()`.
+- `gx_internal_members`: cada usuario puede leer su propia membresía; administración conserva su política de gestión.
+
+Esto confirma que las dos consultas de validación del acceso manager (perfil propio y registro manager propio) tienen políticas SELECT compatibles en el esquema observado. No se cambió ninguna política. Esta comprobación no equivale a una prueba integral de sesión en navegador ni habilita todavía lectura/escritura de Seguimiento.
+
+## 19. Retiro de migración defectuosa y validación automatizada
+
+- La migración SQL inicial de Seguimiento se retiró de la rama de feature porque contenía sintaxis truncada/duplicada. No debe aplicarse ni recuperarse como base de despliegue.
+- El workflow de Gestión ahora instala `pglast` en el runner efímero de GitHub Actions y analiza sintácticamente cada archivo `supabase/migrations/*.sql`, además de las pruebas JavaScript existentes.
+- Esta validación SQL es sintáctica; no demuestra compatibilidad semántica con el esquema real ni sustituye las pruebas RLS y transaccionales en PostgreSQL temporal.
+- La eliminación de la migración no altera el proyecto Supabase. Consulta de solo lectura posterior: 0 tablas, 0 políticas y 0 bucket de Seguimiento.
