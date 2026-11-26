@@ -8,7 +8,8 @@ on:
       - 'grayxon-followup-*.js'
       - 'grayxon-trabajo.js'
       - 'tests/grayxon-followup-*.test.js'
-      - 'grayxon-trabajo.js'
+      - 'supabase/migrations/*gx_creator_followup*.sql'
+      - 'docs/gestion-preflight-backup-and-release.md'
       - '.github/workflows/gestion-followup-checks.yml'
   pull_request:
     branches:
@@ -16,6 +17,7 @@ on:
     paths:
       - 'grayxon-followup-*.js'
       - 'tests/grayxon-followup-*.test.js'
+      - 'supabase/migrations/*gx_creator_followup*.sql'
       - '.github/workflows/gestion-followup-checks.yml'
 
 jobs:
