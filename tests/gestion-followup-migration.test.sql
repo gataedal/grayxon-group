@@ -37,6 +37,16 @@ begin
  insert into public.profiles(id,role,active,manager_id,username)
  values('10000000-0000-0000-0000-000000000002','manager',true,'30000000-0000-0000-0000-000000000002','manager_b'),
        ('20000000-0000-0000-0000-000000000002','creator',true,'30000000-0000-0000-0000-000000000002','creator_b');
+ insert into storage.objects(bucket_id,name,owner_id)
+ values('gx-creator-followup-reports','10000000-0000-0000-0000-000000000002/foreign.xlsx','10000000-0000-0000-0000-000000000002');
+ insert into public.gx_creator_followup_imports(
+  uploaded_by,manager_id,file_name,storage_path,file_sha256,selected_start_date,selected_end_date,
+  source_start_date,source_end_date,source_granularity,status
+ ) values(
+  '10000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000002','foreign.xlsx',
+  '10000000-0000-0000-0000-000000000002/foreign.xlsx',repeat('f',64),
+  '2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily','processed'
+ );
  insert into public.gx_creator_action_plans(id,creator_user_id,manager_id,title,objective,created_by)
  values('50000000-0000-0000-0000-000000000001',v_creator,v_manager_id,'Plan test','Objetivo de prueba',v_manager_user);
  insert into public.gx_creator_action_plan_updates(id,plan_id,progress_summary,status)
@@ -101,17 +111,44 @@ declare v_count integer; v_rows integer;
 begin
  select count(*) into v_count from public.gx_creator_followup_evaluations;
  if v_count<>1 then raise exception 'Manager RLS should expose only the assigned creator; got %',v_count; end if;
- update public.gx_creator_action_plans set status='completed',updated_at=now()
- where id='50000000-0000-0000-0000-000000000001';
- get diagnostics v_rows=row_count;
- if v_rows<>1 then raise exception 'Manager must be able to update their own creator action plan'; end if;
- insert into public.gx_creator_action_plan_updates(plan_id,progress_summary,proposed_changes,status,reviewed_by,reviewed_at)
- values('50000000-0000-0000-0000-000000000001','Avance registrado por manager','Se actualizó el estado','approved',auth.uid(),now());
+ perform public.gx_manager_update_creator_action_plan(
+  '50000000-0000-0000-0000-000000000001','Avance registrado por manager',
+  'Se actualizó el estado','completed'
+ );
+ if not exists(select 1 from public.gx_creator_action_plans
+   where id='50000000-0000-0000-0000-000000000001' and status='completed') then
+  raise exception 'La RPC debe actualizar el estado del plan';
+ end if;
+ if not exists(select 1 from public.gx_creator_action_plan_updates
+   where plan_id='50000000-0000-0000-0000-000000000001'
+     and progress_summary='Avance registrado por manager' and status='approved') then
+  raise exception 'La RPC debe registrar el avance de forma atómica';
+ end if;
+ if (select count(*) from storage.objects where bucket_id='gx-creator-followup-reports')<>1 then
+  raise exception 'Manager A must only read their own uploaded Excel file';
+ end if;
  begin
   update public.profile_details set phone='+573001234567' where user_id='20000000-0000-0000-0000-000000000001';
   raise exception 'Manager must not update creator phone';
  exception when insufficient_privilege then
   null;
  end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000002',false);
+set role authenticated;
+do $$
+begin
+ begin
+  perform public.gx_manager_update_creator_action_plan(
+   '50000000-0000-0000-0000-000000000001','Intento ajeno',null,'completed'
+  );
+  raise exception 'Manager B must not update manager A plan';
+ exception when others then
+  if sqlerrm='Manager B must not update manager A plan' then raise; end if;
+ end;
+ if (select count(*) from storage.objects where bucket_id='gx-creator-followup-reports')<>1 then
+  raise exception 'Manager B must only read their own uploaded Excel file';
+ end if;
 end $$;
 reset role;
