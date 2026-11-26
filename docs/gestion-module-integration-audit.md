@@ -247,7 +247,7 @@ Políticas observadas:
 - Se añadió `docs/gestion-preflight-backup-and-release.md` con el procedimiento de respaldo lógico, respaldo independiente de Storage, verificación de restauración y secuencia de activación aislada. Las instrucciones distinguen expresamente que el dump de PostgreSQL no incluye los archivos binarios de Storage.
 - El workflow ahora también se dispara cuando cambia la migración de Seguimiento, de modo que la preparación SQL no queda fuera del circuito de validación de Gestión.
 - **No se ha creado el bucket, no se han aplicado migraciones, no se han modificado políticas reales, no se han cargado archivos y no se ha desplegado el portal.**
-- Se agregó un workflow con PostgreSQL efímero para ejecutar las migraciones nuevas y probar persistencia, duplicados, RLS de manager y RPC de teléfono. El resultado todavía no está confirmado.
+- Se agregó un workflow con PostgreSQL efímero para ejecutar las migraciones nuevas y probar persistencia, duplicados, RLS de manager RPC de teléfono y protección para que el manager no pueda aprobar sus propias propuestas de cambios. El resultado todavía no está confirmado.
 - El hash SHA-256 se calcula en el navegador y se utiliza para detección de duplicados; el servidor no vuelve a descargar y recalcular el archivo.
 
 
@@ -263,7 +263,7 @@ Esto confirma que las dos consultas de validación del acceso manager (perfil pr
 
 ## 19. Retiro de migración defectuosa y validación automatizada
 
-- La primera migración SQL de Seguimiento se retiró por errores de sintaxis. Se reconstruyó desde cero en tres migraciones nuevas, aisladas en la rama de feature.
+- La primera migración SQL de Seguimiento se retiró por errores de sintaxis. Se reconstruyó desde cero en cuatro migraciones nuevas, aisladas en la rama de feature.
 - El workflow instala `pglast`, revisa la sintaxis de las migraciones y dispone de un servicio PostgreSQL efímero para ejecutar las tres migraciones y probar guardado, duplicados, aislamiento de manager y RPC de teléfono.
 - La prueba efímera usa un fixture mínimo compatible con las estructuras reales consultadas. No sustituye una prueba integral en un proyecto Supabase de staging ni la validación con cuentas reales y Storage API.
 - Consulta de solo lectura en producción después de los cambios: 0 tablas públicas de Seguimiento. No se aplicó ninguna migración ni se creó el bucket real.
