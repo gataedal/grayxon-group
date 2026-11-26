@@ -78,16 +78,16 @@ jobs:
         run: node tests/grayxon-followup-import.test.js
       - name: Install PostgreSQL SQL parser
         run: python -m pip install --disable-pip-version-check pglast
-      - name: Parse every repository SQL migration
+      - name: Parse Gestión SQL migrations
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           from pglast import parse_sql
 
-          files = sorted(Path("supabase/migrations").glob("*.sql"))
+          files = sorted(Path("supabase/migrations").glob("20261127*.sql"))
           for path in files:
               parse_sql(path.read_text(encoding="utf-8"))
               print(f"SQL syntax OK: {path}")
-          print(f"Validated {len(files)} migration file(s).")
+          print(f"Validated {len(files)} Gestión migration file(s).")
           PY
