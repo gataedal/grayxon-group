@@ -890,4 +890,100 @@ main > footer,
 })();
 </script>
 
+<script>
+(function(){
+  const cues=[...document.querySelectorAll('[data-scroll-cue]')];
+  const sections=[...document.querySelectorAll('main > section, main > .intro-panel')];
+  function update(){
+    let active=null, best=Infinity;
+    sections.forEach(section=>{
+      const rect=section.getBoundingClientRect();
+      const distance=Math.abs(rect.top-70);
+      if(rect.bottom>70 && rect.top<innerHeight && distance<best){best=distance;active=section;}
+    });
+    cues.forEach(cue=>{
+      const owner=cue.closest('section') || cue.closest('.intro-panel');
+      cue.style.visibility=owner===active?'visible':'hidden';
+      cue.style.pointerEvents=owner===active?'auto':'none';
+    });
+  }
+  document.addEventListener('click',event=>{
+    const cue=event.target.closest('[data-scroll-cue]');
+    if(!cue)return;
+    const href=cue.getAttribute('href')||'';
+    if(!href.startsWith('#'))return;
+    const target=document.querySelector(href);
+    if(!target)return;
+    event.preventDefault();
+    const header=document.querySelector('header');
+    const offset=(header?.getBoundingClientRect().height||0)+8;
+    const top=target.getBoundingClientRect().top+window.scrollY-offset;
+    window.scrollTo({top,behavior:'smooth'});
+  });
+  window.addEventListener('scroll',update,{passive:true});
+  window.addEventListener('resize',update);
+  window.addEventListener('load',update);
+  update();
+})();
+</script>
 </body></html>
+
+/* Ajustes móviles: sección compacta, botones contenidos y navegación sin restos de la sección anterior. */
+@media (max-width:720px) {
+  #beneficios.section {
+    min-height:calc(100svh - 70px);
+    height:auto;
+    justify-content:flex-start !important;
+    align-items:stretch;
+    gap:10px !important;
+    padding:12px 14px 22px !important;
+    scroll-margin-top:70px !important;
+  }
+  #beneficios .gx-section-kicker { margin:0 0 2px !important; }
+  #beneficios .gx-benefits-stage {
+    width:100%;
+    max-width:560px;
+    display:block;
+    margin:0 auto;
+  }
+  #beneficios .gx-benefits-video {
+    width:100%;
+    padding:10px;
+    border-radius:17px;
+  }
+  #beneficios .source-video-heading { margin-bottom:9px; }
+  #beneficios .gx-benefits-video video {
+    width:100%;
+    height:clamp(280px,43svh,390px);
+    max-height:390px;
+    aspect-ratio:9/16;
+    object-fit:contain;
+  }
+  #beneficios .gx-benefits-actions {
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:8px;
+    margin-top:10px;
+    width:100%;
+  }
+  #beneficios .gx-benefits-actions .btn {
+    display:flex;
+    width:100%;
+    min-width:0;
+    min-height:46px;
+    padding:11px 12px;
+    justify-content:center;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    text-align:center;
+    line-height:1.25;
+    font-size:11px;
+    letter-spacing:.025em;
+  }
+  #beneficios > .section-scroll-cue { display:none !important; }
+}
+@media(max-width:390px) {
+  #beneficios.section { padding-left:12px !important;padding-right:12px !important; }
+  #beneficios .gx-benefits-video { padding:9px; }
+  #beneficios .gx-benefits-video video { height:40svh; max-height:340px; }
+}
