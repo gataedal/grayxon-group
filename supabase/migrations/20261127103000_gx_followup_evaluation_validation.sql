@@ -21,8 +21,8 @@ as $$
 declare
   v_import public.gx_creator_followup_imports%rowtype;
   v_params jsonb;
-  v_expected_days numeric(14,4):=0;
-  v_expected_seconds numeric(18,2):=0;
+  v_expected_days numeric:=0;
+  v_expected_seconds numeric:=0;
   v_cursor date;
   v_segment_end date;
   v_days integer;
@@ -68,7 +68,7 @@ begin
     v_days:=0;
     v_cursor:=new.evaluated_start_date;
     while v_cursor<=new.evaluated_end_date loop
-      v_segment_end:=least(v_import.selected_end_date,(date_trunc('month',v_cursor)::date+interval '1 month - 1 day')::date);
+      v_segment_end:=least(new.evaluated_end_date,(date_trunc('month',v_cursor)::date+interval '1 month - 1 day')::date);
       v_segment_days:=(v_segment_end-v_cursor)+1;
       v_days:=v_days+v_segment_days;
       v_expected_days:=v_expected_days+
