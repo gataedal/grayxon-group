@@ -69,6 +69,14 @@ begin
  exception when others then
   if sqlerrm='Out-of-source period should have failed' then raise; end if;
  end;
+ -- Aggregate files cannot be used to evaluate a smaller selected window.
+ begin
+  perform public.gx_save_creator_followup_import('aggregate.xlsx',v_manager_user::text||'/test.xlsx',
+   repeat('d',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-03','period_aggregate',v_payload);
+  raise exception 'Partial aggregate evaluation should have failed';
+ exception when others then
+  if sqlerrm='Partial aggregate evaluation should have failed' then raise; end if;
+ end;
  begin
   perform public.gx_save_creator_followup_import('test.xlsx',v_manager_user::text||'/test.xlsx',
    repeat('a',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily',v_payload);
