@@ -635,15 +635,16 @@
         .gte('created_at',since).order('created_at',{ascending:false}).limit(2000);
       if(error)throw error;
       const rows=data||[];
-      const counts={high_risk:0,observation:0,on_track:0,early_review:0,not_evaluable:0,needs_daily_data:0};
-      rows.forEach(r=>{counts[r.classification]=(counts[r.classification]||0)+1;});
-      const diamonds=rows.reduce((n,r)=>n+Number(r.diamonds||0),0);
-      const hours=rows.reduce((n,r)=>n+Number(r.live_seconds||0),0)/3600;
       const latest=new Map();
       rows.forEach(r=>{if(!latest.has(r.creator_user_id))latest.set(r.creator_user_id,r);});
-      const risk=Array.from(latest.values()).filter(r=>['high_risk','observation','early_review'].includes(r.classification)).slice(0,12);
+      const latestRows=Array.from(latest.values());
+      const counts={high_risk:0,observation:0,on_track:0,early_review:0,not_evaluable:0,needs_daily_data:0};
+      latestRows.forEach(r=>{counts[r.classification]=(counts[r.classification]||0)+1;});
+      const diamonds=latestRows.reduce((n,r)=>n+Number(r.diamonds||0),0);
+      const hours=latestRows.reduce((n,r)=>n+Number(r.live_seconds||0),0)/3600;
+      const risk=latestRows.filter(r=>['high_risk','observation','early_review'].includes(r.classification)).slice(0,12);
       const labels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
-      host.innerHTML='<div class="gxt-panel-head"><h2>Indicadores · últimos 90 días</h2><span class="gxt-chip">'+rows.length+' evaluaciones</span></div>'+
+      host.innerHTML='<div class="gxt-panel-head"><h2>Indicadores · últimos 90 días</h2><span class="gxt-chip">'+latestRows.length+' creadores</span></div>'+
         '<div class="gxt-followup-summary"><div><strong>'+rows.length.toLocaleString('es-CO')+'</strong><small>Evaluaciones</small></div><div><strong>'+diamonds.toLocaleString('es-CO')+'</strong><small>Diamantes reportados</small></div><div><strong>'+hours.toFixed(1)+' h</strong><small>Horas LIVE</small></div></div>'+
         '<div class="gxt-followup-report-grid">'+Object.keys(counts).map(k=>'<div class="gxt-followup-report-stat"><strong>'+counts[k]+'</strong><small>'+labels[k]+'</small></div>').join('')+'</div>'+
         '<h3>Creadores para revisar</h3>'+
