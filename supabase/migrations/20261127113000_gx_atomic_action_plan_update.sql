@@ -26,7 +26,7 @@ begin
   if p_proposed_changes is not null and length(p_proposed_changes)>5000 then
     raise exception 'La actualización supera el máximo permitido';
   end if;
-  if p_new_status not in ('active','paused','completed','cancelled') then
+  if p_new_status is null or p_new_status not in ('active','paused','completed','cancelled') then
     raise exception 'Estado de plan inválido';
   end if;
 
