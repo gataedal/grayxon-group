@@ -395,10 +395,15 @@
       const buffer=await file.arrayBuffer();
       const workbook=window.XLSX.read(buffer,{type:'array',cellDates:true});
       const preview=window.GRAYXON_FOLLOWUP_IMPORT.parseWorkbook(workbook,start,end);
-      const {data:creatorData,error:creatorError}=await sb.from('profiles')
-        .select('id,username,full_name,tiktok_username,tiktok_creator_id,manager_id,created_at')
-        .eq('role','creator').eq('active',true);
+      const [{data:creatorData,error:creatorError},{data:parameterRows,error:parameterError}]=await Promise.all([
+        sb.from('profiles').select('id,username,full_name,tiktok_username,tiktok_creator_id,manager_id,created_at').eq('role','creator').eq('active',true),
+        sb.from('gx_creator_followup_parameters').select('version,monthly_live_hours,monthly_valid_days,early_review_min_evaluable_days,high_risk_threshold_pct,observation_threshold_pct,consistency_hours_per_day,consistency_days_per_week,timezone').eq('active',true).order('version',{ascending:false}).limit(1)
+      ]);
       if(creatorError)throw new Error('No se pudieron consultar los creadores autorizados: '+creatorError.message);
+      if(parameterError)throw new Error('No se pudieron cargar los parámetros de evaluación: '+parameterError.message);
+      const activeParameters=parameterRows?.[0];
+      if(!activeParameters)throw new Error('No hay parámetros activos de Seguimiento. Solicita a administración que los configure.');
+      preview.parameters=activeParameters;
       const byTikTok=new Map(), byCreatorId=new Map();
       const addIndex=(map,key,creator)=>{
         if(!key)return;
@@ -425,8 +430,13 @@
               periodStart:start,periodEnd:end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
               granularity:preview.granularity,joinDate:row.joinedAt,
               validLiveDays:row.validDays,liveSeconds:row.liveHours==null?null:Math.round(row.liveHours*3600),
-              monthlyLiveHours:90,monthlyValidDays:22,earlyReviewMinDays:5,
-              consistencyHoursPerDay:2.5,consistencyDaysPerWeek:6
+              monthlyLiveHours:activeParameters.monthly_live_hours,
+              monthlyValidDays:activeParameters.monthly_valid_days,
+              earlyReviewMinDays:activeParameters.early_review_min_evaluable_days,
+              highRiskThresholdPct:activeParameters.high_risk_threshold_pct,
+              observationThresholdPct:activeParameters.observation_threshold_pct,
+              consistencyHoursPerDay:activeParameters.consistency_hours_per_day,
+              consistencyDaysPerWeek:activeParameters.consistency_days_per_week
             })||{status:'not_evaluable',reason:'No está disponible el motor de evaluación.'};
         return {...row,profile,linkStatus,evaluation};
       });
