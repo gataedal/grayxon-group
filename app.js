@@ -4422,7 +4422,7 @@ async function trainingTpl(options = {}) {
     return `<article class="library-module-card ${complete ? 'is-complete' : ''} ${isNext ? 'is-next-module' : ''}" data-formation-module-card="${m.id}">
       <div class="library-module-cover cover-${mi % 4}"><span class="library-cover-number">${String(mi+1).padStart(2,'0')}</span><span class="library-cover-symbol">${complete ? '✓' : isNext ? '▶' : '◈'}</span><span class="library-cover-tag">${complete ? 'COMPLETADO' : isNext ? 'EN CURSO' : 'MÓDULO'}</span></div>
       <div class="library-module-body"><div class="library-module-meta"><span>${ml.length} ${ml.length===1?'contenido':'contenidos'}</span><span>${md}/${ml.length}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="true"><span>Ver contenidos</span><b>⌄</b></button></div>
-      <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${isOnboardingCreator()?(isOnboardingVideo(l)&&!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''):(!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':'')}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
+      <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${isOnboardingCreator()?(isOnboardingVideo(l)&&!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''):(!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':'')}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':isOnboardingCreator()&&!isOnboardingVideo(l)?'Abrir ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
     </article>`;
   };
 
@@ -4489,7 +4489,7 @@ function getNextLessonAfter(id){
 function getNextPendingLessonAfter(id){
   const lessons = window._lessons || [];
   const done = window._done || new Set();
-  return lessons.find(l => !done.has(l.id)) || null;
+  return isOnboardingCreator() ? getRequiredOnboardingVideos(lessons).find(l => !done.has(l.id)) || null : lessons.find(l => !done.has(l.id)) || null;
 }
 
 function syncFormationLessonListState(){
@@ -4504,7 +4504,7 @@ function syncFormationLessonListState(){
     const row = button.closest('.lesson');
     const isDone = done.has(lesson.id);
     const isNext = !isDone && lesson.id === nextPending?.id;
-    const locked = !isDone && !isNext;
+    const locked = isOnboardingCreator() ? (isOnboardingVideo(lesson) && !isDone && !isNext) : (!isDone && !isNext);
     row?.classList.toggle('lesson-done', isDone);
     row?.classList.toggle('lesson-next', isNext);
     button.disabled = locked;
