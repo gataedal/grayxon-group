@@ -60,11 +60,11 @@ declare v_count integer;
 begin
  select count(*) into v_count from public.gx_creator_followup_evaluations;
  if v_count<>1 then raise exception 'Manager RLS should expose only the assigned creator; got %',v_count; end if;
+ declare v_rows integer;
  begin
   update public.gx_creator_action_plan_updates set status='approved' where id='60000000-0000-0000-0000-000000000001';
-  raise exception 'Manager must not approve an action-plan proposal';
- exception when insufficient_privilege then
-  null;
+  get diagnostics v_rows=row_count;
+  if v_rows<>0 then raise exception 'Manager must not approve an action-plan proposal'; end if;
  end;
 end $;
 reset role;
