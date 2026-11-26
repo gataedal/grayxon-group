@@ -112,6 +112,12 @@ grant select on public.gx_creator_followup_imports,public.gx_creator_followup_ev
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values('gx-creator-followup-reports','gx-creator-followup-reports',false,20971520,array['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.ms-excel'])
 on conflict(id) do nothing;
+do $
+begin
+ if not exists(select 1 from storage.buckets where id='gx-creator-followup-reports' and public=false and file_size_limit=20971520 and allowed_mime_types @> array['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.ms-excel']::text[]) then
+  raise exception 'El bucket gx-creator-followup-reports existe con una configuración incompatible';
+ end if;
+end $;
 create policy gx_followup_storage_upload on storage.objects for insert to authenticated with check(bucket_id='gx-creator-followup-reports' and (storage.foldername(name))[1]=auth.uid()::text and (is_admin() or current_manager_id() is not null));
 create policy gx_followup_storage_read on storage.objects for select to authenticated using(bucket_id='gx-creator-followup-reports' and (is_admin() or current_manager_id() is not null));
 
@@ -127,10 +133,10 @@ begin
  if p_file_name is null or length(btrim(p_file_name)) not between 1 and 255 then raise exception 'Nombre de archivo inválido'; end if;
  if p_file_sha256 !~ '^[a-f0-9]{64}$' then raise exception 'Hash SHA-256 inválido'; end if;
  if p_selected_start is null or p_selected_end is null or p_selected_start>p_selected_end then raise exception 'Periodo inválido'; end if;
- if p_granularity not in ('daily','period_aggregate','unknown') then raise exception 'Granularidad inválida'; end if;
+ if p_granularity is null or p_granularity not in ('daily','period_aggregate','unknown') then raise exception 'Granularidad inválida'; end if;
  if jsonb_typeof(p_evaluations)<>'array' or jsonb_array_length(p_evaluations)=0 then raise exception 'No hay evaluaciones para guardar'; end if;
  if split_part(coalesce(p_storage_path,''),'/',1)<>v_uid::text then raise exception 'Ruta de archivo inválida'; end if;
- if not exists(select 1 from storage.objects where bucket_id='gx-creator-followup-reports' and name=p_storage_path) then raise exception 'No se encontró el archivo subido'; end if;
+ if not exists(select 1 from storage.objects where bucket_id='gx-creator-followup-reports' and name=p_storage_path and owner_id::text=v_uid::text) then raise exception 'No se encontró un archivo propio subido'; end if;
  select jsonb_build_object('version',version,'monthlyLiveHours',monthly_live_hours,'monthlyValidDays',monthly_valid_days,'earlyReviewMinDays',early_review_min_evaluable_days,'highRiskThresholdPct',high_risk_threshold_pct,'observationThresholdPct',observation_threshold_pct,'consistencyHoursPerDay',consistency_hours_per_day,'consistencyDaysPerWeek',consistency_days_per_week,'timezone',timezone)
  into v_params from public.gx_creator_followup_parameters where active order by version desc limit 1;
  if v_params is null then raise exception 'No hay parámetros activos'; end if;
