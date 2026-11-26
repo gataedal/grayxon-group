@@ -72,7 +72,8 @@ begin
  -- Aggregate files cannot be used to evaluate a smaller selected window.
  begin
   perform public.gx_save_creator_followup_import('aggregate.xlsx',v_manager_user::text||'/test.xlsx',
-   repeat('d',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-03','period_aggregate',v_payload);
+   repeat('d',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-03','period_aggregate',
+   jsonb_set(v_payload,'{0,evaluated_end}','"2026-11-03"'::jsonb));
   raise exception 'Partial aggregate evaluation should have failed';
  exception when others then
   if sqlerrm='Partial aggregate evaluation should have failed' then raise; end if;
