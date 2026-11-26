@@ -474,6 +474,10 @@
         const {data,error}=await sb.from('profile_details').select('phone').eq('user_id',creator.id).maybeSingle();
         if(error){toast('No se pudo consultar el teléfono: '+error.message);return;}
         if(phone)phone.value=data?.phone||'';
+        if(planSelect){
+          const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
+          planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(plan=>'<option value="'+esc(plan.id)+'">'+esc(plan.title)+'</option>').join('');
+        }
       });
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
@@ -486,7 +490,11 @@
       if(failed)throw failed.error;
       window.gxFollowupPlans=plans.data||[];
       const name=id=>{const p=followupCreatorCache.find(x=>x.id===id);return p?'@'+p.username:'Creador';};
-      if(planSelect)planSelect.innerHTML='<option value="">Selecciona un plan</option>'+window.gxFollowupPlans.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+' · '+esc(name(p.creator_user_id))+'</option>').join('');
+      if(planSelect){
+        const selectedCreator=select.value;
+        const eligiblePlans=window.gxFollowupPlans.filter(plan=>plan.creator_user_id===selectedCreator);
+        planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+'</option>').join('');
+      }
       const rows=[
         ...(notes.data||[]).map(x=>({date:x.created_at,title:'Nota · '+x.note_type,creator:name(x.creator_user_id),detail:x.body})),
         ...(contacts.data||[]).map(x=>({date:x.created_at,title:'Contacto · '+x.contact_status,creator:name(x.creator_user_id),detail:(x.channel||'')+' · '+(x.message_text||'')})),
@@ -538,7 +546,9 @@
         success_criteria:String(data.get('success_criteria')||'').trim()||null,target_date:String(data.get('target_date')||'')||null};
     }else if(form.id==='gxActionPlanUpdateForm'){
       table='gx_creator_action_plan_updates';
-      payload={plan_id:String(data.get('plan_id')||''),progress_summary:String(data.get('progress_summary')||'').trim(),
+      const selectedPlan=(window.gxFollowupPlans||[]).find(plan=>plan.id===String(data.get('plan_id')||''));
+      if(!selectedPlan||selectedPlan.creator_user_id!==creator.id)return toast('Selecciona un plan que pertenezca al creador elegido.');
+      payload={plan_id:selectedPlan.id,progress_summary:String(data.get('progress_summary')||'').trim(),
         proposed_changes:String(data.get('proposed_changes')||'').trim()||null,status:'pending_manager_review'};
     }else if(form.id==='gxFollowupReminderForm'){
       table='gx_creator_followup_reminders';
