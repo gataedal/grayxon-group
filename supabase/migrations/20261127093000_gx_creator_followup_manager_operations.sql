@@ -40,13 +40,7 @@ for insert to authenticated with check (
  (public.is_admin() or p.manager_id=public.current_manager_id()))
 );
 create policy gx_action_plan_updates_update on public.gx_creator_action_plan_updates
-for update to authenticated using (
- exists(select 1 from public.gx_creator_action_plans p where p.id=plan_id and
- (public.is_admin() or p.manager_id=public.current_manager_id()))
-) with check (
- exists(select 1 from public.gx_creator_action_plans p where p.id=plan_id and
- (public.is_admin() or p.manager_id=public.current_manager_id()))
-);
+for update to authenticated using (public.is_admin()) with check (public.is_admin());
 
 create policy gx_followup_reminders_insert on public.gx_creator_followup_reminders
 for insert to authenticated with check (
