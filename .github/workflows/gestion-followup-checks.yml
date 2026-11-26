@@ -8,6 +8,8 @@ on:
       - 'grayxon-followup-*.js'
       - 'grayxon-trabajo.js'
       - 'tests/grayxon-followup-*.test.js'
+      - 'tests/gestion-followup-migration.test.sql'
+      - 'tests/fixtures/gestion-followup-schema.sql'
       - 'supabase/migrations/*.sql'
       - 'docs/gestion-preflight-backup-and-release.md'
       - '.github/workflows/gestion-followup-checks.yml'
