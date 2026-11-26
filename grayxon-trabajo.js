@@ -181,7 +181,7 @@
           ['home','⌂','Resumen'],['tasks','▤','Todas las tareas'],['requests','↗','Solicitudes'],
           ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
         ]
-      : [['home','⌂','Mi trabajo'],['tasks','▤','Tareas'],['requests','↗','Mis solicitudes'],['calendar','▦','Calendario']];
+      : [['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Mis solicitudes'],['calendar','▦','Calendario']];
     nav.innerHTML = items.map(([key,icon,label]) =>
       '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span>'+label+'</button>'
     ).join('');
@@ -232,7 +232,7 @@
     const requestList = state.isAdmin
       ? activeRequests.filter(r=>r.status==='pending').slice(0,4).map(requestCard).join('') || '<div class="gxt-empty">No hay solicitudes pendientes.</div>'
       : requests.slice(0,3).map(requestCard).join('') || '<div class="gxt-empty">Todavía no has enviado solicitudes.</div>';
-    const title = state.isAdmin ? 'Resumen operativo' : 'Mi trabajo';
+    const title = state.isAdmin ? 'Resumen operativo' : 'Resumen de gestión';
     const description = state.isAdmin
       ? 'Supervisa las tareas, entregas y solicitudes del equipo interno.'
       : 'Aquí encuentras tus responsabilidades y el estado de cada entrega.';
@@ -248,7 +248,7 @@
 
   function renderTasksPage() {
     const list = state.tasks.map(taskCard).join('') || '<div class="gxt-empty">No hay tareas para mostrar.</div>';
-    main.innerHTML = pageHead(state.isAdmin?'Todas las tareas':'Mi trabajo',state.isAdmin?'Consulta y administra las tareas de todo el equipo.':'Consulta tus tareas, actualiza avances y entrega resultados para revisión.',state.isAdmin?'<button class="gxt-btn primary" data-action="new-task">＋ Crear tarea</button>':'')+
+    main.innerHTML = pageHead(state.isAdmin?'Todas las tareas':'Mis tareas',state.isAdmin?'Consulta y administra las tareas de todo el equipo.':'Consulta tus tareas, actualiza avances y entrega resultados para revisión.',state.isAdmin?'<button class="gxt-btn primary" data-action="new-task">＋ Crear tarea</button>':'')+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+state.tasks.length+' tareas</h2><small>Ordenadas por creación</small></div><div class="gxt-list">'+list+'</div></section>';
   }
 
