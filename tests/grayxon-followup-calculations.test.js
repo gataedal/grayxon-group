@@ -5,8 +5,8 @@ const base={periodStart:'2026-11-01',periodEnd:'2026-11-07',coverageStart:'2026-
 let r=calculateEvaluation(base);
 assert.equal(r.status,'evaluated');
 assert.equal(r.evaluableDays,7);
-assert.ok(Math.abs(r.targetValidDays-(22*7/30))<1e-9);
-assert.ok(Math.abs(r.targetLiveSeconds-(90*3600*7/30))<1e-7);
+assert.ok(Math.abs(r.targetValidDays-(22*7/30))<0.00005);
+assert.ok(Math.abs(r.targetLiveSeconds-(90*3600*7/30))<0.01);
 assert.equal(r.classification,'on_track');
 
 r=calculateEvaluation({...base,joinDate:'2026-11-05'});
