@@ -31,8 +31,11 @@
       return new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
     }
     const s = String(value == null ? '' : value).trim();
-    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
-    if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+    if (m) {
+      const date = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+      return date.getUTCFullYear() === +m[1] && date.getUTCMonth() === +m[2] - 1 && date.getUTCDate() === +m[3] ? date : null;
+    }
     const d = new Date(s);
     return Number.isNaN(d.getTime()) ? null : new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   }
@@ -43,24 +46,31 @@
 
   function parsePeriod(value) {
     const s = String(value == null ? '' : value).trim();
-    const m = /^(\d{4}-\d{2}-\d{2})\s*(?:~|a|al| hasta )\s*(\d{4}-\d{2}-\d{2})$/i.exec(s);
-    if (m) return { start: m[1], end: m[2], label: s };
+    const m = /^(\d{4}-\d{2}-\d{2})\s*(?:~|a|al|hasta)\s*(\d{4}-\d{2}-\d{2})$/i.exec(s);
+    if (m) {
+      const start = parseDate(m[1]);
+      const end = parseDate(m[2]);
+      if (!start || !end || start > end) return null;
+      return { start: isoDate(start), end: isoDate(end), label: s };
+    }
     const d = parseDate(s);
     return d ? { start: isoDate(d), end: isoDate(d), label: s } : null;
   }
 
   function parseInteger(value) {
-    if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value);
-    const s = String(value == null ? '' : value).replace(/[^\d-]/g, '');
-    return s && s !== '-' ? Number(s) : null;
+    if (typeof value === 'number' && Number.isFinite(value)) return Number.isInteger(value) ? value : null;
+    const s = String(value == null ? '' : value).trim().replace(/[.,\s]/g, '');
+    return /^\d+$/.test(s) ? Number(s) : null;
   }
 
   function parseDurationHours(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value >= 0 ? value : null;
     const s = String(value == null ? '' : value).trim();
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    const hms = /(?:(\d+)\s*h)?\s*(?:(\d+)\s*min)?\s*(?:(\d+)\s*s)?/i.exec(s);
-    if (!hms || !hms[0].trim()) return null;
-    return (+hms[1] || 0) + (+hms[2] || 0) / 60 + (+hms[3] || 0) / 3600;
+    const match = /^(?:(\d+)\s*h)?\s*(?:(\d+)\s*min)?\s*(?:(\d+)\s*s)?$/i.exec(s);
+    if (!match || !match[0].trim() || (!match[1] && !match[2] && !match[3])) return null;
+    const minutes = Number(match[2] || 0), seconds = Number(match[3] || 0);
+    if (minutes > 59 || seconds > 59) return null;
+    return Number(match[1] || 0) + minutes / 60 + seconds / 3600;
   }
 
   function findColumns(headers) {
@@ -85,7 +95,7 @@
     const rows = [];
     const warnings = [];
     const seen = new Set();
-    let sourcePeriod = null;
+    const periods = new Map();
     let sheetUsed = null;
 
     for (const sheetName of workbook.SheetNames) {
@@ -105,10 +115,7 @@
           warnings.push('Fila ' + (i + 1) + ': no se pudo interpretar el periodo.');
           continue;
         }
-        if (!sourcePeriod) sourcePeriod = period;
-        else if (sourcePeriod.start !== period.start || sourcePeriod.end !== period.end) {
-          warnings.push('El archivo contiene más de un periodo de datos.');
-        }
+        periods.set(period.start + '|' + period.end, period);
         const key = username.toLowerCase();
         if (seen.has(key)) {
           warnings.push('Registro duplicado omitido: @' + username + '.');
@@ -138,28 +145,37 @@
     const start = isoDate(parseDate(selectedStart));
     const end = isoDate(parseDate(selectedEnd));
     if (!start || !end || start > end) throw new Error('Selecciona un rango de fechas válido.');
+
+    const sourcePeriods = Array.from(periods.values());
+    const mixedPeriods = sourcePeriods.length !== 1;
+    const sourcePeriod = mixedPeriods ? null : sourcePeriods[0];
     const exactPeriod = !!sourcePeriod && start === sourcePeriod.start && end === sourcePeriod.end;
     const dailyMetricsAvailable = false;
+    const allMetricsPresent = rows.every(r => r.diamonds != null && r.liveHours != null && r.validDays != null);
 
     return {
       sheet: sheetUsed,
       sourcePeriod,
+      sourcePeriods,
+      mixedPeriods,
       selectedPeriod: { start, end },
       exactPeriod,
-      canEvaluate: exactPeriod && rows.every(r => r.diamonds != null && r.liveHours != null && r.validDays != null),
+      canEvaluate: !mixedPeriods && exactPeriod && allMetricsPresent,
       granularity: dailyMetricsAvailable ? 'daily' : 'period_aggregate',
       rows,
-      warnings: Array.from(new Set(warnings)),
+      warnings: Array.from(new Set(warnings.concat(mixedPeriods ? ['El archivo contiene más de un periodo de datos. No se permite evaluar ni guardar esta importación.'] : []))),
       summary: {
         creators: rows.length,
-        duplicatesOrWarnings: warnings.length,
+        duplicatesOrWarnings: warnings.length + (mixedPeriods ? 1 : 0),
         evaluableRows: rows.filter(r => r.diamonds != null && r.liveHours != null && r.validDays != null).length
       },
-      restriction: exactPeriod
-        ? null
-        : 'El Excel contiene cifras acumuladas para ' + sourcePeriod.start + ' a ' + sourcePeriod.end + '. No es posible calcular un subperiodo sin exportación diaria de TikTok.'
+      restriction: mixedPeriods
+        ? 'El archivo mezcla varios periodos de datos. Sepáralos en archivos independientes antes de evaluar.'
+        : exactPeriod
+          ? (allMetricsPresent ? null : 'Hay creadores sin todas las métricas necesarias. Revisa los datos faltantes antes de evaluar.')
+          : 'El Excel contiene cifras acumuladas para ' + sourcePeriod.start + ' a ' + sourcePeriod.end + '. No es posible calcular un subperiodo sin exportación diaria de TikTok.'
     };
   }
 
-  root.GRAYXON_FOLLOWUP_IMPORT = { parseWorkbook, parsePeriod, parseDurationHours, normalizeHeader };
+  root.GRAYXON_FOLLOWUP_IMPORT = { parseWorkbook, parsePeriod, parseDurationHours, normalizeHeader, parseInteger };
 })(typeof window !== 'undefined' ? window : globalThis);
