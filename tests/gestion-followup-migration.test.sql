@@ -56,11 +56,10 @@ end $$;
 select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
 set role authenticated;
 do $$
-declare v_count integer;
+declare v_count integer; v_rows integer;
 begin
  select count(*) into v_count from public.gx_creator_followup_evaluations;
  if v_count<>1 then raise exception 'Manager RLS should expose only the assigned creator; got %',v_count; end if;
- declare v_rows integer;
  begin
   update public.gx_creator_action_plan_updates set status='approved' where id='60000000-0000-0000-0000-000000000001';
   get diagnostics v_rows=row_count;
