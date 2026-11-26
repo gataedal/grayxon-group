@@ -2,7 +2,7 @@
 
 Estado: preparación; **no ejecutado contra producción**.  
 Proyecto Supabase de referencia: `vxyakhelhuikutepdjyn`.  
-Rama exclusiva: `feature/gestion-module-2026-11-26`.
+Rama exclusiva: `feature/gestion-module-clean-2026-11-26` (PR #146).
 
 ## Límite de alcance
 
@@ -76,3 +76,13 @@ No basta con que los archivos existan. En un proyecto de prueba independiente:
 - Supabase CLI — `db dump`: https://supabase.com/docs/reference/cli/introduction
 - Supabase — Backup and Restore using the CLI: https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore
 - Supabase — Database Backups (incluye la aclaración de que los objetos Storage no están incluidos): https://supabase.com/docs/guides/platform/backups
+
+
+## Actualización de verificación — 26/11/2026
+
+- Los workflows de GitHub Actions para Gestión y Formación en vivo aprobaron las migraciones y pruebas de la rama limpia hasta el commit `aa9ca39d`; las correcciones posteriores también aprobaron ambos workflows.
+- Se añadió una prueba que impide que un manager actualice directamente el estado de un plan saltándose la RPC transaccional.
+- El workflow de Gestión se configuró para ejecutarse también en pushes a la rama limpia; esa última ejecución debe finalizar antes de cerrar la validación.
+- Supabase producción permanece intacto: migraciones hasta `20261110013339`, sin tablas nuevas de Seguimiento, sin bucket nuevo y sin ramas de desarrollo Supabase.
+- No se ha obtenido un dump PostgreSQL descargado ni una copia de Storage con manifiesto/checksum. Tampoco se ha probado una restauración. Por tanto, el bloqueo de respaldo sigue vigente.
+- El PR #146 permanece en borrador, sin merge ni despliegue.
