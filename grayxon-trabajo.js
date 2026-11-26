@@ -359,8 +359,17 @@
       '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-preview disabled>Analizar archivo</button><span id="gxFollowupFileName" class="gxt-muted">Ningún archivo seleccionado</span></div>'+
       '<div id="gxFollowupPreview" class="gxt-followup-preview"><div class="gxt-status-note">Selecciona un Excel y el rango que deseas evaluar. Los datos no se guardarán todavía.</div></div></section>'+
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Reglas de evaluación</h2></div><p>Las metas mensuales iniciales son 90 horas LIVE y 22 días válidos. La recomendación de constancia es 2 h 30 min diarios, 6 días por semana.</p><div class="gxt-status-note">Si el Excel contiene cifras acumuladas, solo se podrá evaluar exactamente el periodo exportado. Para rangos más cortos necesitaremos el reporte diario de TikTok.</div></section>'+
-      '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>';
+      '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Gestión individual</h2><p>Registra contactos, compromisos y planes de acción sin perder el historial.</p></div>'+
+      '<label class="gxt-field"><span>Creador</span><select id="gxFollowupCreator"><option value="">Cargando creadores…</option></select></label>'+
+      '<div class="gxt-followup-workspace-grid">'+
+      '<form id="gxFollowupNoteForm" class="gxt-followup-workspace-card"><h3>Observación o compromiso</h3><label class="gxt-field"><span>Tipo</span><select name="note_type"><option value="observation">Observación</option><option value="commitment">Compromiso</option><option value="response">Respuesta</option><option value="review">Revisión</option></select></label><label class="gxt-field"><span>Detalle</span><textarea name="body" maxlength="5000" required></textarea></label><button class="gxt-btn primary" type="submit">Guardar registro</button></form>'+
+      '<form id="gxFollowupContactForm" class="gxt-followup-workspace-card"><h3>Registro de contacto</h3><label class="gxt-field"><span>Estado</span><select name="contact_status"><option value="initiated">Contacto iniciado</option><option value="confirmed">Contacto confirmado</option><option value="pending_response">Pendiente de respuesta</option><option value="responded">Respondió</option></select></label><label class="gxt-field"><span>Canal</span><select name="channel"><option value="whatsapp">WhatsApp</option><option value="phone">Llamada</option><option value="other">Otro</option></select></label><label class="gxt-field"><span>Mensaje o resumen</span><textarea name="message_text" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Guardar contacto</button></form>'+
+      '<form id="gxActionPlanForm" class="gxt-followup-workspace-card"><h3>Plan de acción</h3><label class="gxt-field"><span>Título</span><input name="title" maxlength="180" required></label><label class="gxt-field"><span>Objetivo</span><textarea name="objective" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Criterio de éxito</span><textarea name="success_criteria" maxlength="3000"></textarea></label><label class="gxt-field"><span>Fecha objetivo</span><input name="target_date" type="date"></label><button class="gxt-btn primary" type="submit">Crear plan</button></form>'+
+      '<form id="gxFollowupReminderForm" class="gxt-followup-workspace-card"><h3>Recordatorio</h3><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="scheduled_at" type="datetime-local" required></label><label class="gxt-field"><span>Nota</span><textarea name="note" maxlength="2000"></textarea></label><button class="gxt-btn primary" type="submit">Programar recordatorio</button></form>'+
+      '</div><div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';
     loadFollowupHistory();
+    loadFollowupWorkspace();
     const fileInput=document.getElementById('gxFollowupFile');
     const button=main.querySelector('[data-followup-preview]');
     fileInput?.addEventListener('change',()=>{
@@ -442,6 +451,69 @@
       console.error('[Gestión · Seguimiento] import preview',error);
       target.innerHTML='<div class="gxt-status-note gxt-followup-warning">'+esc(error.message||'No se pudo analizar el archivo.')+'</div>';
     }
+  }
+
+  let followupCreatorCache=[];
+  async function loadFollowupWorkspace() {
+    const select=document.getElementById('gxFollowupCreator');
+    const host=document.getElementById('gxFollowupOperations');
+    if(!select||!host)return;
+    try{
+      const {data:creators,error}=await sb.from('profiles').select('id,username,full_name,manager_id').eq('role','creator').eq('active',true).order('username');
+      if(error)throw error;
+      followupCreatorCache=creators||[];
+      select.innerHTML='<option value="">Selecciona un creador</option>'+followupCreatorCache.map(p=>'<option value="'+esc(p.id)+'" '+(!p.manager_id?'disabled':'')+'>'+esc(p.full_name||p.username)+' · @'+esc(p.username)+(p.manager_id?'':' (sin manager asignado)')+'</option>').join('');
+      const [notes,contacts,plans,reminders]=await Promise.all([
+        sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
+        sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').order('created_at',{ascending:false}).limit(30),
+        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,target_date,created_at').order('created_at',{ascending:false}).limit(30),
+        sb.from('gx_creator_followup_reminders').select('id,creator_user_id,scheduled_at,status,note').order('scheduled_at',{ascending:true}).limit(30)
+      ]);
+      const failed=[notes,contacts,plans,reminders].find(x=>x.error);
+      if(failed)throw failed.error;
+      const name=id=>{const p=followupCreatorCache.find(x=>x.id===id);return p?'@'+p.username:'Creador';};
+      const rows=[
+        ...(notes.data||[]).map(x=>({date:x.created_at,title:'Nota · '+x.note_type,creator:name(x.creator_user_id),detail:x.body})),
+        ...(contacts.data||[]).map(x=>({date:x.created_at,title:'Contacto · '+x.contact_status,creator:name(x.creator_user_id),detail:(x.channel||'')+' · '+(x.message_text||'')})),
+        ...(plans.data||[]).map(x=>({date:x.created_at,title:'Plan · '+x.title,creator:name(x.creator_user_id),detail:x.objective+' · '+x.status})),
+        ...(reminders.data||[]).map(x=>({date:x.scheduled_at,title:'Recordatorio · '+x.status,creator:name(x.creator_user_id),detail:x.note||'Sin nota'}))
+      ].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60);
+      host.innerHTML=rows.length?'<div class="gxt-panel-head"><h3>Actividad reciente</h3><span class="gxt-chip">'+rows.length+' registros</span></div>'+rows.map(x=>'<div class="gxt-followup-operation"><strong>'+esc(x.title)+'</strong><small>'+esc(x.creator)+' · '+dateTimeLabel(x.date)+'</small><p>'+esc(x.detail)+'</p></div>').join(''):'<div class="gxt-empty">Todavía no hay contactos, notas, planes ni recordatorios.</div>';
+    }catch(error){
+      console.error('[Gestión · Seguimiento] workspace',error);
+      host.innerHTML='<div class="gxt-status-note gxt-followup-warning">No se pudieron cargar los registros: '+esc(error.message||'Error de consulta')+'</div>';
+    }
+  }
+
+  async function submitFollowupRecord(form,event) {
+    event.preventDefault();
+    const creator=followupCreatorCache.find(x=>x.id===document.getElementById('gxFollowupCreator')?.value);
+    if(!creator)return toast('Selecciona un creador con manager asignado.');
+    const data=new FormData(form);
+    const common={creator_user_id:creator.id,manager_id:state.isAdmin?creator.manager_id:state.member.id,created_by:state.session.user.id};
+    let table,payload;
+    if(form.id==='gxFollowupNoteForm'){
+      table='gx_creator_followup_notes';
+      payload={...common,note_type:String(data.get('note_type')),body:String(data.get('body')||'').trim()};
+    }else if(form.id==='gxFollowupContactForm'){
+      table='gx_creator_followup_contacts';
+      const status=String(data.get('contact_status'));
+      payload={...common,contact_status:status,channel:String(data.get('channel')),message_text:String(data.get('message_text')||'').trim()||null,
+        opened_at:status==='initiated'?new Date().toISOString():null,confirmed_at:status==='confirmed'?new Date().toISOString():null,
+        responded_at:status==='responded'?new Date().toISOString():null};
+    }else if(form.id==='gxActionPlanForm'){
+      table='gx_creator_action_plans';
+      payload={...common,title:String(data.get('title')||'').trim(),objective:String(data.get('objective')||'').trim(),
+        success_criteria:String(data.get('success_criteria')||'').trim()||null,target_date:String(data.get('target_date')||'')||null};
+    }else if(form.id==='gxFollowupReminderForm'){
+      table='gx_creator_followup_reminders';
+      const local=String(data.get('scheduled_at')||'');
+      if(!local)return toast('Selecciona fecha y hora para el recordatorio.');
+      payload={...common,scheduled_at:new Date(local).toISOString(),timezone:'America/Bogota',note:String(data.get('note')||'').trim()||null};
+    }else return;
+    const {error}=await sb.from(table).insert(payload);
+    if(error)return toast('No se pudo guardar: '+error.message);
+    form.reset();toast('Registro guardado correctamente.');loadFollowupWorkspace();
   }
 
   async function loadFollowupHistory() {
@@ -1139,6 +1211,11 @@
     if(!button)return;
     state.tab=button.dataset.tab;
     renderPage();
+  });
+
+  main.addEventListener('submit',event=>{
+    const form=event.target.closest('#gxFollowupNoteForm,#gxFollowupContactForm,#gxActionPlanForm,#gxFollowupReminderForm');
+    if(form)submitFollowupRecord(form,event);
   });
 
   main.addEventListener('click',event=>{
