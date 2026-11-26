@@ -235,3 +235,15 @@ Políticas observadas:
 - Antes de aplicar SQL o habilitar persistencia se requiere obtener y verificar ambos respaldos y documentar cómo restaurarlos.
 - El archivo Excel fuente deberá guardarse en un bucket privado, con políticas de Storage restringidas y rutas que no permitan acceso cruzado entre managers. El bucket no se ha creado.
 - Las evaluaciones deben seguir siendo snapshots históricos no editables desde el cliente; cualquier re-procesamiento debe ser una operación explícita y auditable.
+
+
+## 19. Preparación de persistencia y preflight de despliegue
+
+- Se amplió el borrador de migración para guardar metadatos del archivo original (bucket, ruta privada, tamaño, MIME y SHA-256), manteniendo el límite de 20 MB.
+- Se añadió el bucket privado propuesto `gx-followup-imports` con lectura de objetos limitada a importaciones registradas y al alcance de admin/manager. La carga inicial queda bajo una carpeta con el UID del usuario autenticado.
+- Se añadió la RPC `gx_save_creator_followup_import` para registrar archivo y evaluaciones en una sola transacción. Verifica sesión, ámbito del manager, ruta del objeto, existencia del archivo, duplicado por hash/equipo/periodo y consistencia de filas; si falla una evaluación, se revierte toda la operación.
+- El cliente conserva solo permiso de lectura en las tablas nuevas; la persistencia queda centralizada en la RPC. Se mantienen los helpers actuales y no se abren permisos de tablas existentes.
+- Se añadió `docs/gestion-preflight-backup-and-release.md` con el procedimiento de respaldo lógico, respaldo independiente de Storage, verificación de restauración y secuencia de activación aislada. Las instrucciones distinguen expresamente que el dump de PostgreSQL no incluye los archivos binarios de Storage.
+- El workflow ahora también se dispara cuando cambia la migración de Seguimiento, de modo que la preparación SQL no queda fuera del circuito de validación de Gestión.
+- **No se ha creado el bucket, no se ha aplicado la migración, no se han modificado políticas reales, no se han cargado archivos y no se ha desplegado el portal.**
+- La persistencia sigue pendiente de validación en un proyecto Supabase de staging y de completar respaldos recuperables. El hash se usa como identificador de duplicados aportado por el cliente; no se presenta como verificación criptográfica independiente del contenido en el servidor.
