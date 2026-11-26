@@ -147,7 +147,7 @@
       selectedPeriod: { start, end },
       exactPeriod,
       canEvaluate: exactPeriod && rows.every(r => r.diamonds != null && r.liveHours != null && r.validDays != null),
-      granularity: dailyMetricsAvailable ? 'daily' : 'aggregate',
+      granularity: dailyMetricsAvailable ? 'daily' : 'period_aggregate',
       rows,
       warnings: Array.from(new Set(warnings)),
       summary: {
