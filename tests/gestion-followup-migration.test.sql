@@ -49,6 +49,7 @@ begin
  end;
 end $$;
 
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
 set role authenticated;
 do $$
 declare v_count integer;
