@@ -20,7 +20,7 @@ begin
   'creator_user_id',v_creator,'username','creator_test','join_date','2026-01-01',
   'evaluated_start','2026-11-01','evaluated_end','2026-11-07','evaluable_days',7,
   'valid_live_days',5,'live_seconds',64800,'diamonds',1000,'target_valid_days',5.1333,
-  'target_live_seconds',75600,'valid_days_pct',97.4,'live_hours_pct',85.7,
+  'target_live_seconds',75600,'valid_days_pct',97.4026,'live_hours_pct',85.7143,
   'classification','on_track','raw_metrics','{}'::jsonb
  ));
  v_import:=public.gx_save_creator_followup_import('test.xlsx',v_manager_user::text||'/test.xlsx',
