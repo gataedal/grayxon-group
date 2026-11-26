@@ -91,5 +91,16 @@
     };
   }
 
-  return { calculateEvaluation, parseDate };
+  function toBogotaISOString(value) {
+    const match = /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})$/.exec(String(value || ''));
+    if (!match) return null;
+    const [, year, month, day, hour, minute] = match.map((part, index) => index ? Number(part) : part);
+    if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59) return null;
+    const localDate = new Date(Date.UTC(year, month - 1, day));
+    if (localDate.getUTCFullYear() !== year || localDate.getUTCMonth() !== month - 1 || localDate.getUTCDate() !== day) return null;
+    // Colombia uses UTC-5; build the instant explicitly so the device timezone is irrelevant.
+    return new Date(Date.UTC(year, month - 1, day, hour + 5, minute)).toISOString();
+  }
+
+  return { calculateEvaluation, parseDate, toBogotaISOString };
 });
