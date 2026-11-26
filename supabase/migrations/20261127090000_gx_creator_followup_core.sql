@@ -112,12 +112,12 @@ grant select on public.gx_creator_followup_imports,public.gx_creator_followup_ev
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values('gx-creator-followup-reports','gx-creator-followup-reports',false,20971520,array['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.ms-excel'])
 on conflict(id) do nothing;
-do $
+do $$
 begin
  if not exists(select 1 from storage.buckets where id='gx-creator-followup-reports' and public=false and file_size_limit=20971520 and allowed_mime_types @> array['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.ms-excel']::text[]) then
   raise exception 'El bucket gx-creator-followup-reports existe con una configuración incompatible';
  end if;
-end $;
+end $$;
 create policy gx_followup_storage_upload on storage.objects for insert to authenticated with check(bucket_id='gx-creator-followup-reports' and (storage.foldername(name))[1]=auth.uid()::text and (is_admin() or current_manager_id() is not null));
 create policy gx_followup_storage_read on storage.objects for select to authenticated using(bucket_id='gx-creator-followup-reports' and (is_admin() or current_manager_id() is not null));
 
