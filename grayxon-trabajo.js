@@ -361,6 +361,7 @@
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Reglas de evaluación</h2></div><p>Las metas mensuales iniciales son 90 horas LIVE y 22 días válidos. La recomendación de constancia es 2 h 30 min diarios, 6 días por semana.</p><div class="gxt-status-note">Si el Excel contiene cifras acumuladas, solo se podrá evaluar exactamente el periodo exportado. Para rangos más cortos necesitaremos el reporte diario de TikTok.</div></section>';
     const fileInput=document.getElementById('gxFollowupFile');
     const button=main.querySelector('[data-followup-preview]');
+    main.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
     fileInput?.addEventListener('change',()=>{
       const file=fileInput.files?.[0]||null;
       document.getElementById('gxFollowupFileName').textContent=file?file.name:'Ningún archivo seleccionado';
@@ -421,6 +422,7 @@
       preview.summary.ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous').length;
       preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='unmatched').length;
       window.grayxonFollowupPreview=preview;
+      window.grayxonFollowupFile=file;
       const period=preview.sourcePeriod;
       const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo cubre exactamente el periodo seleccionado.':'El archivo no permite evaluar el rango seleccionado.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
@@ -430,11 +432,65 @@
         '<div class="gxt-status-note">'+esc(status)+' Periodo del archivo: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
         '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Perfil Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Perfil</th><th>Evaluación</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-        '<div class="gxt-status-note">Esta es una previsualización. Todavía no se han guardado evaluaciones ni se ha modificado ningún perfil.</div>';
+        '<div class="gxt-status-note">Esta es una previsualización. Todavía no se han guardado evaluaciones ni se ha modificado ningún perfil.</div>'+
+        (preview.canEvaluate && preview.summary.matched===preview.summary.creators && preview.rows.every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
+          ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar evaluación</button></div>'
+          : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que todos los perfiles estén vinculados y que el reporte permita evaluar exactamente el periodo seleccionado.</div>');
     }catch(error){
       console.error('[Gestión · Seguimiento] import preview',error);
       target.innerHTML='<div class="gxt-status-note gxt-followup-warning">'+esc(error.message||'No se pudo analizar el archivo.')+'</div>';
     }
+  }
+
+  async function saveFollowupImport() {
+    const preview=window.grayxonFollowupPreview;
+    const file=window.grayxonFollowupFile;
+    if(!preview||!file)return toast('Vuelve a analizar el archivo antes de guardarlo.');
+    if(!preview.canEvaluate||preview.summary.matched!==preview.summary.creators||
+      !preview.rows.every(row=>row.profile&&['evaluated','not_evaluable'].includes(row.evaluation.status))) {
+      return toast('El archivo todavía no cumple las condiciones para guardarse.');
+    }
+    const button=main.querySelector('[data-followup-save]');
+    if(button){button.disabled=true;button.textContent='Guardando…';}
+    let objectPath=null;
+    try{
+      if(!window.crypto?.subtle)throw new Error('Este navegador no permite verificar el archivo de forma segura.');
+      const digest=await crypto.subtle.digest('SHA-256',await file.arrayBuffer());
+      const hash=Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      const safeName=file.name.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-180)||'reporte.xlsx';
+      objectPath=state.session.user.id+'/'+crypto.randomUUID()+'-'+safeName;
+      const {error:uploadError}=await sb.storage.from('gx-creator-followup-reports').upload(objectPath,file,{upsert:false,contentType:file.type||'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      if(uploadError)throw new Error('No se pudo subir el archivo original: '+uploadError.message);
+      const evaluations=preview.rows.map(row=>({
+        creator_user_id:row.profile.id,username:row.username,join_date:row.joinedAt||null,
+        evaluated_start:row.evaluation.evaluatedStart||null,evaluated_end:row.evaluation.evaluatedEnd||null,
+        evaluable_days:row.evaluation.evaluableDays||0,valid_live_days:row.validDays,
+        live_seconds:row.liveHours==null?null:Math.round(row.liveHours*3600),diamonds:row.diamonds,
+        target_valid_days:row.evaluation.targetValidDays??null,target_live_seconds:row.evaluation.targetLiveSeconds??null,
+        valid_days_pct:row.evaluation.validDaysPct??null,live_hours_pct:row.evaluation.liveHoursPct??null,
+        classification:row.evaluation.classification||'not_evaluable',
+        raw_metrics:{source_group:row.group,source_agent:row.agent,days_since_join:row.daysSinceJoin,source_period:row.sourcePeriod}
+      }));
+      const {data:importId,error:saveError}=await sb.rpc('gx_save_creator_followup_import',{
+        p_file_name:file.name,p_storage_path:objectPath,p_file_sha256:hash,
+        p_selected_start:preview.selectedPeriod.start,p_selected_end:preview.selectedPeriod.end,
+        p_source_start:preview.sourcePeriod.start,p_source_end:preview.sourcePeriod.end,
+        p_granularity:preview.granularity,p_evaluations:evaluations
+      });
+      if(saveError)throw new Error('El archivo se subió, pero no se pudo registrar la evaluación: '+saveError.message);
+      toast('Evaluación guardada correctamente.');
+      targetReloadFollowup(importId);
+    }catch(error){
+      if(objectPath)await sb.storage.from('gx-creator-followup-reports').remove([objectPath]).catch(()=>{});
+      console.error('[Gestión · Seguimiento] save import',error);
+      toast(error.message||'No se pudo guardar la evaluación.');
+      if(button){button.disabled=false;button.textContent='Guardar evaluación';}
+    }
+  }
+
+  function targetReloadFollowup(importId) {
+    const target=document.getElementById('gxFollowupPreview');
+    if(target)target.innerHTML='<div class="gxt-status-note">Evaluación registrada. Identificador: '+esc(importId)+'. El archivo original quedó guardado de forma privada.</div>';
   }
 
   function renderReportsPage() {
