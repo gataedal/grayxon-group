@@ -24,3 +24,6 @@ $$;
 grant usage on schema auth,storage,public to authenticated;
 grant execute on function auth.uid() to authenticated;
 grant select on public.profiles,public.managers,public.teams to authenticated;
+
+create table public.profile_details(user_id uuid primary key,phone text,updated_at timestamptz default now());
+grant select on public.profile_details to authenticated;
