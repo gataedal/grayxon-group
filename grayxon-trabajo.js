@@ -474,7 +474,7 @@
         const status=row.linkStatus==='ambiguous'?'Coincidencia ambigua':profile?'Cuenta Grayxon vinculada':'Sin vincular';
         const evaluationKey=row.evaluation.classification||row.evaluation.status;
         const evaluationLabel=classLabels[evaluationKey]||row.evaluation.status;
-        const planAction=profile?'<button type="button" class="gxt-followup-plan-button '+(plan?'is-view':'is-create')+'" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="'+(plan?'0':'3')+'">'+(plan?'Ver':'Gestionar plan')+'</button>':'<span class="gxt-followup-muted">—</span>';
+        const planAction=profile?'<button type="button" class="gxt-followup-plan-button '+(plan?'is-view':'is-create')+'" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="'+(plan?'4':'3')+'" data-followup-plan-id="'+(plan?esc(plan.id):'')+'">'+(plan?'Ver':'Gestionar plan')+'</button>':'<span class="gxt-followup-muted">—</span>';
         return '<tr class="gxt-followup-data-row"><td>@'+esc(row.username)+'</td><td class="gxt-followup-creator-cell">'+(profile?'<button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="0"><strong>'+esc(creatorLabel)+'</strong><small>@'+esc(profile.username)+'</small></button>':'<span class="gxt-followup-unlinked">'+esc(creatorLabel)+'</span>')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+(row.validDays==null?'—':row.validDays)+'</td><td><span class="gxt-followup-link-status '+(profile?'is-linked':'is-unlinked')+'">'+esc(status)+'</span></td><td><span class="gxt-followup-status-pill is-'+(classStyles[evaluationKey]||'neutral')+'">'+esc(evaluationLabel)+'</span></td><td>'+planAction+'</td></tr>';
       }).join('');
       target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
@@ -516,7 +516,7 @@
     });
   }
 
-  function openFollowupCreator(creatorId,step=0){
+  function openFollowupCreator(creatorId,step=0,planId=''){
     const section=document.getElementById('gxFollowupWorkspaceSection');
     const select=document.getElementById('gxFollowupCreator');
     if(!section||!select)return toast('La ficha de seguimiento aún se está cargando.');
@@ -525,6 +525,7 @@
     select.value=creatorId;
     if(select.value!==creatorId)return toast('No se encontró el creador en la lista autorizada.');
     select.dispatchEvent(new Event('change',{bubbles:true}));
+    if(planId){const planSelect=document.getElementById('gxActionPlanSelect');if(planSelect)planSelect.value=planId;}
     setFollowupStep(step);
     section.scrollTop=0;
   }
@@ -1346,7 +1347,7 @@
   main.addEventListener('click',event=>{
     if(event.target.closest('[data-followup-close]')){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}
     const openFollowup=event.target.closest('[data-followup-open-creator]');
-    if(openFollowup){openFollowupCreator(openFollowup.dataset.followupOpenCreator,Number(openFollowup.dataset.followupStep)||0);return;}
+    if(openFollowup){openFollowupCreator(openFollowup.dataset.followupOpenCreator,Number(openFollowup.dataset.followupStep)||0,openFollowup.dataset.followupPlanId||'');return;}
     if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
     if(event.target.closest('[data-followup-next]')){if(state.followupStep===5){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
     const reviewPlan=event.target.closest('[data-review-plan-update]');
