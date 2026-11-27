@@ -452,8 +452,8 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-followup-history-report{background:#10171e;border-color:#29343e}
 .gxt-followup-history-report>summary{min-height:64px}
 .gxt-followup-history-report-body{padding:0 14px 18px}
-.gxt-followup-report-alert-slot{display:flex;justify-content:flex-end;min-height:44px;margin:0 0 8px}
-.gxt-followup-month-alert{display:flex;align-items:center;gap:9px;min-width:220px;max-width:360px;padding:8px 12px;border:1px solid #725b36;border-radius:10px;background:#211d16;color:#f3dfb9;text-align:left;cursor:pointer}
+.gxt-followup-report-alert-slot{display:flex;justify-content:flex-end;align-items:center;flex:0 1 320px;min-height:0;margin:0 8px 0 auto}
+.gxt-followup-month-alert{display:flex;align-items:center;gap:9px;width:100%;min-width:220px;max-width:360px;padding:8px 12px;border:1px solid #725b36;border-radius:10px;background:#211d16;color:#f3dfb9;text-align:left;cursor:pointer}
 .gxt-followup-month-alert>span:nth-child(2){display:grid;gap:2px;flex:1}
 .gxt-followup-month-alert strong{font-size:11px}
 .gxt-followup-month-alert small{font-size:10px;color:#cbb58f}
