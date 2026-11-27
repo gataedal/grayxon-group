@@ -17,6 +17,6 @@ assert.match(onboarding, /Ya%20complete%20mis%20primeros%20pasos/);
 assert.match(onboarding, /options\?\.fromVideo/);
 assert.match(onboarding, /creatorIsAdult\(data\.birth_date\)/);
 assert.match(app, /video\.addEventListener\('ended'/);
-assert.match(portal, /creator-onboarding\.js\?v=5/);
+assert.match(portal, /creator-onboarding\.js\?v=6/);
 
 console.log("Creator onboarding edge and portal integration checks passed.");
