@@ -569,6 +569,16 @@
         const {data,error}=await sb.from('profile_details').select('phone').eq('user_id',creator.id).maybeSingle();
         if(error){if(phone)phone.textContent='No se pudo consultar el teléfono.';toast('No se pudo consultar el teléfono: '+error.message);return;}
         if(phone)phone.textContent=data?.phone||'Este creador no tiene un teléfono registrado. Solicita a administración que lo agregue.';
+        const reportRow=window.grayxonFollowupPreview?.rows?.find(row=>row.profile?.id===creator.id);
+        const params=window.grayxonFollowupPreview?.parameters||{};
+        const periodEnd=window.grayxonFollowupPreview?.sourcePeriod?.end||'la fecha de hoy';
+        const periodStart=window.grayxonFollowupPreview?.sourcePeriod?.start||'el periodo actual';
+        const fmt=value=>value==null?'Sin dato':Number(value).toLocaleString('es-CO',{maximumFractionDigits:2});
+        const message='¡Hola! ¿Cómo estás? 😊\n\nQueremos hacer un seguimiento a tu actividad durante el periodo '+periodStart+' al '+periodEnd+'.\n\nAl '+periodEnd+', registramos:\n• Días válidos de LIVE: '+fmt(reportRow?.validDays)+'\n• Horas acumuladas de LIVE: '+fmt(reportRow?.liveHours)+'\n\nRecuerda que la constancia es clave para crecer en TikTok LIVE. Nuestra referencia mensual es de '+(params.monthlyValidDays??22)+' días válidos y '+(params.monthlyLiveHours??90)+' horas LIVE, manteniendo una rutina de al menos '+(params.consistencyDaysPerWeek??6)+' días por semana y '+(params.consistencyHoursPerDay??2.5)+' horas por día.\n\n¿Cuentas con la disponibilidad para reforzar tu actividad y avanzar hacia estos objetivos durante el mes?\n\nQueremos acompañarte, orientarte y ayudarte a mejorar. ¡Estamos atentos para apoyarte! 💪';
+        const messageBox=document.getElementById('gxFollowupContactMessage');if(messageBox)messageBox.value=message;
+        const phoneDigits=String(data?.phone||'').replace(/\\D/g,'');
+        const wa=document.getElementById('gxFollowupWhatsAppLink');if(wa){wa.href=phoneDigits?'https://wa.me/'+phoneDigits+'?text='+encodeURIComponent(message):'#';wa.setAttribute('aria-disabled',phoneDigits?'false':'true');}
+        const contactHint=document.getElementById('gxFollowupContactHint');if(contactHint)contactHint.textContent=phoneDigits?'Se abrirá WhatsApp con el mensaje listo para revisar y enviar.':'No hay teléfono registrado; solicita a administración que lo agregue.';
         if(planSelect){
           const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
           planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(plan=>'<option value="'+esc(plan.id)+'">'+esc(plan.title)+'</option>').join('');
@@ -1361,6 +1371,8 @@
     if(event.target.closest('[data-followup-close]')){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}
     const openFollowup=event.target.closest('[data-followup-open-creator]');
     if(openFollowup){openFollowupCreator(openFollowup.dataset.followupOpenCreator,Number(openFollowup.dataset.followupStep)||0,openFollowup.dataset.followupPlanId||'');return;}
+    if(event.target.closest('[data-copy-followup-message]')){const message=document.getElementById('gxFollowupContactMessage')?.value||'';if(message)navigator.clipboard.writeText(message).then(()=>toast('Mensaje copiado.')).catch(()=>toast('No fue posible copiar el mensaje.'));return;}
+    if(event.target.closest('[data-followup-next]')&&state.followupStep===0&&!state.followupHasPlan&&!document.querySelector('#gxActionPlanForm [name=plan_id]')?.value)return toast('Primero guarda el plan de trabajo para continuar.');
     if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
     if(event.target.closest('[data-followup-next]')){if(state.followupStep===2){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
     const reviewPlan=event.target.closest('[data-review-plan-update]');
