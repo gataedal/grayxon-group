@@ -616,7 +616,9 @@
       const {data:creators,error}=await sb.from('profiles').select('id,username,full_name,manager_id').eq('role','creator').eq('active',true).order('username');
       if(error)throw error;
       followupCreatorCache=creators||[];
+      const previouslySelectedCreator=select.value;
       select.innerHTML='<option value="">Selecciona un creador</option>'+followupCreatorCache.map(p=>'<option value="'+esc(p.id)+'" '+(!p.manager_id&&!state.isAdmin?'disabled':'')+'>'+esc(p.full_name||p.username)+' · @'+esc(p.username)+(p.manager_id?'':' (sin manager asignado)')+'</option>').join('');
+      if(previouslySelectedCreator)select.value=previouslySelectedCreator;
       const planSelect=document.getElementById('gxActionPlanSelect');
       select.onchange=async()=>{
         const creator=followupCreatorCache.find(p=>p.id===select.value);
