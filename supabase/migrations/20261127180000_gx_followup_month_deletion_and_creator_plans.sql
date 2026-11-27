@@ -107,11 +107,8 @@ begin
   where
     (
       v_admin
-      and (
-        p.source_import_id=any(v_import_ids)
-        or coalesce(p.source_period_start,p.start_date)>=v_month
-           and coalesce(p.source_period_start,p.start_date)<v_next_month
-      )
+      and coalesce(p.source_period_start,p.start_date)>=v_month
+      and coalesce(p.source_period_start,p.start_date)<v_next_month
     )
     or
     (
