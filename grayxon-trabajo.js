@@ -385,20 +385,20 @@
   }
 
   function renderFollowupPage() {
-    main.innerHTML = pageHead('Seguimiento de creadores','Evaluaciones por periodo, contacto, observaciones y planes de acción del equipo.',state.isManager?'<button type="button" class="gxt-btn primary" data-generate-general-report disabled>Generar informe general</button>':'')+
+    main.innerHTML = pageHead('Seguimiento de creadores','Evaluaciones por periodo, novedades internas y planes de acción del equipo.',state.isManager?'<button type="button" class="gxt-btn primary" data-generate-general-report disabled>Generar informe general</button>':'')+
       '<section class="gxt-panel gxt-followup-import"><div class="gxt-panel-head"><div><h2>Importar reporte de TikTok LIVE</h2><p>Sube el Excel. El periodo se detecta automáticamente desde el reporte.</p></div><span class="gxt-chip">Vista previa</span></div>'+
       '<div class="gxt-followup-upload-controls"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label><button type="button" class="gxt-btn gxt-btn-process" data-followup-preview '+(followupImportFile?'':'disabled')+'><span aria-hidden="true">↗</span> Analizar archivo</button></div>'+
       '<div id="gxFollowupFileName" class="gxt-muted gxt-followup-file-name">'+(followupImportFile?esc(followupImportFile.name):'Ningún archivo seleccionado')+'</div>'+'<div class="gxt-followup-rules"><div><strong>Metas mensuales</strong><span>90 horas LIVE · 22 días válidos</span></div><div><strong>Recomendación de constancia</strong><span>2 h 30 min diarios · 6 días por semana</span></div></div>'+
       '<div id="gxFollowupPreview" class="gxt-followup-preview">'+(followupPreviewMarkup||'<div class="gxt-status-note">Selecciona un Excel para analizarlo. El periodo se tomará automáticamente del archivo.</div>')+'</div></section>'+
       
-      (state.isManager?'<section class="gxt-panel"><div class="gxt-panel-head"><h2>Informe general del equipo</h2></div><p id="gxGeneralReportStatus" class="gxt-muted">Comprobando si todos tus creadores tienen un plan de trabajo…</p></section>':'')+
+      (state.isManager?'<section class="gxt-panel"><div class="gxt-panel-head"><h2>Informe general del equipo</h2></div><p id="gxGeneralReportStatus" class="gxt-muted">Comprobando si todos tus creadores tienen un plan o una novedad registrada…</p></section>':'')+
       '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
       '<section class="gxt-panel gxt-followup-workspace" id="gxFollowupWorkspaceSection" hidden><div class="gxt-panel-head"><div><h2 id="gxFollowupCreatorTitle">Plan de trabajo</h2><p id="gxFollowupCreatorSubtitle">Seguimiento individual del creador.</p></div><button type="button" class="gxt-btn ghost" data-followup-close>× Cerrar</button></div>'+
       '<select hidden id="gxFollowupCreator" aria-hidden="true"></select>'+
       ''+
       '<div class="gxt-followup-workspace-grid">'+
       '<div id="gxFollowupPlanPreview" class="gxt-followup-workspace-card" hidden></div><div id="gxFollowupSavedPlanActions" class="gxt-actions" hidden><button type="button" class="gxt-btn" data-followup-edit-plan>Editar plan</button><button type="button" class="gxt-btn danger" data-followup-delete-plan>Eliminar plan</button><button type="button" class="gxt-btn primary" data-followup-send-plan>Enviar</button><button type="button" class="gxt-btn primary" data-followup-open-progress>Registrar avance</button></div><form id="gxActionPlanForm" class="gxt-followup-workspace-card is-active" data-followup-step="0"><h3>Plan de trabajo del creador</h3><input type="hidden" name="plan_id"><label class="gxt-field"><span>Nombre del plan</span><input name="title" maxlength="180" required placeholder="Ej. Objetivos de diciembre"></label><label class="gxt-field"><span>Objetivo / acuerdos</span><textarea name="objective" maxlength="5000" required placeholder="Define qué debe lograr el creador durante este periodo."></textarea></label><div class="gxt-followup-date-grid"><label class="gxt-field"><span>Desde</span><input name="start_date" type="date" required></label><label class="gxt-field"><span>Hasta</span><input name="target_date" type="date" required></label></div><h4>Metas del periodo</h4><div class="gxt-followup-target-grid"><label class="gxt-field"><span>Diamantes</span><input name="diamonds" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Horas LIVE</span><input name="live_hours" type="number" min="0" step="0.25" placeholder="Meta"></label><label class="gxt-field"><span>Días válidos</span><input name="valid_days" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Batallas</span><input name="battles" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Miembros del club de fans</span><input name="fan_club_members" type="number" min="0" step="1" placeholder="Meta"></label></div><div class="gxt-followup-reminder-inline"><h4>Recordatorio del plan</h4><p class="gxt-muted">Puedes dejarlo programado desde aquí, sin pasar a otra sección.</p><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="reminder_at" type="datetime-local"></label><label class="gxt-field"><span>Nota del recordatorio</span><input name="reminder_note" maxlength="2000" placeholder="Ej. Revisar avances a mitad del periodo"></label></div><button class="gxt-btn primary" type="submit">Guardar plan de trabajo</button></form>'+
-      '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card" data-followup-step="1"><h3>Registrar avance del plan</h3><p class="gxt-muted" id="gxFollowupPlanStatus">Primero debes crear un plan para habilitar los avances.</p><input type="hidden" name="plan_id"><div class="gxt-followup-target-grid"><label class="gxt-field"><span>Diamantes alcanzados</span><input name="diamonds" type="number" min="0" step="1"></label><label class="gxt-field"><span>Horas LIVE acumuladas</span><input name="live_hours" type="number" min="0" step="0.25"></label><label class="gxt-field"><span>Días válidos</span><input name="valid_days" type="number" min="0" step="1"></label><label class="gxt-field"><span>Batallas realizadas</span><input name="battles" type="number" min="0" step="1"></label><label class="gxt-field"><span>Miembros del club de fans</span><input name="fan_club_members" type="number" min="0" step="1"></label></div><label class="gxt-field"><span>Resumen del avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Acuerdos o ajustes</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><label class="gxt-field"><span>Estado</span><select name="plan_status"><option value="active">En curso</option><option value="paused">Pausado</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></label><button class="gxt-btn primary" type="submit" disabled>Guardar avance</button></form>'+
+      '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card" data-followup-step="1" hidden><h3>Registrar avance del plan</h3><p class="gxt-muted" id="gxFollowupPlanStatus">Primero debes crear un plan para habilitar los avances.</p><input type="hidden" name="plan_id"><div class="gxt-followup-target-grid"><label class="gxt-field"><span>Diamantes alcanzados</span><input name="diamonds" type="number" min="0" step="1"></label><label class="gxt-field"><span>Horas LIVE acumuladas</span><input name="live_hours" type="number" min="0" step="0.25"></label><label class="gxt-field"><span>Días válidos</span><input name="valid_days" type="number" min="0" step="1"></label><label class="gxt-field"><span>Batallas realizadas</span><input name="battles" type="number" min="0" step="1"></label><label class="gxt-field"><span>Miembros del club de fans</span><input name="fan_club_members" type="number" min="0" step="1"></label></div><label class="gxt-field"><span>Resumen del avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Acuerdos o ajustes</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><label class="gxt-field"><span>Estado</span><select name="plan_status"><option value="active">En curso</option><option value="paused">Pausado</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></label><button class="gxt-btn primary" type="submit" disabled>Guardar avance</button></form>'+
       '</div>'+
       '<div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';    loadFollowupHistory();
     loadFollowupWorkspace();
@@ -561,40 +561,6 @@
   }
 
   function setFollowupStep(index){state.followupStep=Number(index)||0;const form=document.getElementById('gxActionPlanForm'),progress=document.getElementById('gxActionPlanUpdateForm'),preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions');const showingProgress=state.followupStep===1;if(form)form.hidden=showingProgress||!!(preview&&!preview.hidden);if(progress)progress.hidden=!showingProgress;if(preview&&showingProgress)preview.hidden=true;if(actions&&showingProgress)actions.hidden=true;}
-  function updateFollowupContactMessage(creator,reportItem,reportRow,plan){
-    const box=document.getElementById('gxFollowupContactMessage');
-    const link=document.getElementById('gxFollowupWhatsAppLink');
-    const hint=document.getElementById('gxFollowupContactHint');
-    if(!creator||!reportItem||!reportRow){
-      if(box)box.value='No hay métricas de un reporte mensual seleccionado para este creador.';
-      if(link){link.dataset.url='';link.disabled=true;}
-      if(hint)hint.textContent='Abre la ficha desde un reporte mensual para preparar el mensaje con sus métricas.';
-      return;
-    }
-    const fmt=value=>value==null?'Sin dato':Number(value).toLocaleString('es-CO',{maximumFractionDigits:2});
-    const date=value=>value?new Intl.DateTimeFormat('es-CO',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T00:00:00Z')):'—';
-    const targets=plan?.targets||{};
-    const targetLines=[
-      ['Diamantes',targets.diamonds],['Horas LIVE',targets.live_hours],['Días válidos',targets.valid_days],
-      ['Batallas',targets.battles],['Miembros del club de fans',targets.fan_club_members]
-    ].filter(([,value])=>value!=null&&value!=='').map(([label,value])=>'• '+label+': '+fmt(value));
-    const planText=plan
-      ? 'Nuestro plan de trabajo para ti ('+date(plan.start_date)+' al '+date(plan.target_date)+') es:\n'+
-        (plan.title?'• Plan: '+plan.title+'\n':'')+
-        (plan.objective?'• Objetivo: '+plan.objective+'\n':'')+
-        (targetLines.length?targetLines.join('\n'):'• Metas específicas por confirmar')
-      : 'Aún no hay un plan de trabajo registrado para ti. Queremos definir contigo las metas del próximo periodo.';
-    const start=reportItem.source_start_date||reportItem.selected_start_date;
-    const end=reportItem.source_end_date||reportItem.selected_end_date;
-    const message='¡Hola! ¿Cómo estás? 😊\n\nQueremos hacer seguimiento a tu actividad en TikTok LIVE durante el periodo '+date(start)+' al '+date(end)+'.\n\nSegún el reporte, registramos:\n• Diamantes: '+fmt(reportRow.diamonds)+'\n• Días válidos de LIVE: '+fmt(reportRow.valid_live_days)+'\n• Horas acumuladas de LIVE: '+fmt(reportRow.live_seconds==null?null:Number(reportRow.live_seconds)/3600)+'\n\n'+planText+'\n\nQueremos saber si cuentas con la disponibilidad para cumplir estas metas. Recuerda que estamos aquí para acompañarte, orientarte y ayudarte a crecer. ¡Vamos con toda! 💪';
-    if(box)box.value=message;
-    const phoneDigits=String(window.gxFollowupSelectedPhone||'').replace(/\D/g,'');
-    const normalizedPhone=phoneDigits.length===10?'57'+phoneDigits:phoneDigits;
-    const url=normalizedPhone?'https://api.whatsapp.com/send?phone='+normalizedPhone+'&text='+encodeURIComponent(message):'';
-    if(link){link.dataset.url=url;link.disabled=!url;}
-    if(hint)hint.textContent=url?'Se abrirá el chat de WhatsApp de este creador con las métricas del reporte y el plan propuesto.':'Este creador no tiene teléfono registrado. Solicita a administración que lo agregue.';
-  }
-
   function renderFollowupActivityForCreator(creatorId){
     const host=document.getElementById('gxFollowupOperations');if(!host)return;
     const rows=(window.gxFollowupActivityRows||[]).filter(x=>x.creator_user_id===creatorId).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60);
@@ -623,8 +589,6 @@
         const creator=followupCreatorCache.find(p=>p.id===select.value);
         if(creator){document.getElementById('gxFollowupWorkspaceSection')?.classList.add('is-open');setFollowupStep(0);}
         if(!creator){window.gxFollowupSelectedPhone='';return;}
-        const {data:phoneData,error:phoneLookupError}=await sb.from('profile_details').select('phone').eq('user_id',creator.id).maybeSingle();
-        window.gxFollowupSelectedPhone=phoneLookupError?'':String(phoneData?.phone||'').trim();
         const selectedReport=window.gxFollowupSelectedReport||null;
         const reportRow=(selectedReport?.gx_creator_followup_evaluations||[]).find(row=>row.creator_user_id===creator.id)||null;
         const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
@@ -644,19 +608,17 @@
           planForm.querySelector('button[type=submit]').textContent='Guardar cambios del plan';
           if(planSelect)planSelect.value=currentPlan.id;
         }
-        updateFollowupContactMessage(creator,selectedReport,reportRow,currentPlan);
         updateFollowupProgressGate(currentPlan);
         renderFollowupActivityForCreator(creator.id);
         renderSavedActionPlan(currentPlan,(window.gxFollowupReminders||[]).find(r=>r.action_plan_id===currentPlan?.id&&r.status!=='cancelled')||null);
       };
-      const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
-        sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
-        sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').order('created_at',{ascending:false}).limit(30),
+      const [notes,plans,planUpdates,reminders]=await Promise.all([
+        sb.from('gx_creator_followup_notes').select('id,creator_user_id,manager_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(1000),
         sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,start_date,target_date,targets,created_at,manager_id,sent_to_creator_at').order('created_at',{ascending:false}).limit(1000),
         sb.from('gx_creator_action_plan_updates').select('id,plan_id,progress_summary,proposed_changes,status,created_at,review_note').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_reminders').select('id,creator_user_id,action_plan_id,scheduled_at,status,note').order('scheduled_at',{ascending:true}).limit(30)
       ]);
-      const failed=[notes,contacts,plans,planUpdates,reminders].find(x=>x.error);
+      const failed=[notes,plans,planUpdates,reminders].find(x=>x.error);
       if(failed)throw failed.error;
       window.gxFollowupPlans=plans.data||[];
       window.gxFollowupNotes=notes.data||[];
@@ -1573,11 +1535,9 @@
     if(event.target.closest('[data-followup-close]')){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}
     const openFollowup=event.target.closest('[data-followup-open-creator]');
     if(openFollowup){openFollowupCreator(openFollowup.dataset.followupOpenCreator,Number(openFollowup.dataset.followupStep)||0,openFollowup.dataset.followupPlanId||'');return;}
-    if(event.target.closest('[data-copy-followup-message]')){const message=document.getElementById('gxFollowupContactMessage')?.value||'';if(message)navigator.clipboard.writeText(message).then(()=>toast('Mensaje copiado.')).catch(()=>toast('No fue posible copiar el mensaje.'));return;}
     if(event.target.closest('[data-followup-next]')&&state.followupStep===0&&!state.followupHasPlan&&!document.querySelector('#gxActionPlanForm [name=plan_id]')?.value)return toast('Primero guarda el plan de trabajo para continuar.');
     if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
     if(event.target.closest('[data-followup-next]')){if(state.followupStep===2){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
-    const contactCreator=event.target.closest('[data-followup-open-contact]');if(contactCreator){setFollowupStep(2);return;}
     const registerProgress=event.target.closest('[data-followup-open-progress]');if(registerProgress&&!registerProgress.disabled){const planId=document.querySelector('#gxActionPlanForm [name=plan_id]')?.value;const progress=document.getElementById('gxActionPlanUpdateForm');if(progress){progress.hidden=false;progress.elements.plan_id.value=planId||'';}const preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions'),planForm=document.getElementById('gxActionPlanForm');if(preview)preview.hidden=true;if(actions)actions.hidden=true;if(planForm)planForm.hidden=true;state.followupStep=1;return;}
     const editSavedPlan=event.target.closest('[data-followup-edit-plan]');
     if(editSavedPlan){const form=document.getElementById('gxActionPlanForm'),preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions'),progress=document.getElementById('gxActionPlanUpdateForm');if(preview)preview.hidden=true;if(actions)actions.hidden=true;if(progress)progress.hidden=true;if(form)form.hidden=false;return;}
