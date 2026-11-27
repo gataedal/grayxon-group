@@ -426,10 +426,58 @@ body.gx-has-creator-deliveries #grayxonBottomNav{grid-template-columns:repeat(5,
 #grayxonBottomNav button>span:nth-child(2){display:block!important;width:100%!important;min-height:20px!important;max-height:20px!important;overflow:hidden!important;text-align:center!important;white-space:normal!important;overflow-wrap:anywhere!important;font-size:10px!important;line-height:10px!important;letter-spacing:0!important;font-weight:600!important}
 #grayxonBottomNav button .gx-nav-badge{font-size:10px!important;line-height:17px!important}
 </style>
+
+<style id="gx-internal-premium-navigation">
+/* Navegación premium exclusiva para administración y managers. */
+.gx-internal-menu-trigger{display:none;align-items:center;justify-content:center;width:42px;height:42px;flex:0 0 42px;border:1px solid #343b44;border-radius:13px;background:linear-gradient(145deg,#171c22,#0d1014);color:#e5e9ef;cursor:pointer;box-shadow:0 5px 18px #0005}
+.gx-internal-menu-trigger svg{width:21px;height:21px}
+body.gx-internal-session .gx-internal-menu-trigger{display:inline-flex!important}
+body.gx-internal-session #grayxonBottomNav{display:none!important}
+body.gx-internal-session{padding-bottom:0!important}
+.gx-internal-menu-overlay{position:fixed;inset:0;z-index:11000;background:rgba(1,3,6,.68);backdrop-filter:blur(5px);opacity:0;visibility:hidden;transition:opacity .24s ease,visibility .24s ease}
+.gx-internal-menu-overlay.is-open{opacity:1;visibility:visible}
+.gx-internal-menu-panel{position:absolute;inset:0 auto 0 0;width:min(340px,88vw);padding:calc(20px + env(safe-area-inset-top,0px)) 18px calc(22px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:22px;overflow-y:auto;background:linear-gradient(165deg,#151a20 0%,#0b0e12 56%,#090b0e 100%);border-right:1px solid #39414b;box-shadow:22px 0 65px #0009;transform:translateX(-102%);transition:transform .28s cubic-bezier(.2,.75,.2,1)}
+.gx-internal-menu-overlay.is-open .gx-internal-menu-panel{transform:translateX(0)}
+.gx-internal-menu-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:3px 2px 19px;border-bottom:1px solid #ffffff14}
+.gx-internal-menu-brand{display:flex;align-items:center;gap:11px;min-width:0}
+.gx-internal-menu-brand img{width:42px;height:42px;object-fit:contain}
+.gx-internal-menu-brand strong{display:block;color:#f1f3f6;font-size:15px;letter-spacing:.17em}
+.gx-internal-menu-brand small{display:block;margin-top:4px;color:#8994a2;font-size:10px;letter-spacing:.13em;text-transform:uppercase}
+.gx-internal-menu-close{width:36px;height:36px;border:1px solid #343b44;border-radius:11px;background:#ffffff08;color:#cbd2dc;font-size:20px;cursor:pointer}
+.gx-internal-menu-section-label{margin:0 0 9px 9px;color:#778391;font-size:10px;font-weight:750;letter-spacing:.16em;text-transform:uppercase}
+.gx-internal-menu-items{display:grid;gap:6px}
+.gx-internal-menu-item{width:100%;min-height:53px;padding:0 12px;display:flex;align-items:center;gap:13px;text-align:left;border:1px solid transparent;border-radius:13px;background:transparent;color:#c5ccd5;font:600 13px/1.2 inherit;cursor:pointer;transition:background .18s,border-color .18s,color .18s}
+.gx-internal-menu-item:hover,.gx-internal-menu-item:focus-visible{outline:none;background:linear-gradient(100deg,#202831,#171d24);border-color:#394652;color:#fff}
+.gx-internal-menu-item-icon{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border:1px solid #3a4651;border-radius:10px;background:linear-gradient(145deg,#202a33,#141a20);color:#64dce7}
+.gx-internal-menu-item-icon svg{width:18px;height:18px}
+.gx-internal-menu-item-label{flex:1}
+.gx-internal-menu-count{min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center;border-radius:99px;background:#fe2c55;color:white;font-size:10px;font-weight:800}
+.gx-internal-menu-footer{margin-top:auto;padding:15px 12px;border:1px solid #ffffff12;border-radius:14px;background:linear-gradient(120deg,#171d23,#101419)}
+.gx-internal-menu-footer strong{display:block;color:#e5e9ef;font-size:12px;letter-spacing:.08em}
+.gx-internal-menu-footer span{display:block;margin-top:5px;color:#8994a2;font-size:11px}
+@media(max-width:600px){body.gx-internal-session header.top{gap:9px}body.gx-internal-session .gx-internal-menu-trigger{width:40px;height:40px;flex-basis:40px}}
+@media(prefers-reduced-motion:reduce){.gx-internal-menu-overlay,.gx-internal-menu-panel{transition:none!important}}
+</style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
-<header class="top"><div class="brand" id="homeBrand" role="img" aria-label="Grayxon Group"><img class="logo" src="assets/grayxon-logo.png" alt=""><b>GRAYXON</b><span class="brand-live">LIVE</span></div><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir perfil">G</button><button id="notificationsBtn" class="notifications-btn" aria-label="Notificaciones"><span class="notification-bell">🔔</span><span id="notificationsBadge" class="notification-badge hidden">0</span></button><div id="notificationsPanel" class="notification-panel hidden"></div><div id="profileMenu" class="profile-menu hidden" aria-hidden="true"></div></div></div></header>
+<header class="top"><div class="brand" id="homeBrand" role="img" aria-label="Grayxon Group"><img class="logo" src="assets/grayxon-logo.png" alt=""><b>GRAYXON</b><span class="brand-live">LIVE</span></div><button type="button" class="gx-internal-menu-trigger" id="gxInternalMenuTrigger" aria-label="Abrir menú principal" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="header-actions"><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir perfil">G</button><button id="notificationsBtn" class="notifications-btn" aria-label="Notificaciones"><span class="notification-bell">🔔</span><span id="notificationsBadge" class="notification-badge hidden">0</span></button><div id="notificationsPanel" class="notification-panel hidden"></div><div id="profileMenu" class="profile-menu hidden" aria-hidden="true"></div></div></div></header>
 <main class="wrap"><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="space" class="page hidden"></section><section id="manager" class="page hidden"></section><section id="training" class="page hidden"></section><section id="missions" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section><section id="announcements" class="page hidden"></section><section id="force-password" class="page hidden"></section></main>
+<div class="gx-internal-menu-overlay" id="gxInternalMenuOverlay" aria-hidden="true">
+ <aside class="gx-internal-menu-panel" role="dialog" aria-modal="true" aria-label="Menú principal">
+  <div class="gx-internal-menu-head">
+   <div class="gx-internal-menu-brand"><img src="assets/grayxon-logo.png" alt=""><div><strong>GRAYXON</strong><small>Espacio de trabajo</small></div></div>
+   <button type="button" class="gx-internal-menu-close" id="gxInternalMenuClose" aria-label="Cerrar menú">×</button>
+  </div>
+  <div><p class="gx-internal-menu-section-label">Navegación</p><div class="gx-internal-menu-items">
+   <button type="button" class="gx-internal-menu-item" data-gx-menu-action="home"><span class="gx-internal-menu-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7M5 9v11h14V9M9 20v-6h6v6"/></svg></span><span class="gx-internal-menu-item-label">Inicio</span></button>
+   <button type="button" class="gx-internal-menu-item" data-gx-menu-action="notifications"><span class="gx-internal-menu-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span><span class="gx-internal-menu-item-label">Notificaciones</span><span class="gx-internal-menu-count" id="gxInternalMenuNotifCount" hidden>0</span></button>
+   <button type="button" class="gx-internal-menu-item" data-gx-menu-action="calendar"><span class="gx-internal-menu-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg></span><span class="gx-internal-menu-item-label">Calendario</span></button>
+   <button type="button" class="gx-internal-menu-item" data-gx-menu-action="profile"><span class="gx-internal-menu-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="gx-internal-menu-item-label">Perfil</span></button>
+   <button type="button" class="gx-internal-menu-item" data-gx-menu-action="deliveries" id="gxInternalMenuDeliveries"><span class="gx-internal-menu-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7.5 9-4.5 9 4.5-9 4.5-9-4.5ZM3 7.5V17l9 4 9-4V7.5M12 12v9"/></svg></span><span class="gx-internal-menu-item-label">Mis entregas</span></button>
+  </div></div>
+  <div class="gx-internal-menu-footer"><strong>GRAYXON GROUP</strong><span>Conectamos talento. Impulsamos crecimiento.</span></div>
+ </aside>
+</div>
 <nav class="gx-bottom-nav" id="grayxonBottomNav" aria-label="Navegación principal">
 <button type="button" data-gx-bottom="home" aria-label="Inicio"><span class="gx-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M9 20v-6h6v6"/></svg></span><span>Inicio</span></button>
 <button type="button" data-gx-bottom="notifications" aria-label="Notificaciones"><span class="gx-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></span><span>Notificaciones</span><span id="gxBottomNotificationsBadge" class="gx-nav-badge hidden">0</span></button>
@@ -756,6 +804,50 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
 </style>
   <script src="gana-mas-referrals.js?v=20"></script>
   <script src="grayxon-trabajo-entry.js?v=4"></script>
+
+<script id="gx-internal-premium-navigation-script">
+(()=> {
+ const overlay=document.getElementById('gxInternalMenuOverlay');
+ const trigger=document.getElementById('gxInternalMenuTrigger');
+ const closeBtn=document.getElementById('gxInternalMenuClose');
+ const bottom=document.getElementById('grayxonBottomNav');
+ if(!overlay||!trigger||!bottom||overlay.dataset.bound)return;
+ overlay.dataset.bound='1';
+ const close=()=>{overlay.classList.remove('is-open');overlay.setAttribute('aria-hidden','true');trigger.setAttribute('aria-expanded','false');};
+ const open=()=>{overlay.classList.add('is-open');overlay.setAttribute('aria-hidden','false');trigger.setAttribute('aria-expanded','true');closeBtn?.focus();};
+ const syncRole=()=>{
+  const authenticated=document.body.classList.contains('gx-bottom-nav-authenticated');
+  const role=window.grayxonDashboardPage;
+  const internal=authenticated&&(role==='admin'||role==='manager'||document.body.classList.contains('grayxon-manager-session'));
+  document.body.classList.toggle('gx-internal-session',internal);
+  if(!internal)close();
+  const delivery=bottom.querySelector('[data-gx-bottom="deliveries"]');
+  const deliveryItem=document.getElementById('gxInternalMenuDeliveries');
+  if(deliveryItem)deliveryItem.hidden=!delivery||delivery.hidden;
+  const sourceBadge=document.getElementById('gxBottomNotificationsBadge');
+  const count=document.getElementById('gxInternalMenuNotifCount');
+  if(sourceBadge&&count){count.textContent=sourceBadge.textContent;count.hidden=sourceBadge.classList.contains('hidden')||!sourceBadge.textContent||sourceBadge.textContent==='0';}
+ };
+ trigger.addEventListener('click',()=>overlay.classList.contains('is-open')?close():open());
+ closeBtn?.addEventListener('click',close);
+ overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+ overlay.querySelectorAll('[data-gx-menu-action]').forEach(item=>item.addEventListener('click',()=>{
+  const action=item.dataset.gxMenuAction;
+  const target=bottom.querySelector('[data-gx-bottom="'+action+'"]');
+  close();
+  if(target)target.click();
+ }));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.classList.contains('is-open')){close();trigger.focus();}});
+ syncRole();
+ const roleObserver=new MutationObserver(syncRole);
+ roleObserver.observe(document.body,{attributes:true,attributeFilter:['class']});
+ const badgeObserver=new MutationObserver(syncRole);
+ const badge=document.getElementById('gxBottomNotificationsBadge');
+ if(badge)badgeObserver.observe(badge,{attributes:true,childList:true,characterData:true,subtree:true});
+ let checks=0;
+ const wait=setInterval(()=>{syncRole();if(window.grayxonDashboardPage||checks++>50)clearInterval(wait);},200);
+})();
+</script>
 </body>
 
 <style id="grayxon-final-modal-mobile-fix">
