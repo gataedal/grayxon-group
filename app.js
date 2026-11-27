@@ -5692,6 +5692,8 @@ async function adminUserModal(id){
   const tm=new Map((teams||[]).map(x=>[x.id,x.name])), mm=new Map((managers||[]).map(x=>[x.id,x.name]));
   const safe=x=>x?esc(x):'—';
   const canChangeUsername=p.role!=='admin';
+  const canEditCreatorDetails=profile?.role==='admin' && p.role==='creator';
+  const editableRow=(section,key,label,value,sensitive=false)=>`<div class="item" data-admin-profile-row data-section="${section}" data-field="${key}" style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span style="min-width:0;overflow-wrap:anywhere"><b>${label}:</b> ${sensitive?`<span class="sensitive-value">${safe(value)}</span>`:safe(value)}</span>${canEditCreatorDetails?`<button type="button" data-admin-edit-field aria-label="Editar ${label}" title="Editar ${label}" style="flex:0 0 32px;width:32px;height:32px;border:1px solid #3b414a;border-radius:9px;background:#171a1f;color:#dfe5ed;font-size:17px;line-height:1;cursor:pointer">✎</button>`:''}</div>`;
   const el=document.createElement('div');el.className='modal-backdrop';
   el.innerHTML=`<div class="card modal creator-profile-modal" style="max-width:760px;max-height:90vh;overflow:auto">
     <div class="row"><div><div class="eyebrow">USUARIO</div><h2>${safe(p.full_name||p.username)}</h2><div class="muted small">@${safe(p.username)} · ${p.role==='admin'?'Administrador':p.role==='manager'?'Manager':'Creador'} · ${p.active?'Activo':'Inactivo'}</div></div><div class="inline">${p.role==='creator'?'<button class="secondary" id="openAdminUserMissions">Ver misiones y progreso</button>':''}<button class="secondary" id="closeAdminUser">Cerrar</button></div></div>
@@ -5707,12 +5709,74 @@ async function adminUserModal(id){
     <button class="primary" id="saveAdminUserAccess">Guardar cambios de acceso</button>
     <div class="hr" style="margin-top:22px"></div>
     <h3>Información personal</h3>
-    <div class="list"><div class="item">Correo: ${safe(d?.email)}</div><div class="item">Teléfono: ${safe(d?.phone)}</div><div class="item">Ubicación: ${safe(d?.country)} · ${safe(d?.state_region)} · ${safe(d?.city)}</div><div class="item">Dirección: ${safe(d?.address)}</div></div>
+    <div class="list" id="adminCreatorPersonalDetails">
+      ${editableRow('personal','email','Correo',d?.email)}
+      ${editableRow('personal','phone','Teléfono',d?.phone)}
+      ${editableRow('personal','country','País',d?.country)}
+      ${editableRow('personal','state_region','Departamento / región',d?.state_region)}
+      ${editableRow('personal','city','Ciudad',d?.city)}
+      ${editableRow('personal','address','Dirección',d?.address)}
+    </div>
     <h3 style="margin-top:22px">Pago</h3>
-    <div class="list">${pm?.method_type==='paypal'?`<div class="item">PayPal: ${safe(pm.paypal_email)}</div>`:`<div class="item">Banco / medio: ${safe(pm?.bank_name)}</div><div class="item">País: ${safe(pm?.bank_country)}</div><div class="item">Tipo: ${safe(pm?.account_type)}</div><div class="item">Cuenta: <span class="sensitive-value">${safe(pm?.account_number)}</span></div>`}</div>
+    <div class="list" id="adminCreatorPaymentDetails">
+      ${editableRow('payment','method_type','Medio de pago',pm?.method_type==='paypal'?'PayPal':'Banco')}
+      ${pm?.method_type==='paypal'
+        ? editableRow('payment','paypal_email','Correo de PayPal',pm?.paypal_email)
+        : `${editableRow('payment','bank_name','Banco / medio',pm?.bank_name)}${editableRow('payment','bank_country','País',pm?.bank_country)}${editableRow('payment','account_type','Tipo',pm?.account_type==='savings'?'Ahorros':pm?.account_type==='checking'?'Corriente':pm?.account_type)}${editableRow('payment','account_number','Cuenta',pm?.account_number,true)}`}
+    </div>
     <div class="item" style="margin-top:16px"><b>Equipo:</b> ${safe(tm.get(p.team_id))} · <b>Manager:</b> ${safe(mm.get(p.manager_id))}</div>
   </div>`;
   document.body.appendChild(el);
+  if(canEditCreatorDetails){
+    const editLabels={
+      email:'Correo',phone:'Teléfono',country:'País',state_region:'Departamento / región',city:'Ciudad',address:'Dirección',
+      method_type:'Medio de pago',paypal_email:'Correo de PayPal',bank_name:'Banco / medio',bank_country:'País',account_type:'Tipo de cuenta',account_number:'Número de cuenta'
+    };
+    el.querySelectorAll('[data-admin-edit-field]').forEach(editButton=>{
+      editButton.addEventListener('click',()=>{
+        const row=editButton.closest('[data-admin-profile-row]');
+        if(!row)return;
+        const section=row.dataset.section,fieldName=row.dataset.field;
+        const original=section==='personal'?(d?.[fieldName]??''):(pm?.[fieldName]??(fieldName==='method_type'?'bank':''));
+        const label=editLabels[fieldName]||fieldName;
+        const control=fieldName==='method_type'
+          ? `<select class="gx-admin-inline-input" aria-label="${label}" style="box-sizing:border-box;width:100%;min-height:42px;padding:10px 12px;border:1px solid #3b414a;border-radius:10px;background:#090b0e;color:#f5f6f8"><option value="bank" ${String(original)==='bank'?'selected':''}>Banco</option><option value="paypal" ${String(original)==='paypal'?'selected':''}>PayPal</option></select>`
+          : fieldName==='address'
+            ? `<textarea class="gx-admin-inline-input" rows="2" aria-label="${label}" style="box-sizing:border-box;width:100%;padding:10px 12px;border:1px solid #3b414a;border-radius:10px;background:#090b0e;color:#f5f6f8">${esc(original)}</textarea>`
+            : `<input class="gx-admin-inline-input" type="${fieldName==='email'||fieldName==='paypal_email'?'email':fieldName==='phone'?'tel':'text'}" value="${esc(original)}" aria-label="${label}" autocomplete="off" style="box-sizing:border-box;width:100%;min-height:42px;padding:10px 12px;border:1px solid #3b414a;border-radius:10px;background:#090b0e;color:#f5f6f8">`;
+        row.innerHTML=`<div style="width:100%;display:grid;gap:8px"><label style="font-size:12px;color:#b8c0cb;font-weight:700">${label}</label>${control}<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="primary small" data-admin-save-field>Guardar</button><button type="button" class="secondary small" data-admin-cancel-field>Cancelar</button></div><div class="error" data-admin-inline-error aria-live="polite"></div></div>`;
+        const input=row.querySelector('.gx-admin-inline-input');
+        input?.focus();
+        row.querySelector('[data-admin-cancel-field]').onclick=()=>{el.remove();adminUserModal(id);};
+        row.querySelector('[data-admin-save-field]').onclick=async()=>{
+          const saveButton=row.querySelector('[data-admin-save-field]'),errorBox=row.querySelector('[data-admin-inline-error]');
+          let value=input?.value?.trim()??'';
+          if(fieldName==='method_type'&&!['bank','paypal'].includes(value)){errorBox.textContent='Selecciona un medio de pago válido.';return;}
+          if((fieldName==='email'||fieldName==='paypal_email')&&value&&!input.checkValidity()){errorBox.textContent='Escribe un correo electrónico válido.';return;}
+          value=value===''?null:value;
+          saveButton.disabled=true;saveButton.textContent='Guardando…';errorBox.textContent='';
+          try{
+            if(section==='personal'){
+              const {error}=await sb.from('profile_details').upsert({user_id:id,[fieldName]:value,updated_at:new Date().toISOString()});
+              if(error)throw error;
+            }else{
+              const payload={user_id:id,[fieldName]:value,updated_at:new Date().toISOString()};
+              let result;
+              if(pm?.id)result=await sb.from('payment_methods').update(payload).eq('id',pm.id);
+              else result=await sb.from('payment_methods').insert({...payload,method_type:fieldName==='method_type'?(value||'bank'):'bank'});
+              if(result.error)throw result.error;
+            }
+            toast(label+' actualizado correctamente ✓');
+            el.remove();
+            await adminUserModal(id);
+          }catch(error){
+            errorBox.textContent=error?.message||'No se pudo guardar el cambio.';
+            saveButton.disabled=false;saveButton.textContent='Guardar';
+          }
+        };
+      });
+    });
+  }
   if(p.role==='creator'){
     const assignment=document.createElement('section');
     assignment.className='card';
