@@ -727,12 +727,14 @@
       else result=await sb.from('gx_creator_action_plans').insert({...common,...payload}).select('id').single();
       if(result.error)return toast('No se pudo guardar el plan: '+result.error.message);
       const reminderLocal=String(data.get('reminder_at')||'');
+      const existingReminder=(window.gxFollowupReminders||[]).find(item=>item.action_plan_id===result.data.id&&item.status!=='cancelled');
       if(reminderLocal){
         const scheduledAt=window.GRAYXON_FOLLOWUP_CALCULATIONS?.toBogotaISOString(reminderLocal);
         if(!scheduledAt)return toast('El plan se guardó, pero la fecha del recordatorio no es válida.');
-        const reminder=await sb.from('gx_creator_followup_reminders').insert({...common,action_plan_id:result.data.id,scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('reminder_note')||'').trim()||null});
-        if(reminder.error)return toast('El plan se guardó, pero no se pudo programar el recordatorio: '+reminder.error.message);
-      }
+        const reminderPayload={scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('reminder_note')||'').trim()||null,status:'pending',updated_at:new Date().toISOString()};
+        const reminder=existingReminder?await sb.from('gx_creator_followup_reminders').update(reminderPayload).eq('id',existingReminder.id):await sb.from('gx_creator_followup_reminders').insert({...common,action_plan_id:result.data.id,...reminderPayload});
+        if(reminder.error)return toast('El plan se guardó, pero no se pudo actualizar el recordatorio: '+reminder.error.message);
+      }else if(existingReminder){const removed=await sb.from('gx_creator_followup_reminders').delete().eq('id',existingReminder.id);if(removed.error)return toast('El plan se guardó, pero no se pudo retirar el recordatorio: '+removed.error.message);}
       form.elements.reminder_at.value='';form.elements.reminder_note.value='';
       toast(planId?'Plan actualizado.':'Plan creado correctamente.');
       await loadFollowupWorkspace();setFollowupStep(1);return;
@@ -1513,6 +1515,10 @@
     if(event.target.closest('[data-followup-next]')&&state.followupStep===0&&!state.followupHasPlan&&!document.querySelector('#gxActionPlanForm [name=plan_id]')?.value)return toast('Primero guarda el plan de trabajo para continuar.');
     if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
     if(event.target.closest('[data-followup-next]')){if(state.followupStep===2){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
+    const editSavedPlan=event.target.closest('[data-followup-edit-plan]');
+    if(editSavedPlan){const form=document.getElementById('gxActionPlanForm'),preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions');if(preview)preview.hidden=true;if(actions)actions.hidden=true;if(form)form.hidden=false;return;}
+    const deleteSavedPlan=event.target.closest('[data-followup-delete-plan]');
+    if(deleteSavedPlan){const form=document.getElementById('gxActionPlanForm'),planId=form?.elements.plan_id.value,creatorId=document.getElementById('gxFollowupCreator')?.value;if(!planId)return;if(!window.confirm('¿Eliminar este plan de trabajo y sus recordatorios?'))return;const reminders=(window.gxFollowupReminders||[]).filter(r=>r.action_plan_id===planId);for(const r of reminders){const del=await sb.from('gx_creator_followup_reminders').delete().eq('id',r.id);if(del.error)return toast('No se pudo eliminar el recordatorio: '+del.error.message);}const delPlan=await sb.from('gx_creator_action_plans').delete().eq('id',planId).eq('creator_user_id',creatorId);if(delPlan.error)return toast('No se pudo eliminar el plan: '+delPlan.error.message);toast('Plan eliminado.');await loadFollowupWorkspace();if(creatorId)await openFollowupCreator(creatorId,0);return;}
     const reviewPlan=event.target.closest('[data-review-plan-update]');
     if(reviewPlan)return reviewActionPlanUpdate(reviewPlan.dataset.reviewPlanUpdate,reviewPlan.dataset.reviewDecision);
     const followupPreview=event.target.closest('[data-followup-preview]');
