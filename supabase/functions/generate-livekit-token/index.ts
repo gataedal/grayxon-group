@@ -36,29 +36,13 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
       return response({ error: "Completa tus primeros pasos antes de entrar a las formaciones en vivo." }, 403);
     }
 
-    let body: { trainingId?: string } = {};
+    let body: { trainingId?: string; connectionId?: string } = {};
     try { body = await req.json(); } catch { /* invalid body */ }
     const trainingId = body.trainingId?.trim();
-
-    // Reuse one LiveKit identity for the same Grayxon account in the same
-    // browser/device. This prevents a second tab from showing the same user
-    // twice when the user switches tabs and rejoins the same training.
-    // Different devices (for example, desktop and phone) retain distinct IDs.
-    const deviceSignature = [
-      req.headers.get("user-agent") || "",
-      req.headers.get("sec-ch-ua") || "",
-      req.headers.get("sec-ch-ua-platform") || "",
-      req.headers.get("sec-ch-ua-mobile") || "",
-    ].join("|");
-    const digest = new Uint8Array(await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(`${profile.id}:${deviceSignature}`),
-    ));
-    const uuidBytes = Array.from(digest.slice(0, 16));
-    uuidBytes[6] = (uuidBytes[6] & 0x0f) | 0x50;
-    uuidBytes[8] = (uuidBytes[8] & 0x3f) | 0x80;
-    const deviceHex = uuidBytes.map(value => value.toString(16).padStart(2, "0")).join("");
-    const connectionId = `${deviceHex.slice(0, 8)}-${deviceHex.slice(8, 12)}-${deviceHex.slice(12, 16)}-${deviceHex.slice(16, 20)}-${deviceHex.slice(20)}`;
+    const connectionId = String(body.connectionId || crypto.randomUUID()).trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(connectionId)) {
+      return response({ error: "La conexión del dispositivo no es válida." }, 400);
+    }
     if (!trainingId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trainingId)) {
       return response({ error: "Debes indicar un trainingId válido." }, 400);
     }
