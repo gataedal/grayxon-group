@@ -430,7 +430,7 @@ begin
   if not public.gx_event_audience_matches(p_event_id,v_user) then raise exception 'Este evento no está dirigido a tu cuenta.' using errcode='42501'; end if;
   if v_event.battle_enabled and v_role<>'creator' then raise exception 'Las batallas de este evento son para creadores.' using errcode='42501'; end if;
   v_handle:=nullif(regexp_replace(trim(coalesce(p_tiktok_username,v_profile_username,'')),'^@+',''),'');
-  if v_handle is not null and v_handle !~ '^[A-Za-z0-9._]{2,24} 'El usuario de tu perfil no tiene un formato de TikTok válido. Corrígelo en tu perfil de Grayxon.' using errcode='22023'; end if;
+  if v_handle is not null and v_handle !~ '^[A-Za-z0-9._]{2,24}$' then raise exception 'El usuario de tu perfil no tiene un formato de TikTok válido. Corrígelo en tu perfil de Grayxon.' using errcode='22023'; end if;
   insert into public.gx_event_responses(event_id,user_id,response,tiktok_username,responded_at)
   values(p_event_id,v_user,p_response,v_handle,now())
   on conflict(event_id,user_id) do update set response=excluded.response,tiktok_username=coalesce(excluded.tiktok_username,gx_event_responses.tiktok_username),responded_at=now();
