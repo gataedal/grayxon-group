@@ -326,3 +326,27 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-followup-alert-person span{font-size:10px;color:#b8c4ce;text-align:right}
 .gxt-followup-alert-person small{grid-column:1/-1;color:#91a0ad;font-size:10px}
 @media(max-width:560px){.gxt-followup-alert-trigger{width:100%}.gxt-followup-alert-person{grid-template-columns:1fr}.gxt-followup-alert-person span{text-align:left}}
+
+
+/* Identificación visual y acciones directas del seguimiento de creadores. */
+.gxt-followup-table .gxt-followup-data-row{transition:background .15s ease}
+.gxt-followup-table .gxt-followup-data-row:hover{background:rgba(37,244,238,.035)}
+.gxt-followup-creator-link{display:grid;gap:3px;padding:0;border:0;background:transparent;color:#eef5f8;text-align:left;cursor:pointer}
+.gxt-followup-creator-link strong{font-size:11px}
+.gxt-followup-creator-link small{font-size:10px;color:#8fa7b1}
+.gxt-followup-creator-link:hover strong{color:#25f4ee;text-decoration:underline}
+.gxt-followup-unlinked{color:#f0b46c;font-weight:700}
+.gxt-followup-link-status,.gxt-followup-status-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid transparent;border-radius:999px;font-size:10px;font-weight:800}
+.gxt-followup-link-status.is-linked{color:#91e8bd;background:rgba(46,180,116,.12);border-color:rgba(46,180,116,.35)}
+.gxt-followup-link-status.is-unlinked{color:#ffc27c;background:rgba(219,139,48,.12);border-color:rgba(219,139,48,.35)}
+.gxt-followup-status-pill.is-risk{color:#ff9b9b;background:rgba(220,65,65,.14);border-color:rgba(220,65,65,.38)}
+.gxt-followup-status-pill.is-observation{color:#ffd18a;background:rgba(212,151,50,.14);border-color:rgba(212,151,50,.38)}
+.gxt-followup-status-pill.is-success{color:#91e8bd;background:rgba(46,180,116,.12);border-color:rgba(46,180,116,.35)}
+.gxt-followup-status-pill.is-early{color:#8edcff;background:rgba(53,158,211,.14);border-color:rgba(53,158,211,.38)}
+.gxt-followup-status-pill.is-warning{color:#ffc27c;background:rgba(219,139,48,.12);border-color:rgba(219,139,48,.38)}
+.gxt-followup-status-pill.is-neutral{color:#c4cbd2;background:rgba(160,170,180,.1);border-color:rgba(160,170,180,.25)}
+.gxt-followup-plan-button{padding:7px 11px;border-radius:9px;font-size:10px;font-weight:850;white-space:nowrap;cursor:pointer}
+.gxt-followup-plan-button.is-create{border:1px solid rgba(37,244,238,.45);background:rgba(37,244,238,.1);color:#8ffaf3}
+.gxt-followup-plan-button.is-view{border:1px solid rgba(153,174,255,.45);background:rgba(108,132,219,.14);color:#c5d0ff}
+.gxt-followup-plan-button:hover{filter:brightness(1.18);transform:translateY(-1px)}
+.gxt-followup-muted{color:#687782}
