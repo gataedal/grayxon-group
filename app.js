@@ -1369,6 +1369,39 @@ function updateSpaceTeam(a){
 }
 function updateSpaceCard(action,pct,detail){const b=document.querySelector(`[data-space-action="${action}"]`);if(!b)return;const p=b.querySelector('.space-card-top span'),bar=b.querySelector('.space-progress span'),d=b.querySelector('small');if(p)p.textContent=`${pct}%`;if(bar)bar.style.width=`${Math.max(0,Math.min(100,pct))}%`;if(d)d.textContent=detail;}
 
+function ensureInternalDashboardStyles(){
+  if(document.getElementById('gx-internal-dashboard-data-styles'))return;
+  const style=document.createElement('style');style.id='gx-internal-dashboard-data-styles';
+  style.textContent=`
+    .gx-internal-dashboard{display:grid;gap:20px;width:100%;max-width:1240px;margin:0 auto}
+    .gx-internal-dashboard-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:8px 2px 0}
+    .gx-internal-dashboard-heading .eyebrow{font-size:10px;letter-spacing:.17em;color:#8294a3;font-weight:800}
+    .gx-internal-dashboard-heading h1{margin:7px 0 5px;color:#f3f5f7;font-size:clamp(25px,3vw,34px);letter-spacing:-.035em}
+    .gx-internal-dashboard-heading p{margin:0;color:#929eaa;font-size:13px;text-transform:capitalize}
+    .gx-internal-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+    .gx-internal-stat-card{min-width:0;min-height:126px;padding:18px;border:1px solid #303943;border-radius:17px;background:linear-gradient(145deg,#171c22,#0e1216);display:flex;flex-direction:column;gap:8px;box-shadow:0 9px 24px #0002}
+    .gx-internal-stat-card span{font-size:12px;color:#aeb9c4;font-weight:650}
+    .gx-internal-stat-card strong{font-size:32px;line-height:1;color:#f3f6f8;letter-spacing:-.04em}
+    .gx-internal-stat-card small{font-size:10px;color:#82909d;line-height:1.4}
+    .gx-internal-dashboard-columns{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:14px}
+    .gx-internal-activity-card{min-width:0;padding:19px;border:1px solid #303943;border-radius:18px;background:linear-gradient(145deg,#151a20,#0d1115)}
+    .gx-internal-section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+    .gx-internal-section-heading h2{margin:0;color:#edf1f4;font-size:16px}
+    .gx-internal-section-heading span{color:#84929f;font-size:11px}
+    .gx-internal-activity-list{display:grid;gap:0}
+    .gx-internal-activity-row,.gx-internal-task-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid #ffffff0c;min-width:0}
+    .gx-internal-activity-time{flex:0 0 55px;color:#65dbe5;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
+    .gx-internal-activity-copy,.gx-internal-task-row>span{display:grid;gap:4px;min-width:0}
+    .gx-internal-activity-copy strong,.gx-internal-task-row strong{font-size:13px;color:#e9edf1;overflow-wrap:anywhere}
+    .gx-internal-activity-copy small,.gx-internal-task-row small{font-size:11px;color:#8b98a5}
+    .gx-internal-empty{padding:20px 4px;color:#87939e;font-size:12px}
+    .gx-internal-access-source{display:none!important}
+    @media(max-width:900px){.gx-internal-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:620px){.gx-internal-dashboard{gap:14px}.gx-internal-stat-card{min-height:108px;padding:14px}.gx-internal-stat-card strong{font-size:28px}.gx-internal-dashboard-columns{grid-template-columns:1fr}.gx-internal-activity-card{padding:15px}}
+  `;
+  document.head.appendChild(style);
+}
+
 async function render(){
   if(current==='home'||current==='benefits'||current==='admin'){
     const c=await content();
@@ -1387,7 +1420,7 @@ async function render(){
   if(current==='live-training')await liveTrainingTpl();
   if(current==='missions')await missionsTpl();
   if(current==='profile'){ $('#profile').innerHTML=await profileTpl(); if(profile?.role==='creator') loadCreatorProfileManager(); }
-  bind(); updateHeaderAccessUI(); if(current==='profile') ensureCreatorNotificationMenuAction(); updateProfileBadge(); updateNotificationsUI(); updateCreatorSpaceFloat(); updateCreatorTopNav();
+  ensureInternalDashboardStyles(); bind(); updateHeaderAccessUI(); if(current==='profile') ensureCreatorNotificationMenuAction(); updateProfileBadge(); updateNotificationsUI(); updateCreatorSpaceFloat(); updateCreatorTopNav();
   if(session && ['space','manager','admin'].includes(current)) gxRefreshAnnouncementUnreadCount();
   $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===current || (b.dataset.page==='space' && current==='manager')));
 }
@@ -4748,15 +4781,28 @@ async function managerTpl(){
   const trainingManagement=managerView==='training'?await liveTrainingManagementTpl('manager',false):'';
   const managerCard=(view,icon,title,desc,meta='›')=>`<button type="button" class="manager-dashboard-card" data-manager-view="${view}"><span class="manager-dashboard-card-icon">${icon}</span><span class="manager-dashboard-card-copy"><strong>${title}</strong><small ${view==='training'?`data-manager-live-status data-default-text="${esc(desc)}"`:''}>${desc}</small></span><span class="manager-dashboard-card-arrow">${meta}</span></button>`;
   const managerCommsCard=`<button type="button" class="manager-dashboard-card" data-manager-view="announcements"><span class="manager-dashboard-card-icon gx-manager-comms-icon">📣</span><span class="manager-dashboard-card-copy"><strong>Centro de comunicados</strong><small>Novedades, avisos importantes y recursos de tu equipo.</small><span class="gx-ann-unread-badge hidden" data-gx-ann-unread-badge aria-live="polite"><b>0</b> pendientes por leer</span></span><span class="manager-dashboard-card-arrow">›</span></button>`;
-  const dashboardMarkup=`<div class="manager-dashboard-grid">${managerCommsCard}${managerCard('training','🎥','Entrenamientos en vivo',`${managerUpcoming.length} próximos programados · Consulta y gestiona las sesiones.`)}${managerCard('creators','👥','Mis creadores','Consulta y administra los creadores asignados a tu equipo.',(creators||[]).length)}${managerCard('tasks','📋','Tareas asignadas','Consulta y completa las tareas que te asignó la administración.',tasks.length)}<button type="button" class="manager-dashboard-card gx-payments-dashboard-card" data-page="payments"><span class="manager-dashboard-card-icon">💸</span><span class="manager-dashboard-card-copy"><strong>Mis pagos</strong><small>Consulta el historial de pagos registrados a tu nombre.</small></span><span class="manager-dashboard-card-arrow">›</span></button></div>`;
-  const pageHeader=(title,desc)=>`<div class="manager-subpage-header"><div><div class="eyebrow">PANEL DE MANAGER</div><h2>${title}</h2><p class="muted small">${desc}</p></div></div>`;
+  const todayRange=gxInternalTodayRange();
+  const [todayEvents,todayMatches,todayTrainings,todayInternalTasks]=managerView==='dashboard'?await Promise.all([
+    gxInternalSafeRows(sb.from('gx_events').select('id,title,event_type,starts_at').in('status',['published','in_progress','scheduled','upcoming']).gte('starts_at',todayRange.start).lt('starts_at',todayRange.end)),
+    gxInternalSafeRows(sb.from('gx_event_matches').select('id,scheduled_at,status').gte('scheduled_at',todayRange.start).lt('scheduled_at',todayRange.end)),
+    gxInternalSafeRows(sb.from('live_trainings').select('id,title,scheduled_at,status').eq('status','scheduled').gte('scheduled_at',todayRange.start).lt('scheduled_at',todayRange.end)),
+    gxInternalSafeRows(sb.from('gx_tasks').select('id,title,status,starts_at,due_at').or('and(starts_at.gte.'+todayRange.start+',starts_at.lt.'+todayRange.end+'),and(due_at.gte.'+todayRange.start+',due_at.lt.'+todayRange.end+')'))
+  ]):[[],[],[],[]];
+  const todayActivities=[...todayEvents.map(x=>({title:x.title||'Evento',type:x.event_type||'Evento',date:x.starts_at})),...todayMatches.map(x=>({title:'Batalla programada',type:'Batalla',date:x.scheduled_at})),...todayTrainings.map(x=>({title:x.title||'Entrenamiento en vivo',type:'Entrenamiento',date:x.scheduled_at})),...todayInternalTasks.map(x=>({title:x.title||'Tarea interna',type:'Tarea',date:x.starts_at||x.due_at})),...tasks.filter(x=>!x.completed&&String(x.due_at||'').slice(0,10)===todayRange.day).map(x=>({title:x.title||'Tarea asignada',type:'Tarea pendiente',date:x.due_at}))].filter(x=>x.date).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const pendingManagerTasks=tasks.filter(x=>!x.completed).length;
+  const activityTime=x=>new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit'}).format(new Date(x.date));
+  const activityList=todayActivities.length?todayActivities.slice(0,5).map(x=>'<article class="gx-internal-activity-row"><span class="gx-internal-activity-time">'+activityTime(x)+'</span><span class="gx-internal-activity-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.type)+'</small></span></article>').join(''):'<div class="gx-internal-empty">No hay actividades registradas para tu equipo hoy.</div>';
+  const pendingList=tasks.filter(x=>!x.completed).slice(0,4).map(x=>'<article class="gx-internal-task-row"><span><strong>'+esc(x.title)+'</strong><small>'+(x.due_at?'Vence '+formatDateTime(x.due_at):'Pendiente')+'</small></span></article>').join('')||'<div class="gx-internal-empty">No tienes tareas pendientes.</div>';
+  const dashboardMarkup='<section class="gx-internal-dashboard"><header class="gx-internal-dashboard-heading"><div><span class="eyebrow">GRAYXON GROUP</span><h1>Resumen de hoy</h1><p>'+new Intl.DateTimeFormat('es-CO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())+'</p></div></header><div class="gx-internal-stat-grid"><article class="gx-internal-stat-card"><span>Mis creadores</span><strong>'+(creators||[]).length+'</strong><small>Asignados a tu equipo</small></article><article class="gx-internal-stat-card"><span>Actividades de hoy</span><strong>'+todayActivities.length+'</strong><small>Eventos, batallas y entrenamientos</small></article><article class="gx-internal-stat-card"><span>Tareas pendientes</span><strong>'+pendingManagerTasks+'</strong><small>Asignadas por administración</small></article><article class="gx-internal-stat-card"><span>Entrenamientos próximos</span><strong>'+managerUpcoming.length+'</strong><small>Sesiones programadas</small></article></div><div class="gx-internal-dashboard-columns"><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Agenda del día</h2><span>'+todayActivities.length+' actividades</span></div><div class="gx-internal-activity-list">'+activityList+'</div></section><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Tus tareas</h2><span>'+pendingManagerTasks+' pendientes</span></div><div class="gx-internal-activity-list">'+pendingList+'</div></section></div></section>';
+  const managerAccessSource='<div class="gx-internal-access-source" hidden>'+managerCard('announcements','📣','Centro de comunicados','Novedades y avisos importantes.')+managerCard('training','🎥','Entrenamientos en vivo','Consulta y gestiona sesiones.')+managerCard('creators','👥','Mis creadores','Consulta los creadores asignados.')+managerCard('tasks','📋','Tareas asignadas','Consulta tus tareas.')+'<button type="button" data-page="payments"><span class="manager-dashboard-card-icon">💸</span><span class="manager-dashboard-card-copy"><strong>Mis pagos</strong></span></button><button type="button" data-page="events"><span class="manager-dashboard-card-icon">🎉</span><span class="manager-dashboard-card-copy"><strong>Eventos</strong></span></button></div>';
+  const pageHeader=(title,desc)=>`<div class="manager-subpage-header"><div><h2>${title}</h2><p class="muted small">${desc}</p></div></div>`;
   let managerContent='';
   if(managerView==='dashboard') managerContent=dashboardMarkup;
   else if(managerView==='creators') managerContent=`${pageHeader('Mis creadores','Solo aparecen los creadores que actualmente están asignados a ti.')}<section class="card manager-creators-fullpage"><div class="manager-creator-search"><span aria-hidden="true">⌕</span><input id="managerCreatorSearch" type="search" placeholder="Buscar por nombre o usuario…" autocomplete="off"></div><div id="managerCreatorNoResults" class="item hidden"><p class="muted small" style="margin:0">No encontramos un creador con esa búsqueda.</p></div><div class="manager-creators-list" id="managerCreatorsList">${creatorRows}</div></section>`;
   else if(managerView==='tasks') managerContent=`${pageHeader('Tareas asignadas','Consulta y completa las tareas que te ha asignado la administración.')}<section class="card manager-tasks-fullpage"><div class="manager-tasks-list">${taskHtml}</div></section>`;
   else if(managerView==='training') managerContent=`${pageHeader('Entrenamientos en vivo','Consulta y gestiona las sesiones LIVE de la agencia.')}<section class="manager-training-fullpage">${trainingManagement}</section>`;
   else managerContent=dashboardMarkup;
-  $('#manager').innerHTML=`<div class="manager-page"><div class="manager-hero card"><div><div class="eyebrow">PANEL DE MANAGER</div><h1>Hola, ${esc(me?.name||profile.username)} 👋</h1><p class="muted">${managerView==='dashboard'?'Aquí puedes ver tus creadores, asignar misiones y gestionar tus entrenamientos en vivo.':'Gestiona esta sección de tu equipo desde una vista completa.'}</p></div><div class="manager-hero-stat"><strong>${(creators||[]).length}</strong><span>CREADORES</span></div></div>${managerContent}</div>`;
+  $('#manager').innerHTML=`<div class="manager-page">${managerContent}${managerAccessSource}</div>`;
   $$('[data-manager-view]').forEach(b=>b.onclick=async()=>{if(b.dataset.busy==='1')return;b.dataset.busy='1';const next=b.dataset.managerView;if(next==='announcements'){nav('announcements');return;}managerView=next;await managerTpl();window.scrollTo(0,0);});
   $$('[data-manager-back]').forEach(b=>b.onclick=async()=>{if(b.dataset.busy==='1')return;b.dataset.busy='1';managerView='dashboard';await managerTpl();window.scrollTo(0,0);});
   $('#managerCreatorSearch')?.addEventListener('input',e=>{
@@ -5417,6 +5463,30 @@ async function liveTrainingManagementTpl(role='manager',collapsible=false){
   if(!collapsible)return `<div class="card live-training-management">${content}</div>`;
   return `<div class="card grayxon-manager-accordion"><button type="button" class="grayxon-manager-accordion-toggle" id="toggleManagerTraining" aria-expanded="false"><span class="grayxon-manager-accordion-toggle-main"><span class="grayxon-manager-accordion-icon">🎥</span><span class="grayxon-manager-accordion-copy"><strong>Entrenamientos en vivo</strong><small>Crea, consulta y gestiona entrenamientos LIVE de tu equipo.</small></span></span><span class="grayxon-manager-accordion-meta"><b>${active?'EN VIVO':`${scheduled.length} programados`}</b><span class="grayxon-manager-accordion-chevron">›</span></span></button><div id="managerTrainingPanel" class="grayxon-manager-accordion-panel hidden">${content}</div></div>`;
 }
+function gxInternalTodayRange(){
+  const now=new Date(),start=new Date(now.getFullYear(),now.getMonth(),now.getDate()),end=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
+  return {start:start.toISOString(),end:end.toISOString(),day:start.getFullYear()+'-'+String(start.getMonth()+1).padStart(2,'0')+'-'+String(start.getDate()).padStart(2,'0')};
+}
+async function gxInternalSafeRows(query){
+  try{const result=await query;if(result?.error){console.warn('Grayxon dashboard query:',result.error.message);return [];}return result?.data||[];}catch(error){console.warn('Grayxon dashboard query:',error?.message||error);return [];}
+}
+async function gxAdminDashboardSummary(){
+  const range=gxInternalTodayRange(),from=range.start,to=range.end;
+  const [creatorCount,events,matches,trainings,tasks,managerTasks]=await Promise.all([
+    sb.from('profiles').select('id',{count:'exact',head:true}).eq('role','creator').eq('active',true),
+    gxInternalSafeRows(sb.from('gx_events').select('id,title,event_type,starts_at').in('status',['published','in_progress','scheduled','upcoming']).gte('starts_at',from).lt('starts_at',to)),
+    gxInternalSafeRows(sb.from('gx_event_matches').select('id,event_id,scheduled_at,status').gte('scheduled_at',from).lt('scheduled_at',to)),
+    gxInternalSafeRows(sb.from('live_trainings').select('id,title,scheduled_at,status').eq('status','scheduled').gte('scheduled_at',from).lt('scheduled_at',to)),
+    gxInternalSafeRows(sb.from('gx_tasks').select('id,title,status,starts_at,due_at').or('and(starts_at.gte.'+from+',starts_at.lt.'+to+'),and(due_at.gte.'+from+',due_at.lt.'+to+')')),
+    gxInternalSafeRows(sb.from('manager_tasks').select('id,title,due_at,assigned_at,completed').eq('completed',false))
+  ]);
+  const activities=[...events.map(x=>({title:x.title||'Evento',type:x.event_type||'Evento',date:x.starts_at})),...matches.map(x=>({title:'Batalla programada',type:'Batalla',date:x.scheduled_at})),...trainings.map(x=>({title:x.title||'Entrenamiento en vivo',type:'Entrenamiento',date:x.scheduled_at})),...tasks.map(x=>({title:x.title||'Tarea interna',type:'Tarea',date:x.starts_at||x.due_at})),...managerTasks.filter(x=>String(x.due_at||'').slice(0,10)===range.day).map(x=>({title:x.title||'Tarea de manager',type:'Tarea de manager',date:x.due_at}))].filter(x=>x.date).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const pendingTasks=tasks.filter(x=>!['completed','cancelled'].includes(String(x.status||'').toLowerCase())).length+managerTasks.length;
+  const time=x=>new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit'}).format(new Date(x.date));
+  const activityHtml=activities.length?activities.slice(0,6).map(x=>'<article class="gx-internal-activity-row"><span class="gx-internal-activity-time">'+time(x)+'</span><span class="gx-internal-activity-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.type)+'</small></span></article>').join(''):'<div class="gx-internal-empty">No hay actividades registradas para hoy.</div>';
+  return '<section class="gx-internal-dashboard"><header class="gx-internal-dashboard-heading"><div><span class="eyebrow">GRAYXON GROUP</span><h1>Resumen de hoy</h1><p>'+new Intl.DateTimeFormat('es-CO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())+'</p></div></header><div class="gx-internal-stat-grid"><article class="gx-internal-stat-card"><span>Creadores activos</span><strong>'+(creatorCount.count??'—')+'</strong><small>En toda la agencia</small></article><article class="gx-internal-stat-card"><span>Actividades de hoy</span><strong>'+activities.length+'</strong><small>Eventos, batallas y entrenamientos</small></article><article class="gx-internal-stat-card"><span>Tareas pendientes</span><strong>'+pendingTasks+'</strong><small>Por completar o revisar</small></article><article class="gx-internal-stat-card"><span>Entrenamientos hoy</span><strong>'+trainings.length+'</strong><small>Sesiones programadas</small></article></div><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Agenda del día</h2><span>'+activities.length+' actividades</span></div><div class="gx-internal-activity-list">'+activityHtml+'</div></section></section>';
+}
+
 async function adminTpl(c) {
   if (!session) {
     $('#admin').innerHTML = authTpl();
@@ -5441,10 +5511,8 @@ async function adminTpl(c) {
   ];
   let body = '';
   if (adminView === 'dashboard') {
-    body = `<div class="admin-dashboard">
-      <section class="admin-dashboard-hero"><div><div class="eyebrow">GRAYXON GROUP · ADMINISTRACIÓN</div><h1>Panel de administración</h1><p class="muted">Gestiona la agencia desde un solo lugar.</p></div><div class="admin-dashboard-hero-actions"><span class="pill ok">Sesión de administrador</span></div></section>
-      <div class="admin-dashboard-grid">${adminSections.map(([id,icon,title,desc])=>`<button type="button" class="admin-dashboard-card" data-admin="${id}"><span class="admin-dashboard-card-icon">${icon}</span><span class="admin-dashboard-card-copy"><strong>${title}</strong><small>${desc}</small></span><span class="admin-dashboard-card-arrow">›</span></button>`).join('')}${gxAnnouncementDashboardCard()}</div>
-    </div>`;
+    const accessSource='<div class="gx-internal-access-source" hidden>'+adminSections.map(([id,icon,title])=>'<button type="button" data-admin="'+id+'"><span class="admin-dashboard-card-icon">'+icon+'</span><span class="admin-dashboard-card-copy"><strong>'+esc(title)+'</strong></span></button>').join('')+'<button type="button" data-page="announcements"><span class="admin-dashboard-card-icon">📣</span><span class="admin-dashboard-card-copy"><strong>Centro de comunicados</strong></span></button><button type="button" data-page="events"><span class="admin-dashboard-card-icon">🎉</span><span class="admin-dashboard-card-copy"><strong>Eventos</strong></span></button></div>';
+    body = (await gxAdminDashboardSummary())+accessSource;
   } else {
     if (adminView === 'home') body = adminHome(c.home);
     else if (adminView === 'benefits') body = adminBenefits(c.benefits);
@@ -5457,7 +5525,7 @@ async function adminTpl(c) {
     else if (adminView === 'payments') { ensurePaymentsPage(); body = '<div class="card"><p>Abre el módulo de pagos desde el panel.</p><button class="primary" data-open-payments>Gestionar pagos</button></div>'; }
     else body = await adminFormation();
     const sectionTitle = adminSections.find(x=>x[0]===adminView)?.[2] || 'Administración';
-    body = `<div class="admin-subpage"><div class="admin-subpage-header"><div class="admin-subpage-title"><div class="eyebrow">GRAYXON GROUP · ADMINISTRACIÓN</div><h1>${sectionTitle}</h1></div></div>${body}</div>`;
+    body = `<div class="admin-subpage"><div class="admin-subpage-header"><div class="admin-subpage-title"><h1>${sectionTitle}</h1></div></div>${body}</div>`;
   }
   $('#admin').innerHTML = `<div class="admin-main">${body}</div>`;
 }
@@ -6556,28 +6624,24 @@ function updateHeaderAccessUI(){
   window.grayxonDashboardPage = profile?.role === 'admin' ? 'admin' : profile?.role === 'manager' ? 'manager' : 'space';
   updateCreatorTopNav();
   ensureCreatorNotificationMenuAction();
-  const isManagerSession = !!(session && profile?.role === 'manager');
-  document.body.classList.toggle('grayxon-manager-session', isManagerSession);
-  const btn=$('#adminOpen');
-  if(!btn) return;
-  // Ocultar el acceso duplicado de Manager en el encabezado.
-  // El rol y los permisos no se modifican; el acceso sigue en el menú del perfil.
-  btn.classList.toggle('grayxon-manager-header-hidden', isManagerSession);
-  if(!session){
-    btn.textContent='Iniciar sesión';
-    btn.onclick=()=>nav('auth');
-    return;
-  }
-  if(profile?.role==='admin'){
-    btn.textContent='⚙ Admin';
-    btn.onclick=()=>nav('admin');
-  } else if(profile?.role==='manager'){
-    btn.textContent='👥 Manager';
-    btn.onclick=()=>nav('manager');
-  } else {
-    btn.textContent='👤 Mi espacio';
-    btn.onclick=()=>nav('space');
-  }
+  const isManagerSession=!!(session&&profile?.role==='manager'),isInternalSession=!!(session&&(profile?.role==='admin'||profile?.role==='manager'));
+  document.body.classList.toggle('grayxon-manager-session',isManagerSession);
+  const userName=document.getElementById('gxInternalUserName'),userRole=document.getElementById('gxInternalUserRole'),userMeta=document.getElementById('gxInternalUserMeta');
+  if(userName)userName.textContent=profile?.full_name||profile?.username||'';
+  if(userRole)userRole.textContent=profile?.role==='admin'?'Administrador':profile?.role==='manager'?'Manager':'';
+  if(userMeta)userMeta.hidden=!isInternalSession;
+  const backBar=document.getElementById('gxInternalBackBar'),backButton=document.getElementById('gxInternalBackButton'),backTitle=document.getElementById('gxInternalBackTitle');
+  const isDashboard=profile?.role==='admin'?(current==='admin'&&adminView==='dashboard'):profile?.role==='manager'?(current==='manager'&&managerView==='dashboard'):true;
+  if(backBar)backBar.hidden=!isInternalSession||isDashboard;
+  if(backTitle)backTitle.textContent=current==='admin'?(adminView==='users'?'Usuarios':adminView==='teams'?'Equipos y managers':adminView==='manager_tasks'?'Tareas de managers':adminView==='live_trainings'?'Entrenamientos en vivo':adminView==='formation'?'Formación':adminView==='payments'?'Pagos':adminView==='benefits'?'Beneficios y requisitos':adminView==='app_identity'?'Identidad de la app':'Contenido del sitio'):current==='manager'?(managerView==='creators'?'Mis creadores':managerView==='tasks'?'Tareas asignadas':managerView==='training'?'Entrenamientos en vivo':'Centro de comunicados'):current==='announcements'?'Centro de comunicados':current==='payments'?'Pagos':current==='events'?'Eventos':current==='profile'?'Perfil':current==='training'?'Formación':current==='missions'?'Misiones':current==='live-training'?'Entrenamiento en vivo':'';
+  if(backButton&&!backButton.dataset.bound){backButton.dataset.bound='1';backButton.addEventListener('click',()=>{if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();});}
+  if(isInternalSession&&typeof window.grayxonSyncInternalMenu==='function')window.grayxonSyncInternalMenu(profile.role);
+  const btn=$('#adminOpen');if(!btn)return;
+  btn.classList.toggle('grayxon-manager-header-hidden',isManagerSession);
+  if(!session){btn.textContent='Iniciar sesión';btn.onclick=()=>nav('auth');return;}
+  if(profile?.role==='admin'){btn.textContent='⚙ Admin';btn.onclick=()=>nav('admin');}
+  else if(profile?.role==='manager'){btn.textContent='👥 Manager';btn.onclick=()=>nav('manager');}
+  else{btn.textContent='👤 Mi espacio';btn.onclick=()=>nav('space');}
 }
 
 
