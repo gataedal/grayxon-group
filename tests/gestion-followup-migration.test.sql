@@ -351,8 +351,8 @@ begin
  if (select count(*) from public.gx_creator_followup_reminders)<>1 then
   raise exception 'Current manager must see historical reminders for reassigned creators';
  end if;
- if (select count(*) from public.gx_creator_action_plans)<>1 then
-  raise exception 'Current manager must see historical action plans for reassigned creators';
+ if (select count(*) from public.gx_creator_action_plans)<>2 then
+  raise exception 'Current manager must see both historical action plans for reassigned creators';
  end if;
  begin
   insert into public.gx_creator_action_plan_updates(plan_id,progress_summary,status,reviewed_by,reviewed_at)
