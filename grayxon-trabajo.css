@@ -418,3 +418,26 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
  .gxt-followup-import>.gxt-followup-preview>.gxt-followup-warnings{grid-column:1/-1;grid-row:6}
  .gxt-followup-import>.gxt-followup-preview>.gxt-followup-table-wrap{grid-column:1/-1;grid-row:7}
 }
+
+
+/* Archivo mensual: primero se navega por mes, luego por cada reporte. */
+.gxt-followup-history-month{margin:12px 0;border:1px solid rgba(115,145,160,.28);border-radius:14px;background:rgba(15,24,31,.55);overflow:hidden}
+.gxt-followup-history-month>summary,.gxt-followup-history-report>summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px;cursor:pointer;list-style:none}
+.gxt-followup-history-month>summary::-webkit-details-marker,.gxt-followup-history-report>summary::-webkit-details-marker{display:none}
+.gxt-followup-history-month>summary:after,.gxt-followup-history-report>summary:after{content:'⌄';color:#9eece7;font-size:18px}
+.gxt-followup-history-month[open]>summary:after,.gxt-followup-history-report[open]>summary:after{content:'⌃'}
+.gxt-followup-history-month>summary strong{font-size:16px;text-transform:capitalize;color:#e8f5f7}
+.gxt-followup-history-month-content{padding:0 14px 14px}
+.gxt-followup-history-report{margin:10px 0;border:1px solid rgba(115,145,160,.22);border-radius:12px;background:rgba(8,14,20,.5);overflow:hidden}
+.gxt-followup-history-report>summary span:first-child{display:grid;gap:4px;min-width:0}
+.gxt-followup-history-report>summary strong{font-size:13px;overflow-wrap:anywhere}
+.gxt-followup-history-report>summary small{font-size:11px;color:#9aabb6}
+.gxt-followup-history-report-actions{display:flex;gap:8px;flex-wrap:wrap;padding:0 14px 12px}
+.gxt-followup-history-report h4{margin:14px 14px 8px;color:#a9f4ef;font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+.gxt-followup-history-report>.gxt-followup-table-wrap{margin:0 14px 14px}
+.gxt-followup-history-report>p{padding:0 14px 14px}
+.gxt-followup-alert-group{padding:12px 0;border-bottom:1px solid rgba(120,145,160,.18)}
+.gxt-followup-alert-group:last-child{border-bottom:0}
+.gxt-followup-alert-group>strong{display:block;margin-bottom:8px;color:#a8efea;font-size:12px}
+.gxt-followup-alert-person{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.035);margin:5px 0}
+@media(max-width:600px){.gxt-followup-history-month>summary,.gxt-followup-history-report>summary{padding:13px}.gxt-followup-history-report>summary .gxt-chip{display:none}}
