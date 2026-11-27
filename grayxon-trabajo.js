@@ -741,9 +741,7 @@
         const scheduledAt=window.GRAYXON_FOLLOWUP_CALCULATIONS?.toBogotaISOString(reminderLocal);
         if(!scheduledAt)return toast('El plan se guardó, pero la fecha del recordatorio no es válida.');
         const reminderPayload={scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('reminder_note')||'').trim()||null,status:'pending',updated_at:new Date().toISOString()};
-        const reminder=existingReminder
-          ? await sb.from('gx_creator_followup_reminders').update(reminderPayload).eq('id',existingReminder.id)
-          : await sb.from('gx_creator_followup_reminders').insert({...common,action_plan_id:result.data.id,...reminderPayload});
+        const reminder=existingReminder?await sb.from('gx_creator_followup_reminders').update(reminderPayload).eq('id',existingReminder.id):await sb.from('gx_creator_followup_reminders').insert({...common,action_plan_id:result.data.id,...reminderPayload});
         if(reminder.error)return toast('El plan se guardó, pero no se pudo actualizar el recordatorio: '+reminder.error.message);
       }else if(existingReminder){
         const removed=await sb.from('gx_creator_followup_reminders').delete().eq('id',existingReminder.id);
