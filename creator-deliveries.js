@@ -4,7 +4,7 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const dateLabel = value => value ? new Intl.DateTimeFormat('es-CO',{day:'2-digit',month:'long',year:'numeric'}).format(new Date(value)) : '';
   const dateTimeLabel = value => value ? new Intl.DateTimeFormat('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value)) : '';
-  let currentUserId = null, deliveries = [], filesByDelivery = new Map(), signedFiles = new Map(), previousOverflow = '';
+  let currentUserId = null, deliveries = [], actionPlans = [], planUpdates = [], filesByDelivery = new Map(), signedFiles = new Map(), previousOverflow = '';
   let screen, listRoot, detailRoot, navButton;
 
   function installStyles(){
@@ -35,6 +35,27 @@
       .gx-delivery-modal{position:fixed;inset:0;z-index:16010;display:flex;align-items:center;justify-content:center;padding:14px;background:#020406d9;backdrop-filter:blur(9px)}
       .gx-delivery-modal[hidden]{display:none!important}
       .gx-delivery-dialog{width:min(760px,100%);max-height:90dvh;overflow:auto;border:1px solid transparent;border-radius:19px;background:linear-gradient(#0d1117,#0d1117) padding-box,linear-gradient(135deg,#25f4ee,#394652 42%,#fe2c55) border-box;box-shadow:0 25px 80px #000b}
+      .gx-delivery-modal.is-plan{padding:0}
+      .gx-delivery-modal.is-plan .gx-delivery-dialog{width:100%;height:100%;max-height:100dvh;border:0;border-radius:0;display:flex;flex-direction:column}
+      .gx-delivery-modal.is-plan .gx-delivery-dialog-body{overflow:auto;flex:1;align-content:start;padding:clamp(16px,4vw,34px)}
+      .gx-action-plan-section{margin:20px 0 24px}
+      .gx-action-plan-section h2{font-size:15px;margin:0 0 12px;color:#eaf2f7}
+      .gx-action-plan-card{border:1px solid #34515a;border-radius:16px;background:linear-gradient(145deg,#15232a,#0d1218);overflow:hidden;box-shadow:0 9px 24px #0004}
+      .gx-action-plan-card-top{padding:16px}
+      .gx-action-plan-card-top strong{display:block;font-size:14px;line-height:1.4}
+      .gx-action-plan-card-top small{display:block;color:#8fe6e5;font-size:10px;margin-top:7px}
+      .gx-action-plan-card-foot{display:flex;justify-content:flex-end;padding:11px 13px;border-top:1px solid #283b42;background:#0b1016}
+      .gx-action-plan-content{display:grid;gap:16px}
+      .gx-action-plan-block{padding:16px;border:1px solid #2d3a46;border-radius:14px;background:linear-gradient(145deg,#141b23,#0d1218)}
+      .gx-action-plan-block h3{font-size:13px;margin:0 0 9px;color:#8de8e8}
+      .gx-action-plan-block p{font-size:13px;line-height:1.7;color:#d7e0e7;white-space:pre-wrap;margin:0}
+      .gx-action-plan-targets{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px}
+      .gx-action-plan-target{padding:12px;border:1px solid #31414d;border-radius:11px;background:#111820}
+      .gx-action-plan-target small{display:block;color:#91a0af;font-size:10px}
+      .gx-action-plan-target strong{display:block;color:#eef5f8;font-size:16px;margin-top:5px}
+      .gx-action-plan-update{padding:14px;border-left:3px solid #25f4ee;border-radius:0 11px 11px 0;background:#121b21}
+      .gx-action-plan-update small{display:block;color:#8ca0ae;font-size:10px;margin-bottom:7px}
+      .gx-action-plan-update p{font-size:12px;line-height:1.65;color:#dce5eb;white-space:pre-wrap;margin:0}
       .gx-delivery-dialog-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:12px;padding:15px 17px;background:#10151bf2;border-bottom:1px solid #2b3540;backdrop-filter:blur(12px)}
       .gx-delivery-dialog-head>div:first-child{min-width:0;flex:1}.gx-delivery-dialog-head h2{font-size:17px;margin:0}.gx-delivery-dialog-head p{font-size:10px;color:#8f9eac;margin:4px 0 0}
       .gx-delivery-close{width:35px;height:35px;border:1px solid #3b4652;border-radius:10px;background:#171e26;color:#eaf0f5;font-size:22px;cursor:pointer}
@@ -74,6 +95,8 @@
     screen.addEventListener('click',e=>{
       const open=e.target.closest('[data-open-delivery]');
       if(open)openDelivery(open.dataset.openDelivery);
+      const openPlan=e.target.closest('[data-open-action-plan]');
+      if(openPlan)openActionPlan(openPlan.dataset.openActionPlan);
       const view=e.target.closest('[data-view-delivery-file]');
       if(view)previewFile(view.dataset.viewDeliveryFile);
       const download=e.target.closest('[data-download-delivery-file]');
@@ -94,12 +117,26 @@
     return uid;
   }
 
+  // Los planes visibles pertenecen a la sesión actual; los avances se limitan a estados aprobados por RLS.
   async function loadDeliveries(){
     if(!currentUserId){listRoot.innerHTML='<div class="gx-delivery-empty">Inicia sesión con tu cuenta de creador para consultar tus entregas.</div>';return;}
     listRoot.innerHTML='<div class="gx-delivery-loading">Cargando tus entregas…</div>';
     const {data,error}=await sb.from('gx_creator_deliveries').select('*').eq('creator_user_id',currentUserId).not('published_at','is',null).order('published_at',{ascending:false});
     if(error){console.error('[Mis entregas]',error);listRoot.innerHTML='<div class="gx-delivery-empty">No pudimos cargar tus entregas. Intenta nuevamente.</div>';return;}
     deliveries=data||[];
+    const {data:plans,error:plansError}=await sb.from('gx_creator_action_plans')
+      .select('id,title,objective,success_criteria,status,start_date,target_date,targets,source_period_start,source_period_end,created_at')
+      .eq('creator_user_id',currentUserId).neq('status','cancelled').order('created_at',{ascending:false});
+    if(plansError)console.warn('[Mis entregas · planes]',plansError.message);
+    actionPlans=plans||[];
+    const planIds=actionPlans.map(plan=>plan.id);
+    if(planIds.length){
+      const {data:updates,error:updatesError}=await sb.from('gx_creator_action_plan_updates')
+        .select('id,plan_id,progress_summary,proposed_changes,progress_metrics,created_at,status')
+        .in('plan_id',planIds).eq('status','approved').order('created_at',{ascending:false});
+      if(updatesError)console.warn('[Mis entregas · avances]',updatesError.message);
+      planUpdates=updates||[];
+    }else planUpdates=[];
     signedFiles.clear();filesByDelivery.clear();
     const ids=deliveries.map(d=>d.id);
     let fileRows=[];
@@ -120,13 +157,21 @@
   }
 
   function renderList(){
-    if(!deliveries.length){listRoot.innerHTML='<div class="gx-delivery-empty"><div class="gx-delivery-empty-icon">✧</div><strong>Aún no tienes entregas.</strong><br>Cuando Grayxon apruebe y publique contenido para ti, aparecerá aquí.</div>';return;}
-    listRoot.innerHTML=deliveries.map(d=>{
+    if(!deliveries.length&&!actionPlans.length){listRoot.innerHTML='<div class="gx-delivery-empty"><div class="gx-delivery-empty-icon">✧</div><strong>Aún no tienes entregas ni planes de acción.</strong><br>Cuando Grayxon publique contenido o tu manager cree un plan para ti, aparecerá aquí.</div>';return;}
+    const monthName=value=>value?new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(String(value).slice(0,10)+'T00:00:00Z')):'';
+    const periodLabel=plan=>{
+      const start=plan.source_period_start||plan.start_date,end=plan.source_period_end||plan.target_date;
+      if(start&&end&&String(start).slice(0,7)===String(end).slice(0,7))return monthName(start);
+      return (dateLabel(start)||'Inicio pendiente')+' al '+(dateLabel(end)||'Sin fecha final');
+    };
+    const planCards=actionPlans.length?'<section class="gx-action-plan-section"><h2>Planes de acción</h2><div class="gx-delivery-list">'+actionPlans.map(plan=>'<article class="gx-action-plan-card"><div class="gx-action-plan-card-top"><strong>Plan de acción · '+esc(periodLabel(plan))+'</strong><small>'+esc(plan.title||'Plan de trabajo')+'</small></div><div class="gx-action-plan-card-foot"><button type="button" class="gx-delivery-btn" data-open-action-plan="'+esc(plan.id)+'">Ver plan</button></div></article>').join('')+'</div></section>':'';
+    const deliveryCards=deliveries.length?'<section class="gx-action-plan-section"><h2>Multimedia</h2><div class="gx-delivery-list">'+deliveries.map(d=>{
       const files=filesByDelivery.get(d.id)||[];
       const first=files[0];
       const thumb=first&&String(first.mime_type||'').startsWith('image/')?'<img src="'+esc(first.url)+'" alt="">':'<span>'+(first&&String(first.mime_type||'').startsWith('video/')?'▶':'✧')+'</span>';
       return '<article class="gx-delivery-card"><div class="gx-delivery-card-top"><div class="gx-delivery-thumb">'+thumb+'</div><div class="gx-delivery-card-copy"><h2>'+esc(d.title)+'</h2><p>Publicado el '+esc(dateTimeLabel(d.published_at))+' · '+files.length+' archivo(s)</p><span class="gx-delivery-version">VERSIÓN '+esc(d.version)+'</span></div></div><div class="gx-delivery-card-foot"><small>Contenido aprobado por Grayxon</small><button type="button" class="gx-delivery-btn" data-open-delivery="'+esc(d.id)+'">Ver entrega</button></div></article>';
-    }).join('');
+    }).join('')+'</div></section>':'';
+    listRoot.innerHTML=planCards+deliveryCards;
   }
 
   function openScreen(deliveryId){
@@ -141,8 +186,9 @@
     screen.hidden=true;closeDetail();
     document.body.style.overflow=previousOverflow;
   }
-  function closeDetail(){if(detailRoot)detailRoot.hidden=true;document.getElementById('gxCreatorDeliveryPreview')?.remove()}
+  function closeDetail(){if(detailRoot){detailRoot.hidden=true;detailRoot.classList.remove('is-plan')}document.getElementById('gxCreatorDeliveryPreview')?.remove()}
   function openDelivery(id){
+    detailRoot.classList.remove('is-plan');
     const d=deliveries.find(x=>x.id===id);
     if(!d)return;
     const files=filesByDelivery.get(id)||[];
@@ -150,6 +196,35 @@
     screen.querySelector('#gxCreatorDeliveryMeta').textContent='Publicado '+dateLabel(d.published_at)+' · Versión '+d.version;
     const body=screen.querySelector('#gxCreatorDeliveryFiles');
     body.innerHTML=files.length?files.map(f=>'<article class="gx-delivery-file"><div class="gx-delivery-file-icon">↧</div><div class="gx-delivery-file-copy"><strong>'+esc(f.file_name)+'</strong><small>'+esc(f.mime_type||'Archivo')+' · '+(f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+' KB':'Tamaño original')+'</small></div><div class="gx-delivery-file-actions"><button type="button" data-view-delivery-file="'+esc(f.id)+'">Ver</button><button type="button" class="primary" data-download-delivery-file="'+esc(f.id)+'" data-file-name="'+esc(f.file_name)+'">Descargar</button></div></article>').join(''):'<div class="gx-delivery-empty">Esta entrega no tiene archivos disponibles.</div>';
+    detailRoot.hidden=false;
+  }
+
+  function openActionPlan(id){
+    const plan=actionPlans.find(item=>item.id===id);if(!plan)return;
+    const start=plan.source_period_start||plan.start_date,end=plan.source_period_end||plan.target_date;
+    const monthName=value=>value?new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(String(value).slice(0,10)+'T00:00:00Z')):'';
+    const period=start&&end&&String(start).slice(0,7)===String(end).slice(0,7)?monthName(start):(dateLabel(start)||'Inicio pendiente')+' al '+(dateLabel(end)||'Sin fecha final');
+    const targets=plan.targets||{};
+    const labels={diamonds:'Diamantes',live_hours:'Horas LIVE',valid_days:'Días válidos',battles:'Batallas',fan_club_members:'Miembros del club de fans'};
+    const targetCards=Object.entries(labels).filter(([key])=>targets[key]!=null).map(([key,label])=>'<div class="gx-action-plan-target"><small>'+label+'</small><strong>'+esc(targets[key])+'</strong></div>').join('');
+    const updates=planUpdates.filter(item=>item.plan_id===id);
+    const statusLabels={active:'En curso',paused:'En pausa',completed:'Completado'};
+    const metricLabels={diamonds:'Diamantes',live_hours:'Horas LIVE',valid_days:'Días válidos',battles:'Batallas',fan_club_members:'Miembros del club de fans'};
+    screen.querySelector('#gxCreatorDeliveryTitle').textContent='Plan de acción · '+period;
+    screen.querySelector('#gxCreatorDeliveryMeta').textContent=(plan.title||'Plan de trabajo')+' · '+(statusLabels[plan.status]||'Plan');
+    const body=screen.querySelector('#gxCreatorDeliveryFiles');
+    body.innerHTML='<div class="gx-action-plan-content">'+
+      '<section class="gx-action-plan-block"><h3>Objetivo y acuerdos</h3><p>'+esc(plan.objective||'Tu manager aún no ha añadido una descripción.')+'</p></section>'+
+      '<section class="gx-action-plan-block"><h3>Periodo del plan</h3><p>'+esc(period)+'</p></section>'+
+      (plan.success_criteria?'<section class="gx-action-plan-block"><h3>Cómo mediremos el avance</h3><p>'+esc(plan.success_criteria)+'</p></section>':'')+
+      (targetCards?'<section class="gx-action-plan-block"><h3>Metas</h3><div class="gx-action-plan-targets">'+targetCards+'</div></section>':'')+
+      '<section class="gx-action-plan-block"><h3>Actualizaciones de tu manager</h3>'+(updates.length?updates.map(item=>{
+        const metrics=item.progress_metrics||{};
+        const metricCards=Object.entries(metricLabels).filter(([key])=>metrics[key]!=null).map(([key,label])=>'<div class="gx-action-plan-target"><small>'+label+'</small><strong>'+esc(metrics[key])+'</strong></div>').join('');
+        return '<article class="gx-action-plan-update"><small>'+esc(dateTimeLabel(item.created_at))+'</small><p>'+esc(item.progress_summary||'')+'</p>'+(metricCards?'<div class="gx-action-plan-targets" style="margin-top:10px">'+metricCards+'</div>':'')+(item.proposed_changes?'<p style="margin-top:8px;color:#8de8e8">'+esc(item.proposed_changes)+'</p>':'')+'</article>';
+      }).join(''):'<p>Todavía no hay actualizaciones para este plan.</p>')+'</section>'+
+    '</div>';
+    detailRoot.classList.add('is-plan');
     detailRoot.hidden=false;
   }
 
