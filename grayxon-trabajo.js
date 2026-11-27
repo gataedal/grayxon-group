@@ -571,7 +571,7 @@
     if(!plan){preview.hidden=true;actions.hidden=true;form.hidden=false;return;}
     const targets=plan.targets||{};const labels=[['Diamantes','diamonds'],['Horas LIVE','live_hours'],['Días válidos','valid_days'],['Batallas','battles'],['Miembros del club de fans','fan_club_members']];
     preview.innerHTML='<h3>'+esc(plan.title)+'</h3><p>'+esc(plan.objective||'Sin objetivo adicional')+'</p><p><strong>Periodo:</strong> '+esc(plan.start_date)+' al '+esc(plan.target_date)+'</p><ul>'+labels.filter(x=>targets[x[1]]!=null).map(x=>'<li>'+x[0]+': '+esc(targets[x[1]])+'</li>').join('')+'</ul>'+(reminder?'<p><strong>Recordatorio:</strong> '+esc(new Date(reminder.scheduled_at).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}))+' · '+esc(reminder.note||'Sin nota')+'</p>':'<p>Sin recordatorio programado.</p>');
-    preview.hidden=false;actions.hidden=false;form.hidden=true;const advanceButton=actions.querySelector('[data-followup-open-progress]');if(advanceButton)advanceButton.disabled=!followupProgressEligibility(plan).allowed;
+    preview.hidden=false;actions.hidden=false;form.hidden=true;const sendButton=actions.querySelector('[data-followup-send-plan]');if(sendButton){sendButton.disabled=!!plan.sent_to_creator_at;sendButton.textContent=plan.sent_to_creator_at?'Enviado a Mis entregas':'Enviar';}const advanceButton=actions.querySelector('[data-followup-open-progress]');if(advanceButton)advanceButton.disabled=!followupProgressEligibility(plan).allowed;
   }
   async function loadFollowupWorkspace() {
     const select=document.getElementById('gxFollowupCreator');
@@ -588,7 +588,7 @@
       select.onchange=async()=>{
         const creator=followupCreatorCache.find(p=>p.id===select.value);
         if(creator){document.getElementById('gxFollowupWorkspaceSection')?.classList.add('is-open');setFollowupStep(0);}
-        if(!creator){window.gxFollowupSelectedPhone='';return;}
+        if(!creator){return;}
         const selectedReport=window.gxFollowupSelectedReport||null;
         const reportRow=(selectedReport?.gx_creator_followup_evaluations||[]).find(row=>row.creator_user_id===creator.id)||null;
         const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
@@ -1578,7 +1578,7 @@
     const close=event.target.closest('[data-close-modal]');
     if(close)return closeModal();
     const createPlan=event.target.closest('[data-choice-create-plan]');if(createPlan){const id=createPlan.dataset.choiceCreatePlan;closeModal();openFollowupCreator(id,0);return;}
-    const reportNovelty=event.target.closest('[data-choice-report-novelty]');if(reportNovelty){const id=reportNovelty.dataset.choiceReportNovelty;const creator=followupCreatorCache.find(item=>item.id===id);const manager=state.isAdmin?creator?.manager_id:state.member.id;const hidden=document.getElementById('gxFollowupCreator');if(hidden)hidden.value=id;openModal('Reportar novedad','Registro interno para administración · '+esc(creator?.full_name||creator?.username||'Creador'),'<form id="gxFollowupNoveltyForm"><label class="gxt-field"><span>Novedad / seguimiento realizado</span><textarea name="body" maxlength="5000" required placeholder="Describe la situación, gestión realizada o seguimiento pendiente."></textarea></label><div class="gxt-modal-actions"><button type="button" class="gxt-btn ghost" data-close-modal>× Cerrar</button><button type="submit" class="gxt-btn primary">Enviar novedades</button></div></form>');return;}
+    const reportNovelty=event.target.closest('[data-choice-report-novelty]');if(reportNovelty){const id=reportNovelty.dataset.choiceReportNovelty;const creator=followupCreatorCache.find(item=>item.id===id);const hidden=document.getElementById('gxFollowupCreator');if(hidden)hidden.value=id;openModal('Reportar novedad','Registro interno para administración · '+esc(creator?.full_name||creator?.username||'Creador'),'<form id="gxFollowupNoveltyForm"><label class="gxt-field"><span>Novedad / seguimiento realizado</span><textarea name="body" maxlength="5000" required placeholder="Describe la situación, gestión realizada o seguimiento pendiente."></textarea></label><div class="gxt-modal-actions"><button type="button" class="gxt-btn ghost" data-close-modal>× Cerrar</button><button type="submit" class="gxt-btn primary">Enviar novedades</button></div></form>');return;}
     const download=event.target.closest('[data-download-file]');
     if(download){downloadAttachment(download.dataset.downloadFile,download.dataset.fileName,download);return;}
     const preview=event.target.closest('[data-preview-file]');
