@@ -1,6 +1,6 @@
 (() => {
   const client = window.GRAYXON_SUPABASE_CLIENT;
-  if (!client) { console.warn('[Grayxon Trabajo] No está disponible el cliente de autenticación compartido.'); return; }
+  if (!client) { console.warn('[Gestión Grayxon] No está disponible el cliente de autenticación compartido.'); return; }
   let checking=false, retryRequested=false, checkedUserId=null, observer=null, syncTimer=null, memberCache={userId:null,allowed:false};
 
   function removeCard(){
@@ -42,11 +42,25 @@
       const user=data?.session?.user;
       if(sessionError||!user){removeCard();memberCache={userId:null,allowed:false};return;}
 
-      let allowed=memberCache.userId===user.id?memberCache.allowed:null;
+      const dashboardRole=targetBefore.role;
+      let allowed=memberCache.userId===user.id&&memberCache.dashboardRole===dashboardRole?memberCache.allowed:null;
       if(allowed===null){
-        const {data:member,error}=await client.from('gx_internal_members').select('id,active').eq('user_id',user.id).maybeSingle();
-        allowed=!error&&!!member&&member.active===true;
-        memberCache={userId:user.id,allowed};
+        const {data:member,error:memberError}=await client.from('gx_internal_members').select('id,active').eq('user_id',user.id).maybeSingle();
+        allowed=!memberError&&!!member&&member.active===true;
+
+        // Los managers no necesariamente pertenecen a gx_internal_members.
+        // Su acceso se valida con el mismo vínculo perfil -> managers que usa Gestión.
+        if(!allowed&&dashboardRole==='manager'){
+          const {data:profile,error:profileError}=await client.from('profiles')
+            .select('id,role,active,manager_id').eq('id',user.id).maybeSingle();
+          if(!profileError&&profile?.role==='manager'&&profile.active===true&&profile.manager_id){
+            const {data:manager,error:managerError}=await client.from('managers')
+              .select('id,user_id,active').eq('id',profile.manager_id)
+              .eq('user_id',user.id).eq('active',true).maybeSingle();
+            allowed=!managerError&&!!manager;
+          }
+        }
+        memberCache={userId:user.id,allowed,dashboardRole};
       }
       if(!allowed){removeCard();return;}
 
@@ -62,13 +76,13 @@
         card.id='gxTrabajoDashboardCard';
         card.href='./grayxon-trabajo.html';
         card.className='admin-dashboard-card manager-dashboard-card gx-trabajo-dashboard-card';
-        card.setAttribute('aria-label','Abrir Grayxon Trabajo');
-        card.innerHTML='<span class="gx-trabajo-card-icon" aria-hidden="true">▤</span><span class="gx-trabajo-card-copy"><strong>Grayxon Trabajo</strong><small>Consulta tus tareas, solicitudes y actividades del equipo.</small></span><span class="gx-trabajo-card-arrow" aria-hidden="true">›</span>';
+        card.setAttribute('aria-label','Abrir Gestión');
+        card.innerHTML='<span class="gx-trabajo-card-icon" aria-hidden="true">▤</span><span class="gx-trabajo-card-copy"><strong>Gestión</strong><small>Organiza tareas, solicitudes y seguimiento del equipo.</small></span><span class="gx-trabajo-card-arrow" aria-hidden="true">›</span>';
       }
       if(card.parentElement!==target.grid)target.grid.appendChild(card);
       checkedUserId=user.id;
     }catch(error){
-      console.warn('[Grayxon Trabajo] No se pudo sincronizar la tarjeta del dashboard:',error?.message||error);
+      console.warn('[Gestión Grayxon] No se pudo sincronizar la tarjeta del dashboard:',error?.message||error);
     }finally{
       checking=false;
       if(retryRequested){
