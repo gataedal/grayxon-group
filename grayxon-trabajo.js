@@ -588,22 +588,28 @@
         if(!creator){if(phone)phone.textContent='Selecciona un creador para consultar su teléfono.';return;}
         const {data,error}=await sb.from('profile_details').select('phone').eq('user_id',creator.id).maybeSingle();
         if(error){if(phone)phone.textContent='No se pudo consultar el teléfono.';toast('No se pudo consultar el teléfono: '+error.message);return;}
-        if(phone)phone.textContent=data?.phone||'Este creador no tiene un teléfono registrado. Solicita a administración que lo agregue.';
-        const reportRow=window.grayxonFollowupPreview?.rows?.find(row=>row.profile?.id===creator.id);
-        const params=window.grayxonFollowupPreview?.parameters||{};
-        const periodEnd=window.grayxonFollowupPreview?.sourcePeriod?.end||'la fecha de hoy';
-        const periodStart=window.grayxonFollowupPreview?.sourcePeriod?.start||'el periodo actual';
-        const fmt=value=>value==null?'Sin dato':Number(value).toLocaleString('es-CO',{maximumFractionDigits:2});
-        const message='¡Hola! ¿Cómo estás? 😊\n\nQueremos hacer un seguimiento a tu actividad durante el periodo '+periodStart+' al '+periodEnd+'.\n\nAl '+periodEnd+', registramos:\n• Días válidos de LIVE: '+fmt(reportRow?.validDays)+'\n• Horas acumuladas de LIVE: '+fmt(reportRow?.liveHours)+'\n\nRecuerda que la constancia es clave para crecer en TikTok LIVE. Nuestra referencia mensual es de '+(params.monthlyValidDays??22)+' días válidos y '+(params.monthlyLiveHours??90)+' horas LIVE, manteniendo una rutina de al menos '+(params.consistencyDaysPerWeek??6)+' días por semana y '+'1 hora y 15 minutos por día.\n\n¿Cuentas con la disponibilidad para reforzar tu actividad y avanzar hacia estos objetivos durante el mes?\n\nQueremos acompañarte, orientarte y ayudarte a mejorar. ¡Estamos atentos para apoyarte! 💪';
-        const messageBox=document.getElementById('gxFollowupContactMessage');if(messageBox)messageBox.value=message;
-        let phoneDigits=String(data?.phone||'').replace(/\D/g,'');if(phoneDigits.length===10)phoneDigits='57'+phoneDigits;
-        const wa=document.getElementById('gxFollowupWhatsAppLink');if(wa){wa.href=phoneDigits?'https://wa.me/'+phoneDigits+'?text='+encodeURIComponent(message):'#';wa.setAttribute('aria-disabled',phoneDigits?'false':'true');}
-        const contactHint=document.getElementById('gxFollowupContactHint');if(contactHint)contactHint.textContent=phoneDigits?'Se abrirá WhatsApp con el mensaje listo para revisar y enviar.':'No hay teléfono registrado; solicita a administración que lo agregue.';
-        if(planSelect){
-          const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
-          planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(plan=>'<option value="'+esc(plan.id)+'">'+esc(plan.title)+'</option>').join('');
+        window.gxFollowupSelectedPhone=String(data?.phone||'').trim();
+        if(phone)phone.textContent=window.gxFollowupSelectedPhone||'Este creador no tiene un teléfono registrado. Solicita a administración que lo agregue.';
+        const selectedReport=window.gxFollowupSelectedReport||null;
+        const reportRow=(selectedReport?.gx_creator_followup_evaluations||[]).find(row=>row.creator_user_id===creator.id)||null;
+        const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
+        if(planSelect)planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(plan=>'<option value="'+esc(plan.id)+'">'+esc(plan.title)+'</option>').join('');
+        const planForm=document.getElementById('gxActionPlanForm');
+        if(planForm){
+          ['plan_id','title','objective','start_date','target_date','diamonds','live_hours','valid_days','battles','fan_club_members','reminder_at','reminder_note'].forEach(key=>{if(planForm.elements[key])planForm.elements[key].value='';});
+          planForm.querySelector('button[type=submit]').textContent='Guardar plan de trabajo';
         }
-        const currentPlan=(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===creator.id&&plan.status!=='cancelled')||(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===creator.id);
+        const currentPlan=eligiblePlans.find(plan=>plan.status!=='cancelled'&&plan.status!=='completed')||eligiblePlans.find(plan=>plan.status!=='cancelled')||eligiblePlans[0]||null;
+        if(currentPlan&&planForm){
+          planForm.elements.plan_id.value=currentPlan.id;planForm.elements.title.value=currentPlan.title||'';
+          planForm.elements.objective.value=currentPlan.objective||'';planForm.elements.start_date.value=currentPlan.start_date||'';
+          planForm.elements.target_date.value=currentPlan.target_date||'';
+          const targets=currentPlan.targets||{};
+          ['diamonds','live_hours','valid_days','battles','fan_club_members'].forEach(key=>{planForm.elements[key].value=targets[key]??'';});
+          planForm.querySelector('button[type=submit]').textContent='Guardar cambios del plan';
+          if(planSelect)planSelect.value=currentPlan.id;
+        }
+        updateFollowupContactMessage(creator,selectedReport,reportRow,currentPlan);
         updateFollowupProgressGate(currentPlan);
       };
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
@@ -763,7 +769,11 @@
       host.querySelectorAll('[data-followup-month-back]').forEach(button=>button.addEventListener('click',()=>{
         const month=button.closest('.gxt-followup-history-month');if(month){month.open=false;month.classList.remove('is-fullscreen');}
       }));
-      host.querySelectorAll('[data-followup-open-creator]').forEach(button=>button.addEventListener('click',()=>openFollowupCreator(button.dataset.followupOpenCreator,0)));
+      host.querySelectorAll('[data-followup-open-creator]').forEach(button=>button.addEventListener('click',()=>{
+        const report=Array.from(data||[]).find(item=>(item.gx_creator_followup_evaluations||[]).some(row=>row.creator_user_id===button.dataset.followupOpenCreator));
+        window.gxFollowupSelectedReport=report||null;
+        openFollowupCreator(button.dataset.followupOpenCreator,0);
+      }));
       host.querySelectorAll('[data-followup-report-alert]').forEach(button=>button.addEventListener('click',event=>{
         event.preventDefault();event.stopPropagation();
         const item=(data||[]).find(entry=>entry.id===button.dataset.followupReportAlert);
