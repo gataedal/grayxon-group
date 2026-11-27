@@ -353,11 +353,10 @@
 
   function renderFollowupPage() {
     main.innerHTML = pageHead('Seguimiento de creadores','Evaluaciones por periodo, contacto, observaciones y planes de acción del equipo.')+
-      '<section class="gxt-panel gxt-followup-import"><div class="gxt-panel-head"><div><h2>Importar reporte de TikTok LIVE</h2><p>Sube el Excel para revisar los datos antes de registrar una evaluación.</p></div><span class="gxt-chip">Vista previa</span></div>'+
-      '<div class="gxt-followup-upload-grid"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label>'+
-      '<label class="gxt-field"><span>Desde</span><input id="gxFollowupStart" type="date"></label><label class="gxt-field"><span>Hasta</span><input id="gxFollowupEnd" type="date"></label></div>'+
-      '<div class="gxt-actions gxt-followup-upload-actions"><button type="button" class="gxt-btn primary gxt-btn-process" data-followup-preview disabled><span aria-hidden="true">↗</span> Analizar archivo</button><span id="gxFollowupFileName" class="gxt-muted">Ningún archivo seleccionado</span></div>'+'<div class="gxt-followup-rules"><div><strong>Metas mensuales</strong><span>90 horas LIVE · 22 días válidos</span></div><div><strong>Recomendación de constancia</strong><span>2 h 30 min diarios · 6 días por semana</span></div></div>'+
-      '<div id="gxFollowupPreview" class="gxt-followup-preview"><div class="gxt-status-note">Selecciona un Excel y el rango que deseas evaluar. Los datos no se guardarán todavía.</div></div></section>'+
+      '<section class="gxt-panel gxt-followup-import"><div class="gxt-panel-head"><div><h2>Importar reporte de TikTok LIVE</h2><p>Sube el Excel. El periodo se detecta automáticamente desde el reporte.</p></div><span class="gxt-chip">Vista previa</span></div>'+
+      '<div class="gxt-followup-upload-grid"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label></div>'+
+      '<div class="gxt-actions gxt-followup-upload-actions"><button type="button" class="gxt-btn primary gxt-btn-process" data-followup-preview '+(followupImportFile?'':'disabled')+'><span aria-hidden="true">↗</span> Analizar archivo</button><span id="gxFollowupFileName" class="gxt-muted">'+(followupImportFile?esc(followupImportFile.name):'Ningún archivo seleccionado')+'</span></div>'+'<div class="gxt-followup-rules"><div><strong>Metas mensuales</strong><span>90 horas LIVE · 22 días válidos</span></div><div><strong>Recomendación de constancia</strong><span>2 h 30 min diarios · 6 días por semana</span></div></div>'+
+      '<div id="gxFollowupPreview" class="gxt-followup-preview">'+(followupPreviewMarkup||'<div class="gxt-status-note">Selecciona un Excel para analizarlo. El periodo se tomará automáticamente del archivo.</div>')+'</div></section>'+
       
       '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
       '<section class="gxt-panel gxt-followup-workspace" id="gxFollowupWorkspaceSection" hidden><div class="gxt-panel-head"><div><h2>Gestión individual</h2><p>Ficha del creador · completa cada etapa para continuar.</p></div><button type="button" class="gxt-btn ghost" data-followup-close>× Cerrar</button></div><p>Registra contactos, compromisos y planes de acción sin perder el historial.</p>'+
@@ -375,26 +374,26 @@
     const fileInput=document.getElementById('gxFollowupFile');
     const button=main.querySelector('[data-followup-preview]');
     fileInput?.addEventListener('change',()=>{
-      const file=fileInput.files?.[0]||null;
-      document.getElementById('gxFollowupFileName').textContent=file?file.name:'Ningún archivo seleccionado';
-      button.disabled=!file;
+      followupImportFile=fileInput.files?.[0]||null;
+      document.getElementById('gxFollowupFileName').textContent=followupImportFile?followupImportFile.name:'Ningún archivo seleccionado';
+      button.disabled=!followupImportFile;
+      followupPreviewMarkup='';
+      const previewTarget=document.getElementById('gxFollowupPreview');
+      if(previewTarget)previewTarget.innerHTML='<div class="gxt-status-note">Archivo seleccionado. Pulsa “Analizar archivo” para revisar sus datos.</div>';
     });
+    bindFollowupPreviewActions(document.getElementById('gxFollowupPreview'));
   }
 
   async function previewFollowupImport() {
-    const fileInput=document.getElementById('gxFollowupFile');
-    const start=document.getElementById('gxFollowupStart')?.value;
-    const end=document.getElementById('gxFollowupEnd')?.value;
     const target=document.getElementById('gxFollowupPreview');
-    const file=fileInput?.files?.[0];
+    const file=followupImportFile||document.getElementById('gxFollowupFile')?.files?.[0]||window.grayxonFollowupFile;
     if(!file)return toast('Selecciona primero el Excel de TikTok.');
-    if(!start||!end||start>end)return toast('Selecciona un rango de fechas válido.');
     if(!window.XLSX||!window.GRAYXON_FOLLOWUP_IMPORT)return toast('No está disponible el lector de Excel. Recarga la página e inténtalo nuevamente.');
     target.innerHTML='<div class="gxt-status-note">Leyendo el archivo y validando los datos…</div>';
     try{
       const buffer=await file.arrayBuffer();
       const workbook=window.XLSX.read(buffer,{type:'array',cellDates:true});
-      const preview=window.GRAYXON_FOLLOWUP_IMPORT.parseWorkbook(workbook,start,end);
+      const preview=window.GRAYXON_FOLLOWUP_IMPORT.parseWorkbook(workbook);
       const [{data:creatorData,error:creatorError},{data:parameterRows,error:parameterError}]=await Promise.all([
         sb.from('profiles').select('id,username,full_name,tiktok_username,tiktok_creator_id,manager_id,created_at').eq('role','creator').eq('active',true),
         sb.from('gx_creator_followup_parameters').select('version,monthly_live_hours,monthly_valid_days,early_review_min_evaluable_days,high_risk_threshold_pct,observation_threshold_pct,consistency_hours_per_day,consistency_days_per_week,timezone').eq('active',true).order('version',{ascending:false}).limit(1)
@@ -427,7 +426,7 @@
         const evaluation=preview.mixedPeriods
           ? {status:'needs_daily_data',reason:'El archivo mezcla periodos y debe separarse antes de evaluar.'}
           : window.GRAYXON_FOLLOWUP_CALCULATIONS?.calculateEvaluation({
-              periodStart:start,periodEnd:end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
+              periodStart:preview.sourcePeriod.start,periodEnd:preview.sourcePeriod.end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
               granularity:preview.granularity,joinDate:row.joinedAt,
               validLiveDays:row.validDays,liveSeconds:row.liveHours==null?null:Math.round(row.liveHours*3600),
               monthlyLiveHours:activeParameters.monthly_live_hours,
@@ -457,14 +456,14 @@
       window.grayxonFollowupFile=file;
       const workspaceSection=document.getElementById('gxFollowupWorkspaceSection');if(workspaceSection)workspaceSection.hidden=false;
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
-      const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo cubre exactamente el periodo seleccionado.':'El archivo no permite evaluar el rango seleccionado.';
+      const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo cubre el periodo detectado en el Excel.':'El archivo no permite completar la evaluación.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
       const classLabels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
       const rows=preview.rows.map(row=>'<tr><td>@'+esc(row.username)+'</td><td>'+esc(row.profile?.full_name||'No vinculado')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+ (row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+ (row.validDays==null?'—':row.validDays)+'</td><td>'+(row.profile?'Vinculado':'Revisar perfil')+'</td><td>'+esc(classLabels[row.evaluation.classification||row.evaluation.status]||row.evaluation.status)+'</td></tr>').join('');
       target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
         '<div class="gxt-status-note">'+esc(status)+' Periodo del archivo: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
         (missingPhones.length
-          ? '<section class="gxt-status-note gxt-followup-warning"><strong>Datos de contacto pendientes</strong><p>'+missingPhones.length+' creadores vinculados no tienen teléfono registrado. Puedes copiar sus datos de identificación y solicitar a administración que agregue el número en su perfil.</p><ul>'+missingPhones.map(profile=>'<li><strong>'+esc(profile.full_name||profile.username||'Creador')+'</strong> · @'+esc(profile.username||'')+' · ID TikTok: '+esc(profile.tiktok_creator_id||'No registrado')+' <button type="button" class="gxt-btn" data-copy-missing-phone="'+esc(profile.id)+'">Copiar datos</button></li>').join('')+'</ul></section>'
+          ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-missing-phones><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar datos de contacto</strong><small>'+missingPhones.length+' creadores sin teléfono registrado</small></span><span class="gxt-followup-alert-count">'+missingPhones.length+'</span></button></div>'
           : '<div class="gxt-status-note">Todos los creadores vinculados tienen teléfono registrado.</div>')+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
         '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Perfil Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Perfil</th><th>Evaluación</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
@@ -472,23 +471,31 @@
         (preview.canEvaluate && preview.summary.matched===preview.summary.creators && preview.rows.every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
           ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar evaluación</button></div>'
           : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que todos los perfiles estén vinculados y que el reporte permita evaluar exactamente el periodo seleccionado.</div>');
-      target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
-      target.querySelectorAll('[data-copy-missing-phone]').forEach(button=>{
-        button.addEventListener('click',async()=>{
-          const profile=missingPhones.find(item=>item.id===button.dataset.copyMissingPhone);
-          if(!profile)return;
-          const text='Nombre: '+(profile.full_name||'')+'\\nUsuario Grayxon: @'+(profile.username||'')+'\\nUsuario TikTok: @'+(profile.tiktok_username||profile.username||'')+'\\nID TikTok: '+(profile.tiktok_creator_id||'No registrado');
-          try{await navigator.clipboard.writeText(text);toast('Datos del creador copiados.');}
-          catch(error){toast('No fue posible copiar automáticamente. Selecciona y copia los datos manualmente.');}
-        });
-      });
+      followupMissingPhones=missingPhones;
+      followupPreviewMarkup=target.innerHTML;
+      bindFollowupPreviewActions(target);
     }catch(error){
       console.error('[Gestión · Seguimiento] import preview',error);
       target.innerHTML='<div class="gxt-status-note gxt-followup-warning">'+esc(error.message||'No se pudo analizar el archivo.')+'</div>';
     }
   }
 
-  let followupCreatorCache=[];
+  let followupCreatorCache=[];\n  let followupImportFile=null;\n  let followupPreviewMarkup='';\n  let followupMissingPhones=[];
+  function bindFollowupPreviewActions(target){
+    if(!target)return;
+    target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
+    target.querySelector('[data-open-missing-phones]')?.addEventListener('click',()=>{
+      if(!followupMissingPhones.length)return;
+      const rows=followupMissingPhones.map(profile=>'<div class="gxt-followup-alert-person"><strong>'+esc(profile.full_name||profile.username||'Creador')+'</strong><span>@'+esc(profile.username||'')+'</span><small>ID TikTok: '+esc(profile.tiktok_creator_id||'No registrado')+'</small></div>').join('');
+      const text=followupMissingPhones.map(profile=>'Nombre: '+(profile.full_name||'')+'\\nUsuario Grayxon: @'+(profile.username||'')+'\\nUsuario TikTok: @'+(profile.tiktok_username||profile.username||'')+'\\nID TikTok: '+(profile.tiktok_creator_id||'No registrado')).join('\\n\\n');
+      openModal('Datos de contacto pendientes',followupMissingPhones.length+' creadores vinculados no tienen teléfono registrado. Copia la lista y solicita a administración que actualice sus perfiles.','<div class="gxt-followup-alert-list">'+rows+'</div><div class="gxt-modal-actions"><button type="button" class="gxt-btn primary" data-copy-all-missing-phones>Copiar todos los datos</button></div>',true);
+      modalRoot.querySelector('[data-copy-all-missing-phones]')?.addEventListener('click',async()=>{
+        try{await navigator.clipboard.writeText(text);toast('Todos los datos fueron copiados.');}
+        catch(error){toast('No fue posible copiar automáticamente en este navegador.');}
+      });
+    });
+  }
+
   function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(5,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 6';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===5?'Finalizar':'Siguiente';}
   async function loadFollowupWorkspace() {
     const select=document.getElementById('gxFollowupCreator');
@@ -640,7 +647,7 @@
 
   async function saveFollowupImport() {
     const preview=window.grayxonFollowupPreview;
-    const file=window.grayxonFollowupFile;
+    const file=window.grayxonFollowupFile||followupImportFile;
     if(!preview||!file)return toast('Vuelve a analizar el archivo antes de guardarlo.');
     if(!preview.canEvaluate||preview.summary.matched!==preview.summary.creators||
       !preview.rows.every(row=>row.profile&&['evaluated','not_evaluable'].includes(row.evaluation.status))) {
@@ -687,7 +694,7 @@
 
   function targetReloadFollowup(importId) {
     const target=document.getElementById('gxFollowupPreview');
-    if(target)target.innerHTML='<div class="gxt-status-note">Evaluación registrada. Identificador: '+esc(importId)+'. El archivo original quedó guardado de forma privada.</div>';
+    if(target){target.innerHTML='<div class="gxt-status-note">Evaluación registrada. Identificador: '+esc(importId)+'. El archivo original quedó guardado de forma privada.</div>';followupPreviewMarkup=target.innerHTML;}
   }
 
   function renderReportsPage() {
