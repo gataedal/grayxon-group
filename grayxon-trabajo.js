@@ -480,7 +480,10 @@
     }
   }
 
-  let followupCreatorCache=[];\n  let followupImportFile=null;\n  let followupPreviewMarkup='';\n  let followupMissingPhones=[];
+  let followupCreatorCache=[];
+  let followupImportFile=null;
+  let followupPreviewMarkup='';
+  let followupMissingPhones=[];
   function bindFollowupPreviewActions(target){
     if(!target)return;
     target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
