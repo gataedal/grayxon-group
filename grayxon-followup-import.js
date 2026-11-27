@@ -162,7 +162,8 @@
     const selectedPeriod = sourcePeriod ? { start: sourcePeriod.start, end: sourcePeriod.end } : null;
     const exactPeriod = !!sourcePeriod;
     const dailyMetricsAvailable = false;
-    const allMetricsPresent = rows.every(r => r.diamonds != null && r.liveHours != null && r.validDays != null);
+    const evaluableRows = rows.filter(r => !r.agencyDeparted);
+    const allMetricsPresent = evaluableRows.length > 0 && evaluableRows.every(r => r.diamonds != null && r.liveHours != null && r.validDays != null);
 
     return {
       sheet: sheetUsed,
@@ -178,7 +179,8 @@
       summary: {
         creators: rows.length,
         duplicatesOrWarnings: warnings.length + (mixedPeriods ? 1 : 0),
-        evaluableRows: rows.filter(r => r.diamonds != null && r.liveHours != null && r.validDays != null).length
+        evaluableRows: evaluableRows.filter(r => r.diamonds != null && r.liveHours != null && r.validDays != null).length,
+        agencyDeparted: rows.filter(r => r.agencyDeparted).length
       },
       restriction: mixedPeriods
         ? 'El archivo mezcla varios periodos de datos. Sepáralos en archivos independientes antes de evaluar.'
