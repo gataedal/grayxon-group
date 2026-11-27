@@ -45,16 +45,28 @@ BEGIN
 END;
 $$;
 
-DROP POLICY IF EXISTS "Creators can register own progress" ON public.lesson_progress;
-DROP POLICY IF EXISTS "Creators can save own progress" ON public.lesson_progress;
-DROP POLICY IF EXISTS "Creators can update own progress" ON public.lesson_progress;
-CREATE POLICY gx_lesson_progress_insert_non_onboarding ON public.lesson_progress FOR INSERT TO authenticated
-WITH CHECK (user_id = auth.uid() AND NOT public.gx_creator_onboarding_pending());
-CREATE POLICY gx_lesson_progress_insert_admin ON public.lesson_progress FOR INSERT TO authenticated
-WITH CHECK (public.is_admin());
-CREATE POLICY gx_lesson_progress_update_non_onboarding ON public.lesson_progress FOR UPDATE TO authenticated
-USING (user_id = auth.uid() AND NOT public.gx_creator_onboarding_pending())
-WITH CHECK (user_id = auth.uid() AND NOT public.gx_creator_onboarding_pending());
+DO $$
+BEGIN
+  IF to_regclass('public.lesson_progress') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Creators can register own progress" ON public.lesson_progress';
+    EXECUTE 'DROP POLICY IF EXISTS "Creators can save own progress" ON public.lesson_progress';
+    EXECUTE 'DROP POLICY IF EXISTS "Creators can update own progress" ON public.lesson_progress';
+    EXECUTE $policy$
+      CREATE POLICY gx_lesson_progress_insert_non_onboarding ON public.lesson_progress FOR INSERT TO authenticated
+      WITH CHECK (user_id = auth.uid() AND NOT public.gx_creator_onboarding_pending())
+    $policy$;
+    EXECUTE $policy$
+      CREATE POLICY gx_lesson_progress_insert_admin ON public.lesson_progress FOR INSERT TO authenticated
+      WITH CHECK (public.is_admin())
+    $policy$;
+    EXECUTE $policy$
+      CREATE POLICY gx_lesson_progress_update_non_onboarding ON public.lesson_progress FOR UPDATE TO authenticated
+      USING (user_id = auth.uid() AND NOT public.gx_creator_onboarding_pending())
+      WITH CHECK (user_id = auth.uid() AND NOT public.gx_creator_onboarding_pending())
+    $policy$;
+  END IF;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.gx_complete_creator_onboarding_video(p_lesson_id uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth
