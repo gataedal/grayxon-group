@@ -498,7 +498,7 @@
       followupCreatorCache=creators||[];
       select.innerHTML='<option value="">Selecciona un creador</option>'+followupCreatorCache.map(p=>'<option value="'+esc(p.id)+'" '+(!p.manager_id?'disabled':'')+'>'+esc(p.full_name||p.username)+' · @'+esc(p.username)+(p.manager_id?'':' (sin manager asignado)')+'</option>').join('');
       const planSelect=document.getElementById('gxActionPlanSelect');
-      select.addEventListener('change',async()=>{
+      select.onchange=async()=>{
         const creator=followupCreatorCache.find(p=>p.id===select.value);
         const phone=document.getElementById('gxFollowupPhoneValue');
         if(phone)phone.textContent='Consultando…';
@@ -510,7 +510,7 @@
           const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
           planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(plan=>'<option value="'+esc(plan.id)+'">'+esc(plan.title)+'</option>').join('');
         }
-      });
+      };
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').order('created_at',{ascending:false}).limit(30),
