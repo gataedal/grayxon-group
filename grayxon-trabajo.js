@@ -444,6 +444,7 @@
       preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='not_in_portal').length;
       preview.summary.agencyDeparted=preview.rows.filter(row=>row.linkStatus==='agency_left').length;
       preview.unmatchedRows=preview.rows.filter(row=>row.linkStatus!=='linked');
+      preview.canEvaluate=!preview.mixedPeriods&&preview.summary.matched>0&&preview.rows.filter(row=>row.profile).every(row=>row.diamonds!=null&&row.liveHours!=null&&row.validDays!=null);
 
       const linkedProfiles=preview.rows.filter(row=>row.profile).map(row=>row.profile);
       const uniqueProfileIds=[...new Set(linkedProfiles.map(profile=>profile.id))];
