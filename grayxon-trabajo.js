@@ -468,35 +468,27 @@
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
       const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo cubre el periodo detectado en el Excel.':'El archivo no permite completar la evaluación.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
-      const classLabels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
-      const classStyles={high_risk:'risk',observation:'observation',on_track:'success',early_review:'early',not_evaluable:'neutral',needs_daily_data:'warning'};
-      const evaluationOrder={on_track:0,early_review:1,not_evaluable:2,needs_daily_data:3,observation:4,high_risk:5};
-      const sortedRows=[...preview.rows].sort((a,b)=>{
-        const aKey=a.evaluation.classification||a.evaluation.status;
-        const bKey=b.evaluation.classification||b.evaluation.status;
-        return (evaluationOrder[aKey]??3)-(evaluationOrder[bKey]??3);
-      });
-      const rows=sortedRows.map(row=>{
-        const profile=row.profile;
-        const creatorLabel=profile?(profile.full_name||profile.username):'Sin vincular';
-        const plan=profile?plansByCreator.get(profile.id):null;
-        const evaluationKey=row.evaluation.classification||row.evaluation.status;
-        const evaluationLabel=classLabels[evaluationKey]||row.evaluation.status;
-        const creatorTone=classStyles[evaluationKey]||'neutral';
-        const planAction=profile?'<button type="button" class="gxt-followup-plan-button '+(plan?'is-view':'is-create')+'" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="'+(plan?'0':'0')+'" data-followup-plan-id="'+(plan?esc(plan.id):'')+'">'+(plan?'Ver':'Gestionar plan')+'</button>':'<span class="gxt-followup-muted">—</span>';
-        return '<tr class="gxt-followup-data-row"><td>@'+esc(row.username)+'</td><td class="gxt-followup-creator-cell is-'+creatorTone+'">'+(profile?'<button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="0"><strong>'+esc(creatorLabel)+'</strong><small>@'+esc(profile.username)+'</small></button>':'<span class="gxt-followup-unlinked">'+esc(creatorLabel)+' · @'+esc(row.username)+'</span>')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+(row.validDays==null?'—':row.validDays)+'</td><td><span class="gxt-followup-status-pill is-'+creatorTone+'">'+esc(evaluationLabel)+'</span></td><td>'+planAction+'</td></tr>';
-      }).join('');
-      target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
-        '<div class="gxt-status-note">'+esc(status)+' Periodo del archivo: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
-        (missingPhones.length
-          ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-missing-phones><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar datos de contacto</strong><small>'+missingPhones.length+' creadores sin teléfono registrado</small></span><span class="gxt-followup-alert-count">'+missingPhones.length+'</span></button></div>'
-          : '<div class="gxt-status-note">Todos los creadores vinculados tienen teléfono registrado.</div>')+
+      const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
+      const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo está listo para guardarse en el archivo mensual.':'El archivo no permite completar la evaluación.';
+      const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
+      const portalMissing=preview.rows.filter(row=>row.linkStatus==='not_in_portal');
+      const departed=preview.rows.filter(row=>row.linkStatus==='agency_left');
+      const ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous');
+      followupPortalMissing=portalMissing;
+      followupAgencyDeparted=departed;
+      if(departed.length)downloadFollowupDepartedCsv(departed.map(row=>({creator_username_snapshot:row.username,creator_id_snapshot:row.creatorId,source_status:row.agencyStatus||'El creador ha abandonado la agencia'})),String(period.start||'').slice(0,7));
+      const alertCount=missingPhones.length+portalMissing.length+departed.length+ambiguous.length;
+      target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros del Excel</small></div><div><strong>'+preview.summary.matched+'</strong><small>En el portal</small></div><div><strong>'+portalMissing.length+'</strong><small>Sin acceso al portal</small></div><div><strong>'+departed.length+'</strong><small>Abandonaron la agencia</small></div></div>'+
+        '<div class="gxt-status-note">'+esc(status)+' Periodo del reporte: '+esc(period.start)+' al '+esc(period.end)+'. Este archivo se archivará dentro de ese mes.</div>'+
+        (alertCount
+          ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-followup-alert><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar alertas del reporte</strong><small>'+missingPhones.length+' sin teléfono · '+portalMissing.length+' sin acceso · '+departed.length+' abandonaron la agencia'+(ambiguous.length?' · '+ambiguous.length+' coincidencias ambiguas':'')+'</small></span><span class="gxt-followup-alert-count">'+alertCount+'</span></button></div>'
+          : '<div class="gxt-status-note">No hay alertas de contacto ni de vinculación.</div>')+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
-        '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Creador Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Evaluación</th><th>Plan de seguimiento</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-        '<div class="gxt-status-note">Esta es una previsualización. Todavía no se han guardado evaluaciones ni se ha modificado ningún perfil.</div>'+
-        (preview.canEvaluate && preview.summary.matched===preview.summary.creators && preview.rows.every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
-          ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar evaluación</button></div>'
-          : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que todos los perfiles estén vinculados y que el reporte permita evaluar exactamente el periodo seleccionado.</div>');
+        '<div class="gxt-followup-warnings">'+warnings+'</div>'+
+        '<div class="gxt-status-note">La lista de creadores y sus planes no se desplegará aquí. Después de guardar, estará organizada dentro del mes correspondiente.</div>'+
+        (preview.canEvaluate && preview.summary.matched>0 && preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
+          ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar reporte en '+esc(new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(period.start+'T00:00:00Z')) )+'</button></div>'
+          : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que haya creadores vinculados con métricas completas y que el reporte cubra un único periodo.</div>');
       followupMissingPhones=missingPhones;
       followupPreviewMarkup=target.innerHTML;
       bindFollowupPreviewActions(target);
@@ -509,7 +501,7 @@
   let followupCreatorCache=[];
   let followupImportFile=null;
   let followupPreviewMarkup='';
-  let followupMissingPhones=[];
+  let followupMissingPhones=[];\n  let followupPortalMissing=[];\n  let followupAgencyDeparted=[];
   function bindFollowupPreviewActions(target){
     if(!target)return;
     target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
