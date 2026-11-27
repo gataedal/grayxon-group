@@ -369,6 +369,32 @@
       '</div><div class="gxt-followup-step-actions"><button type="button" class="gxt-btn" data-followup-prev disabled>Anterior</button><span id="gxFollowupStepLabel">Etapa 1 de 3</span><button type="button" class="gxt-btn primary" data-followup-next>Siguiente</button></div><div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';
     loadFollowupHistory();
     loadFollowupWorkspace();
+    const waButton=document.getElementById('gxFollowupWhatsAppLink');
+    waButton?.addEventListener('click',()=>{
+      const url=waButton.dataset.url;
+      if(!url)return toast('No hay un número de WhatsApp válido para este creador.');
+      window.open(url,'_blank','noopener,noreferrer');
+    });
+    const refreshContactMessage=()=>{
+      const creator=followupCreatorCache.find(item=>item.id===document.getElementById('gxFollowupCreator')?.value);
+      const report=window.gxFollowupSelectedReport||null;
+      const row=(report?.gx_creator_followup_evaluations||[]).find(item=>item.creator_user_id===creator?.id)||null;
+      const form=document.getElementById('gxActionPlanForm');
+      let plan=null;
+      if(form&&String(form.elements.title?.value||'').trim()){
+        const targets={};
+        ['diamonds','live_hours','valid_days','battles','fan_club_members'].forEach(key=>{const value=form.elements[key]?.value;if(value!=='')targets[key]=Number(value);});
+        plan={title:form.elements.title.value,objective:form.elements.objective.value,start_date:form.elements.start_date.value,target_date:form.elements.target_date.value,targets};
+      }
+      updateFollowupContactMessage(creator,report,row,plan);
+    };
+    document.getElementById('gxActionPlanForm')?.addEventListener('input',refreshContactMessage);
+    document.getElementById('gxActionPlanForm')?.addEventListener('change',refreshContactMessage);
+    document.getElementById('gxActionPlanSelect')?.addEventListener('change',()=>{
+      const creator=followupCreatorCache.find(item=>item.id===document.getElementById('gxFollowupCreator')?.value);
+      const plan=(window.gxFollowupPlans||[]).find(item=>item.id===document.getElementById('gxActionPlanSelect')?.value)||null;
+      if(creator)updateFollowupContactMessage(creator,window.gxFollowupSelectedReport||null,(window.gxFollowupSelectedReport?.gx_creator_followup_evaluations||[]).find(row=>row.creator_user_id===creator.id)||null,plan);
+    });
     const fileInput=document.getElementById('gxFollowupFile');
     const button=main.querySelector('[data-followup-preview]');
     fileInput?.addEventListener('change',()=>{
