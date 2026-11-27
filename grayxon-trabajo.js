@@ -605,7 +605,7 @@
     const form=document.getElementById('gxActionPlanForm'),preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions');if(!form||!preview||!actions)return;
     if(!plan){preview.hidden=true;actions.hidden=true;form.hidden=false;return;}
     const targets=plan.targets||{};const labels=[['Diamantes','diamonds'],['Horas LIVE','live_hours'],['Días válidos','valid_days'],['Batallas','battles'],['Miembros del club de fans','fan_club_members']];
-    preview.innerHTML='<h3>'+esc(plan.title)+'</h3><p>'+esc(plan.objective||'Sin objetivo adicional')+'</p><p><strong>Periodo:</strong> '+esc(plan.start_date)+' al '+esc(plan.target_date)+'</p><ul>'+labels.filter(x=>targets[x[1]]!=null).map(x=>'<li>'+x[0]+': '+esc(targets[x[1]])+'</li>').join('')+'</ul>'+(reminder?'<p><strong>Recordatorio:</strong> '+esc(new Date(reminder.scheduled_at).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}))+' · '+esc(reminder.note||'Sin nota')+'</p>':'<p>Sin recordatorio programado.</p>');
+    preview.innerHTML='<h3>'+esc(plan.title)+'</h3><p>'+esc(plan.objective||'Sin objetivo adicional')+'</p><p><strong>Periodo:</strong> '+esc(plan.start_date)+' al '+esc(plan.target_date)+'</p><ul>'+labels.filter(x=>targets[x[1]]!=null).map(x=>'<li>'+x[0]+': '+esc(targets[x[1]])+'</li>').join('')+'</ul>'+(reminder?'<p><strong>Recordatorio:</strong> '+esc(new Date(reminder.scheduled_at).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}))+' · '+esc(reminder.note||'Sin nota')+'</p>':'<p>Sin recordatorio programado.</p>')+'<div class="gxt-actions"><button type="button" class="gxt-btn" data-followup-open-contact>Contactar creador</button><button type="button" class="gxt-btn primary" data-followup-open-progress '+(followupProgressEligibility(plan).allowed?'':'disabled')+'>Registrar avance</button></div>';
     preview.hidden=false;actions.hidden=false;form.hidden=true;
   }
   async function loadFollowupWorkspace() {
@@ -1517,6 +1517,8 @@
     if(event.target.closest('[data-followup-next]')&&state.followupStep===0&&!state.followupHasPlan&&!document.querySelector('#gxActionPlanForm [name=plan_id]')?.value)return toast('Primero guarda el plan de trabajo para continuar.');
     if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
     if(event.target.closest('[data-followup-next]')){if(state.followupStep===2){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
+    const contactCreator=event.target.closest('[data-followup-open-contact]');if(contactCreator){setFollowupStep(2);return;}
+    const registerProgress=event.target.closest('[data-followup-open-progress]');if(registerProgress&&!registerProgress.disabled){setFollowupStep(1);return;}
     const editSavedPlan=event.target.closest('[data-followup-edit-plan]');
     if(editSavedPlan){const form=document.getElementById('gxActionPlanForm'),preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions');if(preview)preview.hidden=true;if(actions)actions.hidden=true;if(form)form.hidden=false;return;}
     const deleteSavedPlan=event.target.closest('[data-followup-delete-plan]');
