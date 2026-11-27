@@ -666,16 +666,6 @@
       toast('Avance registrado correctamente.');await loadFollowupWorkspace();return;
     }
   }
-  function downloadFollowupDepartedCsv(rows,periodLabel='') {
-    if(!rows?.length)return;
-    const quote=value=>'"'+String(value??'').replace(/"/g,'""')+'"';
-    const lines=[['Usuario TikTok','ID del creador','Estado en el reporte'],...rows.map(row=>[row.creator_username_snapshot||row.username,row.creator_id_snapshot||row.creatorId,row.source_status||'El creador ha abandonado la agencia'])];
-    const csv='\uFEFF'+lines.map(line=>line.map(quote).join(';')).join('\r\n');
-    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='creadores-que-abandonaron-la-agencia'+(periodLabel?'-'+periodLabel:'')+'.csv';
-    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
-  }
 
   async function loadFollowupHistory() {
     const host=document.getElementById('gxFollowupHistory');
