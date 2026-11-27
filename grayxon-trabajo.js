@@ -467,15 +467,21 @@
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
       const classLabels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
       const classStyles={high_risk:'risk',observation:'observation',on_track:'success',early_review:'early',not_evaluable:'neutral',needs_daily_data:'warning'};
-      const rows=preview.rows.map(row=>{
+      const evaluationOrder={on_track:0,early_review:1,not_evaluable:2,needs_daily_data:3,observation:4,high_risk:5};
+      const sortedRows=[...preview.rows].sort((a,b)=>{
+        const aKey=a.evaluation.classification||a.evaluation.status;
+        const bKey=b.evaluation.classification||b.evaluation.status;
+        return (evaluationOrder[aKey]??3)-(evaluationOrder[bKey]??3);
+      });
+      const rows=sortedRows.map(row=>{
         const profile=row.profile;
-        const creatorLabel=profile?(profile.full_name||'@'+profile.username):'Sin vincular';
+        const creatorLabel=profile?(profile.full_name||profile.username):'Sin vincular';
         const plan=profile?plansByCreator.get(profile.id):null;
-        const status=row.linkStatus==='ambiguous'?'Coincidencia ambigua':profile?'Cuenta Grayxon vinculada':'Sin vincular';
         const evaluationKey=row.evaluation.classification||row.evaluation.status;
         const evaluationLabel=classLabels[evaluationKey]||row.evaluation.status;
+        const creatorTone=classStyles[evaluationKey]||'neutral';
         const planAction=profile?'<button type="button" class="gxt-followup-plan-button '+(plan?'is-view':'is-create')+'" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="'+(plan?'4':'3')+'" data-followup-plan-id="'+(plan?esc(plan.id):'')+'">'+(plan?'Ver':'Gestionar plan')+'</button>':'<span class="gxt-followup-muted">—</span>';
-        return '<tr class="gxt-followup-data-row"><td>@'+esc(row.username)+'</td><td class="gxt-followup-creator-cell">'+(profile?'<button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="0"><strong>'+esc(creatorLabel)+'</strong><small>@'+esc(profile.username)+'</small></button>':'<span class="gxt-followup-unlinked">'+esc(creatorLabel)+'</span>')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+(row.validDays==null?'—':row.validDays)+'</td><td><span class="gxt-followup-link-status '+(profile?'is-linked':'is-unlinked')+'">'+esc(status)+'</span></td><td><span class="gxt-followup-status-pill is-'+(classStyles[evaluationKey]||'neutral')+'">'+esc(evaluationLabel)+'</span></td><td>'+planAction+'</td></tr>';
+        return '<tr class="gxt-followup-data-row"><td>@'+esc(row.username)+'</td><td class="gxt-followup-creator-cell is-'+creatorTone+'">'+(profile?'<button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="0"><strong>'+esc(creatorLabel)+'</strong><small>@'+esc(profile.username)+'</small></button>':'<span class="gxt-followup-unlinked">'+esc(creatorLabel)+' · @'+esc(row.username)+'</span>')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+(row.validDays==null?'—':row.validDays)+'</td><td><span class="gxt-followup-status-pill is-'+creatorTone+'">'+esc(evaluationLabel)+'</span></td><td>'+planAction+'</td></tr>';
       }).join('');
       target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
         '<div class="gxt-status-note">'+esc(status)+' Periodo del archivo: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
@@ -483,7 +489,7 @@
           ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-missing-phones><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar datos de contacto</strong><small>'+missingPhones.length+' creadores sin teléfono registrado</small></span><span class="gxt-followup-alert-count">'+missingPhones.length+'</span></button></div>'
           : '<div class="gxt-status-note">Todos los creadores vinculados tienen teléfono registrado.</div>')+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
-        '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Creador Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Vinculación</th><th>Evaluación</th><th>Plan de seguimiento</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Creador Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Evaluación</th><th>Plan de seguimiento</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
         '<div class="gxt-status-note">Esta es una previsualización. Todavía no se han guardado evaluaciones ni se ha modificado ningún perfil.</div>'+
         (preview.canEvaluate && preview.summary.matched===preview.summary.creators && preview.rows.every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
           ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar evaluación</button></div>'
@@ -506,11 +512,16 @@
     target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
     target.querySelector('[data-open-missing-phones]')?.addEventListener('click',()=>{
       if(!followupMissingPhones.length)return;
-      const rows=followupMissingPhones.map(profile=>'<div class="gxt-followup-alert-person"><strong>'+esc(profile.full_name||profile.username||'Creador')+'</strong><span>@'+esc(profile.username||'')+'</span><small>ID TikTok: '+esc(profile.tiktok_creator_id||'No registrado')+'</small></div>').join('');
-      const text=followupMissingPhones.map(profile=>'Nombre: '+(profile.full_name||'')+'\\nUsuario Grayxon: @'+(profile.username||'')+'\\nUsuario TikTok: @'+(profile.tiktok_username||profile.username||'')+'\\nID TikTok: '+(profile.tiktok_creator_id||'No registrado')).join('\\n\\n');
-      openModal('Datos de contacto pendientes',followupMissingPhones.length+' creadores vinculados no tienen teléfono registrado. Copia la lista y solicita a administración que actualice sus perfiles.','<div class="gxt-followup-alert-list">'+rows+'</div><div class="gxt-modal-actions"><button type="button" class="gxt-btn primary" data-copy-all-missing-phones>Copiar todos los datos</button></div>',true);
-      modalRoot.querySelector('[data-copy-all-missing-phones]')?.addEventListener('click',async()=>{
-        try{await navigator.clipboard.writeText(text);toast('Todos los datos fueron copiados.');}
+      const rows=followupMissingPhones.map(profile=>'<div class="gxt-followup-alert-person"><strong>'+esc(profile.full_name||profile.username||'Creador')+'</strong><span>@'+esc(profile.username||'')+'</span></div>').join('');
+      const names=followupMissingPhones.map(profile=>(profile.full_name||'').trim()||profile.username||'Creador');
+      const text='Estos creadores no tienen teléfono registrado:\n\n'+names.map(name=>'• '+name).join('\n');
+      openModal('Datos de contacto pendientes',followupMissingPhones.length+' creadores vinculados no tienen teléfono registrado. Copia la lista para enviarla a administración.','<div class="gxt-followup-alert-list">'+rows+'</div>',true);
+      const copyButton=document.createElement('button');
+      copyButton.type='button';copyButton.className='gxt-btn primary gxt-followup-copy-header';copyButton.textContent='Copiar lista';
+      const closeButton=modalRoot.querySelector('[data-close-modal]');
+      closeButton?.parentNode?.insertBefore(copyButton,closeButton);
+      copyButton.addEventListener('click',async()=>{
+        try{await navigator.clipboard.writeText(text);toast('Lista de creadores copiada.');}
         catch(error){toast('No fue posible copiar automáticamente en este navegador.');}
       });
     });
