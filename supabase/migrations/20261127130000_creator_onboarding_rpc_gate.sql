@@ -408,44 +408,41 @@ $function$
   END IF;
 
 
-  IF to_regprocedure('public.gx_events_respond(uuid,text,text)') IS NOT NULL THEN
+  -- Wrap the existing event-response RPC rather than duplicating its full business logic.
+  IF to_regprocedure('public.gx_events_respond_internal(uuid,text,text)') IS NULL THEN
+    IF to_regprocedure('public.gx_events_respond(uuid,text,text)') IS NOT NULL THEN
+      EXECUTE 'ALTER FUNCTION public.gx_events_respond(uuid,text,text) RENAME TO gx_events_respond_internal';
+    ELSE
+      RAISE NOTICE 'gx_events_respond not installed; onboarding guard skipped';
+    END IF;
+  END IF;
+
+  IF to_regprocedure('public.gx_events_respond_internal(uuid,text,text)') IS NOT NULL THEN
     EXECUTE $ddl$
-CREATE OR REPLACE FUNCTION public.gx_events_respond(p_event_id uuid, p_response text, p_tiktok_username text DEFAULT NULL::text)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
-AS $function$
-declare v_user uuid:=auth.uid(); v_role text; v_profile_username text; v_event public.gx_events%rowtype; v_handle text; v_participant_id uuid;
-begin
-  if v_user is null then raise exception 'Debes iniciar sesión.' using errcode='28000'; end if;
-  if public.gx_creator_onboarding_pending() then raise exception 'Completa tus primeros pasos antes de participar en eventos.' using errcode='42501'; end if;
-  if p_response not in ('yes','no') then raise exception 'Respuesta no válida.' using errcode='22023'; end if;
-  select * into v_event from public.gx_events where id=p_event_id;
-  if not found then raise exception 'El evento no existe.' using errcode='P0002'; end if;
-  select role,username into v_role,v_profile_username from public.profiles where id=v_user and active is true;
-  if v_role is null or v_role not in ('creator','manager') then raise exception 'Tu cuenta no está habilitada para participar.' using errcode='42501'; end if;
-  if v_event.status not in ('published','in_progress') or not v_event.registration_open then raise exception 'Las inscripciones de este evento están cerradas.' using errcode='22023'; end if;
-  if v_event.ends_at is not null and v_event.ends_at<now() then raise exception 'El evento ya finalizó.' using errcode='22023'; end if;
-  if not public.gx_event_audience_matches(p_event_id,v_user) then raise exception 'Este evento no está dirigido a tu cuenta.' using errcode='42501'; end if;
-  if v_event.battle_enabled and v_role<>'creator' then raise exception 'Las batallas de este evento son para creadores.' using errcode='42501'; end if;
-  v_handle:=nullif(regexp_replace(trim(coalesce(p_tiktok_username,v_profile_username,'')),'^@+',''),'');
-  if v_handle is not null and v_handle !~ '^[A-Za-z0-9._]{2,24}$' then raise exception 'El usuario de tu perfil no tiene un formato de TikTok válido. Corrígelo en tu perfil de Grayxon.' using errcode='22023'; end if;
-  insert into public.gx_event_responses(event_id,user_id,response,tiktok_username,responded_at)
-  values(p_event_id,v_user,p_response,v_handle,now())
-  on conflict(event_id,user_id) do update set response=excluded.response,tiktok_username=coalesce(excluded.tiktok_username,gx_event_responses.tiktok_username),responded_at=now();
-  if p_response='yes' then
-    insert into public.gx_event_participants(event_id,user_id,status,tiktok_username,registered_at)
-    values(p_event_id,v_user,'registered',v_handle,now())
-    on conflict(event_id,user_id) do update set status=case when gx_event_participants.status='withdrawn' then 'registered' else gx_event_participants.status end,tiktok_username=coalesce(excluded.tiktok_username,gx_event_participants.tiktok_username)
-    returning id into v_participant_id;
-  else
-    update public.gx_event_participants set status='withdrawn',tiktok_username=coalesce(v_handle,tiktok_username) where event_id=p_event_id and user_id=v_user and status in ('registered','confirmed');
-  end if;
-  return jsonb_build_object('event_id',p_event_id,'response',p_response,'participant_id',v_participant_id,'tiktok_username',v_handle);
-end;
-$function$
+      CREATE OR REPLACE FUNCTION public.gx_events_respond(
+        p_event_id uuid,
+        p_response text,
+        p_tiktok_username text DEFAULT NULL::text
+      )
+      RETURNS jsonb
+      LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path TO 'public', 'pg_temp'
+      AS $wrapper$
+      BEGIN
+        IF auth.uid() IS NULL THEN
+          RAISE EXCEPTION 'Debes iniciar sesión.' USING errcode='28000';
+        END IF;
+        IF public.gx_creator_onboarding_pending() THEN
+          RAISE EXCEPTION 'Completa tus primeros pasos antes de participar en eventos.' USING errcode='42501';
+        END IF;
+        RETURN public.gx_events_respond_internal(p_event_id,p_response,p_tiktok_username);
+      END;
+      $wrapper$
     $ddl$;
+    EXECUTE 'REVOKE ALL ON FUNCTION public.gx_events_respond_internal(uuid,text,text) FROM PUBLIC, authenticated';
+    EXECUTE 'REVOKE ALL ON FUNCTION public.gx_events_respond(uuid,text,text) FROM PUBLIC';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.gx_events_respond(uuid,text,text) TO authenticated';
   END IF;
   IF to_regprocedure('public.can_view_live_training(uuid)') IS NOT NULL THEN
     EXECUTE $ddl$
