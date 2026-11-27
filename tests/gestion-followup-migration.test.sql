@@ -47,7 +47,7 @@ begin
   '10000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000002','foreign.xlsx',
   '10000000-0000-0000-0000-000000000002/foreign.xlsx',repeat('f',64),
   '2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily','processed'
-  returning id into v_import_b;
+ ) returning id into v_import_b;
  insert into public.gx_creator_action_plans(id,creator_user_id,manager_id,title,objective,created_by)
  values('50000000-0000-0000-0000-000000000001',v_creator,v_manager_id,'Plan test','Objetivo de prueba',v_manager_user);
  insert into public.gx_creator_action_plan_updates(id,plan_id,progress_summary,status)
