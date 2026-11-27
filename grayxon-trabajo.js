@@ -736,17 +736,13 @@
       else result=await sb.from('gx_creator_action_plans').insert({...common,...payload}).select('id').single();
       if(result.error)return toast('No se pudo guardar el plan: '+result.error.message);
       const reminderLocal=String(data.get('reminder_at')||'');
-      const existingReminder=(window.gxFollowupReminders||[]).find(item=>item.action_plan_id===result.data.id&&item.status!=='cancelled');
       if(reminderLocal){
         const scheduledAt=window.GRAYXON_FOLLOWUP_CALCULATIONS?.toBogotaISOString(reminderLocal);
         if(!scheduledAt)return toast('El plan se guardó, pero la fecha del recordatorio no es válida.');
-        const reminderPayload={scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('reminder_note')||'').trim()||null,status:'pending',updated_at:new Date().toISOString()};
-        const reminder=existingReminder?await sb.from('gx_creator_followup_reminders').update(reminderPayload).eq('id',existingReminder.id):await sb.from('gx_creator_followup_reminders').insert({...common,action_plan_id:result.data.id,...reminderPayload});
-        if(reminder.error)return toast('El plan se guardó, pero no se pudo actualizar el recordatorio: '+reminder.error.message);
-      }else if(existingReminder){
-        const removed=await sb.from('gx_creator_followup_reminders').delete().eq('id',existingReminder.id);
-        if(removed.error)return toast('El plan se guardó, pero no se pudo retirar el recordatorio: '+removed.error.message);
+        const reminder=await sb.from('gx_creator_followup_reminders').insert({...common,action_plan_id:result.data.id,scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('reminder_note')||'').trim()||null});
+        if(reminder.error)return toast('El plan se guardó, pero no se pudo programar el recordatorio: '+reminder.error.message);
       }
+      form.elements.reminder_at.value='';form.elements.reminder_note.value='';
       toast(planId?'Plan actualizado.':'Plan creado correctamente.');
       await loadFollowupWorkspace();setFollowupStep(1);return;
     }
