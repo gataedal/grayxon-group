@@ -98,15 +98,37 @@ BEGIN
   SELECT * INTO v_details FROM public.profile_details WHERE user_id = v_uid;
   IF NOT FOUND OR NULLIF(btrim(v_details.email), '') IS NULL
      OR NULLIF(btrim(v_details.phone), '') IS NULL OR v_details.birth_date IS NULL
-     OR NULLIF(btrim(v_details.country), '') IS NULL
+     OR v_details.birth_date > (current_date - interval '18 years')::date
+     OR v_details.country <> ALL(ARRAY['CO','MX','AR','CL','PE','EC','VE','PA','CR','GT','SV','HN','NI','DO','BO','PY','UY','CU','HT'])
      OR NULLIF(btrim(v_details.state_region), '') IS NULL
      OR NULLIF(btrim(v_details.city), '') IS NULL
-     OR NULLIF(btrim(v_details.avatar_url), '') IS NULL THEN
-    RAISE EXCEPTION 'Primero debes completar tus datos personales y subir tu foto' USING ERRCODE = '23514';
+     OR NULLIF(btrim(v_details.avatar_url), '') IS NULL
+     OR NULLIF(btrim(v_details.avatar_path), '') IS NULL
+     OR NOT EXISTS (
+       SELECT 1 FROM storage.objects so
+       WHERE so.bucket_id = 'profile-avatars'
+         AND so.name = v_details.avatar_path
+         AND (storage.foldername(so.name))[1] = v_uid::text
+     ) THEN
+    RAISE EXCEPTION 'Completa tus datos, confirma que eres mayor de 18 años y sube tu foto de perfil' USING ERRCODE = '23514';
   END IF;
 
   IF NOT (p_lesson_id = ANY(v_required)) THEN
     RAISE EXCEPTION 'Este video no forma parte del onboarding obligatorio' USING ERRCODE = '23514';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.lessons l
+    WHERE l.id = p_lesson_id
+      AND l.published IS TRUE
+      AND l.type = 'video'
+      AND l.module_id = ANY(ARRAY[
+        'a676aec5-1514-4640-8884-8e9e02b2e90a'::uuid,
+        'b7666174-c171-48ed-afe2-970b47c0c8fa'::uuid,
+        '5d5e7196-7f15-4d9e-a53e-6940b21d5a75'::uuid
+      ])
+  ) THEN
+    RAISE EXCEPTION 'El contenido no está publicado como video obligatorio' USING ERRCODE = '23514';
   END IF;
 
   IF EXISTS (SELECT 1 FROM public.lesson_progress WHERE user_id = v_uid AND lesson_id = p_lesson_id) THEN
