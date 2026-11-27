@@ -15,6 +15,9 @@ create table if not exists public.gx_creator_followup_general_reports (
 create index if not exists gx_followup_general_reports_manager_date
   on public.gx_creator_followup_general_reports(manager_id, generated_at desc);
 
+create unique index if not exists gx_followup_general_reports_manager_period
+  on public.gx_creator_followup_general_reports(manager_id, period_start, period_end);
+
 alter table public.gx_creator_followup_general_reports enable row level security;
 
 drop policy if exists gx_followup_general_reports_read on public.gx_creator_followup_general_reports;
@@ -68,6 +71,9 @@ begin
     (manager_id, team_id, generated_by, creator_count, period_start, period_end)
   values
     (v_manager, v_team, v_uid, v_total, v_start, v_end)
+  on conflict (manager_id, period_start, period_end)
+  do update set team_id=excluded.team_id, generated_by=excluded.generated_by,
+    creator_count=excluded.creator_count, generated_at=now(), updated_at=now()
   returning id into v_report_id;
 
   return v_report_id;
