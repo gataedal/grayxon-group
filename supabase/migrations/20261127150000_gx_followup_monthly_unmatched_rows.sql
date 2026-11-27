@@ -37,33 +37,59 @@ create or replace function public.gx_save_creator_followup_import_with_unmatched
 language plpgsql security definer set search_path=public,auth,storage
 as $$
 declare
+ v_uid uuid:=auth.uid();
+ v_manager uuid:=public.current_manager_id();
+ v_admin boolean:=public.is_admin();
  v_import_id uuid;
+ v_params jsonb;
  v_row jsonb;
+ v_profile public.profiles%rowtype;
+ v_saved integer;
 begin
- if p_unmatched_rows is null or jsonb_typeof(p_unmatched_rows)<>'array' then
-   raise exception 'Los registros sin vincular no tienen un formato válido';
- end if;
+ if v_uid is null or (not v_admin and v_manager is null) then raise exception 'Acceso no autorizado'; end if;
+ if p_file_name is null or length(btrim(p_file_name)) not between 1 and 255 then raise exception 'Nombre de archivo inválido'; end if;
+ if p_file_sha256 !~ '^[a-f0-9]{64}$' then raise exception 'Hash SHA-256 inválido'; end if;
+ if p_selected_start is null or p_selected_end is null or p_selected_start>p_selected_end then raise exception 'Periodo inválido'; end if;
+ if (p_source_start is null)<>(p_source_end is null) then raise exception 'El periodo de origen está incompleto'; end if;
+ if p_source_start is not null and p_source_start>p_source_end then raise exception 'El periodo de origen no es válido'; end if;
+ if p_source_start is not null and (p_selected_start<p_source_start or p_selected_end>p_source_end) then raise exception 'El rango elegido está fuera del periodo del archivo'; end if;
+ if p_granularity is null or p_granularity not in ('daily','period_aggregate','unknown') then raise exception 'Granularidad inválida'; end if;
+ if p_granularity in ('daily','period_aggregate') and p_source_start is null then raise exception 'Falta el periodo de origen del archivo'; end if;
+ if jsonb_typeof(p_evaluations)<>'array' or jsonb_typeof(p_unmatched_rows)<>'array' then raise exception 'Los registros del reporte no tienen un formato válido'; end if;
+ if jsonb_array_length(p_evaluations)+jsonb_array_length(p_unmatched_rows)=0 then raise exception 'No hay registros para guardar'; end if;
+ if split_part(coalesce(p_storage_path,''),'/',1)<>v_uid::text then raise exception 'Ruta de archivo inválida'; end if;
+ if not exists(select 1 from storage.objects where bucket_id='gx-creator-followup-reports' and name=p_storage_path and owner_id::text=v_uid::text) then raise exception 'No se encontró un archivo propio subido'; end if;
+ select jsonb_build_object('version',version,'monthlyLiveHours',monthly_live_hours,'monthlyValidDays',monthly_valid_days,'earlyReviewMinDays',early_review_min_evaluable_days,'highRiskThresholdPct',high_risk_threshold_pct,'observationThresholdPct',observation_threshold_pct,'consistencyHoursPerDay',consistency_hours_per_day,'consistencyDaysPerWeek',consistency_days_per_week,'timezone',timezone)
+ into v_params from public.gx_creator_followup_parameters where active order by version desc limit 1;
+ if v_params is null then raise exception 'No hay parámetros activos'; end if;
+ if exists(select 1 from public.gx_creator_followup_imports where uploaded_by=v_uid and file_sha256=p_file_sha256 and selected_start_date=p_selected_start and selected_end_date=p_selected_end) then raise exception 'Este archivo y periodo ya fueron importados'; end if;
+
+ for v_row in select value from jsonb_array_elements(p_evaluations) loop
+   select * into v_profile from public.profiles where id=(v_row->>'creator_user_id')::uuid;
+   if not found or v_profile.role<>'creator' or not v_profile.active then raise exception 'Creador inexistente o inactivo'; end if;
+   if not v_admin and v_profile.manager_id is distinct from v_manager then raise exception 'El creador no pertenece a tu equipo'; end if;
+   if coalesce(v_row->>'classification','') not in ('high_risk','observation','on_track','early_review','not_evaluable','needs_daily_data') then raise exception 'Clasificación inválida'; end if;
+ end loop;
  for v_row in select value from jsonb_array_elements(p_unmatched_rows) loop
    if coalesce(v_row->>'username','')='' then raise exception 'Falta el usuario TikTok de un registro pendiente'; end if;
    if coalesce(v_row->>'reason','') not in ('agency_left','not_in_portal','ambiguous') then raise exception 'Motivo de registro pendiente inválido'; end if;
  end loop;
 
- v_import_id:=public.gx_save_creator_followup_import(
-   p_file_name,p_storage_path,p_file_sha256,p_selected_start,p_selected_end,
-   p_source_start,p_source_end,p_granularity,p_evaluations
- );
+ insert into public.gx_creator_followup_imports(uploaded_by,manager_id,file_name,storage_path,file_sha256,selected_start_date,selected_end_date,source_start_date,source_end_date,source_granularity,status,parameters_snapshot,processed_at)
+ values(v_uid,v_manager,p_file_name,p_storage_path,p_file_sha256,p_selected_start,p_selected_end,p_source_start,p_source_end,p_granularity,
+ case when p_granularity='period_aggregate' and (p_source_start is distinct from p_selected_start or p_source_end is distinct from p_selected_end) then 'needs_daily_data' else 'processed' end,v_params,now()) returning id into v_import_id;
 
- insert into public.gx_creator_followup_import_unmatched_rows(
-   import_id,creator_username_snapshot,creator_id_snapshot,reason,source_status,raw_metrics
- )
- select v_import_id,
-   left(btrim(e->>'username'),100),
-   nullif(left(btrim(coalesce(e->>'creator_id','')),100),''),
-   e->>'reason',
-   nullif(left(coalesce(e->>'agency_status',''),500),''),
-   coalesce(e->'raw_metrics','{}'::jsonb)
+ insert into public.gx_creator_followup_evaluations(import_id,creator_user_id,creator_username_snapshot,team_id_snapshot,manager_id_snapshot,join_date_snapshot,evaluated_start_date,evaluated_end_date,evaluable_days,valid_live_days,live_seconds,diamonds,target_valid_days,target_live_seconds,valid_days_pct,live_hours_pct,classification,raw_metrics)
+ select v_import_id,(e->>'creator_user_id')::uuid,coalesce(e->>'username',''),p.team_id,p.manager_id,nullif(e->>'join_date','')::date,nullif(e->>'evaluated_start','')::date,nullif(e->>'evaluated_end','')::date,
+ greatest(coalesce((e->>'evaluable_days')::integer,0),0),nullif(e->>'valid_live_days','')::numeric,nullif(e->>'live_seconds','')::bigint,nullif(e->>'diamonds','')::bigint,nullif(e->>'target_valid_days','')::numeric,nullif(e->>'target_live_seconds','')::numeric,nullif(e->>'valid_days_pct','')::numeric,nullif(e->>'live_hours_pct','')::numeric,e->>'classification',coalesce(e->'raw_metrics','{}'::jsonb)
+ from jsonb_array_elements(p_evaluations) e join public.profiles p on p.id=(e->>'creator_user_id')::uuid;
+ get diagnostics v_saved=row_count;
+ if v_saved<>jsonb_array_length(p_evaluations) then raise exception 'No se guardaron todas las evaluaciones'; end if;
+
+ insert into public.gx_creator_followup_import_unmatched_rows(import_id,creator_username_snapshot,creator_id_snapshot,reason,source_status,raw_metrics)
+ select v_import_id,left(btrim(e->>'username'),100),nullif(left(btrim(coalesce(e->>'creator_id','')),100),''),
+ e->>'reason',nullif(left(coalesce(e->>'agency_status',''),500),''),coalesce(e->'raw_metrics','{}'::jsonb)
  from jsonb_array_elements(p_unmatched_rows) e;
-
  return v_import_id;
 end;
 $$;
