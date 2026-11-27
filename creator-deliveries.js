@@ -124,7 +124,7 @@
     if(error){console.error('[Mis entregas]',error);listRoot.innerHTML='<div class="gx-delivery-empty">No pudimos cargar tus entregas. Intenta nuevamente.</div>';return;}
     deliveries=data||[];
     const {data:plans,error:plansError}=await sb.from('gx_creator_action_plans')
-      .select('id,title,objective,status,start_date,target_date,targets,source_period_start,source_period_end,created_at')
+      .select('id,title,objective,success_criteria,status,start_date,target_date,targets,source_period_start,source_period_end,created_at')
       .eq('creator_user_id',currentUserId).neq('status','cancelled').order('created_at',{ascending:false});
     if(plansError)console.warn('[Mis entregas · planes]',plansError.message);
     actionPlans=plans||[];
@@ -207,14 +207,21 @@
     const labels={diamonds:'Diamantes',live_hours:'Horas LIVE',valid_days:'Días válidos',battles:'Batallas',fan_club_members:'Miembros del club de fans'};
     const targetCards=Object.entries(labels).filter(([key])=>targets[key]!=null).map(([key,label])=>'<div class="gx-action-plan-target"><small>'+label+'</small><strong>'+esc(targets[key])+'</strong></div>').join('');
     const updates=planUpdates.filter(item=>item.plan_id===id);
+    const statusLabels={active:'En curso',paused:'En pausa',completed:'Completado'};
+    const metricLabels={diamonds:'Diamantes',live_hours:'Horas LIVE',valid_days:'Días válidos',battles:'Batallas',fan_club_members:'Miembros del club de fans'};
     screen.querySelector('#gxCreatorDeliveryTitle').textContent='Plan de acción · '+period;
-    screen.querySelector('#gxCreatorDeliveryMeta').textContent=plan.title||'Plan de trabajo';
+    screen.querySelector('#gxCreatorDeliveryMeta').textContent=(plan.title||'Plan de trabajo')+' · '+(statusLabels[plan.status]||'Plan');
     const body=screen.querySelector('#gxCreatorDeliveryFiles');
     body.innerHTML='<div class="gx-action-plan-content">'+
       '<section class="gx-action-plan-block"><h3>Objetivo y acuerdos</h3><p>'+esc(plan.objective||'Tu manager aún no ha añadido una descripción.')+'</p></section>'+
       '<section class="gx-action-plan-block"><h3>Periodo del plan</h3><p>'+esc(period)+'</p></section>'+
+      (plan.success_criteria?'<section class="gx-action-plan-block"><h3>Cómo mediremos el avance</h3><p>'+esc(plan.success_criteria)+'</p></section>':'')+
       (targetCards?'<section class="gx-action-plan-block"><h3>Metas</h3><div class="gx-action-plan-targets">'+targetCards+'</div></section>':'')+
-      '<section class="gx-action-plan-block"><h3>Actualizaciones de tu manager</h3>'+(updates.length?updates.map(item=>'<article class="gx-action-plan-update"><small>'+esc(dateTimeLabel(item.created_at))+'</small><p>'+esc(item.progress_summary||'')+'</p>'+(item.proposed_changes?'<p style="margin-top:8px;color:#8de8e8">'+esc(item.proposed_changes)+'</p>':'')+'</article>').join(''):'<p>Todavía no hay actualizaciones para este plan.</p>')+'</section>'+
+      '<section class="gx-action-plan-block"><h3>Actualizaciones de tu manager</h3>'+(updates.length?updates.map(item=>{
+        const metrics=item.progress_metrics||{};
+        const metricCards=Object.entries(metricLabels).filter(([key])=>metrics[key]!=null).map(([key,label])=>'<div class="gx-action-plan-target"><small>'+label+'</small><strong>'+esc(metrics[key])+'</strong></div>').join('');
+        return '<article class="gx-action-plan-update"><small>'+esc(dateTimeLabel(item.created_at))+'</small><p>'+esc(item.progress_summary||'')+'</p>'+(metricCards?'<div class="gx-action-plan-targets" style="margin-top:10px">'+metricCards+'</div>':'')+(item.proposed_changes?'<p style="margin-top:8px;color:#8de8e8">'+esc(item.proposed_changes)+'</p>':'')+'</article>';
+      }).join(''):'<p>Todavía no hay actualizaciones para este plan.</p>')+'</section>'+
     '</div>';
     detailRoot.classList.add('is-plan');
     detailRoot.hidden=false;
