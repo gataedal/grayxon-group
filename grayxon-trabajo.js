@@ -596,6 +596,11 @@
     if(hint)hint.textContent=url?'Se abrirá el chat de WhatsApp de este creador con las métricas del reporte y el plan propuesto.':'Este creador no tiene teléfono registrado. Solicita a administración que lo agregue.';
   }
 
+  function renderFollowupActivityForCreator(creatorId){
+    const host=document.getElementById('gxFollowupOperations');if(!host)return;
+    const rows=(window.gxFollowupActivityRows||[]).filter(x=>x.creator_user_id===creatorId).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60);
+    host.innerHTML=creatorId?(rows.length?'<div class="gxt-panel-head"><h3>Actividad reciente</h3><span class="gxt-chip">'+rows.length+' registros</span></div>'+rows.map(x=>'<div class="gxt-followup-operation"><strong>'+esc(x.title)+'</strong><small>'+esc(x.creator)+' · '+dateTimeLabel(x.date)+'</small><p>'+esc(x.detail)+'</p></div>').join(''):'<div class="gxt-empty">Este creador todavía no tiene actividad registrada.</div>'):'<div class="gxt-empty">Selecciona un creador para consultar su actividad.</div>';
+  }
   async function loadFollowupWorkspace() {
     const select=document.getElementById('gxFollowupCreator');
     const host=document.getElementById('gxFollowupOperations');
@@ -637,6 +642,7 @@
         }
         updateFollowupContactMessage(creator,selectedReport,reportRow,currentPlan);
         updateFollowupProgressGate(currentPlan);
+        renderFollowupActivityForCreator(creator.id);
       };
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
@@ -668,13 +674,14 @@
         planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+'</option>').join('');
       }
       const rows=[
-        ...(notes.data||[]).map(x=>({date:x.created_at,title:'Nota · '+x.note_type,creator:name(x.creator_user_id),detail:x.body})),
-        ...(contacts.data||[]).map(x=>({date:x.created_at,title:'Contacto · '+x.contact_status,creator:name(x.creator_user_id),detail:(x.channel||'')+' · '+(x.message_text||'')})),
-        ...(plans.data||[]).map(x=>({date:x.created_at,title:'Plan · '+x.title,creator:name(x.creator_user_id),detail:x.objective+' · '+x.status})),
-        ...(planUpdates.data||[]).map(x=>({date:x.created_at,title:'Propuesta · '+x.status,creator:(plans.data||[]).find(p=>p.id===x.plan_id)?name((plans.data||[]).find(p=>p.id===x.plan_id).creator_user_id):'Creador',detail:x.progress_summary+' '+(x.proposed_changes||''),updateId:x.id,status:x.status})),
-        ...(reminders.data||[]).map(x=>({date:x.scheduled_at,title:'Recordatorio · '+x.status,creator:name(x.creator_user_id),detail:x.note||'Sin nota'}))
+        ...(notes.data||[]).map(x=>({creator_user_id:x.creator_user_id,date:x.created_at,title:'Nota · '+x.note_type,creator:name(x.creator_user_id),detail:x.body})),
+        ...(contacts.data||[]).map(x=>({creator_user_id:x.creator_user_id,date:x.created_at,title:'Contacto · '+x.contact_status,creator:name(x.creator_user_id),detail:(x.channel||'')+' · '+(x.message_text||'')})),
+        ...(plans.data||[]).map(x=>({creator_user_id:x.creator_user_id,date:x.created_at,title:'Plan · '+x.title,creator:name(x.creator_user_id),detail:x.objective+' · '+x.status})),
+        ...(planUpdates.data||[]).map(x=>({creator_user_id:(plans.data||[]).find(p=>p.id===x.plan_id)?.creator_user_id,date:x.created_at,title:'Propuesta · '+x.status,creator:(plans.data||[]).find(p=>p.id===x.plan_id)?name((plans.data||[]).find(p=>p.id===x.plan_id).creator_user_id):'Creador',detail:x.progress_summary+' '+(x.proposed_changes||''),updateId:x.id,status:x.status})),
+        ...(reminders.data||[]).map(x=>({creator_user_id:x.creator_user_id,date:x.scheduled_at,title:'Recordatorio · '+x.status,creator:name(x.creator_user_id),detail:x.note||'Sin nota'}))
       ].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60);
-      host.innerHTML=rows.length?'<div class="gxt-panel-head"><h3>Actividad reciente</h3><span class="gxt-chip">'+rows.length+' registros</span></div>'+rows.map(x=>'<div class="gxt-followup-operation"><strong>'+esc(x.title)+'</strong><small>'+esc(x.creator)+' · '+dateTimeLabel(x.date)+'</small><p>'+esc(x.detail)+'</p>'+(x.updateId&&state.isAdmin&&x.status==='pending_manager_review'?'<div class="gxt-actions"><button class="gxt-btn primary" data-review-plan-update="'+esc(x.updateId)+'" data-review-decision="approved">Aprobar cambios</button><button class="gxt-btn ghost" data-review-plan-update="'+esc(x.updateId)+'" data-review-decision="rejected">Rechazar</button></div>':'')+'</div>').join(''):'<div class="gxt-empty">Todavía no hay contactos, notas, planes ni recordatorios.</div>';
+      window.gxFollowupActivityRows=rows;
+      renderFollowupActivityForCreator(select.value);
     }catch(error){
       console.error('[Gestión · Seguimiento] workspace',error);
       host.innerHTML='<div class="gxt-status-note gxt-followup-warning">No se pudieron cargar los registros: '+esc(error.message||'Error de consulta')+'</div>';
