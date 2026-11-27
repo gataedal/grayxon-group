@@ -27,11 +27,14 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
     if (!userId) return response({ error: "Usuario no autenticado." }, 401);
 
     const { data: profile, error: pe } = await ctx.supabaseAdmin.from("profiles")
-      .select("id, username, full_name, role, active, team_id")
+      .select("id, username, full_name, role, active, team_id, onboarding_required, onboarding_completed_at")
       .eq("id", userId).maybeSingle();
     if (pe) { console.error("Profile lookup failed", pe); return response({ error: "No se pudo consultar el perfil." }, 500); }
     if (!profile) return response({ error: "Perfil de Grayxon no encontrado." }, 404);
     if (!profile.active) return response({ error: "El acceso del usuario está desactivado." }, 403);
+    if (profile.role === "creator" && profile.onboarding_required === true && !profile.onboarding_completed_at) {
+      return response({ error: "Completa tus primeros pasos antes de entrar a las formaciones en vivo." }, 403);
+    }
 
     let body: { trainingId?: string; connectionId?: string } = {};
     try { body = await req.json(); } catch { /* invalid body */ }
