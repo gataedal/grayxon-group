@@ -106,6 +106,8 @@
     else if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
     else { const home=$('home'); if(home)home.classList.remove('hidden'); }
     const button=$('gxOpenReferrals');if(button)button.classList.remove('is-active');
+    window.grayxonInternalBackAction=null;
+    window.grayxonRefreshInternalChrome?.();
     window.scrollTo({top:0,behavior:'smooth'});
   }
   async function openPage(){
@@ -120,8 +122,15 @@
     window.scrollTo({top:0,behavior:'instant'});
     await loadData();
     render();
+    const backBar=$('gxInternalBackBar'),backButton=$('gxInternalBackButton'),backTitle=$('gxInternalBackTitle');
+    if(backBar&&['admin','manager'].includes(currentProfile()?.role)){
+      backBar.hidden=false;
+      if(backTitle)backTitle.textContent='Gana más';
+      window.grayxonInternalBackAction=closePage;
+    }
   }
   window.grayxonOpenReferrals=openPage;
+  window.grayxonCloseReferrals=closePage;
 
   function renderAdminDashboard(page){
     const selected=earningPrograms.find(p=>p.id===selectedAdminProgramId)||null;
