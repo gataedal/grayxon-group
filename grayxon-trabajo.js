@@ -730,7 +730,7 @@
           }).join('');
           const reportPeriod=String(item.source_start_date||item.selected_start_date||month).slice(0,7);
           return '<details class="gxt-followup-history-report"><summary><span><strong>'+esc(item.file_name)+'</strong><small>'+esc(item.source_start_date||item.selected_start_date)+' a '+esc(item.source_end_date||item.selected_end_date)+'</small></span><span class="gxt-chip">'+evaluations.length+' creadores · '+unmatched.length+' pendientes</span></summary>'+
-            '<div class="gxt-followup-history-report-actions"><button type="button" class="gxt-btn ghost" data-followup-download-report="'+esc(item.storage_path)+'">Descargar Excel original</button>'+
+            '<div class="gxt-followup-history-report-actions">'+(state.isAdmin?'<button type="button" class="gxt-btn ghost" data-followup-download-report="'+esc(item.storage_path)+'">Descargar Excel original</button>':'')+
             (departed.length?'<button type="button" class="gxt-btn ghost" data-download-departed="'+esc(item.id)+'">Descargar abandonos ('+departed.length+')</button>':'')+'</div>'+
             (evaluations.length?'<h4>Creadores del portal</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+creatorRows+'</tbody></table></div>':'<p class="gxt-muted">No hay evaluaciones de creadores vinculados en este reporte.</p>')+
             (unmatched.length?'<h4>Registros que requieren revisión</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Situación</th><th>ID</th></tr></thead><tbody>'+unmatchedRows+'</tbody></table></div>':'')+
