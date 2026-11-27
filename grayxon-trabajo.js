@@ -513,9 +513,25 @@
       form.querySelector('button[type=submit]').textContent='Guardar cambios del plan';
     }
     const advance=document.getElementById('gxActionPlanUpdateForm');
-    if(advance){advance.elements.plan_id.value=plan?.id||'';advance.querySelector('button[type=submit]').disabled=!plan;}
+    if(advance)updateFollowupProgressGate(plan);
     setFollowupStep(0);
     section.scrollTop=0;
+  }
+
+  function followupProgressEligibility(plan){
+    if(!plan||!plan.target_date||plan.status==='cancelled')return {allowed:false,end:plan?.target_date||''};
+    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    return {allowed:today>String(plan.target_date).slice(0,10),end:String(plan.target_date).slice(0,10)};
+  }
+  function updateFollowupProgressGate(plan){
+    const form=document.getElementById('gxActionPlanUpdateForm');
+    const status=document.getElementById('gxFollowupPlanStatus');
+    if(!form)return;
+    const gate=followupProgressEligibility(plan);
+    form.elements.plan_id.value=plan?.id||'';
+    form.querySelectorAll('input:not([type="hidden"]),textarea,select,button').forEach(control=>{control.disabled=!gate.allowed;});
+    if(status)status.textContent=!plan?'Primero debes crear un plan de trabajo.':!plan.target_date?'El plan debe tener una fecha final.':gate.allowed?'El plan finalizó el '+gate.end+'. Ya puedes registrar sus avances.':'Los avances se habilitarán después del '+gate.end+'.';
+    form.classList.toggle('is-locked',!gate.allowed);
   }
 
   function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(2,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 3';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===2?'Finalizar':'Siguiente';}
@@ -552,6 +568,8 @@
           const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
           planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(plan=>'<option value="'+esc(plan.id)+'">'+esc(plan.title)+'</option>').join('');
         }
+        const currentPlan=(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===creator.id&&plan.status!=='cancelled')||(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===creator.id);
+        updateFollowupProgressGate(currentPlan);
       };
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
@@ -575,7 +593,7 @@
       }
       const progressForm=document.getElementById('gxActionPlanUpdateForm');
       if(progressForm){progressForm.elements.plan_id.value=activePlan?.id||'';progressForm.querySelector('button[type=submit]').disabled=!activePlan;}
-      const statusLabel=document.getElementById('gxFollowupPlanStatus');if(statusLabel)statusLabel.textContent=activePlan?'Plan activo: '+activePlan.title+' · '+activePlan.start_date+' al '+activePlan.target_date:'Primero debes crear un plan para habilitar los avances.';
+      updateFollowupProgressGate(activePlan);
       const name=id=>{const p=followupCreatorCache.find(x=>x.id===id);return p?'@'+p.username:'Creador';};
       if(planSelect){
         const selectedCreator=select.value;
