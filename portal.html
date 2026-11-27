@@ -833,15 +833,15 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
  window.grayxonSyncInternalMenu=function(role){
   if(!items)return;
   if(role!=='admin'&&role!=='manager'){items.replaceChildren();return;}
-  const source=role==='admin'?document.querySelectorAll('#admin .gx-internal-access-source [data-admin],#admin .gx-internal-access-source [data-page]'):document.querySelectorAll('#manager .gx-internal-access-source [data-manager-view],#manager .gx-internal-access-source [data-page]');
+  const source=role==='admin'?document.querySelectorAll('#admin .gx-internal-access-source [data-admin],#admin .gx-internal-access-source [data-page],#admin .gx-internal-access-source [data-gx-referrals-access],#admin .gx-internal-access-source [data-gx-trabajo-access]'):document.querySelectorAll('#manager .gx-internal-access-source [data-manager-view],#manager .gx-internal-access-source [data-page],#manager .gx-internal-access-source [data-gx-referrals-access],#manager .gx-internal-access-source [data-gx-trabajo-access]');
   if(!source.length)return;
   items.replaceChildren();
   source.forEach(node=>{
-   const key=node.dataset.admin||node.dataset.managerView||node.dataset.page||'';
-   const kind=node.dataset.admin?'admin':node.dataset.managerView?'manager':'page';
-   const icon=node.querySelector('.admin-dashboard-card-icon,.manager-dashboard-card-icon')?.textContent?.trim()||node.dataset.gxMenuIcon||'•';
-   const label=node.querySelector('.admin-dashboard-card-copy strong,.manager-dashboard-card-copy strong')?.textContent?.trim()||node.dataset.gxMenuLabel||node.textContent.trim();
-   if(key&&label)addItem(icon,label,kind,key);
+   const key=node.dataset.admin||node.dataset.managerView||node.dataset.page||node.dataset.gxMenuKey||'';
+   const kind=node.hasAttribute('data-gx-referrals-access')?'referrals':node.hasAttribute('data-gx-trabajo-access')?'link':node.dataset.admin?'admin':node.dataset.managerView?'manager':'page';
+   const icon=node.querySelector('.admin-dashboard-card-icon,.manager-dashboard-card-icon,.gx-trabajo-card-icon')?.textContent?.trim()||node.dataset.gxMenuIcon||'•';
+   const label=node.querySelector('.admin-dashboard-card-copy strong,.manager-dashboard-card-copy strong,.gx-trabajo-card-copy strong')?.textContent?.trim()||node.dataset.gxMenuLabel||node.textContent.trim();
+   if(label)addItem(icon,label,kind,key);
   });
   addItem('▦','Calendario','utility','calendar');
   addItem('♙','Perfil','utility','profile');
@@ -875,7 +875,10 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
    else if(key==='profile')document.getElementById('mobileProfile')?.click();
    return;
   }
-  const selector=kind==='admin'?'#admin .gx-internal-access-source [data-admin="'+key+'"]':kind==='manager'?'#manager .gx-internal-access-source [data-manager-view="'+key+'"]':'#'+(window.grayxonDashboardPage==='admin'?'admin':'manager')+' .gx-internal-access-source [data-page="'+key+'"]';
+  if(kind==='referrals'){if(typeof window.grayxonOpenReferrals==='function')window.grayxonOpenReferrals();return;}
+  const root=window.grayxonDashboardPage==='admin'?'#admin':'#manager';
+  const selector=kind==='admin'?root+' .gx-internal-access-source [data-admin="'+key+'"]':kind==='manager'?root+' .gx-internal-access-source [data-manager-view="'+key+'"]':kind==='link'?root+' .gx-internal-access-source [data-gx-trabajo-access]':root+' .gx-internal-access-source [data-page="'+key+'"]';
+  if(kind==='link'){document.querySelector(selector)?.click();return;}
   goToDashboardThen(selector);
  });
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.classList.contains('is-open')){close();trigger.focus();}});
@@ -1883,7 +1886,7 @@ body.gx-internal-session .gx-internal-menu-trigger{display:inline-flex!important
 body.gx-internal-session #grayxonBottomNav{display:none!important}
 body.gx-internal-session{padding-bottom:0!important}
 body.gx-internal-session .header-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:12px!important;min-width:0!important}
-body.gx-internal-session #adminOpen,body.gx-internal-session .profile-menu-wrap,body.gx-internal-session #mobileProfile{display:none!important}
+body.gx-internal-session #adminOpen,body.gx-internal-session .profile-menu-wrap,body.gx-internal-session #mobileProfile,body.gx-internal-session #gxOpenReferrals{display:none!important}
 .gx-internal-user-meta{display:none;min-width:0;text-align:right;flex-direction:column;align-items:flex-end;gap:3px}
 body.gx-internal-session .gx-internal-user-meta{display:flex!important}
 .gx-internal-user-meta strong{max-width:min(42vw,260px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f1f4f7;font-size:13px;font-weight:750}
