@@ -1248,6 +1248,7 @@ function nav(p, push = true) {
   if (p === 'events' && typeof ensureEventsPage === 'function') ensureEventsPage();
   if (p === 'force-password' && !session) p = 'auth';
   if (session && profile?.must_change_password && p !== 'force-password') p = 'force-password';
+  if (session && isOnboardingCreator() && !['profile','training','force-password','auth'].includes(p)) p = 'profile';
   // Sin sesión, Inicio debe volver a la portada pública nueva y no mostrar la portada antigua del portal.
   if (!session && p === 'home') {
     window.location.replace('./index.html?v=20261019');
@@ -1386,7 +1387,7 @@ async function render(){
   if(current==='training')await trainingTpl();
   if(current==='live-training')await liveTrainingTpl();
   if(current==='missions')await missionsTpl();
-  if(current==='profile'){ $('#profile').innerHTML=await profileTpl(); if(profile?.role==='creator') loadCreatorProfileManager(); }
+  if(current==='profile'){ await loadProfileDetails(); $('#profile').innerHTML=await profileTpl(); if(profile?.role==='creator') loadCreatorProfileManager(); }
   bind(); updateHeaderAccessUI(); if(current==='profile') ensureCreatorNotificationMenuAction(); updateProfileBadge(); updateNotificationsUI(); updateCreatorSpaceFloat(); updateCreatorTopNav();
   if(session && ['space','manager','admin'].includes(current)) gxRefreshAnnouncementUnreadCount();
   $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===current || (b.dataset.page==='space' && current==='manager')));
@@ -1529,6 +1530,8 @@ function profileTpl(){
   ensureGrayxonPreferencesStyles();ensureProfileSettingsStyles();
   if(!session||!profile)return authTpl();
   return '<div class="profile-page gx-profile-settings">'+
+    (isOnboardingCreator() ? '<section class="card creator-onboarding-avatar"><h2>Tu foto de perfil</h2><div class="creator-profile-manager-row"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">'+(profileDetails?.avatar_url?'<img src="'+esc(profileDetails.avatar_url)+'" alt="Foto de perfil">':'<span>'+esc(profileInitial())+'</span>')+'<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto">✎</button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-profile-manager-info"><strong>Agrega una foto clara</strong><small id="profileAvatarStatus" aria-live="polite">'+(profileDetails?.avatar_url?'Foto agregada':'La foto es necesaria para completar tu perfil')+'</small></div></div></section>' : '')+
+    (isOnboardingCreator() ? '<section class="card creator-onboarding-step"><div class="eyebrow">PRIMEROS PASOS</div><h2>Completa tu perfil</h2><p class="muted">Registra tus datos personales y agrega una foto. No necesitas ingresar dirección ni información de pagos.</p><button type="button" class="secondary" data-profile-section="personal">Completar datos personales</button>'+(isOnboardingProfileComplete()?'<button type="button" class="primary" data-onboarding-start>Continuar a Formación →</button>':'')+'</section>' : '')+
     (profile.role==='creator' ? '<section class="card creator-profile-manager-card" id="creatorProfileManagerCard"><h2><span style="color:#25F4EE">♙</span> Tu manager</h2><div class="creator-profile-manager-row"><div class="creator-profile-manager-avatar creator-profile-manager-fallback">♙</div><div class="creator-profile-manager-info"><strong>Consultando tu equipo…</strong><small>Un momento</small></div></div></section>' : '')+
     '<section class="gx-profile-settings-heading"><h2>Tu información</h2><p>Administra los datos asociados a tu cuenta.</p></section>'+
     '<div><button type="button" class="gx-profile-setting-row" data-profile-section="personal" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"/></svg></span><span class="gx-profile-setting-copy"><strong>Datos personales</strong><small>Correo, teléfono, fecha de nacimiento y ubicación</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPersonal"></div></div>'+
@@ -1590,9 +1593,34 @@ function openProfileSection(section){
   target.scrollIntoView?.({behavior:'smooth',block:'nearest'});
 }
 async function saveProfilePersonal(){
-  const err=document.getElementById('gxProfilePersonalError'),btn=document.getElementById('gxSavePersonal');if(err)err.textContent='';if(!session?.user?.id)return;if(btn)btn.disabled=true;
-  try{const uid=session.user.id;const data={user_id:uid,email:document.getElementById('pEmail')?.value.trim()||null,phone:document.getElementById('pPhone')?.value.trim()||null,country:document.getElementById('pCountry')?.value||null,state_region:document.getElementById('pState')?.value.trim()||null,city:document.getElementById('pCity')?.value.trim()||null,address:document.getElementById('pAddress')?.value.trim()||null,birth_date:document.getElementById('pBirthDate')?.value||null,updated_at:new Date().toISOString()};const {error}=await sb.from('profile_details').upsert(data);if(error)throw error;await loadProfileDetails();updateProfileBadge();closeProfileSection('personal');toast('Cambio exitoso ✓');}
-  catch(e){if(err)err.textContent=e?.message||'No se pudieron guardar los datos personales.';}finally{if(btn)btn.disabled=false;}
+  const err=document.getElementById('gxProfilePersonalError'),btn=document.getElementById('gxSavePersonal');
+  if(err)err.textContent='';
+  if(!session?.user?.id)return;
+  if(btn)btn.disabled=true;
+  try{
+    const uid=session.user.id;
+    const email=document.getElementById('pEmail')?.value.trim()||'';
+    const phone=document.getElementById('pPhone')?.value.trim()||'';
+    const country=document.getElementById('pCountry')?.value||'';
+    const state_region=document.getElementById('pState')?.value.trim()||'';
+    const city=document.getElementById('pCity')?.value.trim()||'';
+    const birth_date=document.getElementById('pBirthDate')?.value||'';
+    if(isOnboardingCreator()&&(!email||!phone||!country||!state_region||!city||!birth_date)){
+      if(err)err.textContent='Completa correo, teléfono, fecha de nacimiento, país, departamento y ciudad. La dirección es opcional.';
+      return;
+    }
+    const data={user_id:uid,email:email||null,phone:phone||null,country:country||null,state_region:state_region||null,city:city||null,address:document.getElementById('pAddress')?.value.trim()||null,birth_date:birth_date||null,updated_at:new Date().toISOString()};
+    const {error}=await sb.from('profile_details').upsert(data);
+    if(error)throw error;
+    await loadProfileDetails();updateProfileBadge();
+    if(isOnboardingCreator()&&!isOnboardingProfileComplete()){
+      if(err)err.textContent='Ahora agrega tu foto de perfil para continuar.';
+      return;
+    }
+    closeProfileSection('personal');toast('Cambio exitoso ✓');
+    if(isOnboardingCreator())nav('training');
+  }catch(e){if(err)err.textContent=e?.message||'No se pudieron guardar los datos personales.';}
+  finally{if(btn)btn.disabled=false;}
 }
 async function saveProfilePayments(){
   const err=document.getElementById('gxProfilePaymentError'),btn=document.getElementById('gxSavePayments');if(err)err.textContent='';if(!session?.user?.id)return;if(btn)btn.disabled=true;
@@ -1642,7 +1670,7 @@ async function saveFirstPassword(){
   const {data:completeData,error:profileError}=await sb.functions.invoke('complete-first-login',{body:{password:a,confirm_password:b}});
   if(profileError||completeData?.error){if(err)err.textContent=completeData?.error||profileError?.message||'No se pudo completar el cambio de contraseña.';if(btn)btn.disabled=false;return;}
   profile.must_change_password=false;toast('Contraseña actualizada ✓');
-  nav(profile.role==='admin'?'admin':profile.role==='manager'?'manager':'space');
+  nav(profile.role==='admin'?'admin':profile.role==='manager'?'manager':isOnboardingCreator()?'profile':'space');
 }
 
 function authTpl() {
@@ -1692,14 +1720,25 @@ function authTpl() {
   </section>`;
 }
 
+const ONBOARDING_LESSON_IDS = new Set(['eed00a62-1b8a-45fb-bab3-60a7b12462c9','07ae251c-29dc-42d8-b7d2-d486948c444d','a581d37a-0fdb-4fde-8371-b221fe7ac2ce','375a9472-2d97-474e-b603-c44996b28678','4cbdfda7-e057-4758-8b18-0f2c91919dce']);
+function isOnboardingCreator(){return profile?.role==='creator'&&profile?.onboarding_required===true&&!profile?.onboarding_completed_at;}
+function isOnboardingVideo(lesson){return !!lesson&&ONBOARDING_LESSON_IDS.has(lesson.id)&&lesson.type==='video'&&!!lesson.video_path;}
+function getRequiredOnboardingVideos(lessons=window._lessons||[]){return lessons.filter(isOnboardingVideo);}
+function isOnboardingProfileComplete(){const d=profileDetails||{};return !!(String(d.email||'').trim()&&String(d.phone||'').trim()&&d.birth_date&&String(d.country||'').trim()&&String(d.state_region||'').trim()&&String(d.city||'').trim()&&(String(d.avatar_path||'').trim()||String(d.avatar_url||'').trim()));}
 async function getProfile() {
   if (!session) return null;
   try {
-    const query = sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,must_change_password').eq('id', session.user.id).maybeSingle();
+    const query = sb.from('profiles').select('id,username,full_name,role,active,team_id,manager_id,must_change_password,onboarding_required,onboarding_completed_at').eq('id', session.user.id).maybeSingle();
     const result = await Promise.race([query, new Promise(resolve => setTimeout(() => resolve({data:null,error:new Error('timeout')}), 5000))]);
-    if (result?.data) return result.data;
-  } catch(e) {}
-  return { id: session.user.id, username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'creador', full_name: session.user.user_metadata?.full_name || '', role:'creator', active:true, team_id:null, manager_id:null, must_change_password:false };
+    if (result?.error || !result?.data) {
+      console.error('No se pudo verificar el perfil autenticado:', result?.error || 'Perfil no encontrado');
+      return null;
+    }
+    return result.data;
+  } catch(e) {
+    console.error('No se pudo verificar el perfil autenticado:', e);
+    return null;
+  }
 }
 
 async function loadCreatorAssignment(){
@@ -4354,6 +4393,8 @@ async function trainingTpl(options = {}) {
     return;
   }
 
+  if(isOnboardingCreator()){await loadProfileDetails();if(!isOnboardingProfileComplete()){nav('profile');toast('Completa tus datos personales y agrega tu foto para continuar.');return;}}
+
   const [{ data: modules }, { data: lessons }, { data: progress }] = await Promise.all([
     sb.from('modules').select('id,title,description,sort_order').eq('published', true).order('sort_order'),
     sb.from('lessons').select('id,module_id,title,description,type,content,video_path,resource_path,sort_order').eq('published', true).order('sort_order'),
@@ -4367,27 +4408,29 @@ async function trainingTpl(options = {}) {
     const mb = moduleOrder.get(b.module_id) ?? 9999;
     return ma - mb || (a.sort_order ?? 0) - (b.sort_order ?? 0);
   });
-  const totalLessons = orderedLessons.length;
-  const totalDone = orderedLessons.filter(l => done.has(l.id)).length;
+  const progressLessons = isOnboardingCreator() ? getRequiredOnboardingVideos(orderedLessons) : orderedLessons;
+  const totalLessons = progressLessons.length;
+  const totalDone = progressLessons.filter(l => done.has(l.id)).length;
   const totalPct = totalLessons ? Math.round(totalDone / totalLessons * 100) : 0;
-  const nextPending = orderedLessons.find(l => !done.has(l.id));
+  const nextPending = isOnboardingCreator() ? getRequiredOnboardingVideos(orderedLessons).find(l => !done.has(l.id)) : orderedLessons.find(l => !done.has(l.id));
 
   const moduleData = (modules || []).map((m, mi) => {
     const ml = orderedLessons.filter(l => l.module_id === m.id);
-    const md = ml.filter(l => done.has(l.id)).length;
-    const complete = ml.length > 0 && md === ml.length;
-    return { m, mi, ml, md, complete, pct: ml.length ? Math.round(md / ml.length * 100) : 0 };
+    const progressForModule = isOnboardingCreator() ? ml.filter(isOnboardingVideo) : ml;
+    const md = progressForModule.filter(l => done.has(l.id)).length;
+    const complete = progressForModule.length > 0 && md === progressForModule.length;
+    return { m, mi, ml, md, complete, progressTotal: progressForModule.length, pct: progressForModule.length ? Math.round(md / progressForModule.length * 100) : 0 };
   });
   const pendingModules = moduleData.filter(x => !x.complete);
   const completedModules = moduleData.filter(x => x.complete);
 
   const moduleCard = (x) => {
-    const {m, mi, ml, md, complete, pct} = x;
+    const {m, mi, ml, md, complete, progressTotal, pct} = x;
     const isNext = ml.some(l => l.id === nextPending?.id);
     return `<article class="library-module-card ${complete ? 'is-complete' : ''} ${isNext ? 'is-next-module' : ''}" data-formation-module-card="${m.id}">
       <div class="library-module-cover cover-${mi % 4}"><span class="library-cover-number">${String(mi+1).padStart(2,'0')}</span><span class="library-cover-symbol">${complete ? '✓' : isNext ? '▶' : '◈'}</span><span class="library-cover-tag">${complete ? 'COMPLETADO' : isNext ? 'EN CURSO' : 'MÓDULO'}</span></div>
-      <div class="library-module-body"><div class="library-module-meta"><span>${ml.length} ${ml.length===1?'contenido':'contenidos'}</span><span>${md}/${ml.length}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="true"><span>Ver contenidos</span><b>⌄</b></button></div>
-      <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
+      <div class="library-module-body"><div class="library-module-meta"><span>${isOnboardingCreator()?progressTotal+' videos':ml.length+' '+(ml.length===1?'contenido':'contenidos')}</span><span>${md}/${progressTotal}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="true"><span>Ver contenidos</span><b>⌄</b></button></div>
+      <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${isOnboardingCreator()?(isOnboardingVideo(l)&&!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''):(!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':'')}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':isOnboardingCreator()&&!isOnboardingVideo(l)?'Abrir ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
     </article>`;
   };
 
@@ -4398,7 +4441,7 @@ async function trainingTpl(options = {}) {
       <div><span class="library-eyebrow">TU ESPACIO DE APRENDIZAJE</span><h1>Biblioteca</h1><p class="library-subtitle">Todo lo que necesitas para seguir creciendo, en un solo lugar.</p></div>
       ${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Mi espacio</button>'}
     </div>
-    <div class="library-progress-summary"><div><span>TU PROGRESO</span><strong>${totalPct}%</strong><small>${totalDone} de ${totalLessons} contenidos completados</small></div><div class="library-progress-track"><span style="width:${totalPct}%"></span></div></div>
+    <div class="library-progress-summary"><div><span>TU PROGRESO</span><strong>${totalPct}%</strong><small>${totalDone} de ${totalLessons} ${isOnboardingCreator()?'videos obligatorios':'contenidos'} completados</small></div><div class="library-progress-track"><span style="width:${totalPct}%"></span></div></div>
     ${nextPending ? `<section class="library-continue"><div class="library-continue-art"><span>▶</span></div><div class="library-continue-copy"><span class="library-eyebrow">CONTINÚA APRENDIENDO</span><h2>${esc(nextPending.title)}</h2><p>${esc(nextPending.description || (modules || []).find(m => m.id === nextPending.module_id)?.title || 'Tu siguiente contenido')}</p><button type="button" class="library-continue-button" data-lesson="${nextPending.id}">Continuar <b>→</b></button></div></section>` : `<section class="library-all-done"><strong>¡Has completado tu biblioteca!</strong><p>Terminaste todos los contenidos disponibles.</p></section>`}
     <div class="library-collections">
       ${sectionHtml('Explora los módulos',pendingModules,'No tienes contenidos pendientes.','pending')}
@@ -4454,14 +4497,14 @@ function getNextLessonAfter(id){
 function getNextPendingLessonAfter(id){
   const lessons = window._lessons || [];
   const done = window._done || new Set();
-  return lessons.find(l => !done.has(l.id)) || null;
+  return isOnboardingCreator() ? getRequiredOnboardingVideos(lessons).find(l => !done.has(l.id)) || null : lessons.find(l => !done.has(l.id)) || null;
 }
 
 function syncFormationLessonListState(){
   const lessons = window._lessons || [];
   const modules = window._modules || [];
   const done = window._done || new Set();
-  const nextPending = lessons.find(l => !done.has(l.id)) || null;
+  const nextPending = isOnboardingCreator() ? getRequiredOnboardingVideos(lessons).find(l => !done.has(l.id)) || null : lessons.find(l => !done.has(l.id)) || null;
 
   for(const lesson of lessons){
     const button = document.querySelector(`#training [data-lesson="${CSS.escape(lesson.id)}"]`);
@@ -4469,7 +4512,7 @@ function syncFormationLessonListState(){
     const row = button.closest('.lesson');
     const isDone = done.has(lesson.id);
     const isNext = !isDone && lesson.id === nextPending?.id;
-    const locked = !isDone && !isNext;
+    const locked = isOnboardingCreator() ? (isOnboardingVideo(lesson) && !isDone && !isNext) : (!isDone && !isNext);
     row?.classList.toggle('lesson-done', isDone);
     row?.classList.toggle('lesson-next', isNext);
     button.disabled = locked;
@@ -4623,6 +4666,19 @@ async function advanceAfterLesson(id, options = {}){
     return;
   }
 
+  if(isOnboardingCreator()){
+    const required=getRequiredOnboardingVideos();
+    if(required.length&&required.every(item=>window._done.has(item.id))){
+      const {data:completed,error}=await sb.rpc('complete_creator_onboarding');
+      if(!error&&completed===true){
+        profile.onboarding_completed_at=new Date().toISOString();
+        const view=$('#lessonView');
+        if(view){view.classList.remove('hidden');view.classList.add('lesson-focus-active');const whatsapp='https://api.whatsapp.com/send/?phone=573126283007&text=Ya%20complete%20mis%20primeros%20pasos&type=phone_number&app_absent=0';view.innerHTML=`<style>.continue-cta-wrap{display:flex;justify-content:center;margin:24px auto 8px;padding:0 10px}.btn.continue-whatsapp{display:inline-flex;align-items:center;justify-content:center;gap:14px;min-width:190px;padding:15px 30px;border:1px solid #25f4ee;border-radius:999px;background:linear-gradient(110deg,rgba(254,44,85,.15),rgba(37,244,238,.12)),#0d1118;color:#f4f7fb!important;text-decoration:none!important;font-weight:850;font-size:13px;letter-spacing:.12em;box-shadow:0 0 0 1px rgba(37,244,238,.07),0 8px 28px rgba(0,0,0,.28)}@media(max-width:760px){.btn.continue-whatsapp{width:min(100%,320px)}}</style><div class="formation-complete-state"><div class="formation-complete-icon">✓</div><h2>¡Primeros pasos completados!</h2><p>Terminaste los videos obligatorios. Tu acceso al portal está habilitado.</p><div class="continue-cta-wrap"><a class="btn continue-whatsapp" href="${whatsapp}" target="_blank" rel="noopener noreferrer">CONTINUAR MI PROCESO <span aria-hidden="true">↗</span></a></div><button type="button" class="primary" id="onboardingEnter">Entrar al portal</button></div>`;$('#onboardingEnter')?.addEventListener('click',()=>nav('space'));}
+        return;
+      }
+      if(error)console.error('ONBOARDING COMPLETION ERROR:',error);
+    }
+  }
   renderFormationCompletedState();
 }
 
@@ -4666,6 +4722,14 @@ async function renderSelectedLesson(l) {
 async function openLesson(id, options = {}) {
   const l = getLessonById(id);
   if (!l) return;
+  if (isOnboardingCreator() && isOnboardingVideo(l)) {
+    const done = window._done || new Set();
+    const nextRequired = getRequiredOnboardingVideos().find(item => !done.has(item.id));
+    if (!done.has(l.id) && nextRequired?.id !== l.id) {
+      toast('Completa primero el video anterior para continuar.');
+      return;
+    }
+  }
   selectedLesson = l;
 
   if(!options.skipReload){
@@ -6735,26 +6799,27 @@ function bind() {
   ensureGrayxonPreferencesStyles();
   $('#installGrayxonDashboard')?.addEventListener('click',installGrayxonApp);
   refreshGrayxonPwaPreferenceUI();
-  const avatarRoot=$('#space');
-  if(avatarRoot && !avatarRoot.dataset.avatarControlsBound){
+  [$('#space'),$('#profile')].filter(Boolean).forEach(avatarRoot=>{
+    if(avatarRoot.dataset.avatarControlsBound)return;
     avatarRoot.dataset.avatarControlsBound='true';
     avatarRoot.addEventListener('click',event=>{
       const edit=event.target?.closest?.('#profilePhotoEdit');
       if(!edit)return;
       event.preventDefault();
-      const input=$('#profileAvatar');
-      if(input) input.click();
+      const input=avatarRoot.querySelector('#profileAvatar');
+      if(input)input.click();
     });
     avatarRoot.addEventListener('change',event=>{
-      if(event.target?.id==='profileAvatar') uploadProfileAvatar();
+      if(event.target?.id==='profileAvatar')uploadProfileAvatar();
     });
     avatarRoot.addEventListener('error',event=>{
       if(event.target?.matches?.('.creator-dashboard-avatar-editable img')){
-        const status=$('#profileAvatarStatus');
+        const status=avatarRoot.querySelector('#profileAvatarStatus');
         if(status)status.textContent='No se pudo cargar la foto guardada. Intenta subirla nuevamente.';
       }
     },true);
-  }
+  });
+  $('#profile')?.querySelector('[data-onboarding-start]')?.addEventListener('click',()=>nav('training'));
   $('#saveHome')?.addEventListener('click', saveHome);
   $('#saveBenefits')?.addEventListener('click', saveBenefits);
   if ($('#gxAppIconFile')) { $('#gxAppIconFile').addEventListener('change', previewGxAppIcon); $('#gxSaveAppIcon')?.addEventListener('click', saveGxAppIcon); }
@@ -6854,7 +6919,7 @@ async function uploadProfileAvatar(){
     if(saveErr) throw new Error('La imagen se subió, pero no se pudo guardar el perfil: '+saveErr.message);
     profileDetails={...(profileDetails||{}),avatar_path:path,avatar_url:url};
     updateProfileBadge();
-    const avatar=$('#space .creator-dashboard-avatar-editable');
+    const avatar=document.querySelector('#space .creator-dashboard-avatar-editable, #profile .creator-dashboard-avatar-editable');
     if(avatar){
       let image=avatar.querySelector('img');
       if(!image){image=document.createElement('img');image.alt='Foto de perfil';avatar.insertBefore(image,avatar.querySelector('#profilePhotoEdit')||avatar.firstChild);}
@@ -6992,6 +7057,13 @@ async function login() {
 
   session = data.session;
   profile = await getProfile();
+  if (!profile) {
+    await sb.auth.signOut();
+    session = null;
+    $('#loginErr').textContent = 'No pudimos verificar tu cuenta. Intenta iniciar sesión nuevamente en unos segundos.';
+    updateHeaderAccessUI();
+    return;
+  }
   document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator');
   document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager');
   await loadProfileDetails();
@@ -7124,8 +7196,21 @@ async function init() {
 
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager'); await loadProfileDetails(); await loadNotifications(); updateGrayxonPresence(); }
-  else updateNotificationsUI();
+  if (session) {
+    profile = await getProfile();
+    if (!profile) {
+      await sb.auth.signOut();
+      session = null;
+      profile = null;
+      updateNotificationsUI();
+    } else {
+      document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator');
+      document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager');
+      await loadProfileDetails();
+      await loadNotifications();
+      updateGrayxonPresence();
+    }
+  } else updateNotificationsUI();
   updateHeaderAccessUI();
 
   // The push service sends page/target in the query string. Restore the intended
