@@ -589,7 +589,7 @@
     const end=reportItem.source_end_date||reportItem.selected_end_date;
     const message='¡Hola! ¿Cómo estás? 😊\n\nQueremos hacer seguimiento a tu actividad en TikTok LIVE durante el periodo '+date(start)+' al '+date(end)+'.\n\nSegún el reporte, registramos:\n• Diamantes: '+fmt(reportRow.diamonds)+'\n• Días válidos de LIVE: '+fmt(reportRow.valid_live_days)+'\n• Horas acumuladas de LIVE: '+fmt(reportRow.live_seconds==null?null:Number(reportRow.live_seconds)/3600)+'\n\n'+planText+'\n\nQueremos saber si cuentas con la disponibilidad para cumplir estas metas. Recuerda que estamos aquí para acompañarte, orientarte y ayudarte a crecer. ¡Vamos con toda! 💪';
     if(box)box.value=message;
-    const phoneDigits=String(window.gxFollowupSelectedPhone||'').replace(/\\D/g,'');
+    const phoneDigits=String(window.gxFollowupSelectedPhone||'').replace(/\D/g,'');
     const normalizedPhone=phoneDigits.length===10?'57'+phoneDigits:phoneDigits;
     const url=normalizedPhone?'https://api.whatsapp.com/send?phone='+normalizedPhone+'&text='+encodeURIComponent(message):'';
     if(link){link.dataset.url=url;link.disabled=!url;}
