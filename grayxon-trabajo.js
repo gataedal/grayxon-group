@@ -446,7 +446,8 @@
       preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='not_in_portal').length;
       preview.summary.agencyDeparted=preview.rows.filter(row=>row.linkStatus==='agency_left').length;
       preview.unmatchedRows=preview.rows.filter(row=>row.linkStatus!=='linked');
-      preview.canEvaluate=!preview.mixedPeriods&&preview.rows.length>0&&preview.rows.filter(row=>row.profile).every(row=>row.diamonds!=null&&row.liveHours!=null&&row.validDays!=null);
+      const evaluableProfiles=preview.rows.filter(row=>row.profile);
+      preview.canEvaluate=!preview.mixedPeriods&&evaluableProfiles.length>0&&evaluableProfiles.every(row=>row.diamonds!=null&&row.liveHours!=null&&row.validDays!=null);
 
       const linkedProfiles=preview.rows.filter(row=>row.profile).map(row=>row.profile);
       const uniqueProfileIds=[...new Set(linkedProfiles.map(profile=>profile.id))];
@@ -471,28 +472,16 @@
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
       const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo está listo para guardarse en el archivo mensual.':'El archivo no permite completar la evaluación.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
-      const portalMissing=preview.rows.filter(row=>row.linkStatus==='not_in_portal');
-      const inactivePortal=preview.rows.filter(row=>row.linkStatus==='portal_inactive');
-      const departed=preview.rows.filter(row=>row.linkStatus==='agency_left');
-      const ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous');
-      followupPortalMissing=portalMissing.concat(inactivePortal);
-      followupAgencyDeparted=departed;
-      if(departed.length)downloadFollowupDepartedCsv(departed.map(row=>({creator_username_snapshot:row.username,creator_id_snapshot:row.creatorId,source_status:row.agencyStatus||'El creador ha abandonado la agencia'})),String(period.start||'').slice(0,7));
-      const alertCount=missingPhones.length+portalMissing.length+inactivePortal.length+departed.length+ambiguous.length;
-      target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros del Excel</small></div><div><strong>'+preview.summary.matched+'</strong><small>En el portal</small></div><div><strong>'+portalMissing.length+'</strong><small>Sin acceso al portal</small></div><div><strong>'+departed.length+'</strong><small>Abandonaron la agencia</small></div></div>'+
-        '<div class="gxt-status-note">'+esc(status)+' Periodo del reporte: '+esc(period.start)+' al '+esc(period.end)+'. Este archivo se archivará dentro de ese mes.</div>'+
-        (alertCount
-          ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-followup-alert><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar alertas del reporte</strong><small>'+missingPhones.length+' sin teléfono · '+portalMissing.length+' sin cuenta · '+inactivePortal.length+' cuenta inactiva · '+departed.length+' abandonaron la agencia'+(ambiguous.length?' · '+ambiguous.length+' coincidencias ambiguas':'')+'</small></span><span class="gxt-followup-alert-count">'+alertCount+'</span></button></div>'
-          : '<div class="gxt-status-note">No hay alertas de contacto ni de vinculación.</div>')+
+      target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.matched+'</strong><small>Creadores del portal</small></div><div><strong>'+preview.summary.creators+'</strong><small>Registros analizados</small></div></div>'+
+        '<div class="gxt-status-note">'+esc(status)+' Periodo del reporte: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
         '<div class="gxt-followup-warnings">'+warnings+'</div>'+
-        '<div class="gxt-status-note">La lista de creadores y sus planes no se desplegará aquí. Después de guardar, estará organizada dentro del mes correspondiente.</div>'+
         (preview.canEvaluate && preview.rows.length>0 && preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
-          ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar reporte en '+esc(new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(period.start+'T00:00:00Z')) )+'</button></div>'
+          ? '<div class="gxt-status-note">Análisis correcto. Archivando automáticamente el reporte…</div>'
           : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que haya creadores vinculados con métricas completas y que el reporte cubra un único periodo.</div>');
-      followupMissingPhones=missingPhones;
       followupPreviewMarkup=target.innerHTML;
       bindFollowupPreviewActions(target);
+      if(preview.canEvaluate&&preview.rows.length>0&&preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable'))saveFollowupImport();
     }catch(error){
       console.error('[Gestión · Seguimiento] import preview',error);
       target.innerHTML='<div class="gxt-status-note gxt-followup-warning">'+esc(error.message||'No se pudo analizar el archivo.')+'</div>';
@@ -502,34 +491,8 @@
   let followupCreatorCache=[];
   let followupImportFile=null;
   let followupPreviewMarkup='';
-  let followupMissingPhones=[];
-  let followupPortalMissing=[];
-  let followupAgencyDeparted=[];
   function bindFollowupPreviewActions(target){
     if(!target)return;
-    target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
-    target.querySelector('[data-open-followup-alert]')?.addEventListener('click',()=>{
-      const phoneNames=followupMissingPhones.map(profile=>(profile.full_name||'').trim()||profile.username||'Creador');
-      const portalNames=followupPortalMissing.filter(row=>row.linkStatus==='not_in_portal').map(row=>row.username);
-      const inactiveNames=followupPortalMissing.filter(row=>row.linkStatus==='portal_inactive').map(row=>row.username);
-      const departedNames=followupAgencyDeparted.map(row=>row.username);
-      const ambiguousNames=(window.grayxonFollowupPreview?.rows||[]).filter(row=>row.linkStatus==='ambiguous').map(row=>row.username);
-      const section=(title,names)=>names.length?'<section class="gxt-followup-alert-group"><strong>'+esc(title)+' ('+names.length+')</strong>'+names.map(name=>'<div class="gxt-followup-alert-person"><span>'+esc(name)+'</span></div>').join('')+'</section>':'';
-      const body=section('Sin teléfono registrado',phoneNames)+section('Sin cuenta en el portal',portalNames)+section('Cuenta del portal inactiva',inactiveNames)+section('El reporte indica que abandonaron la agencia',departedNames)+section('Revisar coincidencia de cuenta',ambiguousNames);
-      const copyText=[
-        phoneNames.length?'Creadores sin teléfono registrado:\n'+phoneNames.map(name=>'• '+name).join('\n'):'',
-        portalNames.length?'Creadores sin acceso al portal:\n'+portalNames.map(name=>'• '+name).join('\n'):''
-      ].filter(Boolean).join('\n\n');
-      openModal('Alertas del reporte','Revisa qué casos requieren acción de administración.', '<div class="gxt-followup-alert-list">'+body+'</div>',true);
-      const copyButton=document.createElement('button');
-      copyButton.type='button';copyButton.className='gxt-btn primary gxt-followup-copy-header';copyButton.textContent='Copiar pendientes';
-      const closeButton=modalRoot.querySelector('[data-close-modal]');
-      closeButton?.parentNode?.insertBefore(copyButton,closeButton);
-      copyButton.addEventListener('click',async()=>{
-        try{await navigator.clipboard.writeText(copyText||'No hay pendientes de teléfono o acceso al portal.');toast('Pendientes copiados.');}
-        catch(error){toast('No fue posible copiar automáticamente en este navegador.');}
-      });
-    });
   }
 
   async function openFollowupCreator(creatorId,step=0,planId=''){
@@ -551,9 +514,25 @@
       form.querySelector('button[type=submit]').textContent='Guardar cambios del plan';
     }
     const advance=document.getElementById('gxActionPlanUpdateForm');
-    if(advance){advance.elements.plan_id.value=plan?.id||'';advance.querySelector('button[type=submit]').disabled=!plan;}
+    if(advance)updateFollowupProgressGate(plan);
     setFollowupStep(0);
     section.scrollTop=0;
+  }
+
+  function followupProgressEligibility(plan){
+    if(!plan||!plan.target_date||plan.status==='cancelled')return {allowed:false,end:plan?.target_date||''};
+    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    return {allowed:today>String(plan.target_date).slice(0,10),end:String(plan.target_date).slice(0,10)};
+  }
+  function updateFollowupProgressGate(plan){
+    const form=document.getElementById('gxActionPlanUpdateForm');
+    const status=document.getElementById('gxFollowupPlanStatus');
+    if(!form)return;
+    const gate=followupProgressEligibility(plan);
+    form.elements.plan_id.value=plan?.id||'';
+    form.querySelectorAll('input:not([type="hidden"]),textarea,select,button').forEach(control=>{control.disabled=!gate.allowed;});
+    if(status)status.textContent=!plan?'Primero debes crear un plan de trabajo.':!plan.target_date?'El plan debe tener una fecha final.':gate.allowed?'El plan finalizó el '+gate.end+'. Ya puedes registrar sus avances.':'Los avances se habilitarán después del '+gate.end+'.';
+    form.classList.toggle('is-locked',!gate.allowed);
   }
 
   function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(2,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 3';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===2?'Finalizar':'Siguiente';}
@@ -590,6 +569,8 @@
           const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
           planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(plan=>'<option value="'+esc(plan.id)+'">'+esc(plan.title)+'</option>').join('');
         }
+        const currentPlan=(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===creator.id&&plan.status!=='cancelled')||(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===creator.id);
+        updateFollowupProgressGate(currentPlan);
       };
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
@@ -613,7 +594,7 @@
       }
       const progressForm=document.getElementById('gxActionPlanUpdateForm');
       if(progressForm){progressForm.elements.plan_id.value=activePlan?.id||'';progressForm.querySelector('button[type=submit]').disabled=!activePlan;}
-      const statusLabel=document.getElementById('gxFollowupPlanStatus');if(statusLabel)statusLabel.textContent=activePlan?'Plan activo: '+activePlan.title+' · '+activePlan.start_date+' al '+activePlan.target_date:'Primero debes crear un plan para habilitar los avances.';
+      updateFollowupProgressGate(activePlan);
       const name=id=>{const p=followupCreatorCache.find(x=>x.id===id);return p?'@'+p.username:'Creador';};
       if(planSelect){
         const selectedCreator=select.value;
@@ -686,25 +667,23 @@
       toast('Avance registrado correctamente.');await loadFollowupWorkspace();return;
     }
   }
-  function downloadFollowupDepartedCsv(rows,periodLabel='') {
-    if(!rows?.length)return;
-    const quote=value=>'"'+String(value??'').replace(/"/g,'""')+'"';
-    const lines=[['Usuario TikTok','ID del creador','Estado en el reporte'],...rows.map(row=>[row.creator_username_snapshot||row.username,row.creator_id_snapshot||row.creatorId,row.source_status||'El creador ha abandonado la agencia'])];
-    const csv='\uFEFF'+lines.map(line=>line.map(quote).join(';')).join('\r\n');
-    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='creadores-que-abandonaron-la-agencia'+(periodLabel?'-'+periodLabel:'')+'.csv';
-    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
-  }
 
   async function loadFollowupHistory() {
     const host=document.getElementById('gxFollowupHistory');
     if(!host)return;
     try{
       const {data,error}=await sb.from('gx_creator_followup_imports')
-        .select('id,file_name,storage_path,selected_start_date,selected_end_date,source_start_date,source_end_date,status,created_at,gx_creator_followup_evaluations(id,creator_user_id,creator_username_snapshot,classification,diamonds,live_seconds,valid_live_days),gx_creator_followup_import_unmatched_rows(id,creator_username_snapshot,creator_id_snapshot,reason,source_status,raw_metrics)')
+        .select('id,file_name,selected_start_date,selected_end_date,source_start_date,source_end_date,status,created_at,gx_creator_followup_evaluations(id,creator_user_id,creator_username_snapshot,classification,diamonds,live_seconds,valid_live_days),gx_creator_followup_import_unmatched_rows(id,creator_username_snapshot,reason)')
         .order('source_start_date',{ascending:false}).order('created_at',{ascending:false}).limit(200);
       if(error)throw error;
+      const allEvaluations=(data||[]).flatMap(item=>item.gx_creator_followup_evaluations||[]);
+      const creatorIds=[...new Set(allEvaluations.map(row=>row.creator_user_id).filter(Boolean))];
+      const phoneByCreator=new Map();
+      if(creatorIds.length){
+        const {data:details,error:phoneError}=await sb.from('profile_details').select('user_id,phone').in('user_id',creatorIds);
+        if(phoneError)throw phoneError;
+        (details||[]).forEach(row=>phoneByCreator.set(row.user_id,String(row.phone||'').trim()));
+      }
       const groups=new Map();
       (data||[]).forEach(item=>{
         const date=item.source_start_date||item.selected_start_date||item.created_at;
@@ -720,48 +699,55 @@
       const monthBlocks=Array.from(groups.entries()).map(([month,items])=>{
         const reports=items.map(item=>{
           const evaluations=item.gx_creator_followup_evaluations||[];
-          const unmatched=item.gx_creator_followup_import_unmatched_rows||[];
-          const departed=unmatched.filter(row=>row.reason==='agency_left');
-          const noPortal=unmatched.filter(row=>row.reason==='not_in_portal');
-          const ambiguous=unmatched.filter(row=>row.reason==='ambiguous');
+          const unmatched=(item.gx_creator_followup_import_unmatched_rows||[]).filter(row=>row.reason!=='agency_left');
+          const noPortal=unmatched.filter(row=>row.reason==='not_in_portal'||row.reason==='portal_inactive');
+          const missingPhones=evaluations.filter(row=>!phoneByCreator.get(row.creator_user_id));
+          const alertTotal=noPortal.length+missingPhones.length;
           const creatorRows=evaluations.map(row=>{
             const tone=row.classification==='on_track'?'success':row.classification==='observation'?'observation':row.classification==='high_risk'?'risk':'neutral';
             return '<tr><td class="gxt-followup-creator-cell is-'+tone+'"><button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(row.creator_user_id)+'"><strong>@'+esc(row.creator_username_snapshot)+'</strong></button></td><td>'+esc(classes[row.classification]||row.classification)+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.live_seconds==null?'—':(Number(row.live_seconds)/3600).toFixed(2)+' h')+'</td><td>'+(row.valid_live_days==null?'—':esc(row.valid_live_days))+'</td></tr>';
           }).join('');
-          const unmatchedRows=unmatched.map(row=>{
-            const reason=row.reason==='agency_left'?'Abandonó la agencia':row.reason==='not_in_portal'?'No tiene cuenta en el portal':row.reason==='portal_inactive'?'Cuenta del portal inactiva':'Coincidencia ambigua';
-            return '<tr><td>@'+esc(row.creator_username_snapshot)+'</td><td>'+esc(reason)+'</td><td>'+esc(row.creator_id_snapshot||'—')+'</td></tr>';
-          }).join('');
-          const reportPeriod=String(item.source_start_date||item.selected_start_date||month).slice(0,7);
-          return '<details class="gxt-followup-history-report"><summary><span><strong>'+esc(item.file_name)+'</strong><small>'+esc(item.source_start_date||item.selected_start_date)+' a '+esc(item.source_end_date||item.selected_end_date)+'</small></span><span class="gxt-chip">'+evaluations.length+' creadores · '+unmatched.length+' pendientes</span></summary>'+
-            '<div class="gxt-followup-history-report-actions">'+(state.isAdmin?'<button type="button" class="gxt-btn ghost" data-followup-download-report="'+esc(item.storage_path)+'">Descargar Excel original</button>':'')+
-            (departed.length?'<button type="button" class="gxt-btn ghost" data-download-departed="'+esc(item.id)+'">Descargar abandonos ('+departed.length+')</button>':'')+'</div>'+
-            (evaluations.length?'<h4>Creadores del portal</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+creatorRows+'</tbody></table></div>':'<p class="gxt-muted">No hay evaluaciones de creadores vinculados en este reporte.</p>')+
-            (unmatched.length?'<h4>Registros que requieren revisión</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Situación</th><th>ID</th></tr></thead><tbody>'+unmatchedRows+'</tbody></table></div>':'')+
-            '</details>';
+          const alertButton=alertTotal
+            ? '<button type="button" class="gxt-followup-month-alert" data-followup-report-alert="'+esc(item.id)+'"><span class="gxt-followup-alert-dot">!</span><span><strong>Alertas</strong><small>'+missingPhones.length+' sin teléfono · '+noPortal.length+' sin acceso</small></span><b>'+alertTotal+'</b></button>'
+            : '<span class="gxt-followup-month-alert is-clear">Sin alertas pendientes</span>';
+          return '<details class="gxt-followup-history-report"><summary><span class="gxt-followup-report-title"><strong>'+esc(item.file_name)+'</strong><small>'+esc(item.source_start_date||item.selected_start_date)+' a '+esc(item.source_end_date||item.selected_end_date)+'</small></span><span class="gxt-chip">'+evaluations.length+' creadores</span><span class="gxt-followup-report-alert-slot">'+alertButton+'</span></summary>'+
+            '<div class="gxt-followup-history-report-body">'+
+            (evaluations.length?'<h4>Creadores del portal</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+creatorRows+'</tbody></table></div>':'<p class="gxt-muted">No hay creadores activos del portal para este reporte.</p>')+
+            '</div></details>';
         }).join('');
-        return '<details class="gxt-followup-history-month"><summary><strong>'+esc(monthLabel(month))+'</strong><span class="gxt-chip">'+items.length+' reportes</span></summary><div class="gxt-followup-history-month-content">'+reports+'</div></details>';
+        return '<details class="gxt-followup-history-month" data-followup-month="'+esc(month)+'"><summary><strong>'+esc(monthLabel(month))+'</strong><span class="gxt-chip">'+items.length+' reportes</span></summary><div class="gxt-followup-history-month-content"><div class="gxt-followup-month-toolbar"><button type="button" class="gxt-btn ghost" data-followup-month-back>← Volver a los meses</button><strong>'+esc(monthLabel(month))+'</strong></div>'+reports+'</div></details>';
       }).join('');
       host.innerHTML='<div class="gxt-panel-head"><h2>Archivo mensual de seguimiento</h2><span class="gxt-chip">'+(data||[]).length+' reportes guardados</span></div>'+
-        (monthBlocks||'<div class="gxt-empty">Todavía no hay reportes guardados. Al importar un Excel, quedará archivado automáticamente en su mes.</div>');
-      host.querySelectorAll('[data-followup-open-creator]').forEach(button=>button.addEventListener('click',()=>openFollowupCreator(button.dataset.followupOpenCreator,0)));
-      host.querySelectorAll('[data-followup-download-report]').forEach(button=>button.addEventListener('click',async()=>{
-        try{
-          const {data:link,error}=await sb.storage.from('gx-creator-followup-reports').createSignedUrl(button.dataset.followupDownloadReport,60);
-          if(error)throw error;
-          const anchor=document.createElement('a');anchor.href=link.signedUrl;anchor.target='_blank';anchor.rel='noopener';anchor.click();
-        }catch(error){toast('No se pudo descargar el Excel original: '+(error.message||''));}
+        (monthBlocks||'<div class="gxt-empty">Todavía no hay reportes guardados. Al analizar un Excel, el mes se creará automáticamente.</div>');
+      host.querySelectorAll('.gxt-followup-history-month').forEach(month=>{
+        month.addEventListener('toggle',()=>{
+          if(month.open){host.querySelectorAll('.gxt-followup-history-month').forEach(other=>{if(other!==month){other.open=false;other.classList.remove('is-fullscreen');}});month.classList.add('is-fullscreen');}
+          else month.classList.remove('is-fullscreen');
+        });
+      });
+      if(window.gxFollowupOpenMonth){const targetMonth=host.querySelector('[data-followup-month="'+window.gxFollowupOpenMonth+'"]');if(targetMonth)targetMonth.open=true;window.gxFollowupOpenMonth=null;}
+      host.querySelectorAll('[data-followup-month-back]').forEach(button=>button.addEventListener('click',()=>{
+        const month=button.closest('.gxt-followup-history-month');if(month){month.open=false;month.classList.remove('is-fullscreen');}
       }));
-      host.querySelectorAll('[data-download-departed]').forEach(button=>button.addEventListener('click',()=>{
-        const item=(data||[]).find(entry=>entry.id===button.dataset.downloadDeparted);
-        const departed=(item?.gx_creator_followup_import_unmatched_rows||[]).filter(row=>row.reason==='agency_left');
-        downloadFollowupDepartedCsv(departed,String(item?.source_start_date||item?.selected_start_date||'').slice(0,7));
+      host.querySelectorAll('[data-followup-open-creator]').forEach(button=>button.addEventListener('click',()=>openFollowupCreator(button.dataset.followupOpenCreator,0)));
+      host.querySelectorAll('[data-followup-report-alert]').forEach(button=>button.addEventListener('click',event=>{
+        event.preventDefault();event.stopPropagation();
+        const item=(data||[]).find(entry=>entry.id===button.dataset.followupReportAlert);
+        if(!item)return;
+        const evaluations=item.gx_creator_followup_evaluations||[];
+        const unmatched=(item.gx_creator_followup_import_unmatched_rows||[]).filter(row=>row.reason==='not_in_portal'||row.reason==='portal_inactive');
+        const noPhone=evaluations.filter(row=>!phoneByCreator.get(row.creator_user_id));
+        const group=(label,rows,render)=>rows.length?'<section class="gxt-followup-alert-group"><strong>'+esc(label)+' ('+rows.length+')</strong>'+rows.map(render).join('')+'</section>':'';
+        const body=group('Sin teléfono registrado',noPhone,row=>'<div class="gxt-followup-alert-person">@'+esc(row.creator_username_snapshot)+'</div>')+
+          group('Sin acceso al portal',unmatched,row=>'<div class="gxt-followup-alert-person">@'+esc(row.creator_username_snapshot)+'</div>');
+        openModal('Alertas del reporte','Solo se muestran creadores que requieren acceso al portal o actualizar su teléfono.','<div class="gxt-followup-alert-list">'+body+'</div>',true);
       }));
     }catch(error){
       console.error('[Gestión · Seguimiento] history',error);
       host.innerHTML='<div class="gxt-panel-head"><h2>Archivo mensual de seguimiento</h2></div><div class="gxt-status-note gxt-followup-warning">No se pudo cargar el historial: '+esc(error.message||'Error de consulta')+'</div>';
     }
   }
+
 
   async function saveFollowupImport() {
     const preview=window.grayxonFollowupPreview;
@@ -800,7 +786,7 @@
         p_granularity:preview.granularity,p_evaluations:evaluations,p_unmatched_rows:unmatchedRows
       });
       if(saveError)throw new Error('El archivo se subió, pero no se pudo registrar la evaluación: '+saveError.message);
-      toast('Evaluación guardada correctamente.');
+      toast('Reporte archivado correctamente.');
       targetReloadFollowup(importId);
       loadFollowupHistory();
     }catch(error){
@@ -813,7 +799,11 @@
 
   function targetReloadFollowup(importId) {
     const target=document.getElementById('gxFollowupPreview');
-    if(target){target.innerHTML='<div class="gxt-status-note">Evaluación registrada. Identificador: '+esc(importId)+'. El archivo original quedó guardado de forma privada.</div>';followupPreviewMarkup=target.innerHTML;}
+    const period=window.grayxonFollowupPreview?.sourcePeriod;
+    const month=String(period?.start||'').slice(0,7);
+    if(month)window.gxFollowupOpenMonth=month;
+    const label=month?new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(month+'-01T00:00:00Z')):'el mes correspondiente';
+    if(target){target.innerHTML='<div class="gxt-status-note">Reporte archivado automáticamente en '+esc(label)+'.</div>';followupPreviewMarkup=target.innerHTML;}
   }
 
   function renderReportsPage() {
