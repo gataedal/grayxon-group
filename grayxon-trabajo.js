@@ -606,7 +606,7 @@
     if(!plan){preview.hidden=true;actions.hidden=true;form.hidden=false;return;}
     const targets=plan.targets||{};const labels=[['Diamantes','diamonds'],['Horas LIVE','live_hours'],['Días válidos','valid_days'],['Batallas','battles'],['Miembros del club de fans','fan_club_members']];
     preview.innerHTML='<h3>'+esc(plan.title)+'</h3><p>'+esc(plan.objective||'Sin objetivo adicional')+'</p><p><strong>Periodo:</strong> '+esc(plan.start_date)+' al '+esc(plan.target_date)+'</p><ul>'+labels.filter(x=>targets[x[1]]!=null).map(x=>'<li>'+x[0]+': '+esc(targets[x[1]])+'</li>').join('')+'</ul>'+(reminder?'<p><strong>Recordatorio:</strong> '+esc(new Date(reminder.scheduled_at).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}))+' · '+esc(reminder.note||'Sin nota')+'</p>':'<p>Sin recordatorio programado.</p>');
-    preview.hidden=false;actions.hidden=false;form.hidden=true;
+    preview.hidden=false;actions.hidden=false;form.hidden=true;const advanceButton=actions.querySelector('[data-followup-open-progress]');if(advanceButton)advanceButton.disabled=!followupProgressEligibility(plan).allowed;
   }
   async function loadFollowupWorkspace() {
     const select=document.getElementById('gxFollowupCreator');
