@@ -555,7 +555,7 @@
     form.elements.plan_id.value=plan?.id||'';
     form.querySelectorAll('input:not([type="hidden"]),textarea,select,button').forEach(control=>{control.disabled=!gate.allowed;});
     if(button)button.disabled=!gate.allowed;
-    if(status)status.textContent=!plan?'Primero debes crear un plan de trabajo.':!plan.target_date?'El plan debe tener una fecha final.':gate.allowed?'El plan finalizó el '+gate.end+'. Ya puedes registrar sus avances.':'Los avances se habilitarán después del '+gate.end+'.';
+    if(status)status.textContent=!plan?'Primero debes crear un plan de trabajo.':plan.status==='cancelled'?'No se pueden registrar avances en un plan cancelado.':'Puedes registrar avances durante el desarrollo del plan, sin esperar a la fecha final.';
     form.classList.toggle('is-locked',!gate.allowed);
   }
 
