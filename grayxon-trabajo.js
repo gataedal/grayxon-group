@@ -471,26 +471,13 @@
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
       const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo está listo para guardarse en el archivo mensual.':'El archivo no permite completar la evaluación.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
-      const portalMissing=preview.rows.filter(row=>row.linkStatus==='not_in_portal');
-      const inactivePortal=preview.rows.filter(row=>row.linkStatus==='portal_inactive');
-      const departed=preview.rows.filter(row=>row.linkStatus==='agency_left');
-      const ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous');
-      followupPortalMissing=portalMissing.concat(inactivePortal);
-      followupAgencyDeparted=departed;
-      if(departed.length)downloadFollowupDepartedCsv(departed.map(row=>({creator_username_snapshot:row.username,creator_id_snapshot:row.creatorId,source_status:row.agencyStatus||'El creador ha abandonado la agencia'})),String(period.start||'').slice(0,7));
-      const alertCount=missingPhones.length+portalMissing.length+inactivePortal.length+departed.length+ambiguous.length;
-      target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros del Excel</small></div><div><strong>'+preview.summary.matched+'</strong><small>En el portal</small></div><div><strong>'+portalMissing.length+'</strong><small>Sin acceso al portal</small></div><div><strong>'+departed.length+'</strong><small>Abandonaron la agencia</small></div></div>'+
-        '<div class="gxt-status-note">'+esc(status)+' Periodo del reporte: '+esc(period.start)+' al '+esc(period.end)+'. Este archivo se archivará dentro de ese mes.</div>'+
-        (alertCount
-          ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-followup-alert><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar alertas del reporte</strong><small>'+missingPhones.length+' sin teléfono · '+portalMissing.length+' sin cuenta · '+inactivePortal.length+' cuenta inactiva · '+departed.length+' abandonaron la agencia'+(ambiguous.length?' · '+ambiguous.length+' coincidencias ambiguas':'')+'</small></span><span class="gxt-followup-alert-count">'+alertCount+'</span></button></div>'
-          : '<div class="gxt-status-note">No hay alertas de contacto ni de vinculación.</div>')+
+      target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.matched+'</strong><small>Creadores del portal</small></div><div><strong>'+preview.summary.creators+'</strong><small>Registros analizados</small></div></div>'+
+        '<div class="gxt-status-note">'+esc(status)+' Periodo del reporte: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
         '<div class="gxt-followup-warnings">'+warnings+'</div>'+
-        '<div class="gxt-status-note">El reporte se archivará automáticamente dentro del mes detectado.</div>'+
         (preview.canEvaluate && preview.rows.length>0 && preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
-          ? '<div class="gxt-status-note">Análisis correcto. Guardando el reporte en su mes…</div>'
+          ? '<div class="gxt-status-note">Análisis correcto. Archivando automáticamente el reporte…</div>'
           : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que haya creadores vinculados con métricas completas y que el reporte cubra un único periodo.</div>');
-      followupMissingPhones=missingPhones;
       followupPreviewMarkup=target.innerHTML;
       bindFollowupPreviewActions(target);
       if(preview.canEvaluate&&preview.rows.length>0&&preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable'))saveFollowupImport();
@@ -503,9 +490,6 @@
   let followupCreatorCache=[];
   let followupImportFile=null;
   let followupPreviewMarkup='';
-  let followupMissingPhones=[];
-  let followupPortalMissing=[];
-  let followupAgencyDeparted=[];
   function bindFollowupPreviewActions(target){
     if(!target)return;
     target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
@@ -686,16 +670,6 @@
       form.elements.progress_summary.value='';form.elements.proposed_changes.value='';
       toast('Avance registrado correctamente.');await loadFollowupWorkspace();return;
     }
-  }
-  function downloadFollowupDepartedCsv(rows,periodLabel='') {
-    if(!rows?.length)return;
-    const quote=value=>'"'+String(value??'').replace(/"/g,'""')+'"';
-    const lines=[['Usuario TikTok','ID del creador','Estado en el reporte'],...rows.map(row=>[row.creator_username_snapshot||row.username,row.creator_id_snapshot||row.creatorId,row.source_status||'El creador ha abandonado la agencia'])];
-    const csv='\uFEFF'+lines.map(line=>line.map(quote).join(';')).join('\r\n');
-    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='creadores-que-abandonaron-la-agencia'+(periodLabel?'-'+periodLabel:'')+'.csv';
-    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
   }
 
   async function loadFollowupHistory() {
