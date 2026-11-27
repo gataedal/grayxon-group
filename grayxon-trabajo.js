@@ -594,6 +594,19 @@
       const failed=[notes,contacts,plans,planUpdates,reminders].find(x=>x.error);
       if(failed)throw failed.error;
       window.gxFollowupPlans=plans.data||[];
+      const selectedCreatorId=select.value;
+      const activePlan=(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId&&plan.status!=='completed'&&plan.status!=='cancelled')||(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId);
+      state.followupHasPlan=!!activePlan;
+      const planForm=document.getElementById('gxActionPlanForm');
+      if(planForm){
+        planForm.elements.plan_id.value=activePlan?.id||'';planForm.elements.title.value=activePlan?.title||'';planForm.elements.objective.value=activePlan?.objective||'';
+        planForm.elements.start_date.value=activePlan?.start_date||new Date().toLocaleDateString('en-CA');planForm.elements.target_date.value=activePlan?.target_date||'';
+        const targets=activePlan?.targets||{};['diamonds','live_hours','valid_days','battles','fan_club_members'].forEach(key=>planForm.elements[key].value=targets[key]??'');
+        planForm.querySelector('button[type=submit]').textContent=activePlan?'Guardar cambios del plan':'Crear plan de trabajo';
+      }
+      const progressForm=document.getElementById('gxActionPlanUpdateForm');
+      if(progressForm){progressForm.elements.plan_id.value=activePlan?.id||'';progressForm.querySelector('button[type=submit]').disabled=!activePlan;}
+      const statusLabel=document.getElementById('gxFollowupPlanStatus');if(statusLabel)statusLabel.textContent=activePlan?'Plan activo: '+activePlan.title+' · '+activePlan.start_date+' al '+activePlan.target_date:'Primero debes crear un plan para habilitar los avances.';
       const name=id=>{const p=followupCreatorCache.find(x=>x.id===id);return p?'@'+p.username:'Creador';};
       if(planSelect){
         const selectedCreator=select.value;
