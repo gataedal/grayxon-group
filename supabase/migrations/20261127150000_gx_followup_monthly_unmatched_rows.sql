@@ -1,5 +1,8 @@
 begin;
 
+alter table public.gx_creator_followup_imports
+  add column if not exists has_linked_evaluations boolean not null default true;
+
 create table if not exists public.gx_creator_followup_import_unmatched_rows (
   id uuid primary key default gen_random_uuid(),
   import_id uuid not null references public.gx_creator_followup_imports(id) on delete cascade,
@@ -31,10 +34,7 @@ create policy gx_followup_imports_read
     )
     or (
       uploaded_by=auth.uid()
-      and not exists (
-        select 1 from public.gx_creator_followup_evaluations e
-        where e.import_id=gx_creator_followup_imports.id
-      )
+      and has_linked_evaluations=false
     )
   );
 
@@ -46,7 +46,7 @@ create policy gx_followup_unmatched_read
   using (
     exists (
       select 1 from public.gx_creator_followup_imports i
-      where i.id=import_id and (public.is_admin() or i.manager_id=public.current_manager_id())
+      where i.id=import_id
     )
   );
 
@@ -98,9 +98,9 @@ begin
    if coalesce(v_row->>'reason','') not in ('agency_left','not_in_portal','ambiguous') then raise exception 'Motivo de registro pendiente inválido'; end if;
  end loop;
 
- insert into public.gx_creator_followup_imports(uploaded_by,manager_id,file_name,storage_path,file_sha256,selected_start_date,selected_end_date,source_start_date,source_end_date,source_granularity,status,parameters_snapshot,processed_at)
+ insert into public.gx_creator_followup_imports(uploaded_by,manager_id,file_name,storage_path,file_sha256,selected_start_date,selected_end_date,source_start_date,source_end_date,source_granularity,status,parameters_snapshot,processed_at,has_linked_evaluations)
  values(v_uid,v_manager,p_file_name,p_storage_path,p_file_sha256,p_selected_start,p_selected_end,p_source_start,p_source_end,p_granularity,
- case when p_granularity='period_aggregate' and (p_source_start is distinct from p_selected_start or p_source_end is distinct from p_selected_end) then 'needs_daily_data' else 'processed' end,v_params,now()) returning id into v_import_id;
+ case when p_granularity='period_aggregate' and (p_source_start is distinct from p_selected_start or p_source_end is distinct from p_selected_end) then 'needs_daily_data' else 'processed' end,v_params,now(),jsonb_array_length(p_evaluations)>0) returning id into v_import_id;
 
  insert into public.gx_creator_followup_evaluations(import_id,creator_user_id,creator_username_snapshot,team_id_snapshot,manager_id_snapshot,join_date_snapshot,evaluated_start_date,evaluated_end_date,evaluable_days,valid_live_days,live_seconds,diamonds,target_valid_days,target_live_seconds,valid_days_pct,live_hours_pct,classification,raw_metrics)
  select v_import_id,(e->>'creator_user_id')::uuid,coalesce(e->>'username',''),p.team_id,p.manager_id,nullif(e->>'join_date','')::date,nullif(e->>'evaluated_start','')::date,nullif(e->>'evaluated_end','')::date,
