@@ -640,5 +640,39 @@ $function$
     $ddl$;
   END IF;
 
+
+
+  IF to_regprocedure('public.complete_creator_task(uuid)') IS NOT NULL THEN
+    EXECUTE $ddl$
+CREATE OR REPLACE FUNCTION public.complete_creator_task(p_task_id uuid)
+ RETURNS creator_tasks
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  row public.creator_tasks;
+begin
+  if public.gx_creator_onboarding_pending() then
+    raise exception 'Completa tus primeros pasos antes de acceder a las tareas.' using errcode='42501';
+  end if;
+
+  update public.creator_tasks
+  set completed = true,
+      completed_at = coalesce(completed_at, now())
+  where id = p_task_id
+    and creator_id = auth.uid()
+    and completed = false
+  returning * into row;
+
+  if row.id is null then
+    raise exception 'Tarea no encontrada, ya completada o sin autorización';
+  end if;
+
+  return row;
+end;
+$function$
+    $ddl$;
+  END IF;
 END;
 $onboarding_rpc_gate$;
