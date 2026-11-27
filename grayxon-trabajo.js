@@ -859,6 +859,7 @@
         .eq('id',importId)
         .single();
       if(verifyError||!registeredImport||registeredImport.uploaded_by!==state.session.user.id||
+        registeredImport.manager_id!==(state.isManager?state.member.id:null)||
         registeredImport.storage_path!==objectPath) {
         throw new Error('El reporte no pudo verificarse después de guardarlo. '+(verifyError?.message||''));
       }
