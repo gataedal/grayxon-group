@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION public.gx_creator_onboarding_pending()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth
 AS $$
   SELECT COALESCE((
-    SELECT p.role = 'creator' AND p.active IS TRUE
+    SELECT p.role = 'creator'
        AND p.onboarding_required IS TRUE AND p.onboarding_completed_at IS NULL
     FROM public.profiles p WHERE p.id = auth.uid()
   ), false);
