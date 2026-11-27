@@ -944,14 +944,17 @@
       if(creatorError)throw creatorError;
       const creatorRows=creators||[];
       const creatorIds=creatorRows.map(row=>row.id);
-      const [plansResult,updatesResult,evaluationsResult]=await Promise.all([
+      const [plansResult,updatesResult,evaluationsResult,notesResult,contactsResult,remindersResult]=await Promise.all([
         sb.from('gx_creator_action_plans').select('id,creator_user_id,title,status,updated_at,manager_id').in('manager_id',managerIds).order('updated_at',{ascending:false}).limit(2000),
         sb.from('gx_creator_action_plan_updates').select('id,plan_id,progress_summary,created_at,status').order('created_at',{ascending:false}).limit(2000),
-        creatorIds.length?sb.from('gx_creator_followup_evaluations').select('id,creator_user_id,diamonds,live_seconds,valid_live_days,classification,created_at').in('creator_user_id',creatorIds).order('created_at',{ascending:false}).limit(3000):Promise.resolve({data:[],error:null})
+        creatorIds.length?sb.from('gx_creator_followup_evaluations').select('id,creator_user_id,diamonds,live_seconds,valid_live_days,classification,created_at').in('creator_user_id',creatorIds).order('created_at',{ascending:false}).limit(3000):Promise.resolve({data:[],error:null}),
+        creatorIds.length?sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').in('creator_user_id',creatorIds).order('created_at',{ascending:false}).limit(3000):Promise.resolve({data:[],error:null}),
+        creatorIds.length?sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').in('creator_user_id',creatorIds).order('created_at',{ascending:false}).limit(3000):Promise.resolve({data:[],error:null}),
+        creatorIds.length?sb.from('gx_creator_followup_reminders').select('id,creator_user_id,status,scheduled_at,note').in('creator_user_id',creatorIds).order('scheduled_at',{ascending:false}).limit(3000):Promise.resolve({data:[],error:null})
       ]);
-      const failed=[plansResult,updatesResult,evaluationsResult].find(result=>result.error);
+      const failed=[plansResult,updatesResult,evaluationsResult,notesResult,contactsResult,remindersResult].find(result=>result.error);
       if(failed)throw failed.error;
-      const plans=plansResult.data||[],updates=updatesResult.data||[],evaluations=evaluationsResult.data||[];
+      const plans=plansResult.data||[],updates=updatesResult.data||[],evaluations=evaluationsResult.data||[],notes=notesResult.data||[],contacts=contactsResult.data||[],reminders=remindersResult.data||[];
       const date=value=>value?new Date(value).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'—';
       host.innerHTML=reports.map(report=>{
         const teamCreators=creatorRows.filter(row=>row.manager_id===report.manager_id);
@@ -959,10 +962,13 @@
         const planIds=new Set(teamPlans.map(plan=>plan.id));
         const teamUpdates=updates.filter(update=>planIds.has(update.plan_id));
         const teamEvaluations=evaluations.filter(evaluation=>teamCreators.some(creator=>creator.id===evaluation.creator_user_id));
+        const teamNotes=notes.filter(note=>teamCreators.some(creator=>creator.id===note.creator_user_id));
+        const teamContacts=contacts.filter(contact=>teamCreators.some(creator=>creator.id===contact.creator_user_id));
+        const teamReminders=reminders.filter(reminder=>teamCreators.some(creator=>creator.id===reminder.creator_user_id));
         const latestByCreator=new Map();
         teamEvaluations.forEach(item=>{if(!latestByCreator.has(item.creator_user_id))latestByCreator.set(item.creator_user_id,item);});
         const managed=teamCreators.filter(creator=>teamPlans.some(plan=>plan.creator_user_id===creator.id&&plan.status!=='cancelled')).length;
-        return '<details class="gxt-accordion"><summary><div class="gxt-accordion-main"><strong>Informe general · '+esc(report.period_start)+' al '+esc(report.period_end)+'</strong><div class="gxt-card-meta"><span class="gxt-chip">'+report.creator_count+' creadores al generar</span><span class="gxt-chip">'+managed+' gestionados actualmente</span><span class="gxt-chip">Equipo '+esc(report.team_id||'sin identificar')+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p><strong>Generado:</strong> '+date(report.generated_at)+'</p><p><strong>Última actualización:</strong> '+date(report.updated_at)+'</p><p><strong>Planes registrados:</strong> '+teamPlans.length+' · <strong>Avances:</strong> '+teamUpdates.length+' · <strong>Evaluaciones:</strong> '+teamEvaluations.length+'</p><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Plan</th><th>Últimos diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+teamCreators.map(creator=>{
+        return '<details class="gxt-accordion"><summary><div class="gxt-accordion-main"><strong>Informe general · '+esc(report.period_start)+' al '+esc(report.period_end)+'</strong><div class="gxt-card-meta"><span class="gxt-chip">'+report.creator_count+' creadores al generar</span><span class="gxt-chip">'+managed+' gestionados actualmente</span><span class="gxt-chip">Equipo '+esc(report.team_id||'sin identificar')+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p><strong>Generado:</strong> '+date(report.generated_at)+'</p><p><strong>Última actualización:</strong> '+date(report.updated_at)+'</p><p><strong>Planes:</strong> '+teamPlans.length+' · <strong>Avances:</strong> '+teamUpdates.length+' · <strong>Evaluaciones:</strong> '+teamEvaluations.length+' · <strong>Observaciones:</strong> '+teamNotes.length+' · <strong>Contactos:</strong> '+teamContacts.length+' · <strong>Recordatorios:</strong> '+teamReminders.length+'</p><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Plan</th><th>Últimos diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+teamCreators.map(creator=>{
           const plan=teamPlans.find(item=>item.creator_user_id===creator.id&&item.status!=='cancelled');
           const evaluation=latestByCreator.get(creator.id);
           return '<tr><td>@'+esc(creator.username)+'</td><td>'+esc(plan?.title||'Pendiente')+'</td><td>'+(evaluation?.diamonds==null?'—':Number(evaluation.diamonds).toLocaleString('es-CO'))+'</td><td>'+(evaluation?.live_seconds==null?'—':(Number(evaluation.live_seconds)/3600).toFixed(1)+' h')+'</td><td>'+(evaluation?.valid_live_days??'—')+'</td></tr>';
