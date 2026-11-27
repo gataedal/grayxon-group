@@ -16,7 +16,8 @@
     diamonds: ['diamantes', 'diamonds'],
     liveDuration: ['duración de live', 'duracion de live', 'live duration'],
     validDays: ['días válidos de emisiones live', 'dias validos de emisiones live', 'valid live days'],
-    period: ['periodo de datos', 'período de datos', 'period', 'date range']
+    period: ['periodo de datos', 'período de datos', 'period', 'date range'],
+    agencyStatus: ['estado del creador', 'estado en la agencia', 'estado de agencia', 'estado', 'creator status', 'agency status']
   };
 
   function normalizeHeader(value) {
@@ -83,6 +84,11 @@
     return result;
   }
 
+  function isAgencyDeparted(value) {
+    const text = String(value == null ? '' : value).normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+    return /ha abandonado la agencia|abandono la agencia|abandon[oó] la agencia|salio de la agencia|dejo la agencia|left the agency|creator left|agency departed/.test(text);
+  }
+
   function parseWorkbook(workbook) {
     if (!workbook || !Array.isArray(workbook.SheetNames) || !workbook.SheetNames.length) {
       throw new Error('El archivo no contiene hojas para leer.');
@@ -125,8 +131,13 @@
         }
         seen.add(key);
         const joined = columns.joinedAt >= 0 ? parseDate(row[columns.joinedAt]) : null;
+        const agencyStatusText = columns.agencyStatus >= 0 ? String(row[columns.agencyStatus] || '') : '';
+        const rowStatusText = row.map(value => String(value == null ? '' : value)).join(' ');
+        const agencyDeparted = isAgencyDeparted(agencyStatusText) || isAgencyDeparted(rowStatusText);
         rows.push({
           username,
+          agencyStatus: agencyStatusText || null,
+          agencyDeparted,
           creatorId: columns.creatorId >= 0 ? String(row[columns.creatorId] || '').trim() : null,
           group: columns.group >= 0 ? String(row[columns.group] || '').trim() : null,
           agent: columns.agent >= 0 ? String(row[columns.agent] || '').trim() : null,
@@ -179,5 +190,5 @@
     };
   }
 
-  root.GRAYXON_FOLLOWUP_IMPORT = { parseWorkbook, parsePeriod, parseDurationHours, normalizeHeader, parseInteger };
+  root.GRAYXON_FOLLOWUP_IMPORT = { parseWorkbook, parsePeriod, parseDurationHours, normalizeHeader, parseInteger, isAgencyDeparted };
 })(typeof window !== 'undefined' ? window : globalThis);
