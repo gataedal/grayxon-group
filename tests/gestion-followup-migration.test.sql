@@ -152,3 +152,139 @@ begin
  end if;
 end $$;
 reset role;
+
+
+-- Crea historial para ambos creadores y comprueba que las referencias cruzadas se rechazan.
+insert into public.gx_creator_followup_contacts(
+ id,creator_user_id,manager_id,evaluation_id,created_by
+) values
+ ('70000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001',
+  (select id from public.gx_creator_followup_evaluations where creator_user_id='20000000-0000-0000-0000-000000000001' limit 1),
+  '10000000-0000-0000-0000-000000000001'),
+ ('70000000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000002',
+  (select id from public.gx_creator_followup_evaluations where creator_user_id='20000000-0000-0000-0000-000000000002' limit 1),
+  '10000000-0000-0000-0000-000000000002');
+
+insert into public.gx_creator_followup_notes(
+ creator_user_id,manager_id,evaluation_id,contact_id,note_type,body,created_by
+) values (
+ '20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001',
+ (select id from public.gx_creator_followup_evaluations where creator_user_id='20000000-0000-0000-0000-000000000001' limit 1),
+ '70000000-0000-0000-0000-000000000001','observation','Nota histórica de prueba',
+ '10000000-0000-0000-0000-000000000001'
+);
+
+insert into public.gx_creator_followup_reminders(
+ creator_user_id,manager_id,contact_id,evaluation_id,scheduled_at,created_by
+) values (
+ '20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001',
+ '70000000-0000-0000-0000-000000000001',
+ (select id from public.gx_creator_followup_evaluations where creator_user_id='20000000-0000-0000-0000-000000000001' limit 1),
+ now(),'10000000-0000-0000-0000-000000000001'
+);
+
+do $$
+begin
+ begin
+  insert into public.gx_creator_followup_contacts(creator_user_id,manager_id,evaluation_id,created_by)
+  values(
+   '20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001',
+   (select id from public.gx_creator_followup_evaluations where creator_user_id='20000000-0000-0000-0000-000000000002' limit 1),
+   '10000000-0000-0000-0000-000000000001'
+  );
+  raise exception 'Cross-creator contact evaluation reference must fail';
+ exception when others then
+  if sqlerrm='Cross-creator contact evaluation reference must fail' then raise; end if;
+ end;
+ begin
+  insert into public.gx_creator_followup_notes(creator_user_id,manager_id,contact_id,note_type,body,created_by)
+  values('20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001',
+   '70000000-0000-0000-0000-000000000002','observation','Referencia cruzada',
+   '10000000-0000-0000-0000-000000000001');
+  raise exception 'Cross-creator note contact reference must fail';
+ exception when others then
+  if sqlerrm='Cross-creator note contact reference must fail' then raise; end if;
+ end;
+ begin
+  insert into public.gx_creator_action_plan_updates(plan_id,evaluation_id,progress_summary,status)
+  values('50000000-0000-0000-0000-000000000001',
+   (select id from public.gx_creator_followup_evaluations where creator_user_id='20000000-0000-0000-0000-000000000002' limit 1),
+   'Referencia cruzada','draft');
+  raise exception 'Cross-creator plan evaluation reference must fail';
+ exception when others then
+  if sqlerrm='Cross-creator plan evaluation reference must fail' then raise; end if;
+ end;
+end $$;
+
+-- Al reasignar al creador, el manager anterior pierde todo acceso histórico
+-- y el nuevo manager hereda el acceso a las evaluaciones y registros del creador.
+update public.profiles
+set manager_id='30000000-0000-0000-0000-000000000002'
+where id='20000000-0000-0000-0000-000000000001';
+
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
+set role authenticated;
+do $$
+begin
+ if (select count(*) from public.gx_creator_followup_evaluations)<>0 then
+  raise exception 'Previous manager must lose evaluation access after reassignment';
+ end if;
+ if (select count(*) from public.gx_creator_followup_contacts)<>0 then
+  raise exception 'Previous manager must lose contact history after reassignment';
+ end if;
+ if (select count(*) from public.gx_creator_followup_notes)<>0 then
+  raise exception 'Previous manager must lose note history after reassignment';
+ end if;
+ if (select count(*) from public.gx_creator_followup_reminders)<>0 then
+  raise exception 'Previous manager must lose reminder history after reassignment';
+ end if;
+ if (select count(*) from public.gx_creator_action_plans)<>0 then
+  raise exception 'Previous manager must lose action plan access after reassignment';
+ end if;
+ begin
+  perform public.gx_manager_update_creator_action_plan(
+   '50000000-0000-0000-0000-000000000001','Intento del manager anterior',null,'completed'
+  );
+  raise exception 'Previous manager must not update reassigned creator plan';
+ exception when others then
+  if sqlerrm='Previous manager must not update reassigned creator plan' then raise; end if;
+ end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000002',false);
+set role authenticated;
+do $$
+begin
+ if (select count(*) from public.gx_creator_followup_evaluations)<>2 then
+  raise exception 'Current manager must see historical evaluations for reassigned creators';
+ end if;
+ if (select count(*) from public.gx_creator_followup_contacts)<>2 then
+  raise exception 'Current manager must see historical contacts for reassigned creators';
+ end if;
+ if (select count(*) from public.gx_creator_followup_notes)<>1 then
+  raise exception 'Current manager must see historical notes for reassigned creators';
+ end if;
+ if (select count(*) from public.gx_creator_followup_reminders)<>1 then
+  raise exception 'Current manager must see historical reminders for reassigned creators';
+ end if;
+ if (select count(*) from public.gx_creator_action_plans)<>1 then
+  raise exception 'Current manager must see historical action plans for reassigned creators';
+ end if;
+ begin
+  insert into public.gx_creator_action_plan_updates(plan_id,progress_summary,status,reviewed_by,reviewed_at)
+  values('50000000-0000-0000-0000-000000000001','Bypass directo','approved',auth.uid(),now());
+  raise exception 'Direct approved plan update insert must be blocked';
+ exception when insufficient_privilege then
+  null;
+ end;
+ perform public.gx_manager_update_creator_action_plan(
+  '50000000-0000-0000-0000-000000000001','Avance del nuevo manager',null,'active'
+ );
+ if not exists(select 1 from public.gx_creator_action_plan_updates
+   where plan_id='50000000-0000-0000-0000-000000000001'
+     and progress_summary='Avance del nuevo manager' and status='approved') then
+  raise exception 'Current manager must update a reassigned creator plan through the RPC';
+ end if;
+end $$;
+reset role;
