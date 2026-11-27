@@ -644,9 +644,8 @@
       }
       const rows=[
         ...(notes.data||[]).map(x=>({creator_user_id:x.creator_user_id,date:x.created_at,title:'Nota · '+x.note_type,creator:name(x.creator_user_id),detail:x.body})),
-        ...(plans.data||[]).map(x=>({creator_user_id:x.creator_user_id,date:x.created_at,title:'Plan · '+x.title,creator:name(x.creator_user_id),detail:x.objective+' · '+x.status})),
-        ...(planUpdates.data||[]).map(x=>({creator_user_id:(plans.data||[]).find(p=>p.id===x.plan_id)?.creator_user_id,date:x.created_at,title:'Propuesta · '+x.status,creator:(plans.data||[]).find(p=>p.id===x.plan_id)?name((plans.data||[]).find(p=>p.id===x.plan_id).creator_user_id):'Creador',detail:x.progress_summary+' '+(x.proposed_changes||''),updateId:x.id,status:x.status})),
-        ...(reminders.data||[]).map(x=>({creator_user_id:x.creator_user_id,date:x.scheduled_at,title:'Recordatorio · '+x.status,creator:name(x.creator_user_id),detail:x.note||'Sin nota'}))
+        ...(plans.data||[]).map(x=>{const reminder=(reminders.data||[]).find(item=>item.action_plan_id===x.id&&item.status!=='cancelled');return {creator_user_id:x.creator_user_id,date:x.created_at,title:'Plan creado · '+x.title,creator:name(x.creator_user_id),detail:x.objective+' · '+x.status+(reminder?' · Recordatorio: '+dateTimeLabel(reminder.scheduled_at):'')};}),
+        ...(planUpdates.data||[]).map(x=>({creator_user_id:(plans.data||[]).find(p=>p.id===x.plan_id)?.creator_user_id,date:x.created_at,title:'Avance registrado · '+x.status,creator:(plans.data||[]).find(p=>p.id===x.plan_id)?name((plans.data||[]).find(p=>p.id===x.plan_id).creator_user_id):'Creador',detail:x.progress_summary+' '+(x.proposed_changes||''),updateId:x.id,status:x.status}))
       ].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60);
       window.gxFollowupActivityRows=rows;
       renderFollowupActivityForCreator(select.value);
