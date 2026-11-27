@@ -56,26 +56,45 @@
       host.insertBefore(button,host.firstChild);
     }
     const loggedIn=!!userId() && !!currentProfile()?.active;
-    // El administrador accede al programa desde su panel, no desde el botón global.
-    button.classList.toggle('gx-referral-hidden',!loggedIn || isAdmin());
+    // Los accesos internos se muestran dentro del menú expandible; los creadores conservan su botón habitual.
+    button.classList.toggle('gx-referral-hidden',!loggedIn || isAdmin() || currentProfile()?.role==='manager');
     ensureAdminProgramCard();
+    ensureManagerReferralMenuItem();
   }
 
   function ensureAdminProgramCard(){
     if(!isAdmin() || !currentProfile()?.active)return;
-    const adminPage=$('admin');
-    const grid=adminPage?.querySelector('.admin-dashboard-grid');
-    if(!grid)return;
+    const source=$('admin')?.querySelector('.gx-internal-access-source');
+    if(!source)return;
     let card=$('gxAdminReferralProgramCard');
-    if(card && card.parentElement!==grid)card.remove();
+    if(card && card.parentElement!==source)card.remove();
     if($('gxAdminReferralProgramCard'))return;
     card=document.createElement('button');
     card.type='button';
     card.id='gxAdminReferralProgramCard';
+    card.dataset.gxReferralsAccess='1';
     card.className='admin-dashboard-card';
-    card.innerHTML='<span class="admin-dashboard-card-icon" aria-hidden="true">🎁</span><span class="admin-dashboard-card-copy"><strong>Programas para ganar más</strong><small>Crea programas, define beneficios y administra referidos, estados y liquidaciones.</small></span><span class="admin-dashboard-card-arrow" aria-hidden="true">›</span>';
+    card.innerHTML='<span class="admin-dashboard-card-icon" aria-hidden="true">🎁</span><span class="admin-dashboard-card-copy"><strong>Programas para ganar más</strong><small>Crea programas, define beneficios y administra referidos, estados y liquidaciones.</small></span>';
     card.addEventListener('click',openPage);
-    grid.appendChild(card);
+    source.appendChild(card);
+    window.grayxonSyncInternalMenu?.('admin');
+  }
+
+  function ensureManagerReferralMenuItem(){
+    if(currentProfile()?.role!=='manager'||!currentProfile()?.active)return;
+    const source=$('manager')?.querySelector('.gx-internal-access-source');
+    if(!source)return;
+    let item=$('gxManagerReferralMenuItem');
+    if(item&&item.parentElement!==source)item.remove();
+    if($('gxManagerReferralMenuItem'))return;
+    item=document.createElement('button');
+    item.type='button';
+    item.id='gxManagerReferralMenuItem';
+    item.dataset.gxReferralsAccess='1';
+    item.innerHTML='<span class="manager-dashboard-card-icon">✦</span><span class="manager-dashboard-card-copy"><strong>Gana más</strong><small>Consulta los programas y tus referidos.</small></span>';
+    item.addEventListener('click',openPage);
+    source.appendChild(item);
+    window.grayxonSyncInternalMenu?.('manager');
   }
 
   function closePage(){
@@ -102,6 +121,7 @@
     await loadData();
     render();
   }
+  window.grayxonOpenReferrals=openPage;
 
   function renderAdminDashboard(page){
     const selected=earningPrograms.find(p=>p.id===selectedAdminProgramId)||null;
