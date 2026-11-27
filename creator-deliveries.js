@@ -117,6 +117,7 @@
     return uid;
   }
 
+  // Los planes visibles pertenecen a la sesión actual; los avances se limitan a estados aprobados por RLS.
   async function loadDeliveries(){
     if(!currentUserId){listRoot.innerHTML='<div class="gx-delivery-empty">Inicia sesión con tu cuenta de creador para consultar tus entregas.</div>';return;}
     listRoot.innerHTML='<div class="gx-delivery-loading">Cargando tus entregas…</div>';
