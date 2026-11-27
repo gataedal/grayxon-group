@@ -56,7 +56,7 @@ begin
     and (
       v_admin
       or i.manager_id=v_manager
-      or i.uploaded_by=v_uid
+      or (i.manager_id is null and i.uploaded_by=v_uid)
     );
 
   if not v_admin and cardinality(v_import_ids)=0 then
