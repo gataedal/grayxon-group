@@ -446,7 +446,7 @@ body.gx-internal-session{padding-bottom:0!important}
 .gx-internal-menu-close{width:36px;height:36px;border:1px solid #343b44;border-radius:11px;background:#ffffff08;color:#cbd2dc;font-size:20px;cursor:pointer}
 .gx-internal-menu-section-label{margin:0 0 9px 9px;color:#778391;font-size:10px;font-weight:750;letter-spacing:.16em;text-transform:uppercase}
 .gx-internal-menu-items{display:grid;gap:6px}
-.gx-internal-menu-item{width:100%;min-height:53px;padding:0 12px;display:flex;align-items:center;gap:13px;text-align:left;border:1px solid transparent;border-radius:13px;background:transparent;color:#c5ccd5;font:600 13px/1.2 inherit;cursor:pointer;transition:background .18s,border-color .18s,color .18s}
+.gx-internal-menu-item{width:100%;min-height:53px;padding:0 12px;display:flex;align-items:center;gap:13px;text-align:left;border:1px solid transparent;border-radius:13px;background:transparent;color:#c5ccd5;font:600 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;transition:background .18s,border-color .18s,color .18s}
 .gx-internal-menu-item:hover,.gx-internal-menu-item:focus-visible{outline:none;background:linear-gradient(100deg,#202831,#171d24);border-color:#394652;color:#fff}
 .gx-internal-menu-item-icon{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border:1px solid #3a4651;border-radius:10px;background:linear-gradient(145deg,#202a33,#141a20);color:#64dce7}
 .gx-internal-menu-item-icon svg{width:18px;height:18px}
@@ -457,6 +457,24 @@ body.gx-internal-session{padding-bottom:0!important}
 .gx-internal-menu-footer span{display:block;margin-top:5px;color:#8994a2;font-size:11px}
 @media(max-width:600px){body.gx-internal-session header.top{gap:9px}body.gx-internal-session .gx-internal-menu-trigger{width:40px;height:40px;flex-basis:40px}}
 @media(prefers-reduced-motion:reduce){.gx-internal-menu-overlay,.gx-internal-menu-panel{transition:none!important}}
+
+/* Dashboard interno: jerarquía visual grafito, plata y acento cian; sin alterar contenido ni acciones. */
+body.gx-internal-session .admin-dashboard{gap:20px}
+body.gx-internal-session .admin-dashboard-hero{position:relative;overflow:hidden;padding:clamp(22px,3vw,32px);border:1px solid #39414b;border-radius:22px;background:radial-gradient(ellipse at 92% 8%,#24323b88 0,transparent 38%),linear-gradient(125deg,#171c22 0%,#101419 58%,#0c1014 100%);box-shadow:0 16px 42px #0004}
+body.gx-internal-session .admin-dashboard-hero:after{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:0 4px 4px 0;background:linear-gradient(180deg,#aeb8c4,#35d5e2)}
+body.gx-internal-session .admin-dashboard-hero h1{color:#f1f4f7;letter-spacing:-.035em}
+body.gx-internal-session .admin-dashboard-hero .eyebrow{color:#8fa2b1;letter-spacing:.17em}
+body.gx-internal-session .admin-dashboard-grid{gap:14px}
+body.gx-internal-session .admin-dashboard-card,body.gx-internal-session .manager-dashboard-card{position:relative;overflow:hidden;min-height:132px;padding:19px;border:1px solid #303943;border-radius:18px;background:linear-gradient(145deg,#171c22 0%,#101419 72%,#0d1115 100%);box-shadow:0 9px 24px #0002;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+body.gx-internal-session .admin-dashboard-card:before,body.gx-internal-session .manager-dashboard-card:before{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:linear-gradient(180deg,#8e9aa8,#27c8d7);opacity:.55}
+body.gx-internal-session .admin-dashboard-card:hover,body.gx-internal-session .manager-dashboard-card:hover{transform:translateY(-3px);border-color:#4c7780;background:linear-gradient(145deg,#1c252c,#11171c);box-shadow:0 15px 30px #0005}
+body.gx-internal-session .admin-dashboard-card-icon,body.gx-internal-session .manager-dashboard-card-icon{border:1px solid #3b4a55;border-radius:13px;background:linear-gradient(145deg,#26323b,#151c22);color:#70dce5;box-shadow:inset 0 1px #ffffff0b}
+body.gx-internal-session .admin-dashboard-card-copy strong,body.gx-internal-session .manager-dashboard-card-copy strong{color:#f0f3f6;font-weight:700;letter-spacing:-.01em}
+body.gx-internal-session .admin-dashboard-card-copy small,body.gx-internal-session .manager-dashboard-card-copy small{color:#9da9b6;line-height:1.55}
+body.gx-internal-session .admin-dashboard-card-arrow,body.gx-internal-session .manager-dashboard-card-arrow{color:#65dbe5}
+body.gx-internal-session .manager-dashboard-grid{gap:14px;margin-top:4px}
+body.gx-internal-session .manager-subpage-header{border-color:#35404a;border-radius:17px;background:linear-gradient(120deg,#171c22,#101419)}
+@media(max-width:600px){body.gx-internal-session .admin-dashboard-hero{padding:21px 19px;border-radius:18px}body.gx-internal-session .admin-dashboard-card,body.gx-internal-session .manager-dashboard-card{min-height:108px;padding:15px;border-radius:15px}}
 </style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
