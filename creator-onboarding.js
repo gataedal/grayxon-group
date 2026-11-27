@@ -213,8 +213,22 @@
       document.getElementById('profileAvatar')?.click();
     }
   },true);
-  document.addEventListener('change',function(event){
-    if(event.target?.id==='profileAvatar' && typeof uploadProfileAvatar==='function') uploadProfileAvatar();
+  document.addEventListener('change',async function(event){
+    if(event.target?.id!=='profileAvatar' || typeof uploadProfileAvatar!=='function') return;
+    await uploadProfileAvatar();
+    const url=profileDetails?.avatar_url;
+    const root=document.querySelector('#profile .creator-dashboard-avatar-editable');
+    if(root && url){
+      let img=root.querySelector('img');
+      if(!img){
+        img=document.createElement('img');
+        img.alt='Foto de perfil';
+        img.style.cssText='width:88px;height:88px;border-radius:50%;object-fit:cover';
+        root.querySelector('span')?.remove();
+        root.insertBefore(img,root.querySelector('#profilePhotoEdit')||root.firstChild);
+      }
+      img.src=url;
+    }
   },true);
 
   // Restore the correct mandatory step when a returning session is already active.
