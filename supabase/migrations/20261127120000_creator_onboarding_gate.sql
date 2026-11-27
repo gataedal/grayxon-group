@@ -15,23 +15,35 @@ $$;
 REVOKE ALL ON FUNCTION public.gx_creator_onboarding_pending() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.gx_creator_onboarding_pending() TO authenticated;
 
-DROP POLICY IF EXISTS "Creators can view published modules" ON public.modules;
-CREATE POLICY gx_onboarding_modules_select ON public.modules FOR SELECT TO authenticated
-USING (published IS TRUE AND (NOT public.gx_creator_onboarding_pending() OR id IN (
-  'a676aec5-1514-4640-8884-8e9e02b2e90a',
-  'b7666174-c171-48ed-afe2-970b47c0c8fa',
-  '5d5e7196-7f15-4d9e-a53e-6940b21d5a75'
-)));
+DO $$
+BEGIN
+  IF to_regclass('public.modules') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Creators can view published modules" ON public.modules';
+    EXECUTE $policy$
+      CREATE POLICY gx_onboarding_modules_select ON public.modules FOR SELECT TO authenticated
+      USING (published IS TRUE AND (NOT public.gx_creator_onboarding_pending() OR id IN (
+        'a676aec5-1514-4640-8884-8e9e02b2e90a',
+        'b7666174-c171-48ed-afe2-970b47c0c8fa',
+        '5d5e7196-7f15-4d9e-a53e-6940b21d5a75'
+      )))
+    $policy$;
+  END IF;
 
-DROP POLICY IF EXISTS "Creators can view published lessons" ON public.lessons;
-CREATE POLICY gx_onboarding_lessons_select ON public.lessons FOR SELECT TO authenticated
-USING (published IS TRUE AND (NOT public.gx_creator_onboarding_pending() OR id IN (
-  'eed00a62-1b8a-45fb-bab3-60a7b12462c9',
-  '07ae251c-29dc-42d8-b7d2-d486948c444d',
-  'a581d37a-0fdb-4fde-8371-b221fe7ac2ce',
-  '375a9472-2d97-474e-b603-c44996b28678',
-  '4cbdfda7-e057-4758-8b18-0f2c91919dce'
-)));
+  IF to_regclass('public.lessons') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Creators can view published lessons" ON public.lessons';
+    EXECUTE $policy$
+      CREATE POLICY gx_onboarding_lessons_select ON public.lessons FOR SELECT TO authenticated
+      USING (published IS TRUE AND (NOT public.gx_creator_onboarding_pending() OR id IN (
+        'eed00a62-1b8a-45fb-bab3-60a7b12462c9',
+        '07ae251c-29dc-42d8-b7d2-d486948c444d',
+        'a581d37a-0fdb-4fde-8371-b221fe7ac2ce',
+        '375a9472-2d97-474e-b603-c44996b28678',
+        '4cbdfda7-e057-4758-8b18-0f2c91919dce'
+      )))
+    $policy$;
+  END IF;
+END;
+$$;
 
 DROP POLICY IF EXISTS "Creators can register own progress" ON public.lesson_progress;
 DROP POLICY IF EXISTS "Creators can save own progress" ON public.lesson_progress;
@@ -142,14 +154,22 @@ BEGIN
 END;
 $$;
 
-DROP POLICY IF EXISTS gx_creator_onboarding_storage_gate ON storage.objects;
-CREATE POLICY gx_creator_onboarding_storage_gate ON storage.objects AS RESTRICTIVE FOR ALL TO authenticated
-USING (
-  NOT public.gx_creator_onboarding_pending()
-  OR bucket_id IN ('training-videos', 'training-resources')
-  OR (bucket_id = 'profile-avatars' AND (storage.foldername(name))[1] = auth.uid()::text)
-)
-WITH CHECK (
-  NOT public.gx_creator_onboarding_pending()
-  OR (bucket_id = 'profile-avatars' AND (storage.foldername(name))[1] = auth.uid()::text)
-);
+DO $$
+BEGIN
+  IF to_regclass('storage.objects') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS gx_creator_onboarding_storage_gate ON storage.objects';
+    EXECUTE $policy$
+      CREATE POLICY gx_creator_onboarding_storage_gate ON storage.objects AS RESTRICTIVE FOR ALL TO authenticated
+      USING (
+        NOT public.gx_creator_onboarding_pending()
+        OR bucket_id IN ('training-videos', 'training-resources')
+        OR (bucket_id = 'profile-avatars' AND (storage.foldername(name))[1] = auth.uid()::text)
+      )
+      WITH CHECK (
+        NOT public.gx_creator_onboarding_pending()
+        OR (bucket_id = 'profile-avatars' AND (storage.foldername(name))[1] = auth.uid()::text)
+      )
+    $policy$;
+  END IF;
+END;
+$$;
