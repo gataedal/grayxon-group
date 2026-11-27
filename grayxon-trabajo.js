@@ -1573,6 +1573,8 @@
     if(toggle)return toggleDepartment(toggle.dataset.toggleDepartment,toggle.dataset.active==='true');
   });
 
+  modalRoot.addEventListener('submit',event=>{const form=event.target.closest('#gxFollowupNoveltyForm');if(form)submitFollowupRecord(form,event);});
+
   modalRoot.addEventListener('click',event=>{
     if(event.target===modalRoot){closeModal();return;}
     const close=event.target.closest('[data-close-modal]');
