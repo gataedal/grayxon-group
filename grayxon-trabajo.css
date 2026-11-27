@@ -471,3 +471,24 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 @media(max-width:640px){.gxt-followup-history-month.is-fullscreen{padding:12px!important}.gxt-followup-month-toolbar{align-items:flex-start;flex-direction:column}.gxt-followup-report-alert-slot{justify-content:stretch}.gxt-followup-month-alert{width:100%;max-width:none}}
 
 .gxt-followup-workspace #gxFollowupPlanPreview{border:1px solid rgba(37,244,238,.28);background:linear-gradient(145deg,rgba(37,244,238,.07),rgba(15,20,27,.96));border-radius:16px;padding:22px;margin-bottom:14px}.gxt-followup-workspace #gxFollowupPlanPreview h3{margin:0 0 10px}.gxt-followup-workspace #gxFollowupPlanPreview ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 20px;padding-left:20px}.gxt-followup-workspace #gxFollowupSavedPlanActions{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}.gxt-followup-workspace #gxFollowupSavedPlanActions[hidden],.gxt-followup-workspace #gxFollowupPlanPreview[hidden],.gxt-followup-workspace #gxActionPlanForm[hidden]{display:none!important}
+
+
+/* Seguimiento: trazabilidad visual por creador en la tabla de informes. */
+.gxt-followup-table .gxt-followup-row>td{transition:background-color .15s ease;border-bottom-color:rgba(220,235,240,.12)}
+.gxt-followup-table .gxt-followup-row.is-success>td{background:rgba(46,180,116,.105)!important}
+.gxt-followup-table .gxt-followup-row.is-observation>td{background:rgba(212,151,50,.12)!important}
+.gxt-followup-table .gxt-followup-row.is-risk>td{background:rgba(220,65,65,.13)!important}
+.gxt-followup-table .gxt-followup-row.is-early>td{background:rgba(53,158,211,.12)!important}
+.gxt-followup-table .gxt-followup-row.is-neutral>td{background:rgba(160,170,180,.07)!important}
+.gxt-followup-table .gxt-followup-row.is-success>td:first-child{box-shadow:inset 3px 0 #43c98a}
+.gxt-followup-table .gxt-followup-row.is-observation>td:first-child{box-shadow:inset 3px 0 #e1ad4f}
+.gxt-followup-table .gxt-followup-row.is-risk>td:first-child{box-shadow:inset 3px 0 #ed6666}
+.gxt-followup-table .gxt-followup-row.is-early>td:first-child{box-shadow:inset 3px 0 #45b9ec}
+.gxt-followup-report-creator{display:flex;align-items:center;gap:9px;min-width:220px}
+.gxt-followup-report-creator>strong{color:#f0f6f8;font-size:11px}
+.gxt-followup-trace{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid transparent;border-radius:999px;font-size:9px;font-weight:800;letter-spacing:.01em}
+.gxt-followup-trace.is-success{color:#91e8bd;background:rgba(46,180,116,.14);border-color:rgba(46,180,116,.32)}
+.gxt-followup-trace.is-observation{color:#ffd18a;background:rgba(212,151,50,.14);border-color:rgba(212,151,50,.34)}
+.gxt-followup-trace.is-early{color:#8edcff;background:rgba(53,158,211,.14);border-color:rgba(53,158,211,.34)}
+.gxt-followup-trace.is-neutral{color:#c4cbd2;background:rgba(160,170,180,.1);border-color:rgba(160,170,180,.25)}
+@media(max-width:700px){.gxt-followup-report-creator{align-items:flex-start;flex-direction:column;gap:5px;min-width:140px}}
