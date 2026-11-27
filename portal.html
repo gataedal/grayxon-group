@@ -868,6 +868,7 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
  items.addEventListener('click',e=>{
   const item=e.target.closest('[data-gx-menu-kind]');if(!item)return;
   const kind=item.dataset.gxMenuKind,key=item.dataset.gxMenuKey;
+  if(document.body.classList.contains('gx-referrals-mode')&&typeof window.grayxonCloseReferrals==='function')window.grayxonCloseReferrals();
   close();
   if(kind==='utility'){
    if(key==='calendar'&&typeof window.grayxonOpenCalendar==='function')window.grayxonOpenCalendar();
