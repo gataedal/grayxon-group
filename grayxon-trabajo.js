@@ -365,7 +365,7 @@
       '<div class="gxt-followup-workspace-grid">'+
       '<form id="gxActionPlanForm" class="gxt-followup-workspace-card is-active" data-followup-step="0"><h3>Plan de trabajo del creador</h3><input type="hidden" name="plan_id"><label class="gxt-field"><span>Nombre del plan</span><input name="title" maxlength="180" required placeholder="Ej. Objetivos de diciembre"></label><label class="gxt-field"><span>Objetivo / acuerdos</span><textarea name="objective" maxlength="5000" required placeholder="Define qué debe lograr el creador durante este periodo."></textarea></label><div class="gxt-followup-date-grid"><label class="gxt-field"><span>Desde</span><input name="start_date" type="date" required></label><label class="gxt-field"><span>Hasta</span><input name="target_date" type="date" required></label></div><h4>Metas del periodo</h4><div class="gxt-followup-target-grid"><label class="gxt-field"><span>Diamantes</span><input name="diamonds" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Horas LIVE</span><input name="live_hours" type="number" min="0" step="0.25" placeholder="Meta"></label><label class="gxt-field"><span>Días válidos</span><input name="valid_days" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Batallas</span><input name="battles" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Miembros del club de fans</span><input name="fan_club_members" type="number" min="0" step="1" placeholder="Meta"></label></div><div class="gxt-followup-reminder-inline"><h4>Recordatorio del plan</h4><p class="gxt-muted">Puedes dejarlo programado desde aquí, sin pasar a otra sección.</p><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="reminder_at" type="datetime-local"></label><label class="gxt-field"><span>Nota del recordatorio</span><input name="reminder_note" maxlength="2000" placeholder="Ej. Revisar avances a mitad del periodo"></label></div><button class="gxt-btn primary" type="submit">Guardar plan de trabajo</button></form>'+
       '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card" data-followup-step="1"><h3>Registrar avance del plan</h3><p class="gxt-muted" id="gxFollowupPlanStatus">Primero debes crear un plan para habilitar los avances.</p><input type="hidden" name="plan_id"><div class="gxt-followup-target-grid"><label class="gxt-field"><span>Diamantes alcanzados</span><input name="diamonds" type="number" min="0" step="1"></label><label class="gxt-field"><span>Horas LIVE acumuladas</span><input name="live_hours" type="number" min="0" step="0.25"></label><label class="gxt-field"><span>Días válidos</span><input name="valid_days" type="number" min="0" step="1"></label><label class="gxt-field"><span>Batallas realizadas</span><input name="battles" type="number" min="0" step="1"></label><label class="gxt-field"><span>Miembros del club de fans</span><input name="fan_club_members" type="number" min="0" step="1"></label></div><label class="gxt-field"><span>Resumen del avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Acuerdos o ajustes</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><label class="gxt-field"><span>Estado</span><select name="plan_status"><option value="active">En curso</option><option value="paused">Pausado</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></label><button class="gxt-btn primary" type="submit" disabled>Guardar avance</button></form>'+
-      '<div class="gxt-followup-workspace-card" data-followup-step="2"><h3>Mensaje para el creador</h3><p class="gxt-muted">Mensaje personalizado con las cifras del último reporte de TikTok LIVE cargado.</p><textarea id="gxFollowupContactMessage" rows="12" readonly></textarea><div class="gxt-followup-contact-actions"><button type="button" class="gxt-btn" data-copy-followup-message>Copiar mensaje</button><a class="gxt-btn primary" id="gxFollowupWhatsAppLink" href="#" target="_blank" rel="noopener" aria-disabled="true">Abrir WhatsApp</a></div><p class="gxt-muted" id="gxFollowupContactHint">Revisa el texto antes de enviarlo. El sistema no lo enviará automáticamente.</p></div>'+
+      '<div class="gxt-followup-workspace-card" data-followup-step="2"><h3>Mensaje para el creador</h3><p class="gxt-muted">Mensaje personalizado con las cifras del último reporte de TikTok LIVE cargado.</p><textarea id="gxFollowupContactMessage" rows="12" readonly></textarea><div class="gxt-followup-contact-actions"><button type="button" class="gxt-btn" data-copy-followup-message>Copiar mensaje</button><button class="gxt-btn primary" type="button" id="gxFollowupWhatsAppLink" disabled>Abrir WhatsApp</button></div><p class="gxt-muted" id="gxFollowupContactHint">Revisa el texto antes de enviarlo. El sistema no lo enviará automáticamente.</p></div>'+
       '</div><div class="gxt-followup-step-actions"><button type="button" class="gxt-btn" data-followup-prev disabled>Anterior</button><span id="gxFollowupStepLabel">Etapa 1 de 3</span><button type="button" class="gxt-btn primary" data-followup-next>Siguiente</button></div><div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';
     loadFollowupHistory();
     loadFollowupWorkspace();
@@ -536,6 +536,40 @@
   }
 
   function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(2,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 3';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===2?'Finalizar':'Siguiente';}
+  function updateFollowupContactMessage(creator,reportItem,reportRow,plan){
+    const box=document.getElementById('gxFollowupContactMessage');
+    const link=document.getElementById('gxFollowupWhatsAppLink');
+    const hint=document.getElementById('gxFollowupContactHint');
+    if(!creator||!reportItem||!reportRow){
+      if(box)box.value='No hay métricas de un reporte mensual seleccionado para este creador.';
+      if(link){link.dataset.url='';link.disabled=true;}
+      if(hint)hint.textContent='Abre la ficha desde un reporte mensual para preparar el mensaje con sus métricas.';
+      return;
+    }
+    const fmt=value=>value==null?'Sin dato':Number(value).toLocaleString('es-CO',{maximumFractionDigits:2});
+    const date=value=>value?new Intl.DateTimeFormat('es-CO',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T00:00:00Z')):'—';
+    const targets=plan?.targets||{};
+    const targetLines=[
+      ['Diamantes',targets.diamonds],['Horas LIVE',targets.live_hours],['Días válidos',targets.valid_days],
+      ['Batallas',targets.battles],['Miembros del club de fans',targets.fan_club_members]
+    ].filter(([,value])=>value!=null&&value!=='').map(([label,value])=>'• '+label+': '+fmt(value));
+    const planText=plan
+      ? 'Nuestro plan de trabajo para ti ('+date(plan.start_date)+' al '+date(plan.target_date)+') es:\n'+
+        (plan.title?'• Plan: '+plan.title+'\n':'')+
+        (plan.objective?'• Objetivo: '+plan.objective+'\n':'')+
+        (targetLines.length?targetLines.join('\n'):'• Metas específicas por confirmar')
+      : 'Aún no hay un plan de trabajo registrado para ti. Queremos definir contigo las metas del próximo periodo.';
+    const start=reportItem.source_start_date||reportItem.selected_start_date;
+    const end=reportItem.source_end_date||reportItem.selected_end_date;
+    const message='¡Hola! ¿Cómo estás? 😊\n\nQueremos hacer seguimiento a tu actividad en TikTok LIVE durante el periodo '+date(start)+' al '+date(end)+'.\n\nSegún el reporte, registramos:\n• Diamantes: '+fmt(reportRow.diamonds)+'\n• Días válidos de LIVE: '+fmt(reportRow.valid_live_days)+'\n• Horas acumuladas de LIVE: '+fmt(reportRow.live_seconds==null?null:Number(reportRow.live_seconds)/3600)+'\n\n'+planText+'\n\nQueremos saber si cuentas con la disponibilidad para cumplir estas metas. Recuerda que estamos aquí para acompañarte, orientarte y ayudarte a crecer. ¡Vamos con toda! 💪';
+    if(box)box.value=message;
+    const phoneDigits=String(window.gxFollowupSelectedPhone||'').replace(/\\D/g,'');
+    const normalizedPhone=phoneDigits.length===10?'57'+phoneDigits:phoneDigits;
+    const url=normalizedPhone?'https://api.whatsapp.com/send?phone='+normalizedPhone+'&text='+encodeURIComponent(message):'';
+    if(link){link.dataset.url=url;link.disabled=!url;}
+    if(hint)hint.textContent=url?'Se abrirá el chat de WhatsApp de este creador con las métricas del reporte y el plan propuesto.':'Este creador no tiene teléfono registrado. Solicita a administración que lo agregue.';
+  }
+
   async function loadFollowupWorkspace() {
     const select=document.getElementById('gxFollowupCreator');
     const host=document.getElementById('gxFollowupOperations');
