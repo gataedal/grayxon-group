@@ -371,3 +371,5 @@ begin
  end if;
 end $$;
 reset role;
+
+-- Regresión: los permisos de planes siguen la asignación vigente del creador.
