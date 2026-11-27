@@ -958,13 +958,14 @@
       const date=value=>value?new Date(value).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'—';
       host.innerHTML=reports.map(report=>{
         const teamCreators=creatorRows.filter(row=>row.manager_id===report.manager_id);
-        const teamPlans=plans.filter(plan=>plan.manager_id===report.manager_id);
+        const inPeriod=(value)=>value&&String(value).slice(0,10)>=report.period_start&&String(value).slice(0,10)<=report.period_end;
+        const teamPlans=plans.filter(plan=>plan.manager_id===report.manager_id&&inPeriod(plan.updated_at));
         const planIds=new Set(teamPlans.map(plan=>plan.id));
-        const teamUpdates=updates.filter(update=>planIds.has(update.plan_id));
-        const teamEvaluations=evaluations.filter(evaluation=>teamCreators.some(creator=>creator.id===evaluation.creator_user_id));
-        const teamNotes=notes.filter(note=>teamCreators.some(creator=>creator.id===note.creator_user_id));
-        const teamContacts=contacts.filter(contact=>teamCreators.some(creator=>creator.id===contact.creator_user_id));
-        const teamReminders=reminders.filter(reminder=>teamCreators.some(creator=>creator.id===reminder.creator_user_id));
+        const teamUpdates=updates.filter(update=>planIds.has(update.plan_id)&&inPeriod(update.created_at));
+        const teamEvaluations=evaluations.filter(evaluation=>teamCreators.some(creator=>creator.id===evaluation.creator_user_id)&&inPeriod(evaluation.created_at));
+        const teamNotes=notes.filter(note=>teamCreators.some(creator=>creator.id===note.creator_user_id)&&inPeriod(note.created_at));
+        const teamContacts=contacts.filter(contact=>teamCreators.some(creator=>creator.id===contact.creator_user_id)&&inPeriod(contact.created_at));
+        const teamReminders=reminders.filter(reminder=>teamCreators.some(creator=>creator.id===reminder.creator_user_id)&&inPeriod(reminder.scheduled_at));
         const latestByCreator=new Map();
         teamEvaluations.forEach(item=>{if(!latestByCreator.has(item.creator_user_id))latestByCreator.set(item.creator_user_id,item);});
         const managed=teamCreators.filter(creator=>teamPlans.some(plan=>plan.creator_user_id===creator.id&&plan.status!=='cancelled')).length;
