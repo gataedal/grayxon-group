@@ -111,21 +111,27 @@
         return;
       }
 
+      // Keep the internal membership data so managers retain their existing
+      // operational module tools, while using the managers.id for follow-up RPCs.
       state.member = {
-        id: managerRow.id, user_id: user.id, display_name: managerRow.name || profile.full_name || data?.display_name || user.email,
-        access_level: 'manager', active: true
+        ...(data || {}),
+        id: managerRow.id,
+        user_id: user.id,
+        display_name: managerRow.name || profile.full_name || data?.display_name || user.email,
+        access_level: 'manager',
+        active: true
       };
       state.isAdmin = false;
       state.isManager = true;
       state.tab = 'followup';
       document.getElementById('gxUserName').textContent = state.member.display_name;
-      document.getElementById('gxUserJob').textContent = 'Manager · Seguimiento de creadores';
+      document.getElementById('gxUserJob').textContent = 'Manager · Operaciones';
       document.getElementById('gxAccessBadge').textContent = 'Manager';
       setAuthView(true);
-      // Managers retain the least-privilege route and never load internal
-      // tasks, requests, staff, departments, activity or calendar data.
+      await loadData();
       renderNav();
       renderPage();
+      handleNotificationTarget();
       return;
     }
 
@@ -176,7 +182,6 @@
   }
 
   async function loadData() {
-    if (state.isManager) return;
     // Keep primary records independent from embedded relations. RLS on related
     // member rows can otherwise make PostgREST return empty/error results for
     // the whole list even when the task/request itself is readable.
@@ -241,17 +246,15 @@
   }
 
   function renderNav() {
-    const items = state.isManager
-      ? [['followup','◎','Seguimiento'],['reports','▥','Reportes']]
-      : state.isAdmin
-        ? [
-            ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
-            ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
-          ]
-        : [
-            ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
-            ['calendar','▦','Calendario']
-          ];
+    const items = state.isAdmin
+      ? [
+          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
+          ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
+        ]
+      : [
+          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
+          ['calendar','▦','Calendario']
+        ];
     nav.innerHTML = items.map(([key,icon,label]) =>
       '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span>'+label+'</button>'
     ).join('');
