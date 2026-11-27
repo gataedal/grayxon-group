@@ -360,7 +360,7 @@
       
       '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
       '<section class="gxt-panel gxt-followup-workspace" id="gxFollowupWorkspaceSection" hidden><div class="gxt-panel-head"><div><h2 id="gxFollowupCreatorTitle">Plan de trabajo</h2><p id="gxFollowupCreatorSubtitle">Seguimiento individual del creador.</p></div><button type="button" class="gxt-btn ghost" data-followup-close>× Cerrar</button></div>'+
-      '<input type="hidden" id="gxFollowupCreator" value="">'+
+      '<select hidden id="gxFollowupCreator" aria-hidden="true"></select>'+
       '<div class="gxt-followup-stepper" id="gxFollowupStepper"><span class="active">01 · Plan y recordatorio</span><span>02 · Avances</span><span>03 · Contactar</span></div>'+
       '<div class="gxt-followup-workspace-grid">'+
       '<form id="gxActionPlanForm" class="gxt-followup-workspace-card is-active" data-followup-step="0"><h3>Plan de trabajo del creador</h3><input type="hidden" name="plan_id"><label class="gxt-field"><span>Nombre del plan</span><input name="title" maxlength="180" required placeholder="Ej. Objetivos de diciembre"></label><label class="gxt-field"><span>Objetivo / acuerdos</span><textarea name="objective" maxlength="5000" required placeholder="Define qué debe lograr el creador durante este periodo."></textarea></label><div class="gxt-followup-date-grid"><label class="gxt-field"><span>Desde</span><input name="start_date" type="date" required></label><label class="gxt-field"><span>Hasta</span><input name="target_date" type="date" required></label></div><h4>Metas del periodo</h4><div class="gxt-followup-target-grid"><label class="gxt-field"><span>Diamantes</span><input name="diamonds" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Horas LIVE</span><input name="live_hours" type="number" min="0" step="0.25" placeholder="Meta"></label><label class="gxt-field"><span>Días válidos</span><input name="valid_days" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Batallas</span><input name="battles" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Miembros del club de fans</span><input name="fan_club_members" type="number" min="0" step="1" placeholder="Meta"></label></div><div class="gxt-followup-reminder-inline"><h4>Recordatorio del plan</h4><p class="gxt-muted">Puedes dejarlo programado desde aquí, sin pasar a otra sección.</p><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="reminder_at" type="datetime-local"></label><label class="gxt-field"><span>Nota del recordatorio</span><input name="reminder_note" maxlength="2000" placeholder="Ej. Revisar avances a mitad del periodo"></label></div><button class="gxt-btn primary" type="submit">Guardar plan de trabajo</button></form>'+
@@ -478,7 +478,7 @@
         const evaluationKey=row.evaluation.classification||row.evaluation.status;
         const evaluationLabel=classLabels[evaluationKey]||row.evaluation.status;
         const creatorTone=classStyles[evaluationKey]||'neutral';
-        const planAction=profile?'<button type="button" class="gxt-followup-plan-button '+(plan?'is-view':'is-create')+'" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="'+(plan?'4':'3')+'" data-followup-plan-id="'+(plan?esc(plan.id):'')+'">'+(plan?'Ver':'Gestionar plan')+'</button>':'<span class="gxt-followup-muted">—</span>';
+        const planAction=profile?'<button type="button" class="gxt-followup-plan-button '+(plan?'is-view':'is-create')+'" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="'+(plan?'0':'0')+'" data-followup-plan-id="'+(plan?esc(plan.id):'')+'">'+(plan?'Ver':'Gestionar plan')+'</button>':'<span class="gxt-followup-muted">—</span>';
         return '<tr class="gxt-followup-data-row"><td>@'+esc(row.username)+'</td><td class="gxt-followup-creator-cell is-'+creatorTone+'">'+(profile?'<button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="0"><strong>'+esc(creatorLabel)+'</strong><small>@'+esc(profile.username)+'</small></button>':'<span class="gxt-followup-unlinked">'+esc(creatorLabel)+' · @'+esc(row.username)+'</span>')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+(row.validDays==null?'—':row.validDays)+'</td><td><span class="gxt-followup-status-pill is-'+creatorTone+'">'+esc(evaluationLabel)+'</span></td><td>'+planAction+'</td></tr>';
       }).join('');
       target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
@@ -535,7 +535,17 @@
     if(select.value!==creatorId)return toast('No se encontró el creador en la lista autorizada.');
     if(typeof select.onchange==='function')await select.onchange();
     if(planId){const planSelect=document.getElementById('gxActionPlanSelect');if(planSelect)planSelect.value=planId;}
-    setFollowupStep(step);
+    const plan=(window.gxFollowupPlans||[]).find(item=>item.creator_user_id===creatorId&&item.status!=='completed'&&item.status!=='cancelled')||(window.gxFollowupPlans||[]).find(item=>item.creator_user_id===creatorId);
+    const form=document.getElementById('gxActionPlanForm');
+    if(form&&plan){
+      form.elements.plan_id.value=plan.id;form.elements.title.value=plan.title||'';form.elements.objective.value=plan.objective||'';
+      form.elements.start_date.value=plan.start_date||'';form.elements.target_date.value=plan.target_date||'';
+      const targets=plan.targets||{};['diamonds','live_hours','valid_days','battles','fan_club_members'].forEach(key=>form.elements[key].value=targets[key]??'');
+      form.querySelector('button[type=submit]').textContent='Guardar cambios del plan';
+    }
+    const advance=document.getElementById('gxActionPlanUpdateForm');
+    if(advance){advance.elements.plan_id.value=plan?.id||'';advance.querySelector('button[type=submit]').disabled=!plan;}
+    setFollowupStep(0);
     section.scrollTop=0;
   }
 
