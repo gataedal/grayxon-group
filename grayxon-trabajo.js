@@ -960,7 +960,7 @@
       host.innerHTML=reports.map(report=>{
         const teamCreators=creatorRows.filter(row=>row.manager_id===report.manager_id);
         const inPeriod=(value)=>value&&String(value).slice(0,10)>=report.period_start&&String(value).slice(0,10)<=report.period_end;
-        const teamPlans=plans.filter(plan=>plan.manager_id===report.manager_id&&inPeriod(plan.updated_at));
+        const teamPlans=plans.filter(plan=>plan.manager_id===report.manager_id&&plan.status!=='cancelled');
         const planIds=new Set(teamPlans.map(plan=>plan.id));
         const teamUpdates=updates.filter(update=>planIds.has(update.plan_id)&&inPeriod(update.created_at));
         const teamEvaluations=evaluations.filter(evaluation=>teamCreators.some(creator=>creator.id===evaluation.creator_user_id)&&inPeriod(evaluation.created_at));
