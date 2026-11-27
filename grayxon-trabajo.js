@@ -231,6 +231,12 @@
     const params = new URLSearchParams(window.location.search);
     const taskId = params.get('task');
     const requestId = params.get('request');
+    const requestedTab = params.get('tab');
+    if (!taskId && !requestId && ['tasks','followup'].includes(requestedTab) && (state.isAdmin || state.isManager)) {
+      state.tab = requestedTab;
+      renderPage();
+      return;
+    }
     if (taskId) {
       // A requester may review a creator-targeted task without being its assignee.
       state.tab = 'tasks';
@@ -1076,11 +1082,12 @@
 
   function openNewTask() {
     if (!state.isAdmin) return;
-    openModal('Crear tarea','Asigna una responsabilidad a un integrante interno.', 
+    const selfMember=state.members.find(member=>member.active&&member.user_id===state.session?.user?.id);
+    openModal('Crear tarea','Puedes asignarla a un integrante o asignártela a ti mismo.', 
       '<form id="gxNewTaskForm"><div class="gxt-form-grid">'+
       '<div class="gxt-field full"><label>Título de la tarea</label><input name="title" maxlength="180" required></div>'+
       '<div class="gxt-field full"><label>Descripción e instrucciones</label><textarea name="description" placeholder="Explica el resultado esperado y cualquier detalle importante."></textarea></div>'+
-      '<div class="gxt-field"><label>Responsable</label><select name="assigned_to" required><option value="">Seleccionar integrante…</option>'+activeMembersOptions()+'</select></div>'+
+      '<div class="gxt-field"><label>Responsable</label><select name="assigned_to" required><option value="">Seleccionar integrante…</option>'+activeMembersOptions(selfMember?.user_id||'')+'</select></div>'+
       '<div class="gxt-field"><label>Área</label><select name="department_id">'+activeDepartmentsOptions()+'</select></div>'+
       '<div class="gxt-field"><label>Prioridad</label><select name="priority"><option value="normal">Normal</option><option value="low">Baja</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>'+
       '<div class="gxt-field"><label>Fecha de inicio</label><input name="starts_at" type="datetime-local"></div>'+
