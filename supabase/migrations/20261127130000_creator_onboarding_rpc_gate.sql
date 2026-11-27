@@ -674,5 +674,21 @@ end;
 $function$
     $ddl$;
   END IF;
+
+
+  IF to_regprocedure('public.gx_announcement_author_profiles(uuid[])') IS NOT NULL THEN
+    EXECUTE $ddl$
+CREATE OR REPLACE FUNCTION public.gx_announcement_author_profiles(p_author_ids uuid[])
+ RETURNS TABLE(author_id uuid, full_name text, username text, avatar_url text)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'private', 'auth'
+AS $function$
+  select author_id, full_name, username, avatar_url
+  from private.gx_announcement_author_profiles(p_author_ids)
+  where not public.gx_creator_onboarding_pending();
+$function$
+    $ddl$;
+  END IF;
 END;
 $onboarding_rpc_gate$;
