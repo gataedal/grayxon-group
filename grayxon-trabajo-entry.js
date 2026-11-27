@@ -42,11 +42,25 @@
       const user=data?.session?.user;
       if(sessionError||!user){removeCard();memberCache={userId:null,allowed:false};return;}
 
-      let allowed=memberCache.userId===user.id?memberCache.allowed:null;
+      const dashboardRole=targetBefore.role;
+      let allowed=memberCache.userId===user.id&&memberCache.dashboardRole===dashboardRole?memberCache.allowed:null;
       if(allowed===null){
-        const {data:member,error}=await client.from('gx_internal_members').select('id,active').eq('user_id',user.id).maybeSingle();
-        allowed=!error&&!!member&&member.active===true;
-        memberCache={userId:user.id,allowed};
+        const {data:member,error:memberError}=await client.from('gx_internal_members').select('id,active').eq('user_id',user.id).maybeSingle();
+        allowed=!memberError&&!!member&&member.active===true;
+
+        // Los managers no necesariamente pertenecen a gx_internal_members.
+        // Su acceso se valida con el mismo vínculo perfil -> managers que usa Gestión.
+        if(!allowed&&dashboardRole==='manager'){
+          const {data:profile,error:profileError}=await client.from('profiles')
+            .select('id,role,active,manager_id').eq('id',user.id).maybeSingle();
+          if(!profileError&&profile?.role==='manager'&&profile.active===true&&profile.manager_id){
+            const {data:manager,error:managerError}=await client.from('managers')
+              .select('id,user_id,active').eq('id',profile.manager_id)
+              .eq('user_id',user.id).eq('active',true).maybeSingle();
+            allowed=!managerError&&!!manager;
+          }
+        }
+        memberCache={userId:user.id,allowed,dashboardRole};
       }
       if(!allowed){removeCard();return;}
 
