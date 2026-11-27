@@ -596,6 +596,27 @@
     if(hint)hint.textContent=url?'Se abrirá el chat de WhatsApp de este creador con las métricas del reporte y el plan propuesto.':'Este creador no tiene teléfono registrado. Solicita a administración que lo agregue.';
   }
 
+  function renderFollowupActivityForCreator(creatorId){
+    const host=document.getElementById('gxFollowupOperations');
+    if(!host)return;
+    const rows=(window.gxFollowupActivityRows||[]).filter(row=>row.creator_user_id===creatorId).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60);
+    host.innerHTML=creatorId?(rows.length?'<div class="gxt-panel-head"><h3>Actividad reciente</h3><span class="gxt-chip">'+rows.length+' registros</span></div>'+rows.map(x=>'<div class="gxt-followup-operation"><strong>'+esc(x.title)+'</strong><small>'+esc(x.creator)+' · '+dateTimeLabel(x.date)+'</small><p>'+esc(x.detail)+'</p>'+(x.updateId&&state.isAdmin&&x.status==='pending_manager_review'?'<div class="gxt-actions"><button class="gxt-btn primary" data-review-plan-update="'+esc(x.updateId)+'" data-review-decision="approved">Aprobar cambios</button><button class="gxt-btn ghost" data-review-plan-update="'+esc(x.updateId)+'" data-review-decision="rejected">Rechazar</button></div>':'')+'</div>').join(''):'<div class="gxt-empty">Este creador todavía no tiene actividad registrada.</div>'):'<div class="gxt-empty">Selecciona un creador para consultar su actividad.</div>';
+  }
+  function renderFollowupSavedPlan(plan,reminder){
+    const form=document.getElementById('gxActionPlanForm'),preview=document.getElementById('gxFollowupReminderPreview'),editor=document.getElementById('gxFollowupReminderEditor'),actions=document.getElementById('gxFollowupPlanSavedActions'),save=document.getElementById('gxFollowupSavePlan');
+    if(!form)return;
+    const saved=!!plan;
+    if(preview){preview.hidden=!saved;preview.innerHTML=saved?'<strong>'+esc(plan.title)+'</strong><p>'+esc(plan.objective||'Sin objetivo adicional')+'</p><small>'+esc(plan.start_date)+' al '+esc(plan.target_date)+'</small>'+(reminder?'<p><strong>Recordatorio programado:</strong> '+esc(new Date(reminder.scheduled_at).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}))+'<br>'+esc(reminder.note||'Sin nota')+'</p>':'<p>Sin recordatorio programado.</p>'):'';}
+    if(editor)editor.hidden=saved;
+    if(actions)actions.hidden=!saved;
+    if(save)save.hidden=saved;
+    if(form.elements.reminder_at&&reminder){
+      const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(reminder.scheduled_at));
+      const val=k=>parts.find(p=>p.type===k)?.value||'00';
+      form.elements.reminder_at.value=val('year')+'-'+val('month')+'-'+val('day')+'T'+val('hour')+':'+val('minute)';
+      form.elements.reminder_note.value=reminder.note||'';
+    }
+  }
   async function loadFollowupWorkspace() {
     const select=document.getElementById('gxFollowupCreator');
     const host=document.getElementById('gxFollowupOperations');
@@ -636,7 +657,10 @@
           if(planSelect)planSelect.value=currentPlan.id;
         }
         updateFollowupContactMessage(creator,selectedReport,reportRow,currentPlan);
+        const reminder=(window.gxFollowupReminders||[]).find(item=>item.action_plan_id===currentPlan?.id&&item.status!=='cancelled')||null;
+        renderFollowupSavedPlan(currentPlan,reminder);
         updateFollowupProgressGate(currentPlan);
+        renderFollowupActivityForCreator(creator.id);
       };
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
@@ -648,6 +672,7 @@
       const failed=[notes,contacts,plans,planUpdates,reminders].find(x=>x.error);
       if(failed)throw failed.error;
       window.gxFollowupPlans=plans.data||[];
+      window.gxFollowupReminders=reminders.data||[];
       const selectedCreatorId=select.value;
       const activePlan=(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId&&plan.status!=='completed'&&plan.status!=='cancelled')||(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId);
       state.followupHasPlan=!!activePlan;
@@ -667,14 +692,14 @@
         const eligiblePlans=window.gxFollowupPlans.filter(plan=>plan.creator_user_id===selectedCreator);
         planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.title)+'</option>').join('');
       }
-      const rows=[
-        ...(notes.data||[]).map(x=>({date:x.created_at,title:'Nota · '+x.note_type,creator:name(x.creator_user_id),detail:x.body})),
-        ...(contacts.data||[]).map(x=>({date:x.created_at,title:'Contacto · '+x.contact_status,creator:name(x.creator_user_id),detail:(x.channel||'')+' · '+(x.message_text||'')})),
-        ...(plans.data||[]).map(x=>({date:x.created_at,title:'Plan · '+x.title,creator:name(x.creator_user_id),detail:x.objective+' · '+x.status})),
-        ...(planUpdates.data||[]).map(x=>({date:x.created_at,title:'Propuesta · '+x.status,creator:(plans.data||[]).find(p=>p.id===x.plan_id)?name((plans.data||[]).find(p=>p.id===x.plan_id).creator_user_id):'Creador',detail:x.progress_summary+' '+(x.proposed_changes||''),updateId:x.id,status:x.status})),
-        ...(reminders.data||[]).map(x=>({date:x.scheduled_at,title:'Recordatorio · '+x.status,creator:name(x.creator_user_id),detail:x.note||'Sin nota'}))
-      ].filter(row=>row.creator_user_id===select.value || (row.planCreatorId&&row.planCreatorId===select.value)).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60);
-      host.innerHTML=select.value?(rows.length?'<div class="gxt-panel-head"><h3>Actividad reciente</h3><span class="gxt-chip">'+rows.length+' registros</span></div>'+rows.map(x=>'<div class="gxt-followup-operation"><strong>'+esc(x.title)+'</strong><small>'+esc(x.creator)+' · '+dateTimeLabel(x.date)+'</small><p>'+esc(x.detail)+'</p>'+(x.updateId&&state.isAdmin&&x.status==='pending_manager_review'?'<div class="gxt-actions"><button class="gxt-btn primary" data-review-plan-update="'+esc(x.updateId)+'" data-review-decision="approved">Aprobar cambios</button><button class="gxt-btn ghost" data-review-plan-update="'+esc(x.updateId)+'" data-review-decision="rejected">Rechazar</button></div>':'')+'</div>').join(''):'<div class="gxt-empty">Este creador todavía no tiene actividad registrada.</div>'):'<div class="gxt-empty">Selecciona un creador para consultar su actividad.</div>';
+      window.gxFollowupActivityRows=[
+        ...(notes.data||[]).map(x=>({date:x.created_at,title:'Nota · '+x.note_type,creator_user_id:x.creator_user_id,creator:name(x.creator_user_id),detail:x.body})),
+        ...(contacts.data||[]).map(x=>({date:x.created_at,title:'Contacto · '+x.contact_status,creator_user_id:x.creator_user_id,creator:name(x.creator_user_id),detail:(x.channel||'')+' · '+(x.message_text||'')})),
+        ...(plans.data||[]).map(x=>({date:x.created_at,title:'Plan · '+x.title,creator_user_id:x.creator_user_id,creator:name(x.creator_user_id),detail:x.objective+' · '+x.status})),
+        ...(planUpdates.data||[]).map(x=>({date:x.created_at,title:'Avance · '+x.status,creator_user_id:(plans.data||[]).find(p=>p.id===x.plan_id)?.creator_user_id,creator:(plans.data||[]).find(p=>p.id===x.plan_id)?name((plans.data||[]).find(p=>p.id===x.plan_id).creator_user_id):'Creador',detail:x.progress_summary+' '+(x.proposed_changes||''),updateId:x.id,status:x.status})),
+        ...(reminders.data||[]).map(x=>({date:x.scheduled_at,title:'Recordatorio · '+x.status,creator_user_id:x.creator_user_id,creator:name(x.creator_user_id),detail:x.note||'Sin nota'}))
+      ];
+      renderFollowupActivityForCreator(select.value);
     }catch(error){
       console.error('[Gestión · Seguimiento] workspace',error);
       host.innerHTML='<div class="gxt-status-note gxt-followup-warning">No se pudieron cargar los registros: '+esc(error.message||'Error de consulta')+'</div>';
