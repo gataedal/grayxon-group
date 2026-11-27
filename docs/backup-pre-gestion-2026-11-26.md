@@ -3,10 +3,12 @@
 ## Código
 - Repositorio: gataedal/grayxon-group
 - Rama de referencia: main
-- Commit base: 456674a7161af9a89a6e8d5587f3189f92a195a7
-- Rama de respaldo inmutable: backup/pre-gestion-2026-11-26
+- Commit actual respaldado: 797a4241e26a65350aebb9169b3b6dd67da5c796
+- Copia GitHub verificada: backup/pre-gestion-2026-11-26-main-797a424
+- Verificación: la copia y main eran idénticas al crear el respaldo.
+- Rama de respaldo anterior conservada: backup/pre-gestion-2026-11-26 (permanece en el commit base 456674a7161af9a89a6e8d5587f3189f92a195a7).
 - Rama de trabajo: feature/gestion-module-2026-11-26
-- Ambas ramas se crearon desde el mismo commit base. No se modificó main.
+- No se modificó el contenido de main para crear el respaldo.
 
 ## Supabase
 - Proyecto activo identificado: Grayxon Academy
