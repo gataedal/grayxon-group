@@ -486,13 +486,14 @@
           : '<div class="gxt-status-note">No hay alertas de contacto ni de vinculación.</div>')+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
         '<div class="gxt-followup-warnings">'+warnings+'</div>'+
-        '<div class="gxt-status-note">La lista de creadores y sus planes no se desplegará aquí. Después de guardar, estará organizada dentro del mes correspondiente.</div>'+
+        '<div class="gxt-status-note">El reporte se archivará automáticamente dentro del mes detectado.</div>'+
         (preview.canEvaluate && preview.rows.length>0 && preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
-          ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar reporte en '+esc(new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(period.start+'T00:00:00Z')) )+'</button></div>'
+          ? '<div class="gxt-status-note">Análisis correcto. Guardando el reporte en su mes…</div>'
           : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que haya creadores vinculados con métricas completas y que el reporte cubra un único periodo.</div>');
       followupMissingPhones=missingPhones;
       followupPreviewMarkup=target.innerHTML;
       bindFollowupPreviewActions(target);
+      if(preview.canEvaluate&&preview.rows.length>0&&preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable'))saveFollowupImport();
     }catch(error){
       console.error('[Gestión · Seguimiento] import preview',error);
       target.innerHTML='<div class="gxt-status-note gxt-followup-warning">'+esc(error.message||'No se pudo analizar el archivo.')+'</div>';
@@ -745,7 +746,7 @@
             (evaluations.length?'<h4>Creadores del portal</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+creatorRows+'</tbody></table></div>':'<p class="gxt-muted">No hay creadores activos del portal para este reporte.</p>')+
             '</div></details>';
         }).join('');
-        return '<details class="gxt-followup-history-month"><summary><strong>'+esc(monthLabel(month))+'</strong><span class="gxt-chip">'+items.length+' reportes</span></summary><div class="gxt-followup-history-month-content"><div class="gxt-followup-month-toolbar"><button type="button" class="gxt-btn ghost" data-followup-month-back>← Volver a los meses</button><strong>'+esc(monthLabel(month))+'</strong></div>'+reports+'</div></details>';
+        return '<details class="gxt-followup-history-month" data-followup-month="'+esc(month)+'"><summary><strong>'+esc(monthLabel(month))+'</strong><span class="gxt-chip">'+items.length+' reportes</span></summary><div class="gxt-followup-history-month-content"><div class="gxt-followup-month-toolbar"><button type="button" class="gxt-btn ghost" data-followup-month-back>← Volver a los meses</button><strong>'+esc(monthLabel(month))+'</strong></div>'+reports+'</div></details>';
       }).join('');
       host.innerHTML='<div class="gxt-panel-head"><h2>Archivo mensual de seguimiento</h2><span class="gxt-chip">'+(data||[]).length+' reportes guardados</span></div>'+
         (monthBlocks||'<div class="gxt-empty">Todavía no hay reportes guardados. Al analizar un Excel, el mes se creará automáticamente.</div>');
@@ -755,6 +756,7 @@
           else month.classList.remove('is-fullscreen');
         });
       });
+      if(window.gxFollowupOpenMonth){const targetMonth=host.querySelector('[data-followup-month="'+window.gxFollowupOpenMonth+'"]');if(targetMonth)targetMonth.open=true;window.gxFollowupOpenMonth=null;}
       host.querySelectorAll('[data-followup-month-back]').forEach(button=>button.addEventListener('click',()=>{
         const month=button.closest('.gxt-followup-history-month');if(month){month.open=false;month.classList.remove('is-fullscreen');}
       }));
@@ -814,7 +816,7 @@
         p_granularity:preview.granularity,p_evaluations:evaluations,p_unmatched_rows:unmatchedRows
       });
       if(saveError)throw new Error('El archivo se subió, pero no se pudo registrar la evaluación: '+saveError.message);
-      toast('Evaluación guardada correctamente.');
+      toast('Reporte archivado correctamente.');
       targetReloadFollowup(importId);
       loadFollowupHistory();
     }catch(error){
@@ -827,7 +829,11 @@
 
   function targetReloadFollowup(importId) {
     const target=document.getElementById('gxFollowupPreview');
-    if(target){target.innerHTML='<div class="gxt-status-note">Evaluación registrada. Identificador: '+esc(importId)+'. El archivo original quedó guardado de forma privada.</div>';followupPreviewMarkup=target.innerHTML;}
+    const period=window.grayxonFollowupPreview?.sourcePeriod;
+    const month=String(period?.start||'').slice(0,7);
+    if(month)window.gxFollowupOpenMonth=month;
+    const label=month?new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(month+'-01T00:00:00Z')):'el mes correspondiente';
+    if(target){target.innerHTML='<div class="gxt-status-note">Reporte archivado automáticamente en '+esc(label)+'.</div>';followupPreviewMarkup=target.innerHTML;}
   }
 
   function renderReportsPage() {
