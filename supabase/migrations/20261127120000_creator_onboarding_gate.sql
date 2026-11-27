@@ -38,6 +38,8 @@ DROP POLICY IF EXISTS "Creators can save own progress" ON public.lesson_progress
 DROP POLICY IF EXISTS "Creators can update own progress" ON public.lesson_progress;
 CREATE POLICY gx_lesson_progress_insert_non_onboarding ON public.lesson_progress FOR INSERT TO authenticated
 WITH CHECK (user_id = auth.uid() AND NOT public.gx_creator_onboarding_pending());
+CREATE POLICY gx_lesson_progress_insert_admin ON public.lesson_progress FOR INSERT TO authenticated
+WITH CHECK (public.is_admin());
 CREATE POLICY gx_lesson_progress_update_non_onboarding ON public.lesson_progress FOR UPDATE TO authenticated
 USING (user_id = auth.uid() AND NOT public.gx_creator_onboarding_pending())
 WITH CHECK (user_id = auth.uid() AND NOT public.gx_creator_onboarding_pending());
@@ -109,6 +111,20 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.gx_complete_creator_onboarding_video(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.gx_complete_creator_onboarding_video(uuid) TO authenticated;
+
+-- Restrict profile visibility to the account owner during onboarding while preserving
+-- the existing self-service profile editor.
+DROP POLICY IF EXISTS gx_creator_onboarding_profiles_gate ON public.profiles;
+CREATE POLICY gx_creator_onboarding_profiles_gate ON public.profiles AS RESTRICTIVE
+FOR ALL TO authenticated
+USING (NOT public.gx_creator_onboarding_pending() OR id = auth.uid())
+WITH CHECK (NOT public.gx_creator_onboarding_pending() OR id = auth.uid());
+
+DROP POLICY IF EXISTS gx_creator_onboarding_profile_details_gate ON public.profile_details;
+CREATE POLICY gx_creator_onboarding_profile_details_gate ON public.profile_details AS RESTRICTIVE
+FOR ALL TO authenticated
+USING (NOT public.gx_creator_onboarding_pending() OR user_id = auth.uid())
+WITH CHECK (NOT public.gx_creator_onboarding_pending() OR user_id = auth.uid());
 
 -- Restrictive policies close every other public table for pending creators only.
 DO $$
