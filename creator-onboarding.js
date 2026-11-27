@@ -182,6 +182,7 @@
       window._done?.add(id);
       if(typeof syncFormationLessonListState==='function') syncFormationLessonListState();
       if(result.data?.completed){
+        if(profile) profile.onboarding_completed_at = profile.onboarding_completed_at || new Date().toISOString();
         try{await refreshState();}catch(e){}
         completedScreen();
         return;
