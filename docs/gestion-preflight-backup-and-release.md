@@ -25,13 +25,22 @@ New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 Push-Location $backupDir
 
 $env:DB_URL = Read-Host "Pega la cadena de conexión PostgreSQL"
-supabase db dump --db-url "$env:DB_URL" -f roles.sql --role-only
-supabase db dump --db-url "$env:DB_URL" -f schema.sql
-supabase db dump --db-url "$env:DB_URL" -f data.sql --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes"
+try {
+  supabase db dump --db-url "$env:DB_URL" -f roles.sql --role-only
+  if ($LASTEXITCODE -ne 0) { throw "Falló la exportación de roles." }
 
-Get-FileHash .\roles.sql, .\schema.sql, .\data.sql -Algorithm SHA256
-Remove-Item Env:DB_URL
-Pop-Location
+  supabase db dump --db-url "$env:DB_URL" -f schema.sql
+  if ($LASTEXITCODE -ne 0) { throw "Falló la exportación del esquema." }
+
+  supabase db dump --db-url "$env:DB_URL" -f data.sql --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes"
+  if ($LASTEXITCODE -ne 0) { throw "Falló la exportación de datos." }
+
+  Get-FileHash .\roles.sql, .\schema.sql, .\data.sql -Algorithm SHA256
+}
+finally {
+  Remove-Item Env:DB_URL -ErrorAction SilentlyContinue
+  Pop-Location
+}
 ```
 
 La exportación de esquema y datos debe incluir también los objetos personalizados de los esquemas gestionados que se hayan creado en el proyecto (por ejemplo, políticas y triggers propios de `storage`); revisar la configuración del motor de diff de Supabase y conservar una exportación/revisión específica de `auth,storage` si corresponde. El dump estándar excluye esquemas gestionados como `auth` y `storage`; no asumir que el SQL por sí solo respalda archivos binarios.
