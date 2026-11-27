@@ -8,7 +8,7 @@ create table if not exists public.gx_creator_followup_import_unmatched_rows (
   import_id uuid not null references public.gx_creator_followup_imports(id) on delete cascade,
   creator_username_snapshot text not null check(length(btrim(creator_username_snapshot)) between 1 and 100),
   creator_id_snapshot text,
-  reason text not null check(reason in ('agency_left','not_in_portal','ambiguous')),
+  reason text not null check(reason in ('agency_left','not_in_portal','portal_inactive','ambiguous')),
   source_status text,
   raw_metrics jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
@@ -95,7 +95,7 @@ begin
  end loop;
  for v_row in select value from jsonb_array_elements(p_unmatched_rows) loop
    if coalesce(v_row->>'username','')='' then raise exception 'Falta el usuario TikTok de un registro pendiente'; end if;
-   if coalesce(v_row->>'reason','') not in ('agency_left','not_in_portal','ambiguous') then raise exception 'Motivo de registro pendiente inválido'; end if;
+   if coalesce(v_row->>'reason','') not in ('agency_left','not_in_portal','portal_inactive','ambiguous') then raise exception 'Motivo de registro pendiente inválido'; end if;
  end loop;
 
  insert into public.gx_creator_followup_imports(uploaded_by,manager_id,file_name,storage_path,file_sha256,selected_start_date,selected_end_date,source_start_date,source_end_date,source_granularity,status,parameters_snapshot,processed_at,has_linked_evaluations)
