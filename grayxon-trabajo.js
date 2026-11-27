@@ -535,7 +535,7 @@
     if(select.value!==creatorId)return toast('No se encontró el creador en la lista autorizada.');
     if(typeof select.onchange==='function')await select.onchange();
     if(planId){const planSelect=document.getElementById('gxActionPlanSelect');if(planSelect)planSelect.value=planId;}
-    const plan=(window.gxFollowupPlans||[]).find(item=>item.creator_user_id===creatorId&&item.status!=='completed'&&item.status!=='cancelled')||(window.gxFollowupPlans||[]).find(item=>item.creator_user_id===creatorId);
+    const plan=(window.gxFollowupPlans||[]).find(item=>item.id===planId)||(window.gxFollowupPlans||[]).find(item=>item.creator_user_id===creatorId&&item.status!=='completed'&&item.status!=='cancelled')||(window.gxFollowupPlans||[]).find(item=>item.creator_user_id===creatorId);
     const form=document.getElementById('gxActionPlanForm');
     if(form&&plan){
       form.elements.plan_id.value=plan.id;form.elements.title.value=plan.title||'';form.elements.objective.value=plan.objective||'';
