@@ -389,3 +389,23 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-followup-step-actions{max-width:900px}
 .gxt-followup-step-actions span{font-size:11px;color:#9aabb6}
 @media(max-width:650px){.gxt-followup-target-grid,.gxt-followup-date-grid{grid-template-columns:1fr}.gxt-followup-workspace.is-open [data-followup-step].is-active{padding:16px}.gxt-followup-stepper{grid-template-columns:1fr}}
+
+
+/* Importación en dos columnas: reglas y alertas ocupan el espacio libre superior. */
+@media(min-width:900px){
+ .gxt-followup-import{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);column-gap:22px;align-items:start}
+ .gxt-followup-import>.gxt-panel-head{grid-column:1/-1}
+ .gxt-followup-import>.gxt-followup-upload-controls{grid-column:1;grid-row:2}
+ .gxt-followup-import>.gxt-followup-file-name{grid-column:1;grid-row:3}
+ .gxt-followup-import>.gxt-followup-rules{grid-column:2;grid-row:2 / span 2;align-self:stretch;display:grid;align-content:center;gap:12px}
+ .gxt-followup-import>.gxt-followup-preview{display:contents}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-followup-summary{grid-column:1/-1;grid-row:4}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-status-note:first-of-type{grid-column:1/-1;grid-row:5}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-followup-alert-row{grid-column:2;grid-row:3}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-followup-warnings{grid-column:1/-1;grid-row:6}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-followup-table-wrap{grid-column:1/-1;grid-row:7}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-actions,.gxt-followup-import>.gxt-followup-preview>.gxt-status-note:last-child{grid-column:1/-1}
+}
+.gxt-followup-import>.gxt-followup-preview{min-width:0}
+.gxt-followup-workspace.is-open .gxt-followup-workspace-grid{grid-template-columns:minmax(0,1fr)}
+.gxt-followup-workspace.is-open .gxt-followup-operations{max-width:900px;margin:20px auto}
