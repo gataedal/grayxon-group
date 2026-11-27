@@ -17,7 +17,7 @@
   });
 
   const state = {
-    session: null, member: null, isAdmin: false, isManager: false, tab: 'home',
+    session: null, member: null, isAdmin: false, isManager: false, tab: 'home', followupStep: 0,
     tasks: [], requests: [], members: [], departments: [], activity: [], creators: []
   };
 
@@ -356,20 +356,20 @@
       '<section class="gxt-panel gxt-followup-import"><div class="gxt-panel-head"><div><h2>Importar reporte de TikTok LIVE</h2><p>Sube el Excel para revisar los datos antes de registrar una evaluación.</p></div><span class="gxt-chip">Vista previa</span></div>'+
       '<div class="gxt-followup-upload-grid"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label>'+
       '<label class="gxt-field"><span>Desde</span><input id="gxFollowupStart" type="date"></label><label class="gxt-field"><span>Hasta</span><input id="gxFollowupEnd" type="date"></label></div>'+
-      '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-preview disabled>Analizar archivo</button><span id="gxFollowupFileName" class="gxt-muted">Ningún archivo seleccionado</span></div>'+
+      '<div class="gxt-actions gxt-followup-upload-actions"><button type="button" class="gxt-btn primary gxt-btn-process" data-followup-preview disabled><span aria-hidden="true">↗</span> Analizar archivo</button><span id="gxFollowupFileName" class="gxt-muted">Ningún archivo seleccionado</span></div>'+'<div class="gxt-followup-rules"><div><strong>Metas mensuales</strong><span>90 horas LIVE · 22 días válidos</span></div><div><strong>Recomendación de constancia</strong><span>2 h 30 min diarios · 6 días por semana</span></div></div>'+
       '<div id="gxFollowupPreview" class="gxt-followup-preview"><div class="gxt-status-note">Selecciona un Excel y el rango que deseas evaluar. Los datos no se guardarán todavía.</div></div></section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Reglas de evaluación</h2></div><p>Las metas mensuales iniciales son 90 horas LIVE y 22 días válidos. La recomendación de constancia es 2 h 30 min diarios, 6 días por semana.</p><div class="gxt-status-note">Si el Excel contiene cifras acumuladas, solo se podrá evaluar exactamente el periodo exportado. Para rangos más cortos necesitaremos el reporte diario de TikTok.</div></section>'+
+      
       '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Gestión individual</h2><p>Registra contactos, compromisos y planes de acción sin perder el historial.</p></div>'+
+      '<section class="gxt-panel gxt-followup-workspace" id="gxFollowupWorkspaceSection" hidden><div class="gxt-panel-head"><div><h2>Gestión individual</h2><p>Ficha del creador · completa cada etapa para continuar.</p></div><button type="button" class="gxt-btn ghost" data-followup-close>× Cerrar</button></div><p>Registra contactos, compromisos y planes de acción sin perder el historial.</p>'+
       '<label class="gxt-field"><span>Creador</span><select id="gxFollowupCreator"><option value="">Cargando creadores…</option></select></label>'+
-      '<div class="gxt-followup-workspace-card" id="gxFollowupPhoneReadOnly"><h3>Teléfono registrado</h3><p class="gxt-muted">Consulta de solo lectura. Los cambios del número los realiza administración desde los datos del creador.</p><strong id="gxFollowupPhoneValue">Selecciona un creador para consultar su teléfono.</strong></div>'+
+      '<div class="gxt-followup-stepper" id="gxFollowupStepper"><span class="active">01 · Perfil</span><span>02 · Observación</span><span>03 · Contacto</span><span>04 · Plan</span><span>05 · Avance</span><span>06 · Recordatorio</span></div><div class="gxt-followup-workspace-card is-active" id="gxFollowupPhoneReadOnly" data-followup-step="0"><h3>Teléfono registrado</h3><p class="gxt-muted">Consulta de solo lectura. Los cambios del número los realiza administración desde los datos del creador.</p><strong id="gxFollowupPhoneValue">Selecciona un creador para consultar su teléfono.</strong></div>'+
       '<div class="gxt-followup-workspace-grid">'+
-      '<form id="gxFollowupNoteForm" class="gxt-followup-workspace-card"><h3>Observación o compromiso</h3><label class="gxt-field"><span>Tipo</span><select name="note_type"><option value="observation">Observación</option><option value="commitment">Compromiso</option><option value="response">Respuesta</option><option value="review">Revisión</option></select></label><label class="gxt-field"><span>Detalle</span><textarea name="body" maxlength="5000" required></textarea></label><button class="gxt-btn primary" type="submit">Guardar registro</button></form>'+
-      '<form id="gxFollowupContactForm" class="gxt-followup-workspace-card"><h3>Registro de contacto</h3><label class="gxt-field"><span>Estado</span><select name="contact_status"><option value="initiated">Contacto iniciado</option><option value="confirmed">Contacto confirmado</option><option value="pending_response">Pendiente de respuesta</option><option value="responded">Respondió</option></select></label><label class="gxt-field"><span>Canal</span><select name="channel"><option value="whatsapp">WhatsApp</option><option value="phone">Llamada</option><option value="other">Otro</option></select></label><label class="gxt-field"><span>Mensaje o resumen</span><textarea name="message_text" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Guardar contacto</button></form>'+
-      '<form id="gxActionPlanForm" class="gxt-followup-workspace-card"><h3>Plan de acción</h3><label class="gxt-field"><span>Título</span><input name="title" maxlength="180" required></label><label class="gxt-field"><span>Objetivo</span><textarea name="objective" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Criterio de éxito</span><textarea name="success_criteria" maxlength="3000"></textarea></label><label class="gxt-field"><span>Fecha objetivo</span><input name="target_date" type="date"></label><button class="gxt-btn primary" type="submit">Crear plan</button></form>'+
-      '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card"><h3>Actualizar plan de trabajo</h3><label class="gxt-field"><span>Plan</span><select id="gxActionPlanSelect" name="plan_id" required><option value="">Primero crea un plan</option></select></label><label class="gxt-field"><span>Avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Actualización / acuerdos nuevos</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><label class="gxt-field"><span>Estado del plan</span><select name="plan_status"><option value="active">Activo</option><option value="paused">Pausado</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></label><button class="gxt-btn primary" type="submit">Guardar actualización</button></form>'+
-      '<form id="gxFollowupReminderForm" class="gxt-followup-workspace-card"><h3>Recordatorio</h3><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="scheduled_at" type="datetime-local" required></label><label class="gxt-field"><span>Nota</span><textarea name="note" maxlength="2000"></textarea></label><button class="gxt-btn primary" type="submit">Programar recordatorio</button></form>'+
-      '</div><div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';
+      '<form id="gxFollowupNoteForm" class="gxt-followup-workspace-card" data-followup-step="1"><h3>Observación o compromiso</h3><label class="gxt-field"><span>Tipo</span><select name="note_type"><option value="observation">Observación</option><option value="commitment">Compromiso</option><option value="response">Respuesta</option><option value="review">Revisión</option></select></label><label class="gxt-field"><span>Detalle</span><textarea name="body" maxlength="5000" required></textarea></label><button class="gxt-btn primary" type="submit">Guardar registro</button></form>'+
+      '<form id="gxFollowupContactForm" class="gxt-followup-workspace-card" data-followup-step="2"><h3>Registro de contacto</h3><label class="gxt-field"><span>Estado</span><select name="contact_status"><option value="initiated">Contacto iniciado</option><option value="confirmed">Contacto confirmado</option><option value="pending_response">Pendiente de respuesta</option><option value="responded">Respondió</option></select></label><label class="gxt-field"><span>Canal</span><select name="channel"><option value="whatsapp">WhatsApp</option><option value="phone">Llamada</option><option value="other">Otro</option></select></label><label class="gxt-field"><span>Mensaje o resumen</span><textarea name="message_text" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Guardar contacto</button></form>'+
+      '<form id="gxActionPlanForm" class="gxt-followup-workspace-card" data-followup-step="3"><h3>Plan de acción</h3><label class="gxt-field"><span>Título</span><input name="title" maxlength="180" required></label><label class="gxt-field"><span>Objetivo</span><textarea name="objective" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Criterio de éxito</span><textarea name="success_criteria" maxlength="3000"></textarea></label><label class="gxt-field"><span>Fecha objetivo</span><input name="target_date" type="date"></label><button class="gxt-btn primary" type="submit">Crear plan</button></form>'+
+      '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card" data-followup-step="4"><h3>Actualizar plan de trabajo</h3><label class="gxt-field"><span>Plan</span><select id="gxActionPlanSelect" name="plan_id" required><option value="">Primero crea un plan</option></select></label><label class="gxt-field"><span>Avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Actualización / acuerdos nuevos</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><label class="gxt-field"><span>Estado del plan</span><select name="plan_status"><option value="active">Activo</option><option value="paused">Pausado</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></label><button class="gxt-btn primary" type="submit">Guardar actualización</button></form>'+
+      '<form id="gxFollowupReminderForm" class="gxt-followup-workspace-card" data-followup-step="5"><h3>Recordatorio</h3><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="scheduled_at" type="datetime-local" required></label><label class="gxt-field"><span>Nota</span><textarea name="note" maxlength="2000"></textarea></label><button class="gxt-btn primary" type="submit">Programar recordatorio</button></form>'+
+      '</div><div class="gxt-followup-step-actions"><button type="button" class="gxt-btn" data-followup-prev disabled>Anterior</button><span id="gxFollowupStepLabel">Etapa 1 de 6</span><button type="button" class="gxt-btn primary" data-followup-next>Siguiente</button></div><div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';
     loadFollowupHistory();
     loadFollowupWorkspace();
     const fileInput=document.getElementById('gxFollowupFile');
@@ -455,6 +455,7 @@
       preview.missingPhones=missingPhones;
       window.grayxonFollowupPreview=preview;
       window.grayxonFollowupFile=file;
+      const workspaceSection=document.getElementById('gxFollowupWorkspaceSection');if(workspaceSection)workspaceSection.hidden=false;
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
       const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo cubre exactamente el periodo seleccionado.':'El archivo no permite evaluar el rango seleccionado.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
@@ -488,6 +489,7 @@
   }
 
   let followupCreatorCache=[];
+  function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(5,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 6';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===5?'Finalizar':'Siguiente';}
   async function loadFollowupWorkspace() {
     const select=document.getElementById('gxFollowupCreator');
     const host=document.getElementById('gxFollowupOperations');
@@ -496,10 +498,11 @@
       const {data:creators,error}=await sb.from('profiles').select('id,username,full_name,manager_id').eq('role','creator').eq('active',true).order('username');
       if(error)throw error;
       followupCreatorCache=creators||[];
-      select.innerHTML='<option value="">Selecciona un creador</option>'+followupCreatorCache.map(p=>'<option value="'+esc(p.id)+'" '+(!p.manager_id?'disabled':'')+'>'+esc(p.full_name||p.username)+' · @'+esc(p.username)+(p.manager_id?'':' (sin manager asignado)')+'</option>').join('');
+      select.innerHTML='<option value="">Selecciona un creador</option>'+followupCreatorCache.map(p=>'<option value="'+esc(p.id)+'" '+(!p.manager_id&&!state.isAdmin?'disabled':'')+'>'+esc(p.full_name||p.username)+' · @'+esc(p.username)+(p.manager_id?'':' (sin manager asignado)')+'</option>').join('');
       const planSelect=document.getElementById('gxActionPlanSelect');
       select.onchange=async()=>{
         const creator=followupCreatorCache.find(p=>p.id===select.value);
+        if(creator){document.getElementById('gxFollowupWorkspaceSection')?.classList.add('is-open');setFollowupStep(0);}
         const phone=document.getElementById('gxFollowupPhoneValue');
         if(phone)phone.textContent='Consultando…';
         if(!creator){if(phone)phone.textContent='Selecciona un creador para consultar su teléfono.';return;}
@@ -555,7 +558,7 @@
   async function submitFollowupRecord(form,event) {
     event.preventDefault();
     const creator=followupCreatorCache.find(x=>x.id===document.getElementById('gxFollowupCreator')?.value);
-    if(!creator)return toast('Selecciona un creador con manager asignado.');
+    if(!creator)return toast('Selecciona un creador.');
     const data=new FormData(form);
     const common={creator_user_id:creator.id,manager_id:state.isAdmin?creator.manager_id:state.member.id,created_by:state.session.user.id};
     let table,payload;
@@ -595,7 +598,7 @@
     }else return;
     const {error}=await sb.from(table).insert(payload);
     if(error)return toast('No se pudo guardar: '+error.message);
-    form.reset();toast('Registro guardado correctamente.');loadFollowupWorkspace();
+    form.reset();toast('Registro guardado correctamente.');loadFollowupWorkspace();if(state.followupStep<5)setFollowupStep(state.followupStep+1);
   }
 
   async function loadFollowupHistory() {
@@ -1301,6 +1304,9 @@
   });
 
   main.addEventListener('click',event=>{
+    if(event.target.closest('[data-followup-close]')){document.getElementById('gxFollowupWorkspaceSection')?.classList.remove('is-open');return;}
+    if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
+    if(event.target.closest('[data-followup-next]')){if(state.followupStep===5){document.getElementById('gxFollowupWorkspaceSection')?.classList.remove('is-open');return;}return setFollowupStep(state.followupStep+1);}
     const reviewPlan=event.target.closest('[data-review-plan-update]');
     if(reviewPlan)return reviewActionPlanUpdate(reviewPlan.dataset.reviewPlanUpdate,reviewPlan.dataset.reviewDecision);
     const followupPreview=event.target.closest('[data-followup-preview]');
