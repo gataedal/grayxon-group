@@ -55,8 +55,9 @@ begin
   '10000000-0000-0000-0000-000000000002/foreign.xlsx',repeat('f',64),
   '2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily','processed'
  ) returning id into v_import_b;
- insert into public.gx_creator_action_plans(id,creator_user_id,manager_id,title,objective,created_by)
- values('50000000-0000-0000-0000-000000000001',v_creator,v_manager_id,'Plan test','Objetivo de prueba',v_manager_user);
+ insert into public.gx_creator_action_plans(id,creator_user_id,manager_id,title,objective,start_date,target_date,created_by)
+ values('50000000-0000-0000-0000-000000000001',v_creator,v_manager_id,'Plan test','Objetivo de prueba',
+  (now() at time zone 'America/Bogota')::date-2,(now() at time zone 'America/Bogota')::date+1,v_manager_user);
  insert into public.gx_creator_action_plan_updates(id,plan_id,progress_summary,status)
  values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','Propuesta test','pending_manager_review');
  insert into public.gx_creator_followup_evaluations(
@@ -119,9 +120,23 @@ declare v_count integer; v_rows integer;
 begin
  select count(*) into v_count from public.gx_creator_followup_evaluations;
  if v_count<>1 then raise exception 'Manager RLS should expose only the assigned creator; got %',v_count; end if;
+ update public.gx_creator_action_plans
+  set target_date=(now() at time zone 'America/Bogota')::date+1
+  where id='50000000-0000-0000-0000-000000000001';
+ begin
+  perform public.gx_manager_update_creator_action_plan(
+   '50000000-0000-0000-0000-000000000001','Avance antes del cierre',null,'active','{}'::jsonb
+  );
+  raise exception 'Progress before plan end date should have failed';
+ exception when others then
+  if sqlerrm='Progress before plan end date should have failed' then raise; end if;
+ end;
+ update public.gx_creator_action_plans
+  set target_date=(now() at time zone 'America/Bogota')::date-1
+  where id='50000000-0000-0000-0000-000000000001';
  perform public.gx_manager_update_creator_action_plan(
   '50000000-0000-0000-0000-000000000001','Avance registrado por manager',
-  'Se actualizó el estado','completed'
+  'Se actualizó el estado','completed','{}'::jsonb
  );
  if not exists(select 1 from public.gx_creator_action_plans
    where id='50000000-0000-0000-0000-000000000001' and status='completed') then
