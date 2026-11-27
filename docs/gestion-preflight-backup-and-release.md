@@ -21,9 +21,9 @@ Con Supabase CLI v3:
 
 ```powershell
 $env:DB_URL = Read-Host "Pega la cadena de conexión PostgreSQL"
-supabase db dump --remote="$env:DB_URL" -f roles.sql --role-only
-supabase db dump --remote="$env:DB_URL" -f schema.sql
-supabase db dump --remote="$env:DB_URL" -f data.sql --use-copy --data-only
+supabase db dump --db-url "$env:DB_URL" -f roles.sql --role-only
+supabase db dump --db-url "$env:DB_URL" -f schema.sql
+supabase db dump --db-url "$env:DB_URL" -f data.sql --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes"
 Remove-Item Env:DB_URL
 ```
 
