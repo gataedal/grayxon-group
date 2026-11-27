@@ -111,19 +111,27 @@
         return;
       }
 
+      // Conserva la membresía interna para que el manager mantenga sus accesos
+      // operativos, usando managers.id para las funciones de seguimiento.
       state.member = {
-        id: managerRow.id, user_id: user.id, display_name: managerRow.name || profile.full_name || data?.display_name || user.email,
-        access_level: 'manager', active: true
+        ...(data || {}),
+        id: managerRow.id,
+        user_id: user.id,
+        display_name: managerRow.name || profile.full_name || data?.display_name || user.email,
+        access_level: 'manager',
+        active: true
       };
       state.isAdmin = false;
       state.isManager = true;
       state.tab = 'followup';
       document.getElementById('gxUserName').textContent = state.member.display_name;
-      document.getElementById('gxUserJob').textContent = 'Manager · Seguimiento de creadores';
+      document.getElementById('gxUserJob').textContent = 'Manager · Operaciones';
       document.getElementById('gxAccessBadge').textContent = 'Manager';
       setAuthView(true);
+      await loadData();
       renderNav();
       renderPage();
+      handleNotificationTarget();
       return;
     }
 
@@ -174,7 +182,6 @@
   }
 
   async function loadData() {
-    if (state.isManager) return;
     // Keep primary records independent from embedded relations. RLS on related
     // member rows can otherwise make PostgREST return empty/error results for
     // the whole list even when the task/request itself is readable.
@@ -239,17 +246,15 @@
   }
 
   function renderNav() {
-    const items = state.isManager
-      ? [['followup','◎','Seguimiento'],['reports','▥','Reportes']]
-      : state.isAdmin
-        ? [
-            ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
-            ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
-          ]
-        : [
-            ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
-            ['calendar','▦','Calendario']
-          ];
+    const items = state.isAdmin
+      ? [
+          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
+          ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
+        ]
+      : [
+          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
+          ['calendar','▦','Calendario']
+        ];
     nav.innerHTML = items.map(([key,icon,label]) =>
       '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span>'+label+'</button>'
     ).join('');
@@ -369,29 +374,10 @@
       '<section class="gxt-panel"><div class="gxt-table-wrap"><table class="gxt-table"><thead><tr><th>Fecha</th><th>Integrante</th><th>Tarea</th><th>Movimiento</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(rows?'':'<div class="gxt-empty">Todavía no hay actividad registrada.</div>')+'</section>';
   }
 
-  async function generateGeneralFollowupReport(button){
-    if(!button||button.disabled)return;
-    const month=String(button.dataset.reportMonth||'');
-    if(!/^\\d{4}-\\d{2}$/.test(month))return toast('No se pudo identificar el mes del informe.');
-    button.disabled=true;
-    const originalLabel=button.textContent;
-    button.textContent='Generando…';
-    const {data,error}=await sb.rpc('gx_manager_generate_general_followup_report',{p_month:month+'-01'});
-    if(error){
-      toast('No se pudo generar el informe: '+error.message);
-      button.disabled=false;
-      button.textContent=originalLabel;
-      return;
-    }
-    toast('Informe general de '+month+' enviado a Reportes.');
-    button.textContent='Informe generado';
-  }
-
   function renderFollowupPage() {
-    main.innerHTML = pageHead('Seguimiento de creadores','Evaluaciones por periodo, novedades internas y planes de acción del equipo.',state.isManager?'<button type="button" class="gxt-btn primary" data-generate-general-report disabled>Generar informe general</button>':'')+
-      '<section class="gxt-panel gxt-followup-import"><div class="gxt-panel-head"><div><h2>Importar reporte de TikTok LIVE</h2><p>Sube el Excel. El periodo se detecta automáticamente desde el reporte.</p></div><span class="gxt-chip">Vista previa</span></div>'+
-      '<div class="gxt-followup-upload-controls"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label><button type="button" class="gxt-btn gxt-btn-process" data-followup-preview '+(followupImportFile?'':'disabled')+'><span aria-hidden="true">↗</span> Analizar archivo</button></div>'+
-      '<div id="gxFollowupFileName" class="gxt-muted gxt-followup-file-name">'+(followupImportFile?esc(followupImportFile.name):'Ningún archivo seleccionado')+'</div>'+'<div class="gxt-followup-rules"><div><strong>Metas mensuales</strong><span>90 horas LIVE · 22 días válidos</span></div><div><strong>Recomendación de constancia</strong><span>2 h 30 min diarios · 6 días por semana</span></div></div>'+
+    main.innerHTML = '<section class="gxt-panel gxt-followup-import"><div class="gxt-panel-head"><div><h2>Importar reporte de TikTok LIVE</h2><p>Sube el Excel. El periodo se detecta automáticamente desde el reporte.</p></div><span class="gxt-chip">Vista previa</span></div>'+
+      '<div class="gxt-followup-upload-controls"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label><button type="button" class="gxt-btn gxt-btn-process" data-followup-preview '+(followupImportFile?'':'disabled')+'><span aria-hidden="true">↗</span> Generar</button></div>'+
+      '<div id="gxFollowupFileName" class="gxt-muted gxt-followup-file-name">'+(followupImportFile?esc(followupImportFile.name):'Ningún archivo seleccionado')+'</div>'+
       '<div id="gxFollowupPreview" class="gxt-followup-preview">'+(followupPreviewMarkup||'<div class="gxt-status-note">Selecciona un Excel para analizarlo. El periodo se tomará automáticamente del archivo.</div>')+'</div></section>'+
       
       '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
@@ -412,7 +398,7 @@
       button.disabled=!followupImportFile;
       followupPreviewMarkup='';
       const previewTarget=document.getElementById('gxFollowupPreview');
-      if(previewTarget)previewTarget.innerHTML='<div class="gxt-status-note">Archivo seleccionado. Pulsa “Analizar archivo” para revisar sus datos.</div>';
+      if(previewTarget)previewTarget.innerHTML='<div class="gxt-status-note">Archivo seleccionado. Pulsa “Generar” para procesarlo.</div>';
     });
     bindFollowupPreviewActions(document.getElementById('gxFollowupPreview'));
   }
@@ -782,7 +768,7 @@
             (evaluations.length?'<h4>Creadores del portal</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+creatorRows+'</tbody></table></div>':'<p class="gxt-muted">No hay creadores activos del portal para este reporte.</p>')+
             '</div></details>';
         }).join('');
-        return '<details class="gxt-followup-history-month" data-followup-month="'+esc(month)+'"><summary><strong>'+esc(monthLabel(month))+'</strong><span class="gxt-chip">'+items.length+' reportes</span></summary><div class="gxt-followup-history-month-content"><div class="gxt-followup-month-toolbar"><button type="button" class="gxt-btn ghost" data-followup-month-back>← Volver a los meses</button><strong>'+esc(monthLabel(month))+'</strong>'+(state.isManager?'<button type="button" class="gxt-btn primary" data-generate-general-report data-report-month="'+esc(month)+'">Generar informe general</button>':'')+'<button type="button" class="gxt-btn danger" data-followup-delete-month="'+esc(month)+'">'+(state.isAdmin?'Eliminar mes y planes':'Eliminar mi reporte y planes')+'</button></div>'+reports+'</div></details>';
+        return '<details class="gxt-followup-history-month" data-followup-month="'+esc(month)+'"><summary><strong>'+esc(monthLabel(month))+'</strong><span class="gxt-chip">'+items.length+' reportes</span></summary><div class="gxt-followup-history-month-content"><div class="gxt-followup-month-toolbar"><button type="button" class="gxt-btn ghost" data-followup-month-back>← Volver a los meses</button><strong>'+esc(monthLabel(month))+'</strong>'+'<button type="button" class="gxt-btn danger" data-followup-delete-month="'+esc(month)+'">'+(state.isAdmin?'Eliminar mes y planes':'Eliminar mi reporte y planes')+'</button></div>'+reports+'</div></details>';
       }).join('');
       host.innerHTML='<div class="gxt-panel-head"><h2>Archivo mensual de seguimiento</h2><span class="gxt-chip">'+(data||[]).length+' reportes guardados</span></div>'+
         (monthBlocks||'<div class="gxt-empty">Todavía no hay reportes guardados. Al analizar un Excel, el mes se creará automáticamente.</div>');
@@ -956,10 +942,6 @@
 
   function renderPage() {
     renderNav();
-    if (state.isManager) {
-      if (state.tab === 'reports') return renderReportsPage();
-      return renderFollowupPage();
-    }
     if (state.tab === 'tasks') return renderTasksPage();
     if (state.tab === 'requests') return renderRequestsPage();
     if (state.tab === 'team' && state.isAdmin) return renderTeamPage();
@@ -1562,8 +1544,6 @@
   });
 
   main.addEventListener('click',async event=>{
-    const generalReportButton=event.target.closest('[data-generate-general-report]');
-    if(generalReportButton)return generateGeneralFollowupReport(generalReportButton);
     if(event.target.closest('[data-followup-close]')){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}
     if(event.target.closest('[data-followup-back]')){if(state.followupStep===1){const activity=document.getElementById('gxFollowupOperations');if(activity)activity.hidden=false;setFollowupStep(0);const creatorId=document.getElementById('gxFollowupCreator')?.value;const plan=(window.gxFollowupPlans||[]).find(item=>item.creator_user_id===creatorId&&item.status!=='cancelled')||null;renderSavedActionPlan(plan,(window.gxFollowupReminders||[]).find(r=>r.action_plan_id===plan?.id&&r.status!=='cancelled')||null);return;}const section=document.getElementById('gxFollowupWorkspaceSection');if(section){section.classList.remove('is-open');section.hidden=true;}return;}
     const openFollowup=event.target.closest('[data-followup-open-creator]');
