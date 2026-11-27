@@ -206,6 +206,29 @@ begin
   if sqlerrm='Cross-creator note contact reference must fail' then raise; end if;
  end;
  begin
+  insert into public.gx_creator_followup_reminders(
+   creator_user_id,manager_id,contact_id,scheduled_at,created_by
+  ) values(
+   '20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001',
+   '70000000-0000-0000-0000-000000000002',now(),'10000000-0000-0000-0000-000000000001'
+  );
+  raise exception 'Cross-creator reminder contact reference must fail';
+ exception when others then
+  if sqlerrm='Cross-creator reminder contact reference must fail' then raise; end if;
+ end;
+ begin
+  insert into public.gx_creator_followup_reminders(
+   creator_user_id,manager_id,evaluation_id,scheduled_at,created_by
+  ) values(
+   '20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001',
+   (select id from public.gx_creator_followup_evaluations where creator_user_id='20000000-0000-0000-0000-000000000002' limit 1),
+   now(),'10000000-0000-0000-0000-000000000001'
+  );
+  raise exception 'Cross-creator reminder evaluation reference must fail';
+ exception when others then
+  if sqlerrm='Cross-creator reminder evaluation reference must fail' then raise; end if;
+ end;
+ begin
   insert into public.gx_creator_action_plan_updates(plan_id,evaluation_id,progress_summary,status)
   values('50000000-0000-0000-0000-000000000001',
    (select id from public.gx_creator_followup_evaluations where creator_user_id='20000000-0000-0000-0000-000000000002' limit 1),
@@ -228,6 +251,9 @@ do $$
 begin
  if (select count(*) from public.gx_creator_followup_evaluations)<>0 then
   raise exception 'Previous manager must lose evaluation access after reassignment';
+ end if;
+ if (select count(*) from public.gx_creator_followup_imports)<>0 then
+  raise exception 'Previous manager must lose import metadata access after reassignment';
  end if;
  if (select count(*) from public.gx_creator_followup_contacts)<>0 then
   raise exception 'Previous manager must lose contact history after reassignment';
@@ -258,6 +284,9 @@ do $$
 begin
  if (select count(*) from public.gx_creator_followup_evaluations)<>2 then
   raise exception 'Current manager must see historical evaluations for reassigned creators';
+ end if;
+ if (select count(*) from public.gx_creator_followup_imports)<>2 then
+  raise exception 'Current manager must see historical import metadata for assigned creators';
  end if;
  if (select count(*) from public.gx_creator_followup_contacts)<>2 then
   raise exception 'Current manager must see historical contacts for reassigned creators';
