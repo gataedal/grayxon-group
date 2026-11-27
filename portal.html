@@ -855,7 +855,12 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
  };
  const goToDashboardThen=(selector)=>{
   if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
-  window.setTimeout(()=>{const target=document.querySelector(selector);if(target)target.click();},180);
+  let attempts=0;
+  const waitForTarget=window.setInterval(()=>{
+   const target=document.querySelector(selector);
+   if(target){window.clearInterval(waitForTarget);target.click();return;}
+   if(++attempts>=50)window.clearInterval(waitForTarget);
+  },40);
  };
  trigger.addEventListener('click',()=>overlay.classList.contains('is-open')?close():open());
  closeBtn?.addEventListener('click',close);
