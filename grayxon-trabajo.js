@@ -451,22 +451,39 @@
       const phoneByUser=new Map((phoneRows||[]).map(row=>[row.user_id,String(row.phone||'').trim()]));
       const missingPhones=linkedProfiles.filter(profile=>!phoneByUser.get(profile.id))
         .filter((profile,index,all)=>all.findIndex(item=>item.id===profile.id)===index);
+      const matchedCreatorIds=preview.rows.map(row=>row.profile?.id).filter(Boolean);
+      const {data:existingPlans,error:plansError}=matchedCreatorIds.length
+        ? await sb.from('gx_creator_action_plans').select('id,creator_user_id,title,status,created_at').in('creator_user_id',matchedCreatorIds).order('created_at',{ascending:false})
+        : {data:[],error:null};
+      if(plansError)throw new Error('No se pudieron consultar los planes de seguimiento: '+plansError.message);
+      const plansByCreator=new Map();
+      (existingPlans||[]).forEach(plan=>{if(!plansByCreator.has(plan.creator_user_id))plansByCreator.set(plan.creator_user_id,plan);});
       preview.missingPhones=missingPhones;
       window.grayxonFollowupPreview=preview;
       window.grayxonFollowupFile=file;
-      const workspaceSection=document.getElementById('gxFollowupWorkspaceSection');if(workspaceSection)workspaceSection.hidden=false;
+      const workspaceSection=document.getElementById('gxFollowupWorkspaceSection');if(workspaceSection)workspaceSection.hidden=true;
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
       const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo cubre el periodo detectado en el Excel.':'El archivo no permite completar la evaluación.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
       const classLabels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
-      const rows=preview.rows.map(row=>'<tr><td>@'+esc(row.username)+'</td><td>'+esc(row.profile?.full_name||'No vinculado')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+ (row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+ (row.validDays==null?'—':row.validDays)+'</td><td>'+(row.profile?'Vinculado':'Revisar perfil')+'</td><td>'+esc(classLabels[row.evaluation.classification||row.evaluation.status]||row.evaluation.status)+'</td></tr>').join('');
+      const classStyles={high_risk:'risk',observation:'observation',on_track:'success',early_review:'early',not_evaluable:'neutral',needs_daily_data:'warning'};
+      const rows=preview.rows.map(row=>{
+        const profile=row.profile;
+        const creatorLabel=profile?(profile.full_name||'@'+profile.username):'Sin vincular';
+        const plan=profile?plansByCreator.get(profile.id):null;
+        const status=row.linkStatus==='ambiguous'?'Coincidencia ambigua':profile?'Cuenta Grayxon vinculada':'Sin vincular';
+        const evaluationKey=row.evaluation.classification||row.evaluation.status;
+        const evaluationLabel=classLabels[evaluationKey]||row.evaluation.status;
+        const planAction=profile?'<button type="button" class="gxt-followup-plan-button '+(plan?'is-view':'is-create')+'" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="'+(plan?'0':'3')+'">'+(plan?'Ver':'Gestionar plan')+'</button>':'<span class="gxt-followup-muted">—</span>';
+        return '<tr class="gxt-followup-data-row"><td>@'+esc(row.username)+'</td><td class="gxt-followup-creator-cell">'+(profile?'<button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="0"><strong>'+esc(creatorLabel)+'</strong><small>@'+esc(profile.username)+'</small></button>':'<span class="gxt-followup-unlinked">'+esc(creatorLabel)+'</span>')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+(row.validDays==null?'—':row.validDays)+'</td><td><span class="gxt-followup-link-status '+(profile?'is-linked':'is-unlinked')+'">'+esc(status)+'</span></td><td><span class="gxt-followup-status-pill is-'+(classStyles[evaluationKey]||'neutral')+'">'+esc(evaluationLabel)+'</span></td><td>'+planAction+'</td></tr>';
+      }).join('');
       target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
         '<div class="gxt-status-note">'+esc(status)+' Periodo del archivo: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
         (missingPhones.length
           ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-missing-phones><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar datos de contacto</strong><small>'+missingPhones.length+' creadores sin teléfono registrado</small></span><span class="gxt-followup-alert-count">'+missingPhones.length+'</span></button></div>'
           : '<div class="gxt-status-note">Todos los creadores vinculados tienen teléfono registrado.</div>')+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
-        '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Perfil Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Perfil</th><th>Evaluación</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Creador Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Vinculación</th><th>Evaluación</th><th>Plan de seguimiento</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
         '<div class="gxt-status-note">Esta es una previsualización. Todavía no se han guardado evaluaciones ni se ha modificado ningún perfil.</div>'+
         (preview.canEvaluate && preview.summary.matched===preview.summary.creators && preview.rows.every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
           ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar evaluación</button></div>'
@@ -497,6 +514,19 @@
         catch(error){toast('No fue posible copiar automáticamente en este navegador.');}
       });
     });
+  }
+
+  function openFollowupCreator(creatorId,step=0){
+    const section=document.getElementById('gxFollowupWorkspaceSection');
+    const select=document.getElementById('gxFollowupCreator');
+    if(!section||!select)return toast('La ficha de seguimiento aún se está cargando.');
+    section.hidden=false;
+    section.classList.add('is-open');
+    select.value=creatorId;
+    if(select.value!==creatorId)return toast('No se encontró el creador en la lista autorizada.');
+    select.dispatchEvent(new Event('change',{bubbles:true}));
+    setFollowupStep(step);
+    section.scrollTop=0;
   }
 
   function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(5,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 6';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===5?'Finalizar':'Siguiente';}
@@ -1314,9 +1344,11 @@
   });
 
   main.addEventListener('click',event=>{
-    if(event.target.closest('[data-followup-close]')){document.getElementById('gxFollowupWorkspaceSection')?.classList.remove('is-open');return;}
+    if(event.target.closest('[data-followup-close]')){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}
+    const openFollowup=event.target.closest('[data-followup-open-creator]');
+    if(openFollowup){openFollowupCreator(openFollowup.dataset.followupOpenCreator,Number(openFollowup.dataset.followupStep)||0);return;}
     if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
-    if(event.target.closest('[data-followup-next]')){if(state.followupStep===5){document.getElementById('gxFollowupWorkspaceSection')?.classList.remove('is-open');return;}return setFollowupStep(state.followupStep+1);}
+    if(event.target.closest('[data-followup-next]')){if(state.followupStep===5){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
     const reviewPlan=event.target.closest('[data-review-plan-update]');
     if(reviewPlan)return reviewActionPlanUpdate(reviewPlan.dataset.reviewPlanUpdate,reviewPlan.dataset.reviewDecision);
     const followupPreview=event.target.closest('[data-followup-preview]');
