@@ -516,7 +516,7 @@
     });
   }
 
-  function openFollowupCreator(creatorId,step=0,planId=''){
+  async function openFollowupCreator(creatorId,step=0,planId=''){
     const section=document.getElementById('gxFollowupWorkspaceSection');
     const select=document.getElementById('gxFollowupCreator');
     if(!section||!select)return toast('La ficha de seguimiento aún se está cargando.');
@@ -524,7 +524,7 @@
     section.classList.add('is-open');
     select.value=creatorId;
     if(select.value!==creatorId)return toast('No se encontró el creador en la lista autorizada.');
-    select.dispatchEvent(new Event('change',{bubbles:true}));
+    if(typeof select.onchange==='function')await select.onchange();
     if(planId){const planSelect=document.getElementById('gxActionPlanSelect');if(planSelect)planSelect.value=planId;}
     setFollowupStep(step);
     section.scrollTop=0;
