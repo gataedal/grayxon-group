@@ -497,3 +497,15 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-followup-history-report .gxt-followup-creator-link{display:flex;align-items:center;gap:9px;flex-wrap:wrap;width:100%;min-height:30px}
 .gxt-followup-history-report .gxt-followup-creator-link strong{white-space:nowrap}
 .gxt-followup-history-report .gxt-followup-creator-cell{min-width:210px}
+
+
+/* Seguimiento: carga al inicio, controles alineados y dimensiones uniformes. */
+.gxt-main>.gxt-followup-import{margin-top:0}
+.gxt-followup-import .gxt-panel-head{align-items:center}
+.gxt-followup-upload-controls{grid-template-columns:minmax(0,1fr) minmax(150px,auto);align-items:end;gap:12px}
+.gxt-followup-upload-controls .gxt-field{margin:0}
+.gxt-followup-upload-controls input[type=file]{height:46px;min-height:46px}
+.gxt-followup-upload-controls .gxt-btn-process{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;min-height:46px;min-width:150px;padding:0 20px;line-height:1;box-sizing:border-box}
+.gxt-followup-upload-controls input[type=file]::file-selector-button{height:32px;min-height:32px;vertical-align:middle}
+.gxt-followup-upload-controls .gxt-btn-process,.gxt-followup-preview .gxt-btn,.gxt-followup-history .gxt-btn,.gxt-followup-workspace .gxt-btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;box-sizing:border-box;line-height:1.2}
+@media(max-width:560px){.gxt-followup-upload-controls{grid-template-columns:1fr}.gxt-followup-upload-controls .gxt-btn-process{width:100%;min-width:0}}
