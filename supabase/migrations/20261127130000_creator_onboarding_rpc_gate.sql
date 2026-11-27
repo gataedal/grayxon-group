@@ -448,5 +448,197 @@ end;
 $function$
     $ddl$;
   END IF;
+  IF to_regprocedure('public.can_view_live_training(uuid)') IS NOT NULL THEN
+    EXECUTE $ddl$
+CREATE OR REPLACE FUNCTION public.can_view_live_training(p_training_id uuid)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  current_user_id uuid;
+  current_role text;
+  training_creator uuid;
+begin
+  current_user_id := auth.uid();
+
+  if current_user_id is null then
+    return false;
+  end if;
+
+  if public.gx_creator_onboarding_pending() then
+    return false;
+  end if;
+
+  select
+    p.role
+  into
+    current_role
+  from public.profiles p
+  where p.id = current_user_id
+    and p.active = true
+  limit 1;
+
+  if current_role is null then
+    return false;
+  end if;
+
+  -- ADMIN: puede ver cualquier entrenamiento
+  if current_role = 'admin' then
+    return exists (
+      select 1
+      from public.live_trainings t
+      where t.id = p_training_id
+    );
+  end if;
+
+  -- Obtener creador del entrenamiento
+  select t.created_by
+  into training_creator
+  from public.live_trainings t
+  where t.id = p_training_id;
+
+  if training_creator is null then
+    return false;
+  end if;
+
+  -- MANAGER:
+  -- Puede ver sus propios entrenamientos.
+  if current_role = 'manager' then
+
+    if training_creator = current_user_id then
+      return true;
+    end if;
+
+    -- También puede entrar si el entrenamiento está dirigido
+    -- a todos los managers.
+    if exists (
+      select 1
+      from public.live_trainings t
+      join public.live_training_audience a
+        on a.training_id = t.id
+      where t.id = p_training_id
+        and t.status = 'live'
+        and a.target_type = 'all_managers'
+    ) then
+      return true;
+    end if;
+
+    -- O si está dirigido específicamente a este manager.
+    if exists (
+      select 1
+      from public.managers m
+      join public.live_training_audience a
+        on a.target_type = 'manager'
+       and a.target_id = m.id
+      where m.user_id = current_user_id
+        and m.active = true
+        and a.training_id = p_training_id
+    ) then
+      return true;
+    end if;
+
+    return false;
+  end if;
+
+  -- CREATOR:
+  -- Solo puede ver entrenamientos EN VIVO
+  -- para los cuales está autorizado.
+  if current_role = 'creator' then
+
+    return exists (
+      select 1
+      from public.live_trainings t
+      join public.live_training_audience a
+        on a.training_id = t.id
+      join public.profiles p
+        on p.id = current_user_id
+       and p.active = true
+       and p.role = 'creator'
+      where t.id = p_training_id
+        and t.status = 'live'
+        and (
+          -- Creador específico
+          (
+            a.target_type = 'creator'
+            and a.target_id = p.id
+          )
+
+          -- Equipo del creador
+          or (
+            a.target_type = 'team'
+            and a.target_id = p.team_id
+          )
+
+          -- Manager del creador
+          or (
+            a.target_type = 'manager'
+            and a.target_id = p.manager_id
+          )
+
+          -- Todos los creadores
+          or a.target_type = 'all_creators'
+        )
+    );
+
+  end if;
+
+  return false;
+end;
+$function$
+    $ddl$;
+  END IF;
+
+  IF to_regprocedure('public.creator_can_view_live_training(uuid)') IS NOT NULL THEN
+    EXECUTE $ddl$
+CREATE OR REPLACE FUNCTION public.creator_can_view_live_training(p_training_id uuid)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  uid uuid := auth.uid();
+  creator_profile public.profiles%rowtype;
+begin
+  if uid is null then
+    return false;
+  end if;
+
+  if public.gx_creator_onboarding_pending() then
+    return false;
+  end if;
+
+  select * into creator_profile
+  from public.profiles
+  where id = uid
+    and role = 'creator'
+    and active = true
+  limit 1;
+
+  if not found then
+    return false;
+  end if;
+
+  return exists (
+    select 1
+    from public.live_trainings t
+    join public.live_training_audience a
+      on a.training_id = t.id
+    where t.id = p_training_id
+      and t.status in ('scheduled','live','finished')
+      and (
+        (a.target_type = 'creator' and a.target_id = creator_profile.id)
+        or (a.target_type = 'team' and a.target_id = creator_profile.team_id)
+        or (a.target_type = 'manager' and a.target_id = creator_profile.manager_id)
+        or a.target_type = 'all_creators'
+      )
+  );
+end;
+$function$
+    $ddl$;
+  END IF;
+
 END;
 $onboarding_rpc_gate$;
