@@ -677,7 +677,7 @@
     const common={creator_user_id:creator.id,manager_id:state.isAdmin?creator.manager_id:state.member.id,created_by:state.session.user.id};
     const metricKeys=['diamonds','live_hours','valid_days','battles','fan_club_members'];
     const readMetrics=prefix=>Object.fromEntries(metricKeys.map(key=>[key,Number(data.get(key)||0)]));
-    if(form.id==='gxFollowupNoveltyForm'){const body=String(data.get('body')||'').trim();if(!body)return toast('Escribe la novedad que deseas reportar.');const {error}=await sb.from('gx_creator_followup_notes').insert({...common,note_type:'novelty',body});if(error)return toast('No se pudo enviar la novedad: '+error.message);closeModal();toast('Novedad enviada a administración.');await loadFollowupWorkspace();return;}
+    if(form.id==='gxFollowupNoveltyForm'){const body=String(data.get('body')||'').trim();if(!body)return toast('Escribe la novedad que deseas reportar.');const {error}=await sb.from('gx_creator_followup_notes').insert({...common,note_type:'observation',body});if(error)return toast('No se pudo enviar la novedad: '+error.message);closeModal();toast('Novedad enviada a administración.');await loadFollowupWorkspace();return;}
     if(form.id==='gxActionPlanForm'){
       const start=String(data.get('start_date')||''),end=String(data.get('target_date')||'');
       if(!start||!end||end<start)return toast('Define un rango de fechas válido para el plan.');
