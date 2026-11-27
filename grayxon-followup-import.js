@@ -83,7 +83,7 @@
     return result;
   }
 
-  function parseWorkbook(workbook, selectedStart, selectedEnd) {
+  function parseWorkbook(workbook) {
     if (!workbook || !Array.isArray(workbook.SheetNames) || !workbook.SheetNames.length) {
       throw new Error('El archivo no contiene hojas para leer.');
     }
@@ -144,14 +144,12 @@
     if (!sheetUsed) throw new Error('No encontramos las columnas necesarias. Se requiere “Nombre de usuario del creador” y “Periodo de datos”.');
     if (!rows.length) throw new Error('No encontramos registros de creadores válidos en la hoja.');
 
-    const start = isoDate(parseDate(selectedStart));
-    const end = isoDate(parseDate(selectedEnd));
-    if (!start || !end || start > end) throw new Error('Selecciona un rango de fechas válido.');
-
     const sourcePeriods = Array.from(periods.values());
     const mixedPeriods = sourcePeriods.length !== 1;
     const sourcePeriod = mixedPeriods ? null : sourcePeriods[0];
-    const exactPeriod = !!sourcePeriod && start === sourcePeriod.start && end === sourcePeriod.end;
+    // El periodo de evaluación siempre procede del propio reporte de TikTok.
+    const selectedPeriod = sourcePeriod ? { start: sourcePeriod.start, end: sourcePeriod.end } : null;
+    const exactPeriod = !!sourcePeriod;
     const dailyMetricsAvailable = false;
     const allMetricsPresent = rows.every(r => r.diamonds != null && r.liveHours != null && r.validDays != null);
 
@@ -160,7 +158,7 @@
       sourcePeriod,
       sourcePeriods,
       mixedPeriods,
-      selectedPeriod: { start, end },
+      selectedPeriod,
       exactPeriod,
       canEvaluate: !mixedPeriods && invalidPeriodRows === 0 && exactPeriod && allMetricsPresent,
       granularity: dailyMetricsAvailable ? 'daily' : 'period_aggregate',
@@ -177,7 +175,7 @@
           ? 'Hay filas con periodos inválidos. Corrige el archivo antes de evaluar para no excluir actividad.'
           : exactPeriod
             ? (allMetricsPresent ? null : 'Hay creadores sin todas las métricas necesarias. Revisa los datos faltantes antes de evaluar.')
-            : 'El Excel contiene cifras acumuladas para ' + sourcePeriod.start + ' a ' + sourcePeriod.end + '. No es posible calcular un subperiodo sin exportación diaria de TikTok.'
+            : null
     };
   }
 

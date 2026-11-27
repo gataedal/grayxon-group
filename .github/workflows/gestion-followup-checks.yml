@@ -46,7 +46,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        run: |
+          # Runner images may contain Microsoft's feed, which can intermittently return 403 and block Ubuntu packages.
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list /etc/apt/sources.list.d/microsoft-prod.sources
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
       - name: Build isolated Supabase schema fixture
         env:
           PGPASSWORD: postgres

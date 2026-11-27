@@ -309,3 +309,44 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 @media(max-width:760px){.gxt-followup-workspace-grid{grid-template-columns:1fr}.gxt-followup-workspace-card{padding:13px}}
 
 .gxt-followup-rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:13px 15px;border:1px solid #303b45;border-radius:13px;background:linear-gradient(120deg,rgba(220,225,231,.08),rgba(37,244,238,.035))}.gxt-followup-rules>div{display:grid;gap:5px}.gxt-followup-rules strong{font-size:10px;color:#dce3e9;text-transform:uppercase;letter-spacing:.07em}.gxt-followup-rules span{font-size:13px;color:#f4f7fa;font-weight:700}.gxt-followup-upload-actions{align-items:center}.gxt-btn-process{min-height:46px;padding:12px 20px;border-radius:12px;font-size:12px;box-shadow:0 7px 24px rgba(210,220,230,.12)}.gxt-followup-workspace.is-open{position:fixed!important;z-index:10020;inset:0!important;width:100vw;height:100dvh;max-height:100dvh;overflow:auto;margin:0!important;padding:clamp(16px,3vw,36px)!important;border:0;border-radius:0;background:radial-gradient(ellipse at top right,#18252b 0,#0b0f14 45%,#080a0d 100%);box-sizing:border-box}.gxt-followup-workspace.is-open>*{max-width:1100px;margin-left:auto;margin-right:auto}.gxt-followup-stepper{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin:16px auto}.gxt-followup-stepper span{padding:10px 8px;border:1px solid #303a44;border-radius:10px;color:#8794a1;font-size:10px;text-align:center}.gxt-followup-stepper span.active{background:linear-gradient(120deg,#dce1e7,#aeb6c0);color:#080a0d;font-weight:800}.gxt-followup-workspace [data-followup-step]{display:none!important}.gxt-followup-workspace [data-followup-step].is-active{display:grid!important;max-width:760px;margin:0 auto;width:100%;min-height:300px;align-content:start}.gxt-followup-step-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:760px;margin:18px auto}.gxt-followup-step-actions span{color:#9eabb8;font-size:11px}@media(max-width:700px){.gxt-followup-rules{grid-template-columns:1fr}.gxt-followup-stepper{grid-template-columns:repeat(3,minmax(0,1fr))}.gxt-followup-workspace.is-open{padding:14px!important}}
+
+
+/* Seguimiento: alerta compacta para teléfonos pendientes y modal de consulta. */
+.gxt-followup-alert-row{display:flex;align-items:center;margin:4px 0}
+.gxt-followup-alert-trigger{display:flex;align-items:center;gap:11px;width:min(100%,520px);padding:11px 13px;border:1px solid #765b35;border-radius:12px;background:linear-gradient(120deg,#2b2115,#1b1915);color:#f4dfb8;text-align:left;cursor:pointer}
+.gxt-followup-alert-trigger:hover{border-color:#d3a45e;background:linear-gradient(120deg,#352717,#211c15)}
+.gxt-followup-alert-trigger>span:nth-child(2){display:grid;gap:3px;flex:1;min-width:0}
+.gxt-followup-alert-trigger strong{font-size:11px}
+.gxt-followup-alert-trigger small{font-size:10px;color:#c7ad83}
+.gxt-followup-alert-dot{display:grid;place-items:center;width:27px;height:27px;flex:0 0 27px;border-radius:50%;background:#6a4820;color:#ffe0a7;font-weight:900}
+.gxt-followup-alert-count{padding:4px 9px;border-radius:999px;background:#60451f;color:#ffe2ad;font-size:11px;font-weight:850}
+.gxt-followup-alert-list{display:grid;gap:7px;max-height:min(58dvh,560px);overflow:auto;padding:2px 3px 8px}
+.gxt-followup-alert-person{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 12px;border:1px solid #303b45;border-radius:10px;background:#10171e}
+.gxt-followup-alert-person strong{font-size:11px;color:#eef3f6}
+.gxt-followup-alert-person span{font-size:10px;color:#b8c4ce;text-align:right}
+.gxt-followup-alert-person small{grid-column:1/-1;color:#91a0ad;font-size:10px}
+@media(max-width:560px){.gxt-followup-alert-trigger{width:100%}.gxt-followup-alert-person{grid-template-columns:1fr}.gxt-followup-alert-person span{text-align:left}}
+
+
+/* Identificación visual y acciones directas del seguimiento de creadores. */
+.gxt-followup-table .gxt-followup-data-row{transition:background .15s ease}
+.gxt-followup-table .gxt-followup-data-row:hover{background:rgba(37,244,238,.035)}
+.gxt-followup-creator-link{display:grid;gap:3px;padding:0;border:0;background:transparent;color:#eef5f8;text-align:left;cursor:pointer}
+.gxt-followup-creator-link strong{font-size:11px}
+.gxt-followup-creator-link small{font-size:10px;color:#8fa7b1}
+.gxt-followup-creator-link:hover strong{color:#25f4ee;text-decoration:underline}
+.gxt-followup-unlinked{color:#f0b46c;font-weight:700}
+.gxt-followup-link-status,.gxt-followup-status-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid transparent;border-radius:999px;font-size:10px;font-weight:800}
+.gxt-followup-link-status.is-linked{color:#91e8bd;background:rgba(46,180,116,.12);border-color:rgba(46,180,116,.35)}
+.gxt-followup-link-status.is-unlinked{color:#ffc27c;background:rgba(219,139,48,.12);border-color:rgba(219,139,48,.35)}
+.gxt-followup-status-pill.is-risk{color:#ff9b9b;background:rgba(220,65,65,.14);border-color:rgba(220,65,65,.38)}
+.gxt-followup-status-pill.is-observation{color:#ffd18a;background:rgba(212,151,50,.14);border-color:rgba(212,151,50,.38)}
+.gxt-followup-status-pill.is-success{color:#91e8bd;background:rgba(46,180,116,.12);border-color:rgba(46,180,116,.35)}
+.gxt-followup-status-pill.is-early{color:#8edcff;background:rgba(53,158,211,.14);border-color:rgba(53,158,211,.38)}
+.gxt-followup-status-pill.is-warning{color:#ffc27c;background:rgba(219,139,48,.12);border-color:rgba(219,139,48,.38)}
+.gxt-followup-status-pill.is-neutral{color:#c4cbd2;background:rgba(160,170,180,.1);border-color:rgba(160,170,180,.25)}
+.gxt-followup-plan-button{padding:7px 11px;border-radius:9px;font-size:10px;font-weight:850;white-space:nowrap;cursor:pointer}
+.gxt-followup-plan-button.is-create{border:1px solid rgba(37,244,238,.45);background:rgba(37,244,238,.1);color:#8ffaf3}
+.gxt-followup-plan-button.is-view{border:1px solid rgba(153,174,255,.45);background:rgba(108,132,219,.14);color:#c5d0ff}
+.gxt-followup-plan-button:hover{filter:brightness(1.18);transform:translateY(-1px)}
+.gxt-followup-muted{color:#687782}

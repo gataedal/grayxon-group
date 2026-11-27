@@ -5,6 +5,7 @@ declare
  v_manager_id uuid:='30000000-0000-0000-0000-000000000001';
  v_team_id uuid:='40000000-0000-0000-0000-000000000001';
  v_import uuid;
+ v_import_b uuid;
  v_payload jsonb;
 begin
  insert into auth.users(id) values(v_manager_user),(v_creator);
@@ -46,7 +47,7 @@ begin
   '10000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000002','foreign.xlsx',
   '10000000-0000-0000-0000-000000000002/foreign.xlsx',repeat('f',64),
   '2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily','processed'
- );
+ ) returning id into v_import_b;
  insert into public.gx_creator_action_plans(id,creator_user_id,manager_id,title,objective,created_by)
  values('50000000-0000-0000-0000-000000000001',v_creator,v_manager_id,'Plan test','Objetivo de prueba',v_manager_user);
  insert into public.gx_creator_action_plan_updates(id,plan_id,progress_summary,status)
@@ -57,7 +58,7 @@ begin
   target_valid_days,target_live_seconds,valid_days_pct,live_hours_pct,classification,raw_metrics
  )
  values(
-  v_import,'20000000-0000-0000-0000-000000000002','creator_b','30000000-0000-0000-0000-000000000002',
+  v_import_b,'20000000-0000-0000-0000-000000000002','creator_b','30000000-0000-0000-0000-000000000002',
   '2026-11-01','2026-11-07',7,5,64800,1000,
   5.1333,75600,97.4026,85.7143,'on_track','{}'::jsonb
  );
