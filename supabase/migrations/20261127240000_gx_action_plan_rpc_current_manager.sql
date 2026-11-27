@@ -1,5 +1,39 @@
 begin;
 
+-- Refuerza también la lectura de planes históricos con la asignación vigente.
+-- El identificador de manager del plan es histórico, no una regla de acceso.
+drop policy if exists gx_action_plans_read on public.gx_creator_action_plans;
+create policy gx_action_plans_read on public.gx_creator_action_plans
+for select to authenticated
+using (
+  public.is_admin()
+  or exists (
+    select 1 from public.profiles c
+    where c.id=creator_user_id and c.role='creator'
+      and c.manager_id=public.current_manager_id()
+  )
+);
+
+drop policy if exists gx_action_plans_update on public.gx_creator_action_plans;
+create policy gx_action_plans_update on public.gx_creator_action_plans
+for update to authenticated
+using (
+  public.is_admin()
+  or exists (
+    select 1 from public.profiles c
+    where c.id=creator_user_id and c.role='creator'
+      and c.manager_id=public.current_manager_id()
+  )
+)
+with check (
+  public.is_admin()
+  or exists (
+    select 1 from public.profiles c
+    where c.id=creator_user_id and c.role='creator'
+      and c.manager_id=public.current_manager_id()
+  )
+);
+
 -- El acceso depende de la asignación vigente del creador, no del manager
 -- histórico guardado en el plan. Así el nuevo manager hereda el seguimiento.
 create or replace function public.gx_manager_update_creator_action_plan(
