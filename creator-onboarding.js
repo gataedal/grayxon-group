@@ -20,8 +20,23 @@
     trainingTpl: window.trainingTpl,
     completeLesson: window.completeLesson,
     advanceAfterLesson: window.advanceAfterLesson,
-    login: window.login
+    login: window.login,
+    getProfile: window.getProfile
   };
+
+  if(typeof original.getProfile === 'function'){
+    window.getProfile = async function(){
+      const result = await original.getProfile.apply(this,arguments);
+      if(result && session?.user?.id){
+        const {data,error}=await sb.from('profiles')
+          .select('onboarding_required,onboarding_completed_at')
+          .eq('id',session.user.id).maybeSingle();
+        if(error) throw error;
+        if(data) Object.assign(result,data);
+      }
+      return result;
+    };
+  }
 
   function pending(){
     return !!(profile && profile.role === 'creator' && profile.onboarding_required === true && !profile.onboarding_completed_at);
@@ -113,6 +128,7 @@
       if(!pending()) return original.trainingTpl.apply(this,arguments);
       if(!profileComplete()){ nav('profile'); return; }
       const result=await original.trainingTpl.apply(this,arguments);
+      try{ await refreshState(); }catch(e){ toast('No pudimos validar tu proceso. Inténtalo nuevamente.'); return; }
       if(Array.isArray(window._lessons)){
         window._lessons=window._lessons.filter(l=>REQUIRED_LESSONS.includes(l.id) && l.type==='video');
       }
