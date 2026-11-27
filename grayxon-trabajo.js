@@ -498,7 +498,9 @@
   let followupCreatorCache=[];
   let followupImportFile=null;
   let followupPreviewMarkup='';
-  let followupMissingPhones=[];\n  let followupPortalMissing=[];\n  let followupAgencyDeparted=[];
+  let followupMissingPhones=[];
+  let followupPortalMissing=[];
+  let followupAgencyDeparted=[];
   function bindFollowupPreviewActions(target){
     if(!target)return;
     target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
@@ -683,7 +685,7 @@
     if(!rows?.length)return;
     const quote=value=>'"'+String(value??'').replace(/"/g,'""')+'"';
     const lines=[['Usuario TikTok','ID del creador','Estado en el reporte'],...rows.map(row=>[row.creator_username_snapshot||row.username,row.creator_id_snapshot||row.creatorId,row.source_status||'El creador ha abandonado la agencia'])];
-    const csv='\\uFEFF'+lines.map(line=>line.map(quote).join(';')).join('\\r\\n');
+    const csv='\uFEFF'+lines.map(line=>line.map(quote).join(';')).join('\r\n');
     const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download='creadores-que-abandonaron-la-agencia'+(periodLabel?'-'+periodLabel:'')+'.csv';
