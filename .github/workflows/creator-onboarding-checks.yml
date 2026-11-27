@@ -69,3 +69,5 @@ jobs:
         run: psql -h localhost -U postgres -d onboarding_test -v ON_ERROR_STOP=1 -f tests/creator-onboarding-migration.test.sql
       - name: Check onboarding JavaScript syntax
         run: node --check creator-onboarding.js
+      - name: Check onboarding Edge Function and portal integration
+        run: node tests/creator-onboarding-edge.test.js
