@@ -16,6 +16,29 @@ create index if not exists gx_followup_unmatched_import_idx
 
 alter table public.gx_creator_followup_import_unmatched_rows enable row level security;
 
+drop policy if exists gx_followup_imports_read on public.gx_creator_followup_imports;
+create policy gx_followup_imports_read
+  on public.gx_creator_followup_imports
+  for select to authenticated
+  using (
+    public.is_admin()
+    or exists (
+      select 1 from public.gx_creator_followup_evaluations e
+      join public.profiles c on c.id=e.creator_user_id
+      where e.import_id=gx_creator_followup_imports.id
+        and c.role='creator'
+        and c.manager_id=public.current_manager_id()
+    )
+    or (
+      uploaded_by=auth.uid()
+      and not exists (
+        select 1 from public.gx_creator_followup_evaluations e
+        where e.import_id=gx_creator_followup_imports.id
+      )
+    )
+  );
+
+
 drop policy if exists gx_followup_unmatched_read on public.gx_creator_followup_import_unmatched_rows;
 create policy gx_followup_unmatched_read
   on public.gx_creator_followup_import_unmatched_rows
