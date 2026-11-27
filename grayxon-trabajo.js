@@ -851,14 +851,33 @@
         p_source_start:preview.sourcePeriod.start,p_source_end:preview.sourcePeriod.end,
         p_granularity:preview.granularity,p_evaluations:evaluations,p_unmatched_rows:unmatchedRows
       });
-      if(saveError)throw new Error('El archivo se subió, pero no se pudo registrar la evaluación: '+saveError.message);
+      if(saveError)throw new Error('No se pudo registrar el reporte: '+saveError.message);
+      if(!importId)throw new Error('La base de datos no confirmó el registro del reporte.');
+      const {data:registeredImport,error:verifyError}=await sb
+        .from('gx_creator_followup_imports')
+        .select('id,uploaded_by,manager_id,storage_path')
+        .eq('id',importId)
+        .single();
+      if(verifyError||!registeredImport||registeredImport.uploaded_by!==state.session.user.id||
+        registeredImport.manager_id!==(state.isManager?state.member.id:null)||
+        registeredImport.storage_path!==objectPath) {
+        throw new Error('El reporte no pudo verificarse después de guardarlo. '+(verifyError?.message||''));
+      }
       toast('Reporte archivado correctamente.');
       targetReloadFollowup(importId);
-      loadFollowupHistory();
+      await loadFollowupHistory();
     }catch(error){
-      if(objectPath)await sb.storage.from('gx-creator-followup-reports').remove([objectPath]).catch(()=>{});
+      let cleanupMessage='';
+      if(objectPath){
+        try{
+          const {error:cleanupError}=await sb.storage.from('gx-creator-followup-reports').remove([objectPath]);
+          if(cleanupError)cleanupMessage=' No se pudo retirar el Excel de Storage: '+cleanupError.message+' Ruta: '+objectPath;
+        }catch(cleanupError){
+          cleanupMessage=' No se pudo retirar el Excel de Storage: '+(cleanupError?.message||'error desconocido')+' Ruta: '+objectPath;
+        }
+      }
       console.error('[Gestión · Seguimiento] save import',error);
-      toast(error.message||'No se pudo guardar la evaluación.');
+      toast((error.message||'No se pudo guardar la evaluación.')+cleanupMessage);
       if(button){button.disabled=false;button.textContent='Guardar evaluación';}
     }
   }
