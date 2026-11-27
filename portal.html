@@ -836,6 +836,7 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
   const source=role==='admin'?document.querySelectorAll('#admin .gx-internal-access-source [data-admin],#admin .gx-internal-access-source [data-page],#admin .gx-internal-access-source [data-gx-referrals-access],#admin .gx-internal-access-source [data-gx-trabajo-access]'):document.querySelectorAll('#manager .gx-internal-access-source [data-manager-view],#manager .gx-internal-access-source [data-page],#manager .gx-internal-access-source [data-gx-referrals-access],#manager .gx-internal-access-source [data-gx-trabajo-access]');
   if(!source.length)return;
   items.replaceChildren();
+  addItem('⌂','Inicio','utility','dashboard');
   source.forEach(node=>{
    const key=node.dataset.admin||node.dataset.managerView||node.dataset.page||node.dataset.gxMenuKey||'';
    const kind=node.hasAttribute('data-gx-referrals-access')?'referrals':node.hasAttribute('data-gx-trabajo-access')?'link':node.dataset.admin?'admin':node.dataset.managerView?'manager':'page';
@@ -871,6 +872,7 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
   if(document.body.classList.contains('gx-referrals-mode')&&typeof window.grayxonCloseReferrals==='function')window.grayxonCloseReferrals();
   close();
   if(kind==='utility'){
+   if(key==='dashboard'&&typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
    if(key==='calendar'&&typeof window.grayxonOpenCalendar==='function')window.grayxonOpenCalendar();
    if(key==='profile'&&typeof window.grayxonNavigateToProfile==='function')window.grayxonNavigateToProfile();
    else if(key==='profile')document.getElementById('mobileProfile')?.click();
