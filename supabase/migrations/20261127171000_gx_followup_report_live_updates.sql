@@ -31,7 +31,7 @@ begin
   if tg_op = 'DELETE' then return old; end if;
   return new;
 end;
-$;
+$$;
 
 revoke all on function public.gx_touch_general_followup_report() from public, anon, authenticated;
 
