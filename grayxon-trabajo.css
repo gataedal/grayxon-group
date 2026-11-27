@@ -409,3 +409,12 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-followup-import>.gxt-followup-preview{min-width:0}
 .gxt-followup-workspace.is-open .gxt-followup-workspace-grid{grid-template-columns:minmax(0,1fr)}
 .gxt-followup-workspace.is-open .gxt-followup-operations{max-width:900px;margin:20px auto}
+
+@media(min-width:900px){
+ .gxt-followup-import>.gxt-followup-rules{grid-row:2;grid-column:2;align-self:stretch}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-followup-alert-row{grid-column:2;grid-row:3}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-status-note:nth-child(2){grid-column:1/-1;grid-row:4}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-followup-summary{grid-column:1/-1;grid-row:5}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-followup-warnings{grid-column:1/-1;grid-row:6}
+ .gxt-followup-import>.gxt-followup-preview>.gxt-followup-table-wrap{grid-column:1/-1;grid-row:7}
+}
