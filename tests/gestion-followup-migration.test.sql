@@ -123,14 +123,14 @@ begin
  update public.gx_creator_action_plans
   set target_date=(now() at time zone 'America/Bogota')::date+1
   where id='50000000-0000-0000-0000-000000000001';
- begin
-  perform public.gx_manager_update_creator_action_plan(
-   '50000000-0000-0000-0000-000000000001','Avance antes del cierre',null,'active','{}'::jsonb
-  );
-  raise exception 'Progress before plan end date should have failed';
- exception when others then
-  if sqlerrm='Progress before plan end date should have failed' then raise; end if;
- end;
+ perform public.gx_manager_update_creator_action_plan(
+  '50000000-0000-0000-0000-000000000001','Avance durante el plan',null,'active','{}'::jsonb
+ );
+ if not exists(select 1 from public.gx_creator_action_plan_updates
+   where plan_id='50000000-0000-0000-0000-000000000001'
+     and progress_summary='Avance durante el plan' and status='approved') then
+  raise exception 'Progress during the plan must be accepted before its end date';
+ end if;
  update public.gx_creator_action_plans
   set target_date=(now() at time zone 'America/Bogota')::date-1
   where id='50000000-0000-0000-0000-000000000001';
@@ -174,6 +174,24 @@ begin
   raise exception 'Managers must not read source Excel files';
  end if;
 end $$;
+reset role;
+
+-- Los planes cancelados sí deben bloquear nuevos avances.
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
+set role authenticated;
+update public.gx_creator_action_plans set status='cancelled'
+where id='50000000-0000-0000-0000-000000000001';
+do $
+begin
+ begin
+  perform public.gx_manager_update_creator_action_plan(
+   '50000000-0000-0000-0000-000000000001','No debe aceptar avance',null,'active','{}'::jsonb
+  );
+  raise exception 'Cancelled plan must reject progress';
+ exception when others then
+  if sqlerrm='Cancelled plan must reject progress' then raise; end if;
+ end;
+end $;
 reset role;
 
 
@@ -337,7 +355,7 @@ begin
   null;
  end;
  perform public.gx_manager_update_creator_action_plan(
-  '50000000-0000-0000-0000-000000000001','Avance del nuevo manager',null,'active'
+  '50000000-0000-0000-0000-000000000001','Avance del nuevo manager',null,'active','{}'::jsonb
  );
  if not exists(select 1 from public.gx_creator_action_plan_updates
    where plan_id='50000000-0000-0000-0000-000000000001'
