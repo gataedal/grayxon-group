@@ -24,10 +24,14 @@ begin
   'target_live_seconds',75600,'valid_days_pct',97.4026,'live_hours_pct',85.7143,
   'classification','on_track','raw_metrics','{}'::jsonb
  ));
- v_import:=public.gx_save_creator_followup_import('test.xlsx',v_manager_user::text||'/test.xlsx',
-  repeat('a',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily',v_payload);
+ v_import:=public.gx_save_creator_followup_import_with_unmatched('test.xlsx',v_manager_user::text||'/test.xlsx',
+  repeat('a',64),'2026-11-01','2026-11-07','2026-11-01','2026-11-07','daily',v_payload,
+  jsonb_build_array(jsonb_build_object('username','creator_sin_portal','creator_id','789','reason','not_in_portal','agency_status','Activo','raw_metrics','{}'::jsonb)));
  if not exists(select 1 from public.gx_creator_followup_evaluations where import_id=v_import and creator_user_id=v_creator) then
   raise exception 'Expected evaluation row was not persisted';
+ end if;
+ if not exists(select 1 from public.gx_creator_followup_import_unmatched_rows where import_id=v_import and creator_username_snapshot='creator_sin_portal' and reason='not_in_portal') then
+  raise exception 'Expected unmatched portal row was not persisted';
  end if;
  if to_regprocedure('public.gx_manager_update_creator_phone(uuid,text)') is not null then
   raise exception 'La RPC de edición de teléfono para managers debe estar eliminada';
