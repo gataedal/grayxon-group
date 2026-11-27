@@ -444,7 +444,7 @@
       preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='not_in_portal').length;
       preview.summary.agencyDeparted=preview.rows.filter(row=>row.linkStatus==='agency_left').length;
       preview.unmatchedRows=preview.rows.filter(row=>row.linkStatus!=='linked');
-      preview.canEvaluate=!preview.mixedPeriods&&preview.summary.matched>0&&preview.rows.filter(row=>row.profile).every(row=>row.diamonds!=null&&row.liveHours!=null&&row.validDays!=null);
+      preview.canEvaluate=!preview.mixedPeriods&&preview.rows.length>0&&preview.rows.filter(row=>row.profile).every(row=>row.diamonds!=null&&row.liveHours!=null&&row.validDays!=null);
 
       const linkedProfiles=preview.rows.filter(row=>row.profile).map(row=>row.profile);
       const uniqueProfileIds=[...new Set(linkedProfiles.map(profile=>profile.id))];
@@ -484,7 +484,7 @@
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
         '<div class="gxt-followup-warnings">'+warnings+'</div>'+
         '<div class="gxt-status-note">La lista de creadores y sus planes no se desplegará aquí. Después de guardar, estará organizada dentro del mes correspondiente.</div>'+
-        (preview.canEvaluate && preview.summary.matched>0 && preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
+        (preview.canEvaluate && preview.rows.length>0 && preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
           ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar reporte en '+esc(new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(period.start+'T00:00:00Z')) )+'</button></div>'
           : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que haya creadores vinculados con métricas completas y que el reporte cubra un único periodo.</div>');
       followupMissingPhones=missingPhones;
@@ -763,7 +763,7 @@
     const preview=window.grayxonFollowupPreview;
     const file=window.grayxonFollowupFile||followupImportFile;
     if(!preview||!file)return toast('Vuelve a analizar el archivo antes de guardarlo.');
-    if(!preview.canEvaluate||preview.summary.matched<1||
+    if(!preview.canEvaluate||preview.rows.length<1||
       !preview.rows.filter(row=>row.profile).every(row=>['evaluated','not_evaluable'].includes(row.evaluation.status))) {
       return toast('El archivo todavía no cumple las condiciones para guardarse.');
     }
