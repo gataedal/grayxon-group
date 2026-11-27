@@ -419,27 +419,32 @@
         const idMatches=row.creatorId?byCreatorId.get(row.creatorId)||[]:[];
         const usernameMatches=byTikTok.get(row.username.toLowerCase())||[];
         const matches=idMatches.length?idMatches:usernameMatches;
-        const profile=matches.length===1?matches[0]:null;
-        const linkStatus=matches.length>1?'ambiguous':profile?'linked':'unmatched';
-        const evaluation=preview.mixedPeriods
-          ? {status:'needs_daily_data',reason:'El archivo mezcla periodos y debe separarse antes de evaluar.'}
-          : window.GRAYXON_FOLLOWUP_CALCULATIONS?.calculateEvaluation({
-              periodStart:preview.sourcePeriod.start,periodEnd:preview.sourcePeriod.end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
-              granularity:preview.granularity,joinDate:row.joinedAt,
-              validLiveDays:row.validDays,liveSeconds:row.liveHours==null?null:Math.round(row.liveHours*3600),
-              monthlyLiveHours:activeParameters.monthly_live_hours,
-              monthlyValidDays:activeParameters.monthly_valid_days,
-              earlyReviewMinDays:activeParameters.early_review_min_evaluable_days,
-              highRiskThresholdPct:activeParameters.high_risk_threshold_pct,
-              observationThresholdPct:activeParameters.observation_threshold_pct,
-              consistencyHoursPerDay:activeParameters.consistency_hours_per_day,
-              consistencyDaysPerWeek:activeParameters.consistency_days_per_week
-            })||{status:'not_evaluable',reason:'No está disponible el motor de evaluación.'};
+        const profile=row.agencyDeparted?null:(matches.length===1?matches[0]:null);
+        const linkStatus=row.agencyDeparted?'agency_left':matches.length>1?'ambiguous':profile?'linked':'not_in_portal';
+        const evaluation=linkStatus!=='linked'
+          ? {status:'not_evaluable',reason:row.agencyDeparted?'El reporte indica que abandonó la agencia.':'No existe una cuenta activa vinculada en el portal.'}
+          : preview.mixedPeriods
+            ? {status:'needs_daily_data',reason:'El archivo mezcla periodos y debe separarse antes de evaluar.'}
+            : window.GRAYXON_FOLLOWUP_CALCULATIONS?.calculateEvaluation({
+                periodStart:preview.sourcePeriod.start,periodEnd:preview.sourcePeriod.end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
+                granularity:preview.granularity,joinDate:row.joinedAt,
+                validLiveDays:row.validDays,liveSeconds:row.liveHours==null?null:Math.round(row.liveHours*3600),
+                monthlyLiveHours:activeParameters.monthly_live_hours,
+                monthlyValidDays:activeParameters.monthly_valid_days,
+                earlyReviewMinDays:activeParameters.early_review_min_evaluable_days,
+                highRiskThresholdPct:activeParameters.high_risk_threshold_pct,
+                observationThresholdPct:activeParameters.observation_threshold_pct,
+                consistencyHoursPerDay:activeParameters.consistency_hours_per_day,
+                consistencyDaysPerWeek:activeParameters.consistency_days_per_week
+              })||{status:'not_evaluable',reason:'No está disponible el motor de evaluación.'};
         return {...row,profile,linkStatus,evaluation};
       });
       preview.summary.matched=preview.rows.filter(row=>row.linkStatus==='linked').length;
       preview.summary.ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous').length;
-      preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='unmatched').length;
+      preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='not_in_portal').length;
+      preview.summary.agencyDeparted=preview.rows.filter(row=>row.linkStatus==='agency_left').length;
+      preview.unmatchedRows=preview.rows.filter(row=>row.linkStatus!=='linked');
+
       const linkedProfiles=preview.rows.filter(row=>row.profile).map(row=>row.profile);
       const uniqueProfileIds=[...new Set(linkedProfiles.map(profile=>profile.id))];
       const {data:phoneRows,error:phoneError}=uniqueProfileIds.length
