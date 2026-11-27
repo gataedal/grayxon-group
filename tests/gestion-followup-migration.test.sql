@@ -63,6 +63,9 @@ begin
   (now() at time zone 'America/Bogota')::date-2,(now() at time zone 'America/Bogota')::date+1,v_manager_user);
  insert into public.gx_creator_action_plan_updates(id,plan_id,progress_summary,status)
  values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','Propuesta test','pending_manager_review');
+ insert into public.gx_creator_action_plans(id,creator_user_id,manager_id,title,objective,start_date,target_date,created_by)
+ values('50000000-0000-0000-0000-000000000002',v_creator,v_manager_id,'Plan cancelado test','Objetivo de prueba',
+  (now() at time zone 'America/Bogota')::date-2,(now() at time zone 'America/Bogota')::date+1,v_manager_user);
  insert into public.gx_creator_followup_evaluations(
   import_id,creator_user_id,creator_username_snapshot,manager_id_snapshot,
   evaluated_start_date,evaluated_end_date,evaluable_days,valid_live_days,live_seconds,diamonds,
@@ -179,22 +182,23 @@ begin
 end $$;
 reset role;
 
--- Los planes cancelados sí deben bloquear nuevos avances.
+-- Los planes cancelados sí deben bloquear nuevos avances, sin alterar el plan
+-- principal que luego se usa para probar la reasignación de manager.
 select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
 set role authenticated;
 update public.gx_creator_action_plans set status='cancelled'
-where id='50000000-0000-0000-0000-000000000001';
-do $
+where id='50000000-0000-0000-0000-000000000002';
+do $$
 begin
  begin
   perform public.gx_manager_update_creator_action_plan(
-   '50000000-0000-0000-0000-000000000001','No debe aceptar avance',null,'active','{}'::jsonb
+   '50000000-0000-0000-0000-000000000002','No debe aceptar avance',null,'active','{}'::jsonb
   );
   raise exception 'Cancelled plan must reject progress';
  exception when others then
   if sqlerrm='Cancelled plan must reject progress' then raise; end if;
  end;
-end $;
+end $$;
 reset role;
 
 
