@@ -393,7 +393,7 @@
       const workbook=window.XLSX.read(buffer,{type:'array',cellDates:true});
       const preview=window.GRAYXON_FOLLOWUP_IMPORT.parseWorkbook(workbook);
       const [{data:creatorData,error:creatorError},{data:parameterRows,error:parameterError}]=await Promise.all([
-        sb.from('profiles').select('id,username,full_name,tiktok_username,tiktok_creator_id,manager_id,created_at').eq('role','creator').eq('active',true),
+        sb.from('profiles').select('id,username,full_name,tiktok_username,tiktok_creator_id,manager_id,created_at,active').eq('role','creator'),
         sb.from('gx_creator_followup_parameters').select('version,monthly_live_hours,monthly_valid_days,early_review_min_evaluable_days,high_risk_threshold_pct,observation_threshold_pct,consistency_hours_per_day,consistency_days_per_week,timezone').eq('active',true).order('version',{ascending:false}).limit(1)
       ]);
       if(creatorError)throw new Error('No se pudieron consultar los creadores autorizados: '+creatorError.message);
@@ -419,8 +419,10 @@
         const idMatches=row.creatorId?byCreatorId.get(row.creatorId)||[]:[];
         const usernameMatches=byTikTok.get(row.username.toLowerCase())||[];
         const matches=idMatches.length?idMatches:usernameMatches;
-        const profile=row.agencyDeparted?null:(matches.length===1?matches[0]:null);
-        const linkStatus=row.agencyDeparted?'agency_left':matches.length>1?'ambiguous':profile?'linked':'not_in_portal';
+        const matchedProfile=matches.length===1?matches[0]:null;
+        const inactiveProfile=!!matchedProfile&&matchedProfile.active===false;
+        const profile=row.agencyDeparted||inactiveProfile?null:matchedProfile;
+        const linkStatus=row.agencyDeparted?'agency_left':matches.length>1?'ambiguous':inactiveProfile?'portal_inactive':profile?'linked':'not_in_portal';
         const evaluation=linkStatus!=='linked'
           ? {status:'not_evaluable',reason:row.agencyDeparted?'El reporte indica que abandonó la agencia.':'No existe una cuenta activa vinculada en el portal.'}
           : preview.mixedPeriods
@@ -470,16 +472,17 @@
       const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo está listo para guardarse en el archivo mensual.':'El archivo no permite completar la evaluación.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
       const portalMissing=preview.rows.filter(row=>row.linkStatus==='not_in_portal');
+      const inactivePortal=preview.rows.filter(row=>row.linkStatus==='portal_inactive');
       const departed=preview.rows.filter(row=>row.linkStatus==='agency_left');
       const ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous');
-      followupPortalMissing=portalMissing;
+      followupPortalMissing=portalMissing.concat(inactivePortal);
       followupAgencyDeparted=departed;
       if(departed.length)downloadFollowupDepartedCsv(departed.map(row=>({creator_username_snapshot:row.username,creator_id_snapshot:row.creatorId,source_status:row.agencyStatus||'El creador ha abandonado la agencia'})),String(period.start||'').slice(0,7));
-      const alertCount=missingPhones.length+portalMissing.length+departed.length+ambiguous.length;
+      const alertCount=missingPhones.length+portalMissing.length+inactivePortal.length+departed.length+ambiguous.length;
       target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros del Excel</small></div><div><strong>'+preview.summary.matched+'</strong><small>En el portal</small></div><div><strong>'+portalMissing.length+'</strong><small>Sin acceso al portal</small></div><div><strong>'+departed.length+'</strong><small>Abandonaron la agencia</small></div></div>'+
         '<div class="gxt-status-note">'+esc(status)+' Periodo del reporte: '+esc(period.start)+' al '+esc(period.end)+'. Este archivo se archivará dentro de ese mes.</div>'+
         (alertCount
-          ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-followup-alert><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar alertas del reporte</strong><small>'+missingPhones.length+' sin teléfono · '+portalMissing.length+' sin acceso · '+departed.length+' abandonaron la agencia'+(ambiguous.length?' · '+ambiguous.length+' coincidencias ambiguas':'')+'</small></span><span class="gxt-followup-alert-count">'+alertCount+'</span></button></div>'
+          ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-followup-alert><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar alertas del reporte</strong><small>'+missingPhones.length+' sin teléfono · '+portalMissing.length+' sin cuenta · '+inactivePortal.length+' cuenta inactiva · '+departed.length+' abandonaron la agencia'+(ambiguous.length?' · '+ambiguous.length+' coincidencias ambiguas':'')+'</small></span><span class="gxt-followup-alert-count">'+alertCount+'</span></button></div>'
           : '<div class="gxt-status-note">No hay alertas de contacto ni de vinculación.</div>')+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
         '<div class="gxt-followup-warnings">'+warnings+'</div>'+
@@ -507,11 +510,12 @@
     target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
     target.querySelector('[data-open-followup-alert]')?.addEventListener('click',()=>{
       const phoneNames=followupMissingPhones.map(profile=>(profile.full_name||'').trim()||profile.username||'Creador');
-      const portalNames=followupPortalMissing.map(row=>row.username);
+      const portalNames=followupPortalMissing.filter(row=>row.linkStatus==='not_in_portal').map(row=>row.username);
+      const inactiveNames=followupPortalMissing.filter(row=>row.linkStatus==='portal_inactive').map(row=>row.username);
       const departedNames=followupAgencyDeparted.map(row=>row.username);
       const ambiguousNames=(window.grayxonFollowupPreview?.rows||[]).filter(row=>row.linkStatus==='ambiguous').map(row=>row.username);
       const section=(title,names)=>names.length?'<section class="gxt-followup-alert-group"><strong>'+esc(title)+' ('+names.length+')</strong>'+names.map(name=>'<div class="gxt-followup-alert-person"><span>'+esc(name)+'</span></div>').join('')+'</section>':'';
-      const body=section('Sin teléfono registrado',phoneNames)+section('Sin usuario o acceso al portal',portalNames)+section('El reporte indica que abandonaron la agencia',departedNames)+section('Revisar coincidencia de cuenta',ambiguousNames);
+      const body=section('Sin teléfono registrado',phoneNames)+section('Sin cuenta en el portal',portalNames)+section('Cuenta del portal inactiva',inactiveNames)+section('El reporte indica que abandonaron la agencia',departedNames)+section('Revisar coincidencia de cuenta',ambiguousNames);
       const copyText=[
         phoneNames.length?'Creadores sin teléfono registrado:\n'+phoneNames.map(name=>'• '+name).join('\n'):'',
         portalNames.length?'Creadores sin acceso al portal:\n'+portalNames.map(name=>'• '+name).join('\n'):''
@@ -788,7 +792,7 @@
         classification:row.evaluation.classification||'not_evaluable',
         raw_metrics:{source_group:row.group,source_agent:row.agent,days_since_join:row.daysSinceJoin,source_period:row.sourcePeriod}
       }));
-      const unmatchedRows=preview.rows.filter(row=>!row.profile).map(row=>({username:row.username,creator_id:row.creatorId,reason:row.linkStatus==='agency_left'?'agency_left':row.linkStatus==='ambiguous'?'ambiguous':'not_in_portal',agency_status:row.agencyStatus,raw_metrics:{diamonds:row.diamonds,live_hours:row.liveHours,valid_days:row.validDays,source_group:row.group,source_agent:row.agent}}));
+      const unmatchedRows=preview.rows.filter(row=>!row.profile).map(row=>({username:row.username,creator_id:row.creatorId,reason:row.linkStatus==='agency_left'?'agency_left':row.linkStatus==='ambiguous'?'ambiguous':row.linkStatus==='portal_inactive'?'portal_inactive':'not_in_portal',agency_status:row.agencyStatus,raw_metrics:{diamonds:row.diamonds,live_hours:row.liveHours,valid_days:row.validDays,source_group:row.group,source_agent:row.agent}}));
       const {data:importId,error:saveError}=await sb.rpc('gx_save_creator_followup_import_with_unmatched',{
         p_file_name:file.name,p_storage_path:objectPath,p_file_sha256:hash,
         p_selected_start:preview.selectedPeriod.start,p_selected_end:preview.selectedPeriod.end,
