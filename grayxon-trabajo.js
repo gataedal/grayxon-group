@@ -709,8 +709,8 @@
           const alertButton=alertTotal
             ? '<button type="button" class="gxt-followup-month-alert" data-followup-report-alert="'+esc(item.id)+'"><span class="gxt-followup-alert-dot">!</span><span><strong>Alertas</strong><small>'+missingPhones.length+' sin teléfono · '+noPortal.length+' sin acceso</small></span><b>'+alertTotal+'</b></button>'
             : '<span class="gxt-followup-month-alert is-clear">Sin alertas pendientes</span>';
-          return '<details class="gxt-followup-history-report"><summary><span class="gxt-followup-report-title"><strong>'+esc(item.file_name)+'</strong><small>'+esc(item.source_start_date||item.selected_start_date)+' a '+esc(item.source_end_date||item.selected_end_date)+'</small></span><span class="gxt-chip">'+evaluations.length+' creadores</span></summary>'+
-            '<div class="gxt-followup-history-report-body"><div class="gxt-followup-report-alert-slot">'+alertButton+'</div>'+
+          return '<details class="gxt-followup-history-report"><summary><span class="gxt-followup-report-title"><strong>'+esc(item.file_name)+'</strong><small>'+esc(item.source_start_date||item.selected_start_date)+' a '+esc(item.source_end_date||item.selected_end_date)+'</small></span><span class="gxt-chip">'+evaluations.length+' creadores</span><span class="gxt-followup-report-alert-slot">'+alertButton+'</span></summary>'+
+            '<div class="gxt-followup-history-report-body">'+
             (evaluations.length?'<h4>Creadores del portal</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+creatorRows+'</tbody></table></div>':'<p class="gxt-muted">No hay creadores activos del portal para este reporte.</p>')+
             '</div></details>';
         }).join('');
@@ -729,7 +729,8 @@
         const month=button.closest('.gxt-followup-history-month');if(month){month.open=false;month.classList.remove('is-fullscreen');}
       }));
       host.querySelectorAll('[data-followup-open-creator]').forEach(button=>button.addEventListener('click',()=>openFollowupCreator(button.dataset.followupOpenCreator,0)));
-      host.querySelectorAll('[data-followup-report-alert]').forEach(button=>button.addEventListener('click',()=>{
+      host.querySelectorAll('[data-followup-report-alert]').forEach(button=>button.addEventListener('click',event=>{
+        event.preventDefault();event.stopPropagation();
         const item=(data||[]).find(entry=>entry.id===button.dataset.followupReportAlert);
         if(!item)return;
         const evaluations=item.gx_creator_followup_evaluations||[];
