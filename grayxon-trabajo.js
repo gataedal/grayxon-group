@@ -645,8 +645,9 @@
       select.onchange=async()=>{
         const creator=followupCreatorCache.find(p=>p.id===select.value);
         if(creator){document.getElementById('gxFollowupWorkspaceSection')?.classList.add('is-open');setFollowupStep(0);}
-        window.gxFollowupSelectedPhone='';
-        if(!creator)return;
+        if(!creator){window.gxFollowupSelectedPhone='';return;}
+        const {data:phoneData,error:phoneLookupError}=await sb.from('profile_details').select('phone').eq('user_id',creator.id).maybeSingle();
+        window.gxFollowupSelectedPhone=phoneLookupError?'':String(phoneData?.phone||'').trim();
         const selectedReport=window.gxFollowupSelectedReport||null;
         const reportRow=(selectedReport?.gx_creator_followup_evaluations||[]).find(row=>row.creator_user_id===creator.id)||null;
         const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
