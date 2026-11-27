@@ -6636,7 +6636,8 @@ function updateHeaderAccessUI(){
   const isDashboard=profile?.role==='admin'?(current==='admin'&&adminView==='dashboard'):profile?.role==='manager'?(current==='manager'&&managerView==='dashboard'):true;
   if(backBar)backBar.hidden=!isInternalSession||isDashboard;
   if(backTitle)backTitle.textContent=current==='admin'?(adminView==='users'?'Usuarios':adminView==='teams'?'Equipos y managers':adminView==='manager_tasks'?'Tareas de managers':adminView==='live_trainings'?'Entrenamientos en vivo':adminView==='formation'?'Formación':adminView==='payments'?'Pagos':adminView==='benefits'?'Beneficios y requisitos':adminView==='app_identity'?'Identidad de la app':'Contenido del sitio'):current==='manager'?(managerView==='creators'?'Mis creadores':managerView==='tasks'?'Tareas asignadas':managerView==='training'?'Entrenamientos en vivo':'Centro de comunicados'):current==='announcements'?'Centro de comunicados':current==='payments'?'Pagos':current==='events'?'Eventos':current==='profile'?'Perfil':current==='training'?'Formación':current==='missions'?'Misiones':current==='live-training'?'Entrenamiento en vivo':'';
-  if(backButton&&!backButton.dataset.bound){backButton.dataset.bound='1';backButton.addEventListener('click',()=>{if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();});}
+  if(backButton&&!backButton.dataset.bound){backButton.dataset.bound='1';backButton.addEventListener('click',()=>{if(typeof window.grayxonInternalBackAction==='function')window.grayxonInternalBackAction();else if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();});}
+  window.grayxonRefreshInternalChrome=updateHeaderAccessUI;
   if(isInternalSession&&typeof window.grayxonSyncInternalMenu==='function')window.grayxonSyncInternalMenu(profile.role);
   const btn=$('#adminOpen');if(!btn)return;
   btn.classList.toggle('grayxon-manager-header-hidden',isManagerSession);
