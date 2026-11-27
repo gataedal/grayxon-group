@@ -58,4 +58,9 @@ $function$;
 revoke all on function public.gx_manager_update_creator_action_plan(uuid,text,text,text,jsonb) from public, anon;
 grant execute on function public.gx_manager_update_creator_action_plan(uuid,text,text,text,jsonb) to authenticated;
 
+-- Retira la sobrecarga antigua de cuatro argumentos para evitar que clientes
+-- o llamadas heredadas ejecuten una versión distinta de la validación.
+revoke all on function public.gx_manager_update_creator_action_plan(uuid,text,text,text) from public, anon, authenticated;
+drop function public.gx_manager_update_creator_action_plan(uuid,text,text,text);
+
 commit;
