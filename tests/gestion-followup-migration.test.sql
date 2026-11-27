@@ -260,6 +260,9 @@ begin
  if (select count(*) from public.gx_creator_followup_imports)<>0 then
   raise exception 'Previous manager must lose import metadata access after reassignment';
  end if;
+ if (select count(*) from public.gx_creator_followup_import_unmatched_rows)<>0 then
+  raise exception 'Previous manager must lose unmatched report access after reassignment';
+ end if;
  if (select count(*) from public.gx_creator_followup_contacts)<>0 then
   raise exception 'Previous manager must lose contact history after reassignment';
  end if;
@@ -292,6 +295,9 @@ begin
  end if;
  if (select count(*) from public.gx_creator_followup_imports)<>2 then
   raise exception 'Current manager must see historical import metadata for assigned creators';
+ end if;
+ if (select count(*) from public.gx_creator_followup_import_unmatched_rows)<>1 then
+  raise exception 'Current manager must see unmatched report rows attached to the assigned import';
  end if;
  if (select count(*) from public.gx_creator_followup_contacts)<>2 then
   raise exception 'Current manager must see historical contacts for reassigned creators';
