@@ -351,13 +351,44 @@
       '<section class="gxt-panel"><div class="gxt-table-wrap"><table class="gxt-table"><thead><tr><th>Fecha</th><th>Integrante</th><th>Tarea</th><th>Movimiento</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(rows?'':'<div class="gxt-empty">Todavía no hay actividad registrada.</div>')+'</section>';
   }
 
+  async function refreshGeneralReportReadiness(){
+    const button=main.querySelector('[data-generate-general-report]');
+    const status=document.getElementById('gxGeneralReportStatus');
+    if(!button||!state.isManager)return;
+    const creators=followupCreatorCache||[];
+    const plans=window.gxFollowupPlans||[];
+    const missing=creators.filter(creator=>!plans.some(plan=>plan.creator_user_id===creator.id&&plan.status!=='cancelled'));
+    const ready=creators.length>0&&missing.length===0;
+    button.disabled=!ready;
+    if(status)status.textContent=!creators.length?'No hay creadores activos asignados a tu equipo.':ready?'Todo tu equipo tiene un plan de trabajo. Ya puedes generar el informe general.':'Faltan '+missing.length+' de '+creators.length+' creadores por gestionar. Todos deben tener un plan de trabajo guardado.';
+    button.title=ready?'Generar el informe de todo tu equipo':'Completa los planes de trabajo pendientes';
+  }
+
+  async function generateGeneralFollowupReport(){
+    const button=main.querySelector('[data-generate-general-report]');
+    if(!button||button.disabled)return;
+    button.disabled=true;
+    button.textContent='Generando…';
+    const {data,error}=await sb.rpc('gx_manager_generate_general_followup_report');
+    if(error){
+      toast('No se pudo generar el informe: '+error.message);
+      await refreshGeneralReportReadiness();
+      button.textContent='Generar informe general';
+      return;
+    }
+    toast('Informe general enviado a Reportes.');
+    button.textContent='Informe generado';
+    await refreshGeneralReportReadiness();
+  }
+
   function renderFollowupPage() {
-    main.innerHTML = pageHead('Seguimiento de creadores','Evaluaciones por periodo, contacto, observaciones y planes de acción del equipo.')+
+    main.innerHTML = pageHead('Seguimiento de creadores','Evaluaciones por periodo, contacto, observaciones y planes de acción del equipo.',state.isManager?'<button type="button" class="gxt-btn primary" data-generate-general-report disabled>Generar informe general</button>':'')+
       '<section class="gxt-panel gxt-followup-import"><div class="gxt-panel-head"><div><h2>Importar reporte de TikTok LIVE</h2><p>Sube el Excel. El periodo se detecta automáticamente desde el reporte.</p></div><span class="gxt-chip">Vista previa</span></div>'+
       '<div class="gxt-followup-upload-controls"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label><button type="button" class="gxt-btn gxt-btn-process" data-followup-preview '+(followupImportFile?'':'disabled')+'><span aria-hidden="true">↗</span> Analizar archivo</button></div>'+
       '<div id="gxFollowupFileName" class="gxt-muted gxt-followup-file-name">'+(followupImportFile?esc(followupImportFile.name):'Ningún archivo seleccionado')+'</div>'+'<div class="gxt-followup-rules"><div><strong>Metas mensuales</strong><span>90 horas LIVE · 22 días válidos</span></div><div><strong>Recomendación de constancia</strong><span>2 h 30 min diarios · 6 días por semana</span></div></div>'+
       '<div id="gxFollowupPreview" class="gxt-followup-preview">'+(followupPreviewMarkup||'<div class="gxt-status-note">Selecciona un Excel para analizarlo. El periodo se tomará automáticamente del archivo.</div>')+'</div></section>'+
       
+      (state.isManager?'<section class="gxt-panel"><div class="gxt-panel-head"><h2>Informe general del equipo</h2></div><p id="gxGeneralReportStatus" class="gxt-muted">Comprobando si todos tus creadores tienen un plan de trabajo…</p></section>':'')+
       '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
       '<section class="gxt-panel gxt-followup-workspace" id="gxFollowupWorkspaceSection" hidden><div class="gxt-panel-head"><div><h2 id="gxFollowupCreatorTitle">Plan de trabajo</h2><p id="gxFollowupCreatorSubtitle">Seguimiento individual del creador.</p></div><button type="button" class="gxt-btn ghost" data-followup-close>× Cerrar</button></div>'+
       '<select hidden id="gxFollowupCreator" aria-hidden="true"></select>'+
@@ -657,13 +688,14 @@
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').order('created_at',{ascending:false}).limit(30),
-        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,start_date,target_date,targets,created_at').order('created_at',{ascending:false}).limit(30),
+        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,start_date,target_date,targets,created_at,manager_id').order('created_at',{ascending:false}).limit(1000),
         sb.from('gx_creator_action_plan_updates').select('id,plan_id,progress_summary,proposed_changes,status,created_at,review_note').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_reminders').select('id,creator_user_id,action_plan_id,scheduled_at,status,note').order('scheduled_at',{ascending:true}).limit(30)
       ]);
       const failed=[notes,contacts,plans,planUpdates,reminders].find(x=>x.error);
       if(failed)throw failed.error;
       window.gxFollowupPlans=plans.data||[];
+      await refreshGeneralReportReadiness();
       window.gxFollowupReminders=reminders.data||[];
       const selectedCreatorId=select.value;
       const activePlan=(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId&&plan.status!=='completed'&&plan.status!=='cancelled')||(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId);
@@ -896,9 +928,50 @@
     if(target){target.innerHTML='<div class="gxt-status-note">Reporte archivado automáticamente en '+esc(label)+'.</div>';followupPreviewMarkup=target.innerHTML;}
   }
 
-  function renderReportsPage() {
-    main.innerHTML=pageHead('Reportes','Esta sección se habilitará en una etapa posterior.')+
-      '<section class="gxt-panel"><div class="gxt-empty">Reportes todavía no está habilitado.</div></section>';
+  async function renderReportsPage() {
+    main.innerHTML=pageHead('Reportes','Informes generales de los equipos y sus actualizaciones.')+
+      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>Informes generales</h2></div><div id="gxGeneralReportsList" class="gxt-empty">Cargando informes…</div></section>';
+    const host=document.getElementById('gxGeneralReportsList');
+    try{
+      const {data:reports,error}=await sb.from('gx_creator_followup_general_reports')
+        .select('id,manager_id,team_id,creator_count,period_start,period_end,generated_at,updated_at')
+        .order('generated_at',{ascending:false}).limit(200);
+      if(error)throw error;
+      if(!reports?.length){host.innerHTML='<div class="gxt-empty">Todavía no hay informes generales enviados por los managers.</div>';return;}
+      const managerIds=[...new Set(reports.map(report=>report.manager_id))];
+      const {data:creators,error:creatorError}=await sb.from('profiles')
+        .select('id,username,full_name,manager_id,team_id').eq('role','creator').eq('active',true).in('manager_id',managerIds).order('username');
+      if(creatorError)throw creatorError;
+      const creatorRows=creators||[];
+      const creatorIds=creatorRows.map(row=>row.id);
+      const [plansResult,updatesResult,evaluationsResult]=await Promise.all([
+        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,status,updated_at,manager_id').in('manager_id',managerIds).order('updated_at',{ascending:false}).limit(2000),
+        sb.from('gx_creator_action_plan_updates').select('id,plan_id,progress_summary,created_at,status').order('created_at',{ascending:false}).limit(2000),
+        creatorIds.length?sb.from('gx_creator_followup_evaluations').select('id,creator_user_id,diamonds,live_seconds,valid_live_days,classification,created_at').in('creator_user_id',creatorIds).order('created_at',{ascending:false}).limit(3000):Promise.resolve({data:[],error:null})
+      ]);
+      const failed=[plansResult,updatesResult,evaluationsResult].find(result=>result.error);
+      if(failed)throw failed.error;
+      const plans=plansResult.data||[],updates=updatesResult.data||[],evaluations=evaluationsResult.data||[];
+      const date=value=>value?new Date(value).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'—';
+      host.innerHTML=reports.map(report=>{
+        const teamCreators=creatorRows.filter(row=>row.manager_id===report.manager_id);
+        const teamPlans=plans.filter(plan=>plan.manager_id===report.manager_id);
+        const planIds=new Set(teamPlans.map(plan=>plan.id));
+        const teamUpdates=updates.filter(update=>planIds.has(update.plan_id));
+        const teamEvaluations=evaluations.filter(evaluation=>teamCreators.some(creator=>creator.id===evaluation.creator_user_id));
+        const latestByCreator=new Map();
+        teamEvaluations.forEach(item=>{if(!latestByCreator.has(item.creator_user_id))latestByCreator.set(item.creator_user_id,item);});
+        const managed=teamCreators.filter(creator=>teamPlans.some(plan=>plan.creator_user_id===creator.id&&plan.status!=='cancelled')).length;
+        return '<details class="gxt-accordion"><summary><div class="gxt-accordion-main"><strong>Informe general · '+esc(report.period_start)+' al '+esc(report.period_end)+'</strong><div class="gxt-card-meta"><span class="gxt-chip">'+report.creator_count+' creadores al generar</span><span class="gxt-chip">'+managed+' gestionados actualmente</span><span class="gxt-chip">Equipo '+esc(report.team_id||'sin identificar')+'</span></div></div><span class="gxt-accordion-chevron">⌄</span></summary><div class="gxt-accordion-body"><p><strong>Generado:</strong> '+date(report.generated_at)+'</p><p><strong>Última actualización:</strong> '+date(report.updated_at)+'</p><p><strong>Planes registrados:</strong> '+teamPlans.length+' · <strong>Avances:</strong> '+teamUpdates.length+' · <strong>Evaluaciones:</strong> '+teamEvaluations.length+'</p><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Plan</th><th>Últimos diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+teamCreators.map(creator=>{
+          const plan=teamPlans.find(item=>item.creator_user_id===creator.id&&item.status!=='cancelled');
+          const evaluation=latestByCreator.get(creator.id);
+          return '<tr><td>@'+esc(creator.username)+'</td><td>'+esc(plan?.title||'Pendiente')+'</td><td>'+(evaluation?.diamonds==null?'—':Number(evaluation.diamonds).toLocaleString('es-CO'))+'</td><td>'+(evaluation?.live_seconds==null?'—':(Number(evaluation.live_seconds)/3600).toFixed(1)+' h')+'</td><td>'+(evaluation?.valid_live_days??'—')+'</td></tr>';
+        }).join('')+'</tbody></table></div></div></details>';
+      }).join('');
+    }catch(error){
+      console.error('[Gestión · Reportes] load',error);
+      host.innerHTML='<div class="gxt-status-note gxt-followup-warning">No se pudieron cargar los informes: '+esc(error.message||'Error de consulta')+'</div>';
+    }
   }
 
 
@@ -1510,6 +1583,7 @@
   });
 
   main.addEventListener('click',async event=>{
+    if(event.target.closest('[data-generate-general-report]'))return generateGeneralFollowupReport();
     if(event.target.closest('[data-followup-close]')){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}
     const openFollowup=event.target.closest('[data-followup-open-creator]');
     if(openFollowup){openFollowupCreator(openFollowup.dataset.followupOpenCreator,Number(openFollowup.dataset.followupStep)||0,openFollowup.dataset.followupPlanId||'');return;}
