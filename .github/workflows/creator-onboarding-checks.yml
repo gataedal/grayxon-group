@@ -1,0 +1,71 @@
+name: Creator onboarding checks
+
+on:
+  push:
+    branches:
+      - feature/creator-onboarding-current-main-2026-11-27
+    paths:
+      - 'creator-onboarding.js'
+      - 'portal.html'
+      - 'supabase/functions/create-creator/index.ts'
+      - 'supabase/functions/bulk-import-creators/index.ts'
+      - 'supabase/functions/generate-livekit-token/index.ts'
+      - 'supabase/migrations/2026112712*.sql'
+      - 'supabase/migrations/2026112713*.sql'
+      - 'tests/creator-onboarding-*.sql'
+      - 'tests/fixtures/creator-onboarding-schema.sql'
+      - '.github/workflows/creator-onboarding-checks.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'creator-onboarding.js'
+      - 'portal.html'
+      - 'supabase/functions/create-creator/index.ts'
+      - 'supabase/functions/bulk-import-creators/index.ts'
+      - 'supabase/functions/generate-livekit-token/index.ts'
+      - 'supabase/migrations/2026112712*.sql'
+      - 'supabase/migrations/2026112713*.sql'
+      - 'tests/creator-onboarding-*.sql'
+      - 'tests/fixtures/creator-onboarding-schema.sql'
+      - '.github/workflows/creator-onboarding-checks.yml'
+
+jobs:
+  onboarding-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: onboarding_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d onboarding_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list /etc/apt/sources.list.d/microsoft-prod.sources
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Build isolated onboarding schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d onboarding_test -v ON_ERROR_STOP=1 -f tests/fixtures/creator-onboarding-schema.sql
+      - name: Apply onboarding migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d onboarding_test -v ON_ERROR_STOP=1 -f supabase/migrations/20261127120000_creator_onboarding_gate.sql
+          psql -h localhost -U postgres -d onboarding_test -v ON_ERROR_STOP=1 -f supabase/migrations/20261127130000_creator_onboarding_rpc_gate.sql
+      - name: Verify onboarding security and completion flow
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d onboarding_test -v ON_ERROR_STOP=1 -f tests/creator-onboarding-migration.test.sql
+      - name: Check onboarding JavaScript syntax
+        run: node --check creator-onboarding.js
