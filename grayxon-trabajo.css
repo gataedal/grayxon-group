@@ -492,3 +492,8 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-followup-trace.is-early{color:#8edcff;background:rgba(53,158,211,.14);border-color:rgba(53,158,211,.34)}
 .gxt-followup-trace.is-neutral{color:#c4cbd2;background:rgba(160,170,180,.1);border-color:rgba(160,170,180,.25)}
 @media(max-width:700px){.gxt-followup-report-creator{align-items:flex-start;flex-direction:column;gap:5px;min-width:140px}}
+
+/* Seguimiento: etiqueta junto al nombre y celda completa clicable en el historial importado. */
+.gxt-followup-history-report .gxt-followup-creator-link{display:flex;align-items:center;gap:9px;flex-wrap:wrap;width:100%;min-height:30px}
+.gxt-followup-history-report .gxt-followup-creator-link strong{white-space:nowrap}
+.gxt-followup-history-report .gxt-followup-creator-cell{min-width:210px}
