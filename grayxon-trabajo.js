@@ -505,18 +505,24 @@
   function bindFollowupPreviewActions(target){
     if(!target)return;
     target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
-    target.querySelector('[data-open-missing-phones]')?.addEventListener('click',()=>{
-      if(!followupMissingPhones.length)return;
-      const rows=followupMissingPhones.map(profile=>'<div class="gxt-followup-alert-person"><strong>'+esc(profile.full_name||profile.username||'Creador')+'</strong><span>@'+esc(profile.username||'')+'</span></div>').join('');
-      const names=followupMissingPhones.map(profile=>(profile.full_name||'').trim()||profile.username||'Creador');
-      const text='Estos creadores no tienen teléfono registrado:\n\n'+names.map(name=>'• '+name).join('\n');
-      openModal('Datos de contacto pendientes',followupMissingPhones.length+' creadores vinculados no tienen teléfono registrado. Copia la lista para enviarla a administración.','<div class="gxt-followup-alert-list">'+rows+'</div>',true);
+    target.querySelector('[data-open-followup-alert]')?.addEventListener('click',()=>{
+      const phoneNames=followupMissingPhones.map(profile=>(profile.full_name||'').trim()||profile.username||'Creador');
+      const portalNames=followupPortalMissing.map(row=>row.username);
+      const departedNames=followupAgencyDeparted.map(row=>row.username);
+      const ambiguousNames=(window.grayxonFollowupPreview?.rows||[]).filter(row=>row.linkStatus==='ambiguous').map(row=>row.username);
+      const section=(title,names)=>names.length?'<section class="gxt-followup-alert-group"><strong>'+esc(title)+' ('+names.length+')</strong>'+names.map(name=>'<div class="gxt-followup-alert-person"><span>'+esc(name)+'</span></div>').join('')+'</section>':'';
+      const body=section('Sin teléfono registrado',phoneNames)+section('Sin usuario o acceso al portal',portalNames)+section('El reporte indica que abandonaron la agencia',departedNames)+section('Revisar coincidencia de cuenta',ambiguousNames);
+      const copyText=[
+        phoneNames.length?'Creadores sin teléfono registrado:\n'+phoneNames.map(name=>'• '+name).join('\n'):'',
+        portalNames.length?'Creadores sin acceso al portal:\n'+portalNames.map(name=>'• '+name).join('\n'):''
+      ].filter(Boolean).join('\n\n');
+      openModal('Alertas del reporte','Revisa qué casos requieren acción de administración.', '<div class="gxt-followup-alert-list">'+body+'</div>',true);
       const copyButton=document.createElement('button');
-      copyButton.type='button';copyButton.className='gxt-btn primary gxt-followup-copy-header';copyButton.textContent='Copiar lista';
+      copyButton.type='button';copyButton.className='gxt-btn primary gxt-followup-copy-header';copyButton.textContent='Copiar pendientes';
       const closeButton=modalRoot.querySelector('[data-close-modal]');
       closeButton?.parentNode?.insertBefore(copyButton,closeButton);
       copyButton.addEventListener('click',async()=>{
-        try{await navigator.clipboard.writeText(text);toast('Lista de creadores copiada.');}
+        try{await navigator.clipboard.writeText(copyText||'No hay pendientes de teléfono o acceso al portal.');toast('Pendientes copiados.');}
         catch(error){toast('No fue posible copiar automáticamente en este navegador.');}
       });
     });
@@ -757,8 +763,8 @@
     const preview=window.grayxonFollowupPreview;
     const file=window.grayxonFollowupFile||followupImportFile;
     if(!preview||!file)return toast('Vuelve a analizar el archivo antes de guardarlo.');
-    if(!preview.canEvaluate||preview.summary.matched!==preview.summary.creators||
-      !preview.rows.every(row=>row.profile&&['evaluated','not_evaluable'].includes(row.evaluation.status))) {
+    if(!preview.canEvaluate||preview.summary.matched<1||
+      !preview.rows.filter(row=>row.profile).every(row=>['evaluated','not_evaluable'].includes(row.evaluation.status))) {
       return toast('El archivo todavía no cumple las condiciones para guardarse.');
     }
     const button=main.querySelector('[data-followup-save]');
@@ -772,7 +778,7 @@
       objectPath=state.session.user.id+'/'+crypto.randomUUID()+'-'+safeName;
       const {error:uploadError}=await sb.storage.from('gx-creator-followup-reports').upload(objectPath,file,{upsert:false,contentType:file.type||'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
       if(uploadError)throw new Error('No se pudo subir el archivo original: '+uploadError.message);
-      const evaluations=preview.rows.map(row=>({
+      const evaluations=preview.rows.filter(row=>row.profile).map(row=>({
         creator_user_id:row.profile.id,username:row.username,join_date:row.joinedAt||null,
         evaluated_start:row.evaluation.evaluatedStart||null,evaluated_end:row.evaluation.evaluatedEnd||null,
         evaluable_days:row.evaluation.evaluableDays||0,valid_live_days:row.validDays,
@@ -782,11 +788,12 @@
         classification:row.evaluation.classification||'not_evaluable',
         raw_metrics:{source_group:row.group,source_agent:row.agent,days_since_join:row.daysSinceJoin,source_period:row.sourcePeriod}
       }));
-      const {data:importId,error:saveError}=await sb.rpc('gx_save_creator_followup_import',{
+      const unmatchedRows=preview.rows.filter(row=>!row.profile).map(row=>({username:row.username,creator_id:row.creatorId,reason:row.linkStatus==='agency_left'?'agency_left':row.linkStatus==='ambiguous'?'ambiguous':'not_in_portal',agency_status:row.agencyStatus,raw_metrics:{diamonds:row.diamonds,live_hours:row.liveHours,valid_days:row.validDays,source_group:row.group,source_agent:row.agent}}));
+      const {data:importId,error:saveError}=await sb.rpc('gx_save_creator_followup_import_with_unmatched',{
         p_file_name:file.name,p_storage_path:objectPath,p_file_sha256:hash,
         p_selected_start:preview.selectedPeriod.start,p_selected_end:preview.selectedPeriod.end,
         p_source_start:preview.sourcePeriod.start,p_source_end:preview.sourcePeriod.end,
-        p_granularity:preview.granularity,p_evaluations:evaluations
+        p_granularity:preview.granularity,p_evaluations:evaluations,p_unmatched_rows:unmatchedRows
       });
       if(saveError)throw new Error('El archivo se subió, pero no se pudo registrar la evaluación: '+saveError.message);
       toast('Evaluación guardada correctamente.');
