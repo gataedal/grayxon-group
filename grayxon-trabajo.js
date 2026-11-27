@@ -813,7 +813,7 @@
             (evaluations.length?'<h4>Creadores del portal</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+creatorRows+'</tbody></table></div>':'<p class="gxt-muted">No hay creadores activos del portal para este reporte.</p>')+
             '</div></details>';
         }).join('');
-        return '<details class="gxt-followup-history-month" data-followup-month="'+esc(month)+'"><summary><strong>'+esc(monthLabel(month))+'</strong><span class="gxt-chip">'+items.length+' reportes</span></summary><div class="gxt-followup-history-month-content"><div class="gxt-followup-month-toolbar"><button type="button" class="gxt-btn ghost" data-followup-month-back>← Volver a los meses</button><strong>'+esc(monthLabel(month))+'</strong></div>'+reports+'</div></details>';
+        return '<details class="gxt-followup-history-month" data-followup-month="'+esc(month)+'"><summary><strong>'+esc(monthLabel(month))+'</strong><span class="gxt-chip">'+items.length+' reportes</span></summary><div class="gxt-followup-history-month-content"><div class="gxt-followup-month-toolbar"><button type="button" class="gxt-btn ghost" data-followup-month-back>← Volver a los meses</button><strong>'+esc(monthLabel(month))+'</strong><button type="button" class="gxt-btn danger" data-followup-delete-month="'+esc(month)+'">Eliminar mes y planes</button></div>'+reports+'</div></details>';
       }).join('');
       host.innerHTML='<div class="gxt-panel-head"><h2>Archivo mensual de seguimiento</h2><span class="gxt-chip">'+(data||[]).length+' reportes guardados</span></div>'+
         (monthBlocks||'<div class="gxt-empty">Todavía no hay reportes guardados. Al analizar un Excel, el mes se creará automáticamente.</div>');
@@ -826,6 +826,21 @@
       if(window.gxFollowupOpenMonth){const targetMonth=host.querySelector('[data-followup-month="'+window.gxFollowupOpenMonth+'"]');if(targetMonth)targetMonth.open=true;window.gxFollowupOpenMonth=null;}
       host.querySelectorAll('[data-followup-month-back]').forEach(button=>button.addEventListener('click',()=>{
         const month=button.closest('.gxt-followup-history-month');if(month){month.open=false;month.classList.remove('is-fullscreen');}
+      }));
+      host.querySelectorAll('[data-followup-delete-month]').forEach(button=>button.addEventListener('click',async()=>{
+        const month=button.dataset.followupDeleteMonth;
+        if(!month||!confirm('¿Eliminar los reportes de '+month+' y los planes de trabajo asociados a ese periodo? Esta acción no se puede deshacer.'))return;
+        button.disabled=true;button.textContent='Eliminando…';
+        const {data,error}=await sb.rpc('gx_manager_delete_followup_month',{p_month:month+'-01'});
+        if(error){button.disabled=false;button.textContent='Eliminar mes y planes';return toast('No se pudo eliminar el mes: '+error.message);}
+        const paths=Array.isArray(data?.storage_paths)?data.storage_paths.filter(Boolean):[];
+        let storageWarning='';
+        if(paths.length){
+          const {error:storageError}=await sb.storage.from('gx-creator-followup-reports').remove(paths);
+          if(storageError)storageWarning=' Los archivos Excel quedaron pendientes de limpieza: '+storageError.message;
+        }
+        toast('Mes eliminado: '+Number(data?.deleted_imports||0)+' reportes y '+Number(data?.deleted_plans||0)+' planes.'+storageWarning);
+        await loadFollowupHistory();
       }));
       host.querySelectorAll('[data-followup-open-creator]').forEach(button=>button.addEventListener('click',()=>{
         const report=Array.from(data||[]).find(item=>(item.gx_creator_followup_evaluations||[]).some(row=>row.creator_user_id===button.dataset.followupOpenCreator));
