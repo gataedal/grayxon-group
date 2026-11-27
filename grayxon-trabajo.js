@@ -1507,7 +1507,7 @@
     if(form)submitFollowupRecord(form,event);
   });
 
-  main.addEventListener('click',event=>{
+  main.addEventListener('click',async event=>{
     if(event.target.closest('[data-followup-close]')){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}
     const openFollowup=event.target.closest('[data-followup-open-creator]');
     if(openFollowup){openFollowupCreator(openFollowup.dataset.followupOpenCreator,Number(openFollowup.dataset.followupStep)||0,openFollowup.dataset.followupPlanId||'');return;}
