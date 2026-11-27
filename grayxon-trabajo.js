@@ -68,13 +68,14 @@
       showAccessMessage('No se pudo validar tu acceso en este momento. Vuelve al portal e inténtalo nuevamente.');
       return;
     }
-    if (data && data.active === true) {
+    // Explicit internal administrators keep their full administrative access.
+    if (data?.active === true && data.access_level === 'admin') {
       state.member = data;
-      state.isAdmin = data.access_level === 'admin';
+      state.isAdmin = true;
       state.isManager = false;
       document.getElementById('gxUserName').textContent = data.display_name || user.email || 'Equipo Grayxon';
       document.getElementById('gxUserJob').textContent = [data.job_title, data.department?.name].filter(Boolean).join(' · ');
-      document.getElementById('gxAccessBadge').textContent = state.isAdmin ? 'Administración' : 'Operativo';
+      document.getElementById('gxAccessBadge').textContent = 'Administración';
       setAuthView(true);
       await loadData();
       renderNav();
@@ -83,8 +84,8 @@
       return;
     }
 
-    // Managers use a separate, least-privilege entry path. Their profile and
-    // linked managers row must both be active and point to the same auth user.
+    // Resolve manager identity before falling back to an ordinary internal
+    // member: some managers also have an operational gx_internal_members row.
     const { data: profile, error: profileError } = await sb
       .from('profiles')
       .select('id,role,active,manager_id,full_name')
@@ -92,41 +93,60 @@
       .maybeSingle();
     if (profileError) {
       console.error('[Gestión Grayxon] manager profile lookup', profileError);
-      showAccessMessage('No se pudo validar tu acceso de manager. Inténtalo nuevamente.');
-      return;
-    }
-    if (profile?.role !== 'manager' || profile.active !== true || !profile.manager_id) {
-      showAccessMessage('Esta cuenta no tiene acceso a Gestión. Si consideras que es un error, comunícate con administración.');
-      return;
-    }
-    const { data: managerRow, error: managerError } = await sb
-      .from('managers')
-      .select('id,user_id,name,active')
-      .eq('id', profile.manager_id)
-      .eq('user_id', user.id)
-      .eq('active', true)
-      .maybeSingle();
-    if (managerError || !managerRow) {
-      if (managerError) console.error('[Gestión Grayxon] manager record lookup', managerError);
-      showAccessMessage('No se pudo confirmar el registro activo de este manager.');
+      showAccessMessage('No se pudo validar tu acceso. Inténtalo nuevamente.');
       return;
     }
 
-    state.member = {
-      id: managerRow.id, user_id: user.id, display_name: managerRow.name || profile.full_name || user.email,
-      access_level: 'manager', active: true
-    };
-    state.isAdmin = false;
-    state.isManager = true;
-    state.tab = 'followup';
-    document.getElementById('gxUserName').textContent = state.member.display_name;
-    document.getElementById('gxUserJob').textContent = 'Manager · Seguimiento de creadores';
-    document.getElementById('gxAccessBadge').textContent = 'Manager';
-    setAuthView(true);
-    // Deliberately do not load internal gx_tasks, requests, staff, departments,
-    // activity or calendar for manager accounts.
-    renderNav();
-    renderPage();
+    if (profile?.role === 'manager' && profile.active === true && profile.manager_id) {
+      const { data: managerRow, error: managerError } = await sb
+        .from('managers')
+        .select('id,user_id,name,active')
+        .eq('id', profile.manager_id)
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .maybeSingle();
+      if (managerError || !managerRow) {
+        if (managerError) console.error('[Gestión Grayxon] manager record lookup', managerError);
+        showAccessMessage('No se pudo confirmar el registro activo de este manager.');
+        return;
+      }
+
+      state.member = {
+        id: managerRow.id, user_id: user.id, display_name: managerRow.name || profile.full_name || data?.display_name || user.email,
+        access_level: 'manager', active: true
+      };
+      state.isAdmin = false;
+      state.isManager = true;
+      state.tab = 'followup';
+      document.getElementById('gxUserName').textContent = state.member.display_name;
+      document.getElementById('gxUserJob').textContent = 'Manager · Seguimiento de creadores';
+      document.getElementById('gxAccessBadge').textContent = 'Manager';
+      setAuthView(true);
+      // Managers retain the least-privilege route and never load internal
+      // tasks, requests, staff, departments, activity or calendar data.
+      renderNav();
+      renderPage();
+      return;
+    }
+
+    // Non-manager internal members continue with their existing operational
+    // access. Inactive or unregistered accounts are not admitted.
+    if (data?.active === true) {
+      state.member = data;
+      state.isAdmin = false;
+      state.isManager = false;
+      document.getElementById('gxUserName').textContent = data.display_name || user.email || 'Equipo Grayxon';
+      document.getElementById('gxUserJob').textContent = [data.job_title, data.department?.name].filter(Boolean).join(' · ');
+      document.getElementById('gxAccessBadge').textContent = 'Operativo';
+      setAuthView(true);
+      await loadData();
+      renderNav();
+      renderPage();
+      handleNotificationTarget();
+      return;
+    }
+
+    showAccessMessage('Esta cuenta no tiene acceso a Gestión. Si consideras que es un error, comunícate con administración.');
   }
 
   async function init() {
