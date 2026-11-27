@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080b12">
+<title>Prueba de contacto | Grayxon Group</title>
+<style>
+:root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at top,#172235,#080b12 65%);color:#f7f8fb}
+main{width:min(100%,440px);padding:28px;border:1px solid #29364a;border-radius:24px;background:#101722;box-shadow:0 20px 70px #0008}
+.logo{font-size:12px;letter-spacing:.22em;font-weight:800;color:#aab8ca}
+h1{font-size:25px;margin:12px 0 8px}p{color:#b6c2d1;line-height:1.55;font-size:14px}
+.contact{margin:22px 0;padding:16px;border-radius:16px;background:#182333;border:1px solid #2a3b51}
+.name{font-weight:750;font-size:17px}.muted{font-size:13px;color:#aab8ca;margin-top:5px}
+button{width:100%;border:0;border-radius:14px;padding:17px 18px;font-size:15px;font-weight:800;color:#06120d;background:#25d366;cursor:pointer}
+button:disabled{opacity:.7}.status{min-height:42px;margin-top:14px;font-size:13px;color:#c3d0df;line-height:1.5}
+.note{font-size:12px;color:#8292a7;margin-top:14px}
+</style>
+</head>
+<body>
+<main>
+<div class="logo">GRAYXON GROUP · PRUEBA</div>
+<h1>Guardar contacto y contactar</h1>
+<p>Una sola acción para preparar el contacto, copiar el usuario de TikTok y abrir WhatsApp.</p>
+<section class="contact" aria-label="Datos del contacto">
+<div class="name">Grayxon Group</div>
+<div class="muted">+57 320 740 3721</div>
+<div class="muted">TikTok: @grayxongroup</div>
+</section>
+<button id="go" type="button">GUARDAR Y CONTACTAR</button>
+<div class="status" id="status" role="status" aria-live="polite">Al tocar el botón, se intentará copiar @grayxongroup, descargar el contacto y abrir WhatsApp.</div>
+<div class="note">La descarga o importación del contacto puede requerir confirmación del iPhone. WhatsApp no permite enviar mensajes automáticamente.</div>
+</main>
+<script>
+(() => {
+  const button = document.getElementById('go');
+  const status = document.getElementById('status');
+  const username = '@grayxongroup';
+  const phone = '+573207403721';
+  const message = 'Hola, te contactamos de Grayxon Group.';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(username);
+      copied = true;
+    } catch (_) {
+      try {
+        const field = document.createElement('textarea');
+        field.value = username;
+        field.setAttribute('readonly', '');
+        field.style.position = 'fixed';
+        field.style.opacity = '0';
+        document.body.appendChild(field);
+        field.select();
+        copied = document.execCommand('copy');
+        field.remove();
+      } catch (_) {}
+    }
+
+    const vcard = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      'N:;Grayxon Group;;;',
+      'FN:Grayxon Group',
+      'TEL;TYPE=CELL:+573207403721',
+      'URL:https://www.tiktok.com/@grayxongroup',
+      'END:VCARD'
+    ].join('\r\n');
+
+    try {
+      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Grayxon-Group.vcf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 15000);
+    } catch (_) {}
+
+    status.textContent = (copied ? 'Usuario copiado: ' + username + '. ' : 'No se pudo confirmar la copia del usuario. ') +
+      'Se solicitó descargar Grayxon-Group.vcf. Abriendo WhatsApp…';
+
+    setTimeout(() => {
+      window.location.href = 'https://wa.me/573207403721?text=' + encodeURIComponent(message);
+      button.disabled = false;
+    }, 900);
+  });
+})();
+</script>
+</body>
+</html>
