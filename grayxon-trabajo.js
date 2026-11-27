@@ -626,7 +626,6 @@
       if(failed)throw failed.error;
       window.gxFollowupPlans=plans.data||[];
       window.gxFollowupNotes=notes.data||[];
-      await refreshGeneralReportReadiness();
       window.gxFollowupReminders=reminders.data||[];
       const selectedCreatorId=select.value;
       const activePlan=(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId&&plan.status!=='completed'&&plan.status!=='cancelled')||(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId);
@@ -724,22 +723,20 @@
     const host=document.getElementById('gxFollowupHistory');
     if(!host)return;
     try{
-      const [importsResult,plansResult,notesResult,updatesResult,detailsResult]=await Promise.all([
+      const [importsResult,plansResult,notesResult,updatesResult]=await Promise.all([
         sb.from('gx_creator_followup_imports')
           .select('id,file_name,selected_start_date,selected_end_date,source_start_date,source_end_date,status,created_at,gx_creator_followup_evaluations(id,creator_user_id,creator_username_snapshot,classification,diamonds,live_seconds,valid_live_days),gx_creator_followup_import_unmatched_rows(id,creator_username_snapshot,reason)')
           .order('source_start_date',{ascending:false}).order('created_at',{ascending:false}).limit(200),
         sb.from('gx_creator_action_plans').select('id,creator_user_id,status,created_at,start_date,target_date').order('created_at',{ascending:false}).limit(2000),
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,created_at').order('created_at',{ascending:false}).limit(3000),
-        sb.from('gx_creator_action_plan_updates').select('id,plan_id,created_at').order('created_at',{ascending:false}).limit(3000),
-        sb.from('profile_details').select('user_id,phone')
+        sb.from('gx_creator_action_plan_updates').select('id,plan_id,created_at').order('created_at',{ascending:false}).limit(3000)
       ]);
-      const failed=[importsResult,plansResult,notesResult,updatesResult,detailsResult].find(result=>result.error);
+      const failed=[importsResult,plansResult,notesResult,updatesResult].find(result=>result.error);
       if(failed)throw failed.error;
       const data=importsResult.data||[];
       const plans=plansResult.data||[];
       const notes=notesResult.data||[];
       const updates=updatesResult.data||[];
-      const phoneByCreator=new Map((detailsResult.data||[]).map(row=>[row.user_id,String(row.phone||'').trim()]));
       const groups=new Map();
       (data||[]).forEach(item=>{
         const date=item.source_start_date||item.selected_start_date||item.created_at;
