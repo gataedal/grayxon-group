@@ -360,6 +360,7 @@
     const missing=creators.filter(creator=>!plans.some(plan=>plan.creator_user_id===creator.id&&plan.status!=='cancelled'));
     const ready=creators.length>0&&missing.length===0;
     button.disabled=!ready;
+    button.textContent='Generar informe general';
     if(status)status.textContent=!creators.length?'No hay creadores activos asignados a tu equipo.':ready?'Todo tu equipo tiene un plan de trabajo. Ya puedes generar el informe general.':'Faltan '+missing.length+' de '+creators.length+' creadores por gestionar. Todos deben tener un plan de trabajo guardado.';
     button.title=ready?'Generar el informe de todo tu equipo':'Completa los planes de trabajo pendientes';
   }
