@@ -530,7 +530,6 @@ function ensureHeaderNotificationsLayout(){
     #notificationsPanel .notification-panel-head span{font-size:11px!important;color:#9ca8bb!important}
     #notificationsPanel .notification-mark-all{display:grid;place-items:center;width:32px;height:32px;padding:0!important;border:1px solid #303746!important;border-radius:10px;background:#171b26!important;color:#aeb9cb!important;font-size:14px!important}
     #notificationsPanel .notification-mark-all:disabled{opacity:.35;cursor:default}
-    #notificationsPanel .notification-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:12px 0 8px}
     #notificationsPanel .notification-tab{display:flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 12px;border:1px solid transparent;border-radius:999px;background:#171b26;color:#c3cada;font-size:12px;font-weight:650;white-space:nowrap}
     #notificationsPanel .notification-tab.active{background:#25f4ee;color:#071113;border-color:#25f4ee;box-shadow:0 4px 14px #25f4ee16}
     #notificationsPanel .notification-tab span{font-size:10px;opacity:.78}
@@ -538,8 +537,8 @@ function ensureHeaderNotificationsLayout(){
     #notificationsPanel .notification-item{grid-template-columns:42px minmax(0,1fr) 7px;gap:12px;padding:13px 2px!important;border:0!important;border-bottom:1px solid #252a35!important;border-radius:0!important;background:transparent!important;min-width:0}
     #notificationsPanel .notification-item:last-child{border-bottom:0!important}
     #notificationsPanel .notification-item:hover{background:#ffffff06!important}
-    #notificationsPanel .notification-item.unread .notification-copy strong{color:#fff}
-    #notificationsPanel .notification-item.read{opacity:.76}
+    #notificationsPanel .notification-item{transition:background .18s ease,border-color .18s ease,box-shadow .18s ease}
+    #notificationsPanel .notification-item:hover{border-color:rgba(37,244,238,.35)!important;background:linear-gradient(90deg,rgba(37,244,238,.07),rgba(168,120,255,.055))!important;box-shadow:inset 3px 0 0 rgba(37,244,238,.8)}
     #notificationsPanel .notification-icon{width:42px;height:42px;border:1px solid #2b3040;border-radius:12px;background:#1b2030;font-size:17px}
     #notificationsPanel .notification-copy{gap:4px}
     #notificationsPanel .notification-copy strong{font-size:13px!important;line-height:1.35;overflow-wrap:anywhere}
@@ -631,32 +630,17 @@ function renderNotificationsPanel() {
     panel.innerHTML = `<div class="notification-empty"><strong>Inicia sesión</strong><span>Entra a tu cuenta para ver tus notificaciones.</span></div>`;
     return;
   }
-  const unreadItems = notifications.filter(n => !n.read_at);
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const recentItems = notifications.filter(n => {
-    const createdAt = new Date(n.created_at || 0).getTime();
-    return Number.isFinite(createdAt) && createdAt >= sevenDaysAgo;
-  });
-  const visibleItems = notificationView === 'unread' ? unreadItems : recentItems;
+  const visibleItems = notifications;
   panel.innerHTML = `
     <div class="notification-panel-head">
-      <div class="notification-heading-copy"><strong>Notificaciones</strong><span>${unreadItems.length ? `${unreadItems.length} sin leer` : 'Estás al día'}</span></div>
-      <button type="button" class="notification-mark-all" id="markAllNotifications" ${unreadItems.length ? '' : 'disabled'} aria-label="Marcar todas como leídas">✓✓</button>
-    </div>
-    <div class="notification-tabs" role="tablist" aria-label="Filtrar notificaciones">
-      <button type="button" role="tab" id="notificationTabUnread" class="notification-tab ${notificationView === 'unread' ? 'active' : ''}" aria-selected="${notificationView === 'unread'}">No leídas <span>${unreadItems.length}</span></button>
-      <button type="button" role="tab" id="notificationTabAll" class="notification-tab ${notificationView === 'all' ? 'active' : ''}" aria-selected="${notificationView === 'all'}">Todas</button>
+      <div class="notification-heading-copy"><strong>Notificaciones</strong><span>Todas tus notificaciones</span></div>
     </div>
     <div class="notification-list">
-      ${visibleItems.length ? visibleItems.map(n => `<button type="button" class="notification-item ${n.read_at?'read':'unread'}" data-notification-id="${esc(n.id)}">
+      ${visibleItems.length ? visibleItems.map(n => `<button type="button" class="notification-item" data-notification-id="${esc(n.id)}">
         <span class="notification-icon">${notificationIcon(n.type)}</span>
         <span class="notification-copy"><strong>${esc(n.title)}</strong><span>${esc(n.message)}</span><small>${formatNotificationDate(n.created_at)}</small></span>
-        ${!n.read_at?'<i class="notification-dot" aria-label="No leída"></i>':''}
-      </button>`).join('') : `<div class="notification-empty"><strong>${notificationView === 'unread' ? 'No tienes notificaciones sin leer.' : 'No hay notificaciones recientes.'}</strong><span>${notificationView === 'unread' ? 'Aquí aparecerán las novedades que aún no hayas abierto.' : 'Aquí verás las notificaciones recibidas durante los últimos 7 días.'}</span></div>`}
+      </button>`).join('') : `<div class="notification-empty"><strong>No hay notificaciones recientes.</strong><span>Aquí aparecerán tus novedades y avisos.</span></div>`}
     </div>`;
-  $('#notificationTabUnread')?.addEventListener('click', () => { notificationView = 'unread'; renderNotificationsPanel(); });
-  $('#notificationTabAll')?.addEventListener('click', () => { notificationView = 'all'; renderNotificationsPanel(); });
-  $('#markAllNotifications')?.addEventListener('click', async (e) => { e.stopPropagation(); if (unreadItems.length) await markAllNotifications(); });
   panel.querySelectorAll('[data-notification-id]').forEach(b => b.addEventListener('click', () => openNotification(b.dataset.notificationId)));
 }
 
@@ -801,16 +785,16 @@ async function openGrayxonNotificationById(notificationId) {
   return true;
 }
 
-function toggleNotifications() {
+async function toggleNotifications() {
   const panel = $('#notificationsPanel');
   if (!panel) return;
   closeProfileMenu();
   const willOpen = panel.classList.contains('hidden');
   panel.classList.toggle('hidden');
   if (willOpen) {
-    // Cada apertura empieza siempre en No leídas, incluso si la última vez se consultó Todas.
-    notificationView = 'unread';
     renderNotificationsPanel();
+    // Abrir la campana equivale a revisar la bandeja completa.
+    await markAllNotifications();
   }
 }
 
@@ -1396,6 +1380,17 @@ function ensureInternalDashboardStyles(){
     .gx-internal-activity-copy small,.gx-internal-task-row small{font-size:11px;color:#8b98a5}
     .gx-internal-empty{padding:20px 4px;color:#87939e;font-size:12px}
     .gx-internal-access-source{display:none!important}
+    .gx-internal-stat-link,.gx-internal-followup-card{color:inherit;text-decoration:none;cursor:pointer;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+    .gx-internal-followup-card{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:19px 21px;border:1px solid #303943;border-radius:18px;background:linear-gradient(110deg,#171c22,#10151a 65%,#151324)}
+    .gx-internal-followup-card h2{margin:5px 0;color:#f0f3f6;font-size:18px}
+    .gx-internal-followup-card p{margin:0;color:#9ca9b5;font-size:12px}
+    .gx-internal-followup-eyebrow{font-size:9px;font-weight:850;letter-spacing:.16em;color:#75dce5}
+    .gx-internal-followup-metrics{display:grid;gap:2px;text-align:right;flex:0 0 auto}
+    .gx-internal-followup-metrics strong{font-size:28px;color:#f4f6f8;line-height:1}
+    .gx-internal-followup-metrics span{font-size:10px;color:#b8c1cb}
+    .gx-internal-followup-metrics small{font-size:9px;color:#83919e}
+    body.gx-internal-session :is(.gx-internal-stat-link,.gx-internal-followup-card,.admin-dashboard-card,.manager-dashboard-card,#notificationsBtn){border-color:#303943;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+    body.gx-internal-session :is(.gx-internal-stat-link,.gx-internal-followup-card,.admin-dashboard-card,.manager-dashboard-card,#notificationsBtn):hover{border-color:rgba(37,244,238,.68)!important;box-shadow:0 0 0 1px rgba(37,244,238,.13),0 10px 28px rgba(37,244,238,.08),0 0 22px rgba(168,120,255,.07)!important;transform:translateY(-2px)}
     @media(max-width:900px){.gx-internal-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:620px){.gx-internal-dashboard{gap:14px}.gx-internal-stat-card{min-height:108px;padding:14px}.gx-internal-stat-card strong{font-size:28px}.gx-internal-dashboard-columns{grid-template-columns:1fr}.gx-internal-activity-card{padding:15px}}
   `;
@@ -4790,16 +4785,17 @@ async function managerTpl(){
   ]):[[],[],[],[]];
   const todayActivities=[...todayEvents.map(x=>({title:x.title||'Evento',type:x.event_type||'Evento',date:x.starts_at})),...todayMatches.map(x=>({title:'Batalla programada',type:'Batalla',date:x.scheduled_at})),...todayTrainings.map(x=>({title:x.title||'Entrenamiento en vivo',type:'Entrenamiento',date:x.scheduled_at})),...todayInternalTasks.map(x=>({title:x.title||'Tarea interna',type:'Tarea',date:x.starts_at||x.due_at})),...tasks.filter(x=>!x.completed&&String(x.due_at||'').slice(0,10)===todayRange.day).map(x=>({title:x.title||'Tarea asignada',type:'Tarea pendiente',date:x.due_at}))].filter(x=>x.date).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const pendingManagerTasks=tasks.filter(x=>!x.completed).length;
+  const followup=managerView==='dashboard'?await gxInternalFollowupSummary(creatorIds):null;
   const activityTime=x=>new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit'}).format(new Date(x.date));
   const activityList=todayActivities.length?todayActivities.slice(0,5).map(x=>'<article class="gx-internal-activity-row"><span class="gx-internal-activity-time">'+activityTime(x)+'</span><span class="gx-internal-activity-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.type)+'</small></span></article>').join(''):'<div class="gx-internal-empty">No hay actividades registradas para tu equipo hoy.</div>';
   const pendingList=tasks.filter(x=>!x.completed).slice(0,4).map(x=>'<article class="gx-internal-task-row"><span><strong>'+esc(x.title)+'</strong><small>'+(x.due_at?'Vence '+formatDateTime(x.due_at):'Pendiente')+'</small></span></article>').join('')||'<div class="gx-internal-empty">No tienes tareas pendientes.</div>';
-  const dashboardMarkup='<section class="gx-internal-dashboard"><header class="gx-internal-dashboard-heading"><div><span class="eyebrow">GRAYXON GROUP</span><h1>Resumen de hoy</h1><p>'+new Intl.DateTimeFormat('es-CO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())+'</p></div></header><div class="gx-internal-stat-grid"><article class="gx-internal-stat-card"><span>Mis creadores</span><strong>'+(creators||[]).length+'</strong><small>Asignados a tu equipo</small></article><article class="gx-internal-stat-card"><span>Actividades de hoy</span><strong>'+todayActivities.length+'</strong><small>Eventos, batallas, entrenamientos y tareas</small></article><article class="gx-internal-stat-card"><span>Tareas pendientes</span><strong>'+pendingManagerTasks+'</strong><small>Asignadas por administración</small></article><article class="gx-internal-stat-card"><span>Entrenamientos hoy</span><strong>'+todayTrainings.length+'</strong><small>Sesiones programadas para hoy</small></article></div><div class="gx-internal-dashboard-columns"><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Agenda del día</h2><span>'+todayActivities.length+' actividades</span></div><div class="gx-internal-activity-list">'+activityList+'</div></section><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Tus tareas</h2><span>'+pendingManagerTasks+' pendientes</span></div><div class="gx-internal-activity-list">'+pendingList+'</div></section></div></section>';
+  const dashboardMarkup='<section class="gx-internal-dashboard"><header class="gx-internal-dashboard-heading"><div><span class="eyebrow">GRAYXON GROUP</span><h1>Resumen de hoy</h1><p>'+new Intl.DateTimeFormat('es-CO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())+'</p></div></header><div class="gx-internal-stat-grid"><article class="gx-internal-stat-card"><span>Mis creadores</span><strong>'+(creators||[]).length+'</strong><small>Asignados a tu equipo</small></article><article class="gx-internal-stat-card"><span>Actividades de hoy</span><strong>'+todayActivities.length+'</strong><small>Eventos, batallas, entrenamientos y tareas</small></article><a class="gx-internal-stat-card gx-internal-stat-link" href="./grayxon-trabajo.html?tab=tasks"><span>Tareas pendientes</span><strong>'+pendingManagerTasks+'</strong><small>Ver y crear tus tareas</small></a><article class="gx-internal-stat-card"><span>Entrenamientos hoy</span><strong>'+todayTrainings.length+'</strong><small>Sesiones programadas para hoy</small></article></div><a class="gx-internal-followup-card" href="./grayxon-trabajo.html?tab=followup"><div><span class="gx-internal-followup-eyebrow">SEGUIMIENTO DE CREADORES</span><h2>Seguimiento</h2><p>'+(followup?.available?followup.attention+' requieren atención · '+followup.missing+' sin evaluación del mes':'No se pudo consultar el estado del seguimiento')+'</p></div><div class="gx-internal-followup-metrics"><strong>'+(followup?.available?followup.attention:'—')+'</strong><span>por revisar</span><small>'+(followup?.available?followup.evaluated+'/'+followup.total+' evaluados':'Datos no disponibles')+'</small></div><span class="gx-internal-menu-item-arrow">›</span></a><div class="gx-internal-dashboard-columns"><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Agenda del día</h2><span>'+todayActivities.length+' actividades</span></div><div class="gx-internal-activity-list">'+activityList+'</div></section><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Tus tareas</h2><span>'+pendingManagerTasks+' pendientes</span></div><div class="gx-internal-activity-list">'+pendingList+'</div></section></div></section>';
   const managerAccessSource='<div class="gx-internal-access-source" hidden>'+managerCard('announcements','📣','Centro de comunicados','Novedades y avisos importantes.')+managerCard('training','🎥','Entrenamientos en vivo','Consulta y gestiona sesiones.')+managerCard('creators','👥','Mis creadores','Consulta los creadores asignados.')+managerCard('tasks','📋','Tareas asignadas','Consulta tus tareas.')+'<button type="button" data-page="payments"><span class="manager-dashboard-card-icon">💸</span><span class="manager-dashboard-card-copy"><strong>Mis pagos</strong></span></button><button type="button" data-page="events"><span class="manager-dashboard-card-icon">🎉</span><span class="manager-dashboard-card-copy"><strong>Eventos</strong></span></button></div>';
   const pageHeader=(title,desc)=>`<div class="manager-subpage-header"><div><h2>${title}</h2><p class="muted small">${desc}</p></div></div>`;
   let managerContent='';
   if(managerView==='dashboard') managerContent=dashboardMarkup;
   else if(managerView==='creators') managerContent=`${pageHeader('Mis creadores','Solo aparecen los creadores que actualmente están asignados a ti.')}<section class="card manager-creators-fullpage"><div class="manager-creator-search"><span aria-hidden="true">⌕</span><input id="managerCreatorSearch" type="search" placeholder="Buscar por nombre o usuario…" autocomplete="off"></div><div id="managerCreatorNoResults" class="item hidden"><p class="muted small" style="margin:0">No encontramos un creador con esa búsqueda.</p></div><div class="manager-creators-list" id="managerCreatorsList">${creatorRows}</div></section>`;
-  else if(managerView==='tasks') managerContent=`${pageHeader('Tareas asignadas','Consulta y completa las tareas que te ha asignado la administración.')}<section class="card manager-tasks-fullpage"><div class="manager-tasks-list">${taskHtml}</div></section>`;
+  else if(managerView==='tasks') managerContent=`${pageHeader('Mis tareas','Consulta las tareas asignadas por administración y las que crees para ti.')}<section class="card manager-tasks-fullpage"><div class="row" style="justify-content:flex-end;margin-bottom:14px"><button type="button" class="primary" id="newPersonalManagerTask">＋ Crear tarea personal</button></div><div class="manager-tasks-list">${taskHtml}</div></section>`;
   else if(managerView==='training') managerContent=`${pageHeader('Entrenamientos en vivo','Consulta y gestiona las sesiones LIVE de la agencia.')}<section class="manager-training-fullpage">${trainingManagement}</section>`;
   else managerContent=dashboardMarkup;
   $('#manager').innerHTML=`<div class="manager-page">${managerContent}${managerAccessSource}</div>`;
@@ -4815,8 +4811,24 @@ async function managerTpl(){
     });
     $('#managerCreatorNoResults')?.classList.toggle('hidden',visible!==0);
   });
+  $('#newPersonalManagerTask')?.addEventListener('click',()=>managerPersonalTaskModal(me.id));
   bind();
   if(managerView==='dashboard') refreshManagerLiveDashboardCard();
+}
+
+function managerPersonalTaskModal(managerId){
+  const el=document.createElement('div');el.className='modal-backdrop';
+  el.innerHTML=`<div class="card modal"><h2>Nueva tarea personal</h2><p class="muted small">Esta tarea quedará asignada únicamente a ti.</p>${field('mptTitle','Título','')}${field('mptDesc','Descripción','',true)}<label class="field"><span>Fecha límite (opcional)</span><input id="mptDue" type="datetime-local"></label><div id="mptErr" class="error"></div><div class="inline" style="margin-top:18px"><button class="primary" id="savePersonalManagerTask">Crear tarea</button><button class="secondary" id="cancelPersonalManagerTask">Cancelar</button></div></div>`;
+  document.body.appendChild(el);
+  $('#cancelPersonalManagerTask').onclick=()=>el.remove();
+  $('#savePersonalManagerTask').onclick=async()=>{
+    const btn=$('#savePersonalManagerTask'),title=$('#mptTitle').value.trim(),description=$('#mptDesc').value.trim()||null,due=$('#mptDue').value?new Date($('#mptDue').value).toISOString():null;
+    if(!title){$('#mptErr').textContent='Escribe el título de la tarea.';return;}
+    btn.disabled=true;
+    const {error}=await sb.from('manager_tasks').insert({manager_id:managerId,title,description,due_at:due,assigned_by:session.user.id});
+    if(error){$('#mptErr').textContent='No se pudo crear la tarea: '+error.message;btn.disabled=false;return;}
+    el.remove();toast('Tarea personal creada ✓');await loadNotifications();await managerTpl();
+  };
 }
 
 async function managerCreatorModal(id){
@@ -5470,23 +5482,45 @@ function gxInternalTodayRange(){
 async function gxInternalSafeRows(query){
   try{const result=await query;if(result?.error){console.warn('Grayxon dashboard query:',result.error.message);return [];}return result?.data||[];}catch(error){console.warn('Grayxon dashboard query:',error?.message||error);return [];}
 }
+async function gxInternalFollowupSummary(creatorIds){
+  const ids=[...new Set((creatorIds||[]).filter(Boolean))];
+  if(!ids.length)return {total:0,evaluated:0,missing:0,highRisk:0,observation:0,attention:0,available:true};
+  const now=new Date(),monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10);
+  const {data,error}=await sb.from('gx_creator_followup_evaluations')
+    .select('creator_user_id,classification,created_at,evaluated_start_date,evaluated_end_date,import:gx_creator_followup_imports(status)')
+    .in('creator_user_id',ids).lte('evaluated_start_date',monthEnd).gte('evaluated_end_date',monthStart)
+    .order('created_at',{ascending:false}).limit(5000);
+  if(error){console.warn('Resumen de Seguimiento:',error.message);return {total:ids.length,evaluated:0,missing:0,highRisk:0,observation:0,attention:0,available:false};}
+  const latest=new Map();
+  (data||[]).forEach(row=>{
+    if(row.import?.status==='superseded'||latest.has(row.creator_user_id))return;
+    latest.set(row.creator_user_id,row.classification);
+  });
+  const values=[...latest.values()];
+  const highRisk=values.filter(x=>x==='high_risk').length;
+  const observation=values.filter(x=>x==='observation').length;
+  const attention=values.filter(x=>['high_risk','observation','early_review','not_evaluable','needs_daily_data'].includes(x)).length;
+  return {total:ids.length,evaluated:latest.size,missing:Math.max(0,ids.length-latest.size),highRisk,observation,attention,available:true};
+}
 async function gxAdminDashboardSummary(){
   const range=gxInternalTodayRange(),from=range.start,to=range.end;
-  const [creatorCount,events,matches,trainings,tasks,managerTasks]=await Promise.all([
-    sb.from('profiles').select('id',{count:'exact',head:true}).eq('role','creator').eq('active',true),
+  const [creatorRows,events,matches,trainings,tasks,managerTasks]=await Promise.all([
+    gxInternalSafeRows(sb.from('profiles').select('id').eq('role','creator').eq('active',true)),
     gxInternalSafeRows(sb.from('gx_events').select('id,title,event_type,starts_at').in('status',['published','in_progress','scheduled','upcoming']).gte('starts_at',from).lt('starts_at',to)),
     gxInternalSafeRows(sb.from('gx_event_matches').select('id,event_id,scheduled_at,status').gte('scheduled_at',from).lt('scheduled_at',to)),
     gxInternalSafeRows(sb.from('live_trainings').select('id,title,scheduled_at,status').eq('status','scheduled').gte('scheduled_at',from).lt('scheduled_at',to)),
     gxInternalSafeRows(sb.from('gx_tasks').select('id,title,status,starts_at,due_at').or('and(starts_at.gte.'+from+',starts_at.lt.'+to+'),and(due_at.gte.'+from+',due_at.lt.'+to+')')),
     gxInternalSafeRows(sb.from('manager_tasks').select('id,title,due_at,assigned_at,completed').eq('completed',false))
   ]);
+  const creatorCount=creatorRows.length;
+  const followup=await gxInternalFollowupSummary(creatorRows.map(x=>x.id));
   const activities=[...events.map(x=>({title:x.title||'Evento',type:x.event_type||'Evento',date:x.starts_at})),...matches.map(x=>({title:'Batalla programada',type:'Batalla',date:x.scheduled_at})),...trainings.map(x=>({title:x.title||'Entrenamiento en vivo',type:'Entrenamiento',date:x.scheduled_at})),...tasks.map(x=>({title:x.title||'Tarea interna',type:'Tarea',date:x.starts_at||x.due_at})),...managerTasks.filter(x=>String(x.due_at||'').slice(0,10)===range.day).map(x=>({title:x.title||'Tarea de manager',type:'Tarea de manager',date:x.due_at}))].filter(x=>x.date).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const pendingTasks=tasks.filter(x=>!['completed','cancelled'].includes(String(x.status||'').toLowerCase())).length+managerTasks.length;
   const time=x=>new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit'}).format(new Date(x.date));
   const activityHtml=activities.length?activities.slice(0,6).map(x=>'<article class="gx-internal-activity-row"><span class="gx-internal-activity-time">'+time(x)+'</span><span class="gx-internal-activity-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.type)+'</small></span></article>').join(''):'<div class="gx-internal-empty">No hay actividades registradas para hoy.</div>';
   const taskRows=[...tasks.filter(x=>!['completed','cancelled'].includes(String(x.status||'').toLowerCase())).map(x=>({title:x.title||'Tarea interna',due:x.due_at,status:x.status||'Pendiente'})),...managerTasks.map(x=>({title:x.title||'Tarea de manager',due:x.due_at,status:'Pendiente'}))].slice(0,6);
   const taskHtml=taskRows.length?taskRows.map(x=>'<article class="gx-internal-task-row"><span><strong>'+esc(x.title)+'</strong><small>'+(x.due?'Vence '+new Intl.DateTimeFormat('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(x.due)):esc(x.status))+'</small></span></article>').join(''):'<div class="gx-internal-empty">No hay tareas pendientes.</div>';
-  return '<section class="gx-internal-dashboard"><header class="gx-internal-dashboard-heading"><div><span class="eyebrow">GRAYXON GROUP</span><h1>Resumen de hoy</h1><p>'+new Intl.DateTimeFormat('es-CO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())+'</p></div></header><div class="gx-internal-stat-grid"><article class="gx-internal-stat-card"><span>Creadores activos</span><strong>'+(creatorCount.count??'—')+'</strong><small>En toda la agencia</small></article><article class="gx-internal-stat-card"><span>Actividades de hoy</span><strong>'+activities.length+'</strong><small>Eventos, batallas y entrenamientos</small></article><article class="gx-internal-stat-card"><span>Tareas pendientes</span><strong>'+pendingTasks+'</strong><small>Por completar o revisar</small></article><article class="gx-internal-stat-card"><span>Entrenamientos hoy</span><strong>'+trainings.length+'</strong><small>Sesiones programadas</small></article></div><div class="gx-internal-dashboard-columns"><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Agenda del día</h2><span>'+activities.length+' actividades</span></div><div class="gx-internal-activity-list">'+activityHtml+'</div></section><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Tareas pendientes</h2><span>'+pendingTasks+' pendientes</span></div><div class="gx-internal-activity-list">'+taskHtml+'</div></section></div></section>';
+  return '<section class="gx-internal-dashboard"><header class="gx-internal-dashboard-heading"><div><span class="eyebrow">GRAYXON GROUP</span><h1>Resumen de hoy</h1><p>'+new Intl.DateTimeFormat('es-CO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())+'</p></div></header><div class="gx-internal-stat-grid"><article class="gx-internal-stat-card"><span>Creadores activos</span><strong>'+(creatorCount.count??'—')+'</strong><small>En toda la agencia</small></article><article class="gx-internal-stat-card"><span>Actividades de hoy</span><strong>'+activities.length+'</strong><small>Eventos, batallas y entrenamientos</small></article><a class="gx-internal-stat-card gx-internal-stat-link" href="./grayxon-trabajo.html?tab=tasks"><span>Tareas pendientes</span><strong>'+pendingTasks+'</strong><small>Abre tus tareas y pendientes</small></a><article class="gx-internal-stat-card"><span>Entrenamientos hoy</span><strong>'+trainings.length+'</strong><small>Sesiones programadas</small></article></div><a class="gx-internal-followup-card" href="./grayxon-trabajo.html?tab=followup"><div><span class="gx-internal-followup-eyebrow">SEGUIMIENTO DE CREADORES</span><h2>Seguimiento</h2><p>'+(followup.available?followup.attention+' requieren atención · '+followup.missing+' sin evaluación del mes':'No se pudo consultar el estado del seguimiento')+'</p></div><div class="gx-internal-followup-metrics"><strong>'+(followup.available?followup.attention:'—')+'</strong><span>por revisar</span><small>'+(followup.available?followup.evaluated+'/'+followup.total+' evaluados':'Datos no disponibles')+'</small></div><span class="gx-internal-menu-item-arrow">›</span></a><div class="gx-internal-dashboard-columns"><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Agenda del día</h2><span>'+activities.length+' actividades</span></div><div class="gx-internal-activity-list">'+activityHtml+'</div></section><section class="gx-internal-activity-card"><div class="gx-internal-section-heading"><h2>Tareas pendientes</h2><span>'+pendingTasks+' pendientes</span></div><div class="gx-internal-activity-list">'+taskHtml+'</div></section></div></section>';
 }
 
 async function adminTpl(c) {
