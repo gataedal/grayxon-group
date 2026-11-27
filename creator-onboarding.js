@@ -46,6 +46,16 @@
     return [d.email,d.phone,d.birth_date,d.country,d.state_region,d.city,d.avatar_url]
       .every(v => String(v == null ? '' : v).trim() !== '');
   }
+  function creatorAdultDateLimit(){
+    const d=new Date(); d.setHours(12,0,0,0); d.setFullYear(d.getFullYear()-18);
+    return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+  }
+  function creatorIsAdult(dateValue){
+    if(!dateValue) return false;
+    const birth=new Date(dateValue+'T12:00:00');
+    const cutoff=new Date(); cutoff.setHours(12,0,0,0); cutoff.setFullYear(cutoff.getFullYear()-18);
+    return !Number.isNaN(birth.getTime()) && birth<=cutoff;
+  }
   async function refreshState(){
     if(!session || !session.user || !session.user.id || !profile) return false;
     const {data,error} = await sb.from('profiles')
@@ -80,7 +90,7 @@
       const avatar=d.avatar_url
         ? '<img src="'+esc(d.avatar_url)+'" alt="Foto de perfil" style="width:88px;height:88px;border-radius:50%;object-fit:cover">'
         : '<span style="width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:#1c252e;color:#25F4EE;font-size:30px">＋</span>';
-      return '<div class="profile-page gx-profile-settings"><section class="card" style="max-width:760px;margin:28px auto;padding:clamp(20px,4vw,36px)"><span class="library-eyebrow">GRAYXON · PRIMEROS PASOS</span><h1 style="margin:8px 0">Completa tu perfil</h1><p class="muted">Antes de entrar al portal, necesitamos estos datos para acompañarte correctamente. Los campos marcados son obligatorios.</p><div style="display:flex;align-items:center;gap:18px;margin:24px 0"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable" style="width:100px;height:100px;min-width:100px">'+avatar+'<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Subir foto" title="Subir foto">✎</button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div><strong>Tu foto de perfil *</strong><p class="muted small">Sube una foto clara para que tu equipo pueda reconocerte.</p><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="gx-profile-editor"><h3>Datos personales</h3>'+field('pEmail','Correo electrónico *',d.email||'')+field('pPhone','Número de teléfono *',d.phone||'')+'<label class="field"><span>Fecha de nacimiento *</span><input id="pBirthDate" type="date" value="'+esc(d.birth_date||'')+'" max="'+new Date().toISOString().slice(0,10)+'" autocomplete="bday"></label><label class="field"><span>País *</span><select id="pCountry"><option value="">Selecciona tu país</option>'+countries+'</select></label>'+field('pState','Departamento / Región *',d.state_region||'')+field('pCity','Ciudad *',d.city||'')+field('pAddress','Dirección (opcional)',d.address||'',true)+'<div id="gxProfilePersonalError" class="error" aria-live="polite"></div><div class="gx-profile-editor-actions"><button type="button" class="primary gx-profile-btn gx-profile-btn-primary" id="gxSavePersonal">Guardar y continuar</button></div></div></section></div>';
+      return '<div class="profile-page gx-profile-settings"><section class="card" style="max-width:760px;margin:28px auto;padding:clamp(20px,4vw,36px)"><span class="library-eyebrow">GRAYXON · PRIMEROS PASOS</span><h1 style="margin:8px 0">Completa tu perfil</h1><p class="muted">Antes de entrar al portal, necesitamos estos datos para acompañarte correctamente. Los campos marcados son obligatorios.</p><div style="display:flex;align-items:center;gap:18px;margin:24px 0"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable" style="width:100px;height:100px;min-width:100px">'+avatar+'<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Subir foto" title="Subir foto">✎</button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div><strong>Tu foto de perfil *</strong><p class="muted small">Sube una foto clara para que tu equipo pueda reconocerte.</p><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="gx-profile-editor"><h3>Datos personales</h3>'+field('pEmail','Correo electrónico *',d.email||'')+field('pPhone','Número de teléfono *',d.phone||'')+'<label class="field"><span>Fecha de nacimiento *</span><input id="pBirthDate" type="date" value="'+esc(d.birth_date||'')+'" max="'+creatorAdultDateLimit()+'" autocomplete="bday"></label><label class="field"><span>País *</span><select id="pCountry"><option value="">Selecciona tu país</option>'+countries+'</select></label>'+field('pState','Departamento / Región *',d.state_region||'')+field('pCity','Ciudad *',d.city||'')+field('pAddress','Dirección (opcional)',d.address||'',true)+'<div id="gxProfilePersonalError" class="error" aria-live="polite"></div><div class="gx-profile-editor-actions"><button type="button" class="primary gx-profile-btn gx-profile-btn-primary" id="gxSavePersonal">Guardar y continuar</button></div></div></section></div>';
     };
   }
 
@@ -106,6 +116,7 @@
         };
         if([data.email,data.phone,data.birth_date,data.country,data.state_region,data.city].some(v=>!String(v||'').trim()))
           throw new Error('Completa todos los campos obligatorios antes de continuar.');
+        if(!creatorIsAdult(data.birth_date)) throw new Error('Para ingresar a Grayxon debes tener al menos 18 años.');
         if(!profileDetails?.avatar_url) throw new Error('Primero debes subir tu foto de perfil.');
         const {error}=await sb.from('profile_details').upsert(data);
         if(error) throw error;
