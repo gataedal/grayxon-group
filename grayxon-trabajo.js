@@ -466,8 +466,6 @@
       window.grayxonFollowupFile=file;
       const workspaceSection=document.getElementById('gxFollowupWorkspaceSection');if(workspaceSection)workspaceSection.hidden=true;
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
-      const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo cubre el periodo detectado en el Excel.':'El archivo no permite completar la evaluación.';
-      const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
       const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo está listo para guardarse en el archivo mensual.':'El archivo no permite completar la evaluación.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
