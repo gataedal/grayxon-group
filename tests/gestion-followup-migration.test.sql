@@ -164,7 +164,7 @@ do $$
 begin
  begin
   perform public.gx_manager_update_creator_action_plan(
-   '50000000-0000-0000-0000-000000000001','Intento ajeno',null,'completed'
+   '50000000-0000-0000-0000-000000000001','Intento ajeno',null,'completed','{}'::jsonb
   );
   raise exception 'Manager B must not update manager A plan';
  exception when others then
