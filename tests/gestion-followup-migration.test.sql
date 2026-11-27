@@ -124,8 +124,8 @@ begin
      and progress_summary='Avance registrado por manager' and status='approved') then
   raise exception 'La RPC debe registrar el avance de forma atómica';
  end if;
- if (select count(*) from storage.objects where bucket_id='gx-creator-followup-reports')<>1 then
-  raise exception 'Manager A must only read their own uploaded Excel file';
+ if (select count(*) from storage.objects where bucket_id='gx-creator-followup-reports')<>0 then
+  raise exception 'Managers must not read source Excel files';
  end if;
  begin
   update public.profile_details set phone='+573001234567' where user_id='20000000-0000-0000-0000-000000000001';
@@ -147,8 +147,8 @@ begin
  exception when others then
   if sqlerrm='Manager B must not update manager A plan' then raise; end if;
  end;
- if (select count(*) from storage.objects where bucket_id='gx-creator-followup-reports')<>1 then
-  raise exception 'Manager B must only read their own uploaded Excel file';
+ if (select count(*) from storage.objects where bucket_id='gx-creator-followup-reports')<>0 then
+  raise exception 'Managers must not read source Excel files';
  end if;
 end $$;
 reset role;
