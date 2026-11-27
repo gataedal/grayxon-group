@@ -350,3 +350,23 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-followup-plan-button.is-view{border:1px solid rgba(153,174,255,.45);background:rgba(108,132,219,.14);color:#c5d0ff}
 .gxt-followup-plan-button:hover{filter:brightness(1.18);transform:translateY(-1px)}
 .gxt-followup-muted{color:#687782}
+
+
+/* Carga de Excel: selector y análisis en una sola fila con el mismo tratamiento visual. */
+.gxt-followup-upload-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px;margin-top:14px}
+.gxt-followup-upload-controls .gxt-field{display:grid;gap:7px;min-width:0;color:#aab7c3;font-size:11px;font-weight:700}
+.gxt-followup-upload-controls input[type=file]{width:100%;min-width:0;min-height:46px;padding:6px;border:1px solid rgba(37,244,238,.42);border-radius:11px;background:linear-gradient(120deg,#10272b,#111b22);color:#dcebed;font:inherit}
+.gxt-followup-upload-controls input[type=file]::file-selector-button{min-height:32px;margin-right:10px;padding:7px 13px;border:1px solid rgba(37,244,238,.5);border-radius:8px;background:linear-gradient(120deg,#16434a,#123139);color:#a8fbf5;font:700 11px inherit;cursor:pointer}
+.gxt-followup-upload-controls .gxt-btn-process{min-height:46px;padding:11px 19px;border:1px solid rgba(37,244,238,.5);border-radius:11px;background:linear-gradient(120deg,#16434a,#123139);color:#a8fbf5;box-shadow:none;white-space:nowrap}
+.gxt-followup-upload-controls .gxt-btn-process:disabled{opacity:.48;cursor:not-allowed}
+.gxt-followup-file-name{margin-top:7px;min-height:14px}
+.gxt-followup-copy-header{min-height:32px;padding:7px 12px;border-radius:9px;white-space:nowrap}
+.gxt-modal-head .gxt-followup-copy-header{margin-left:auto}
+.gxt-followup-creator-cell{min-width:170px;padding:8px 12px!important;border-left:3px solid transparent;border-right:1px solid rgba(255,255,255,.035)}
+.gxt-followup-creator-cell.is-success{background:rgba(46,180,116,.14)!important;border-left-color:#43c98a}
+.gxt-followup-creator-cell.is-early{background:rgba(53,158,211,.15)!important;border-left-color:#45b9ec}
+.gxt-followup-creator-cell.is-observation{background:rgba(212,151,50,.17)!important;border-left-color:#e1ad4f}
+.gxt-followup-creator-cell.is-risk{background:rgba(220,65,65,.17)!important;border-left-color:#ed6666}
+.gxt-followup-creator-cell.is-warning{background:rgba(219,139,48,.16)!important;border-left-color:#dc9a43}
+.gxt-followup-creator-cell.is-neutral{background:rgba(160,170,180,.11)!important;border-left-color:#82909c}
+@media(max-width:560px){.gxt-followup-upload-controls{grid-template-columns:1fr}.gxt-followup-upload-controls .gxt-btn-process{width:100%}}
