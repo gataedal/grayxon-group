@@ -370,3 +370,22 @@ body.gxt-authenticated .gx-bottom-nav{display:grid}
 .gxt-followup-creator-cell.is-warning{background:rgba(219,139,48,.16)!important;border-left-color:#dc9a43}
 .gxt-followup-creator-cell.is-neutral{background:rgba(160,170,180,.11)!important;border-left-color:#82909c}
 @media(max-width:560px){.gxt-followup-upload-controls{grid-template-columns:1fr}.gxt-followup-upload-controls .gxt-btn-process{width:100%}}
+
+
+/* Plan de trabajo: etapas limpias, una pantalla por vez y métricas estructuradas. */
+.gxt-followup-workspace.is-open .gxt-followup-workspace-grid{display:block;max-width:900px;margin:22px auto}
+.gxt-followup-workspace.is-open [data-followup-step]{display:none!important}
+.gxt-followup-workspace.is-open [data-followup-step].is-active{display:grid!important;gap:16px;width:100%;max-width:900px;min-height:0;align-content:start;padding:clamp(18px,3vw,30px);border:1px solid #34434c;border-radius:18px;background:linear-gradient(145deg,#121c23,#0d1218);box-shadow:0 18px 55px #0005}
+.gxt-followup-workspace.is-open [data-followup-step].is-active h3{margin:0;font-size:20px;color:#eff8fa}
+.gxt-followup-workspace.is-open [data-followup-step].is-active h4{margin:6px 0 0;color:#9fece8;font-size:12px;text-transform:uppercase;letter-spacing:.07em}
+.gxt-followup-stepper{grid-template-columns:repeat(3,minmax(0,1fr));max-width:900px;margin:18px auto}
+.gxt-followup-date-grid,.gxt-followup-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.gxt-followup-target-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.gxt-followup-reminder-inline{display:grid;gap:10px;margin-top:6px;padding:16px;border:1px solid rgba(37,244,238,.24);border-radius:13px;background:rgba(37,244,238,.045)}
+.gxt-followup-reminder-inline h4{margin:0!important}
+.gxt-followup-contact-actions{display:flex;gap:10px;flex-wrap:wrap}
+.gxt-followup-contact-actions .gxt-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.gxt-followup-contact-actions .is-disabled{opacity:.45;pointer-events:none}
+.gxt-followup-step-actions{max-width:900px}
+.gxt-followup-step-actions span{font-size:11px;color:#9aabb6}
+@media(max-width:650px){.gxt-followup-target-grid,.gxt-followup-date-grid{grid-template-columns:1fr}.gxt-followup-workspace.is-open [data-followup-step].is-active{padding:16px}.gxt-followup-stepper{grid-template-columns:1fr}}
