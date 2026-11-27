@@ -8,7 +8,6 @@ create policy gx_followup_imports_read on public.gx_creator_followup_imports
 for select to authenticated
 using (
   public.is_admin()
-  or uploaded_by=auth.uid()
   or exists (
     select 1
     from public.gx_creator_followup_evaluations e
@@ -110,13 +109,7 @@ create policy gx_followup_storage_read on storage.objects
 for select to authenticated
 using (
   bucket_id='gx-creator-followup-reports'
-  and (
-    public.is_admin()
-    or exists (
-      select 1 from public.gx_creator_followup_imports i
-      where i.storage_path=name and i.uploaded_by=auth.uid()
-    )
-  )
+  and public.is_admin()
 );
 
 -- Un avance "approved" solo puede entrar mediante la RPC SECURITY DEFINER.
