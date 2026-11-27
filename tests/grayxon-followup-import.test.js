@@ -19,7 +19,7 @@ vm.runInContext(fs.readFileSync('grayxon-followup-import.js', 'utf8'), sandbox);
 const parser = sandbox.GRAYXON_FOLLOWUP_IMPORT;
 const workbook = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } };
 
-const preview = parser.parseWorkbook(workbook, '2026-11-01', '2026-11-23');
+const preview = parser.parseWorkbook(workbook);
 assert.equal(preview.rows.length, 2);
 assert.equal(preview.rows[0].username, 'lorena_vargas22');
 assert.equal(preview.rows[0].diamonds, 809090);
@@ -29,19 +29,18 @@ assert.equal(preview.canEvaluate, true);
 assert.equal(preview.granularity, 'period_aggregate');
 assert.equal(preview.mixedPeriods, false);
 
-const partial = parser.parseWorkbook(workbook, '2026-11-01', '2026-11-07');
-assert.equal(partial.canEvaluate, false);
-assert.match(partial.restriction, /No es posible calcular un subperiodo/);
+assert.deepEqual(JSON.parse(JSON.stringify(preview.selectedPeriod)), { start: '2026-11-01', end: '2026-11-23' });
+assert.equal(preview.exactPeriod, true);
 
 matrix = [headers, ...data, ['2026-11-10 ~ 2026-11-23', '789', 'otro_usuario', 'Equipo A', 'manager@test', '2025-01-01', '100', '1000', '10h', '2']];
-const mixed = parser.parseWorkbook(workbook, '2026-11-01', '2026-11-23');
+const mixed = parser.parseWorkbook(workbook)
 assert.equal(mixed.mixedPeriods, true);
 assert.equal(mixed.sourcePeriod, null);
 assert.equal(mixed.canEvaluate, false);
 assert.match(mixed.restriction, /mezcla varios periodos/);
 
 matrix = [headers, ...data, ['periodo incorrecto', '999', 'fila_sin_periodo', 'Equipo A', 'manager@test', '2025-01-01', '100', '1000', '10h', '2']];
-const invalidPeriod = parser.parseWorkbook(workbook, '2026-11-01', '2026-11-23');
+const invalidPeriod = parser.parseWorkbook(workbook)
 assert.equal(invalidPeriod.canEvaluate, false);
 assert.match(invalidPeriod.restriction, /periodos inválidos/);
 
