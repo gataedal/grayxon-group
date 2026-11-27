@@ -545,7 +545,7 @@
   function followupProgressEligibility(plan){
     if(!plan||!plan.target_date||plan.status==='cancelled')return {allowed:false,end:plan?.target_date||''};
     const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    return {allowed:today>=String(plan.target_date).slice(0,10),end:String(plan.target_date).slice(0,10)};
+    return {allowed:today>String(plan.target_date).slice(0,10),end:String(plan.target_date).slice(0,10)};
   }
   function updateFollowupProgressGate(plan){
     const form=document.getElementById('gxActionPlanUpdateForm');
@@ -560,7 +560,7 @@
     form.classList.toggle('is-locked',!gate.allowed);
   }
 
-  function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(2,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 3';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===2?'Finalizar':'Siguiente';}
+  function setFollowupStep(index){state.followupStep=Number(index)||0;const form=document.getElementById('gxActionPlanForm'),progress=document.getElementById('gxActionPlanUpdateForm'),preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions');const showingProgress=state.followupStep===1;if(form)form.hidden=showingProgress||!!(preview&&!preview.hidden);if(progress)progress.hidden=!showingProgress;if(preview&&showingProgress)preview.hidden=true;if(actions&&showingProgress)actions.hidden=true;}
   function updateFollowupContactMessage(creator,reportItem,reportRow,plan){
     const box=document.getElementById('gxFollowupContactMessage');
     const link=document.getElementById('gxFollowupWhatsAppLink');
@@ -652,13 +652,14 @@
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').order('created_at',{ascending:false}).limit(30),
-        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,start_date,target_date,targets,created_at,manager_id').order('created_at',{ascending:false}).limit(1000),
+        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,start_date,target_date,targets,created_at,manager_id,sent_to_creator_at').order('created_at',{ascending:false}).limit(1000),
         sb.from('gx_creator_action_plan_updates').select('id,plan_id,progress_summary,proposed_changes,status,created_at,review_note').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_reminders').select('id,creator_user_id,action_plan_id,scheduled_at,status,note').order('scheduled_at',{ascending:true}).limit(30)
       ]);
       const failed=[notes,contacts,plans,planUpdates,reminders].find(x=>x.error);
       if(failed)throw failed.error;
       window.gxFollowupPlans=plans.data||[];
+      window.gxFollowupNotes=notes.data||[];
       await refreshGeneralReportReadiness();
       window.gxFollowupReminders=reminders.data||[];
       const selectedCreatorId=select.value;
@@ -714,6 +715,7 @@
     const common={creator_user_id:creator.id,manager_id:state.isAdmin?creator.manager_id:state.member.id,created_by:state.session.user.id};
     const metricKeys=['diamonds','live_hours','valid_days','battles','fan_club_members'];
     const readMetrics=prefix=>Object.fromEntries(metricKeys.map(key=>[key,Number(data.get(key)||0)]));
+    if(form.id==='gxFollowupNoveltyForm'){const body=String(data.get('body')||'').trim();if(!body)return toast('Escribe la novedad que deseas reportar.');const {error}=await sb.from('gx_creator_followup_notes').insert({...common,note_type:'novelty',body});if(error)return toast('No se pudo enviar la novedad: '+error.message);closeModal();toast('Novedad enviada a administración.');await loadFollowupWorkspace();return;}
     if(form.id==='gxActionPlanForm'){
       const start=String(data.get('start_date')||''),end=String(data.get('target_date')||'');
       if(!start||!end||end<start)return toast('Define un rango de fechas válido para el plan.');
@@ -738,7 +740,7 @@
       }else if(existingReminder){const removed=await sb.from('gx_creator_followup_reminders').delete().eq('id',existingReminder.id);if(removed.error)return toast('El plan se guardó, pero no se pudo retirar el recordatorio: '+removed.error.message);}
       form.elements.reminder_at.value='';form.elements.reminder_note.value='';
       toast(planId?'Plan actualizado.':'Plan creado correctamente.');
-      await loadFollowupWorkspace();setFollowupStep(1);return;
+      await loadFollowupWorkspace();setFollowupStep(0);return;
     }
     if(form.id==='gxActionPlanUpdateForm'){
       const planId=String(data.get('plan_id')||'');
@@ -821,11 +823,7 @@
         toast('Mes eliminado: '+Number(data?.deleted_imports||0)+' reportes y '+Number(data?.deleted_plans||0)+' planes.'+storageWarning);
         await loadFollowupHistory();
       }));
-      host.querySelectorAll('[data-followup-open-creator]').forEach(button=>button.addEventListener('click',()=>{
-        const report=Array.from(data||[]).find(item=>(item.gx_creator_followup_evaluations||[]).some(row=>row.creator_user_id===button.dataset.followupOpenCreator));
-        window.gxFollowupSelectedReport=report||null;
-        openFollowupCreator(button.dataset.followupOpenCreator,0);
-      }));
+      host.querySelectorAll('[data-followup-open-creator]').forEach(button=>button.addEventListener('click',()=>{const creatorId=button.dataset.followupOpenCreator;const report=Array.from(data||[]).find(item=>(item.gx_creator_followup_evaluations||[]).some(row=>row.creator_user_id===creatorId));window.gxFollowupSelectedReport=report||null;const creator=followupCreatorCache.find(item=>item.id===creatorId);const label=creator?.full_name||creator?.username||'este creador';openModal('Gestionar seguimiento','Selecciona qué deseas hacer con '+esc(label)+'.','<div class="gxt-modal-actions"><button type="button" class="gxt-btn primary" data-choice-create-plan="'+esc(creatorId)+'">Crear plan</button><button type="button" class="gxt-btn" data-choice-report-novelty="'+esc(creatorId)+'">Reportar</button><button type="button" class="gxt-btn ghost" data-close-modal>×</button></div>');}));
       host.querySelectorAll('[data-followup-report-alert]').forEach(button=>button.addEventListener('click',event=>{
         event.preventDefault();event.stopPropagation();
         const item=(data||[]).find(entry=>entry.id===button.dataset.followupReportAlert);
@@ -1566,7 +1564,7 @@
   });
 
   main.addEventListener('submit',event=>{
-    const form=event.target.closest('#gxActionPlanForm,#gxActionPlanUpdateForm');
+    const form=event.target.closest('#gxActionPlanForm,#gxActionPlanUpdateForm,#gxFollowupNoveltyForm');
     if(form)submitFollowupRecord(form,event);
   });
 
@@ -1580,11 +1578,12 @@
     if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
     if(event.target.closest('[data-followup-next]')){if(state.followupStep===2){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
     const contactCreator=event.target.closest('[data-followup-open-contact]');if(contactCreator){setFollowupStep(2);return;}
-    const registerProgress=event.target.closest('[data-followup-open-progress]');if(registerProgress&&!registerProgress.disabled){setFollowupStep(1);return;}
+    const registerProgress=event.target.closest('[data-followup-open-progress]');if(registerProgress&&!registerProgress.disabled){const planId=document.querySelector('#gxActionPlanForm [name=plan_id]')?.value;const progress=document.getElementById('gxActionPlanUpdateForm');if(progress){progress.hidden=false;progress.elements.plan_id.value=planId||'';}const preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions'),planForm=document.getElementById('gxActionPlanForm');if(preview)preview.hidden=true;if(actions)actions.hidden=true;if(planForm)planForm.hidden=true;state.followupStep=1;return;}
     const editSavedPlan=event.target.closest('[data-followup-edit-plan]');
-    if(editSavedPlan){const form=document.getElementById('gxActionPlanForm'),preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions');if(preview)preview.hidden=true;if(actions)actions.hidden=true;if(form)form.hidden=false;return;}
+    if(editSavedPlan){const form=document.getElementById('gxActionPlanForm'),preview=document.getElementById('gxFollowupPlanPreview'),actions=document.getElementById('gxFollowupSavedPlanActions'),progress=document.getElementById('gxActionPlanUpdateForm');if(preview)preview.hidden=true;if(actions)actions.hidden=true;if(progress)progress.hidden=true;if(form)form.hidden=false;return;}
     const deleteSavedPlan=event.target.closest('[data-followup-delete-plan]');
     if(deleteSavedPlan){const form=document.getElementById('gxActionPlanForm'),planId=form?.elements.plan_id.value,creatorId=document.getElementById('gxFollowupCreator')?.value;if(!planId)return;if(!window.confirm('¿Eliminar este plan de trabajo y sus recordatorios?'))return;const reminders=(window.gxFollowupReminders||[]).filter(r=>r.action_plan_id===planId);for(const r of reminders){const del=await sb.from('gx_creator_followup_reminders').delete().eq('id',r.id);if(del.error)return toast('No se pudo eliminar el recordatorio: '+del.error.message);}const delPlan=await sb.from('gx_creator_action_plans').delete().eq('id',planId).eq('creator_user_id',creatorId);if(delPlan.error)return toast('No se pudo eliminar el plan: '+delPlan.error.message);toast('Plan eliminado.');await loadFollowupWorkspace();if(creatorId)await openFollowupCreator(creatorId,0);return;}
+    const sendPlan=event.target.closest('[data-followup-send-plan]');if(sendPlan){const planId=document.querySelector('#gxActionPlanForm [name=plan_id]')?.value;if(!planId)return toast('Guarda primero el plan.');sendPlan.disabled=true;const {error}=await sb.from('gx_creator_action_plans').update({sent_to_creator_at:new Date().toISOString()}).eq('id',planId).eq('creator_user_id',document.getElementById('gxFollowupCreator')?.value);if(error){sendPlan.disabled=false;return toast('No se pudo enviar el plan: '+error.message);}toast('Plan enviado a Mis entregas.');await loadFollowupWorkspace();return;}
     const reviewPlan=event.target.closest('[data-review-plan-update]');
     if(reviewPlan)return reviewActionPlanUpdate(reviewPlan.dataset.reviewPlanUpdate,reviewPlan.dataset.reviewDecision);
     const followupPreview=event.target.closest('[data-followup-preview]');
@@ -1618,6 +1617,8 @@
     if(event.target===modalRoot){closeModal();return;}
     const close=event.target.closest('[data-close-modal]');
     if(close)return closeModal();
+    const createPlan=event.target.closest('[data-choice-create-plan]');if(createPlan){const id=createPlan.dataset.choiceCreatePlan;closeModal();openFollowupCreator(id,0);return;}
+    const reportNovelty=event.target.closest('[data-choice-report-novelty]');if(reportNovelty){const id=reportNovelty.dataset.choiceReportNovelty;const creator=followupCreatorCache.find(item=>item.id===id);const manager=state.isAdmin?creator?.manager_id:state.member.id;const hidden=document.getElementById('gxFollowupCreator');if(hidden)hidden.value=id;openModal('Reportar novedad','Registro interno para administración · '+esc(creator?.full_name||creator?.username||'Creador'),'<form id="gxFollowupNoveltyForm"><label class="gxt-field"><span>Novedad / seguimiento realizado</span><textarea name="body" maxlength="5000" required placeholder="Describe la situación, gestión realizada o seguimiento pendiente."></textarea></label><div class="gxt-modal-actions"><button type="button" class="gxt-btn ghost" data-close-modal>× Cerrar</button><button type="submit" class="gxt-btn primary">Enviar novedades</button></div></form>');return;}
     const download=event.target.closest('[data-download-file]');
     if(download){downloadAttachment(download.dataset.downloadFile,download.dataset.fileName,download);return;}
     const preview=event.target.closest('[data-preview-file]');
