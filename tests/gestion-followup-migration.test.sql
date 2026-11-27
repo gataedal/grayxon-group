@@ -39,6 +39,9 @@ begin
  if to_regprocedure('public.gx_manager_update_creator_phone(uuid,text)') is not null then
   raise exception 'La RPC de edición de teléfono para managers debe estar eliminada';
  end if;
+ if to_regprocedure('public.gx_manager_update_creator_action_plan(uuid,text,text,text)') is not null then
+  raise exception 'La sobrecarga antigua de cuatro argumentos debe estar eliminada';
+ end if;
  -- Add a second creator assigned to another manager; manager A must not read it.
  insert into auth.users(id) values('10000000-0000-0000-0000-000000000002'),('20000000-0000-0000-0000-000000000002');
  insert into public.managers(id,user_id,active) values('30000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002',true);
