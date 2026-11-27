@@ -39,6 +39,9 @@ begin
  if to_regprocedure('public.gx_manager_update_creator_phone(uuid,text)') is not null then
   raise exception 'La RPC de edición de teléfono para managers debe estar eliminada';
  end if;
+ if to_regprocedure('public.gx_manager_update_creator_action_plan(uuid,text,text,text)') is not null then
+  raise exception 'La sobrecarga antigua de cuatro argumentos debe estar eliminada';
+ end if;
  -- Add a second creator assigned to another manager; manager A must not read it.
  insert into auth.users(id) values('10000000-0000-0000-0000-000000000002'),('20000000-0000-0000-0000-000000000002');
  insert into public.managers(id,user_id,active) values('30000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002',true);
@@ -60,6 +63,9 @@ begin
   (now() at time zone 'America/Bogota')::date-2,(now() at time zone 'America/Bogota')::date+1,v_manager_user);
  insert into public.gx_creator_action_plan_updates(id,plan_id,progress_summary,status)
  values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','Propuesta test','pending_manager_review');
+ insert into public.gx_creator_action_plans(id,creator_user_id,manager_id,title,objective,start_date,target_date,created_by)
+ values('50000000-0000-0000-0000-000000000002',v_creator,v_manager_id,'Plan cancelado test','Objetivo de prueba',
+  (now() at time zone 'America/Bogota')::date-2,(now() at time zone 'America/Bogota')::date+1,v_manager_user);
  insert into public.gx_creator_followup_evaluations(
   import_id,creator_user_id,creator_username_snapshot,manager_id_snapshot,
   evaluated_start_date,evaluated_end_date,evaluable_days,valid_live_days,live_seconds,diamonds,
@@ -123,14 +129,14 @@ begin
  update public.gx_creator_action_plans
   set target_date=(now() at time zone 'America/Bogota')::date+1
   where id='50000000-0000-0000-0000-000000000001';
- begin
-  perform public.gx_manager_update_creator_action_plan(
-   '50000000-0000-0000-0000-000000000001','Avance antes del cierre',null,'active','{}'::jsonb
-  );
-  raise exception 'Progress before plan end date should have failed';
- exception when others then
-  if sqlerrm='Progress before plan end date should have failed' then raise; end if;
- end;
+ perform public.gx_manager_update_creator_action_plan(
+  '50000000-0000-0000-0000-000000000001','Avance durante el plan',null,'active','{}'::jsonb
+ );
+ if not exists(select 1 from public.gx_creator_action_plan_updates
+   where plan_id='50000000-0000-0000-0000-000000000001'
+     and progress_summary='Avance durante el plan' and status='approved') then
+  raise exception 'Progress during the plan must be accepted before its end date';
+ end if;
  update public.gx_creator_action_plans
   set target_date=(now() at time zone 'America/Bogota')::date-1
   where id='50000000-0000-0000-0000-000000000001';
@@ -173,6 +179,25 @@ begin
  if (select count(*) from storage.objects where bucket_id='gx-creator-followup-reports')<>0 then
   raise exception 'Managers must not read source Excel files';
  end if;
+end $$;
+reset role;
+
+-- Los planes cancelados sí deben bloquear nuevos avances, sin alterar el plan
+-- principal que luego se usa para probar la reasignación de manager.
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
+set role authenticated;
+update public.gx_creator_action_plans set status='cancelled'
+where id='50000000-0000-0000-0000-000000000002';
+do $$
+begin
+ begin
+  perform public.gx_manager_update_creator_action_plan(
+   '50000000-0000-0000-0000-000000000002','No debe aceptar avance',null,'active','{}'::jsonb
+  );
+  raise exception 'Cancelled plan must reject progress';
+ exception when others then
+  if sqlerrm='Cancelled plan must reject progress' then raise; end if;
+ end;
 end $$;
 reset role;
 
@@ -326,8 +351,8 @@ begin
  if (select count(*) from public.gx_creator_followup_reminders)<>1 then
   raise exception 'Current manager must see historical reminders for reassigned creators';
  end if;
- if (select count(*) from public.gx_creator_action_plans)<>1 then
-  raise exception 'Current manager must see historical action plans for reassigned creators';
+ if (select count(*) from public.gx_creator_action_plans)<>2 then
+  raise exception 'Current manager must see both historical action plans for reassigned creators';
  end if;
  begin
   insert into public.gx_creator_action_plan_updates(plan_id,progress_summary,status,reviewed_by,reviewed_at)
@@ -337,7 +362,7 @@ begin
   null;
  end;
  perform public.gx_manager_update_creator_action_plan(
-  '50000000-0000-0000-0000-000000000001','Avance del nuevo manager',null,'active'
+  '50000000-0000-0000-0000-000000000001','Avance del nuevo manager',null,'active','{}'::jsonb
  );
  if not exists(select 1 from public.gx_creator_action_plan_updates
    where plan_id='50000000-0000-0000-0000-000000000001'
@@ -346,3 +371,5 @@ begin
  end if;
 end $$;
 reset role;
+
+-- Regresión: los permisos de planes siguen la asignación vigente del creador.
