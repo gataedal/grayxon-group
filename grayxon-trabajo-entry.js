@@ -6,6 +6,7 @@
   function removeCard(){
     document.getElementById('gxTrabajoDashboardCard')?.remove();
     checkedUserId=null;
+    window.grayxonSyncInternalMenu?.(window.grayxonDashboardPage);
   }
 
   function installStyles(){
@@ -24,9 +25,9 @@
   }
 
   function getDashboardTarget(){
-    const admin=document.querySelector('#admin:not(.hidden) .admin-dashboard-grid');
+    const admin=document.querySelector('#admin:not(.hidden) .gx-internal-access-source');
     if(admin)return {grid:admin,role:'admin'};
-    const manager=document.querySelector('#manager:not(.hidden) .manager-dashboard-grid');
+    const manager=document.querySelector('#manager:not(.hidden) .gx-internal-access-source');
     if(manager)return {grid:manager,role:'manager'};
     return null;
   }
@@ -76,11 +77,13 @@
         card.id='gxTrabajoDashboardCard';
         card.href='./grayxon-trabajo.html';
         card.className='admin-dashboard-card manager-dashboard-card gx-trabajo-dashboard-card';
+        card.dataset.gxTrabajoAccess='1';
         card.setAttribute('aria-label','Abrir Gestión');
         card.innerHTML='<span class="gx-trabajo-card-icon" aria-hidden="true">▤</span><span class="gx-trabajo-card-copy"><strong>Gestión</strong><small>Organiza tareas, solicitudes y seguimiento del equipo.</small></span><span class="gx-trabajo-card-arrow" aria-hidden="true">›</span>';
       }
       if(card.parentElement!==target.grid)target.grid.appendChild(card);
       checkedUserId=user.id;
+      window.grayxonSyncInternalMenu?.(dashboardRole);
     }catch(error){
       console.warn('[Gestión Grayxon] No se pudo sincronizar la tarjeta del dashboard:',error?.message||error);
     }finally{
