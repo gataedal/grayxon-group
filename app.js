@@ -5511,10 +5511,10 @@ async function adminTpl(c) {
     ['formation','🎓','Formación','Administra módulos, lecciones y videos.'],
     ['payments','💸','Pagos','Registra pagos para usuarios y beneficiarios externos.']
   ];
+  const accessSource='<div class="gx-internal-access-source" hidden>'+adminSections.map(([id,icon,title])=>'<button type="button" data-admin="'+id+'"><span class="admin-dashboard-card-icon">'+icon+'</span><span class="admin-dashboard-card-copy"><strong>'+esc(title)+'</strong></span></button>').join('')+'<button type="button" data-page="announcements"><span class="admin-dashboard-card-icon">📣</span><span class="admin-dashboard-card-copy"><strong>Centro de comunicados</strong></span></button><button type="button" data-page="events"><span class="admin-dashboard-card-icon">🎉</span><span class="admin-dashboard-card-copy"><strong>Eventos Matrix</strong></span></button></div>';
   let body = '';
   if (adminView === 'dashboard') {
-    const accessSource='<div class="gx-internal-access-source" hidden>'+adminSections.map(([id,icon,title])=>'<button type="button" data-admin="'+id+'"><span class="admin-dashboard-card-icon">'+icon+'</span><span class="admin-dashboard-card-copy"><strong>'+esc(title)+'</strong></span></button>').join('')+'<button type="button" data-page="announcements"><span class="admin-dashboard-card-icon">📣</span><span class="admin-dashboard-card-copy"><strong>Centro de comunicados</strong></span></button><button type="button" data-page="events"><span class="admin-dashboard-card-icon">🎉</span><span class="admin-dashboard-card-copy"><strong>Eventos</strong></span></button></div>';
-    body = (await gxAdminDashboardSummary())+accessSource;
+    body = await gxAdminDashboardSummary();
   } else {
     if (adminView === 'home') body = adminHome(c.home);
     else if (adminView === 'benefits') body = adminBenefits(c.benefits);
@@ -5529,7 +5529,7 @@ async function adminTpl(c) {
     const sectionTitle = adminSections.find(x=>x[0]===adminView)?.[2] || 'Administración';
     body = `<div class="admin-subpage"><div class="admin-subpage-header"><div class="admin-subpage-title"><h1>${sectionTitle}</h1></div></div>${body}</div>`;
   }
-  $('#admin').innerHTML = `<div class="admin-main">${body}</div>`;
+  $('#admin').innerHTML = `<div class="admin-main">${body}${accessSource}</div>`;
 }
 
 function field(id, label, val, area = false) {
