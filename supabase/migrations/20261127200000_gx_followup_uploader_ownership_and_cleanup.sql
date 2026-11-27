@@ -8,7 +8,7 @@ on public.gx_creator_followup_imports
 for select to authenticated
 using (
   public.is_admin()
-  or uploaded_by=(select auth.uid())
+  or (uploaded_by=(select auth.uid()) and has_linked_evaluations=false)
   or exists (
     select 1
     from public.gx_creator_followup_evaluations e
