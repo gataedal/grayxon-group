@@ -31,7 +31,9 @@ begin
   if tg_op = 'DELETE' then return old; end if;
   return new;
 end;
-$$;
+$;
+
+revoke all on function public.gx_touch_general_followup_report() from public, anon, authenticated;
 
 drop trigger if exists gx_followup_report_touch_plans on public.gx_creator_action_plans;
 create trigger gx_followup_report_touch_plans after insert or update or delete on public.gx_creator_action_plans
