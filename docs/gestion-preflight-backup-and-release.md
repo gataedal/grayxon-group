@@ -17,14 +17,21 @@ Rama exclusiva: `feature/gestion-module-2026-11-26`.
 
 La exportación lógica debe guardarse fuera del repositorio, en una ubicación privada y con acceso restringido. Instalar Supabase CLI y Docker Desktop. Obtener la cadena de conexión desde **Supabase Dashboard → Connect** y mantenerla en una variable de entorno o gestor de secretos; no escribirla en comandos guardados, archivos del repo, tickets ni capturas.
 
-Con Supabase CLI v3:
+Con Supabase CLI. Antes de ejecutarlo, confirma las opciones de la versión instalada con `supabase db dump --help`. Guarda los archivos fuera del repositorio:
 
 ```powershell
+$backupDir = Join-Path $env:USERPROFILE "Grayxon-DB-Backup-2026-11-27"
+New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+Push-Location $backupDir
+
 $env:DB_URL = Read-Host "Pega la cadena de conexión PostgreSQL"
 supabase db dump --db-url "$env:DB_URL" -f roles.sql --role-only
 supabase db dump --db-url "$env:DB_URL" -f schema.sql
 supabase db dump --db-url "$env:DB_URL" -f data.sql --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes"
+
+Get-FileHash .\roles.sql, .\schema.sql, .\data.sql -Algorithm SHA256
 Remove-Item Env:DB_URL
+Pop-Location
 ```
 
 La exportación de esquema y datos debe incluir también los objetos personalizados de los esquemas gestionados que se hayan creado en el proyecto (por ejemplo, políticas y triggers propios de `storage`); revisar la configuración del motor de diff de Supabase y conservar una exportación/revisión específica de `auth,storage` si corresponde. El dump estándar excluye esquemas gestionados como `auth` y `storage`; no asumir que el SQL por sí solo respalda archivos binarios.
