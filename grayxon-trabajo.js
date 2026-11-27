@@ -729,7 +729,7 @@
             return '<tr><td class="gxt-followup-creator-cell is-'+tone+'"><button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(row.creator_user_id)+'"><strong>@'+esc(row.creator_username_snapshot)+'</strong></button></td><td>'+esc(classes[row.classification]||row.classification)+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.live_seconds==null?'—':(Number(row.live_seconds)/3600).toFixed(2)+' h')+'</td><td>'+(row.valid_live_days==null?'—':esc(row.valid_live_days))+'</td></tr>';
           }).join('');
           const unmatchedRows=unmatched.map(row=>{
-            const reason=row.reason==='agency_left'?'Abandonó la agencia':row.reason==='not_in_portal'?'No tiene acceso al portal':'Coincidencia ambigua';
+            const reason=row.reason==='agency_left'?'Abandonó la agencia':row.reason==='not_in_portal'?'No tiene cuenta en el portal':row.reason==='portal_inactive'?'Cuenta del portal inactiva':'Coincidencia ambigua';
             return '<tr><td>@'+esc(row.creator_username_snapshot)+'</td><td>'+esc(reason)+'</td><td>'+esc(row.creator_id_snapshot||'—')+'</td></tr>';
           }).join('');
           const reportPeriod=String(item.source_start_date||item.selected_start_date||month).slice(0,7);
