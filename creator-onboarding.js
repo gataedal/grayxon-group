@@ -201,6 +201,13 @@
   }
 
   document.addEventListener('click',function(event){
+    if(pending() && event.target?.closest?.('#gxSavePersonal')){
+      event.preventDefault();
+      if(typeof saveProfilePersonal==='function') saveProfilePersonal();
+    }
+  },true);
+
+  document.addEventListener('click',function(event){
     if(event.target?.closest?.('#profilePhotoEdit')){
       event.preventDefault();
       document.getElementById('profileAvatar')?.click();
