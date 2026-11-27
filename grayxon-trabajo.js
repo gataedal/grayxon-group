@@ -354,21 +354,19 @@
   function renderFollowupPage() {
     main.innerHTML = pageHead('Seguimiento de creadores','Evaluaciones por periodo, contacto, observaciones y planes de acción del equipo.')+
       '<section class="gxt-panel gxt-followup-import"><div class="gxt-panel-head"><div><h2>Importar reporte de TikTok LIVE</h2><p>Sube el Excel. El periodo se detecta automáticamente desde el reporte.</p></div><span class="gxt-chip">Vista previa</span></div>'+
-      '<div class="gxt-followup-upload-grid"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label></div>'+
-      '<div class="gxt-actions gxt-followup-upload-actions"><button type="button" class="gxt-btn primary gxt-btn-process" data-followup-preview '+(followupImportFile?'':'disabled')+'><span aria-hidden="true">↗</span> Analizar archivo</button><span id="gxFollowupFileName" class="gxt-muted">'+(followupImportFile?esc(followupImportFile.name):'Ningún archivo seleccionado')+'</span></div>'+'<div class="gxt-followup-rules"><div><strong>Metas mensuales</strong><span>90 horas LIVE · 22 días válidos</span></div><div><strong>Recomendación de constancia</strong><span>2 h 30 min diarios · 6 días por semana</span></div></div>'+
+      '<div class="gxt-followup-upload-controls"><label class="gxt-field"><span>Archivo Excel</span><input id="gxFollowupFile" type="file" accept=".xlsx,.xls"></label><button type="button" class="gxt-btn gxt-btn-process" data-followup-preview '+(followupImportFile?'':'disabled')+'><span aria-hidden="true">↗</span> Analizar archivo</button></div>'+
+      '<div id="gxFollowupFileName" class="gxt-muted gxt-followup-file-name">'+(followupImportFile?esc(followupImportFile.name):'Ningún archivo seleccionado')+'</div>'+'<div class="gxt-followup-rules"><div><strong>Metas mensuales</strong><span>90 horas LIVE · 22 días válidos</span></div><div><strong>Recomendación de constancia</strong><span>2 h 30 min diarios · 6 días por semana</span></div></div>'+
       '<div id="gxFollowupPreview" class="gxt-followup-preview">'+(followupPreviewMarkup||'<div class="gxt-status-note">Selecciona un Excel para analizarlo. El periodo se tomará automáticamente del archivo.</div>')+'</div></section>'+
       
       '<section class="gxt-panel" id="gxFollowupHistory"><div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-empty">Cargando historial…</div></section>'+
-      '<section class="gxt-panel gxt-followup-workspace" id="gxFollowupWorkspaceSection" hidden><div class="gxt-panel-head"><div><h2>Gestión individual</h2><p>Ficha del creador · completa cada etapa para continuar.</p></div><button type="button" class="gxt-btn ghost" data-followup-close>× Cerrar</button></div><p>Registra contactos, compromisos y planes de acción sin perder el historial.</p>'+
-      '<label class="gxt-field"><span>Creador</span><select id="gxFollowupCreator"><option value="">Cargando creadores…</option></select></label>'+
-      '<div class="gxt-followup-stepper" id="gxFollowupStepper"><span class="active">01 · Perfil</span><span>02 · Observación</span><span>03 · Contacto</span><span>04 · Plan</span><span>05 · Avance</span><span>06 · Recordatorio</span></div><div class="gxt-followup-workspace-card is-active" id="gxFollowupPhoneReadOnly" data-followup-step="0"><h3>Teléfono registrado</h3><p class="gxt-muted">Consulta de solo lectura. Los cambios del número los realiza administración desde los datos del creador.</p><strong id="gxFollowupPhoneValue">Selecciona un creador para consultar su teléfono.</strong></div>'+
+      '<section class="gxt-panel gxt-followup-workspace" id="gxFollowupWorkspaceSection" hidden><div class="gxt-panel-head"><div><h2 id="gxFollowupCreatorTitle">Plan de trabajo</h2><p id="gxFollowupCreatorSubtitle">Seguimiento individual del creador.</p></div><button type="button" class="gxt-btn ghost" data-followup-close>× Cerrar</button></div>'+
+      '<select hidden id="gxFollowupCreator" aria-hidden="true"></select>'+
+      '<div class="gxt-followup-stepper" id="gxFollowupStepper"><span class="active">01 · Plan y recordatorio</span><span>02 · Avances</span><span>03 · Contactar</span></div>'+
       '<div class="gxt-followup-workspace-grid">'+
-      '<form id="gxFollowupNoteForm" class="gxt-followup-workspace-card" data-followup-step="1"><h3>Observación o compromiso</h3><label class="gxt-field"><span>Tipo</span><select name="note_type"><option value="observation">Observación</option><option value="commitment">Compromiso</option><option value="response">Respuesta</option><option value="review">Revisión</option></select></label><label class="gxt-field"><span>Detalle</span><textarea name="body" maxlength="5000" required></textarea></label><button class="gxt-btn primary" type="submit">Guardar registro</button></form>'+
-      '<form id="gxFollowupContactForm" class="gxt-followup-workspace-card" data-followup-step="2"><h3>Registro de contacto</h3><label class="gxt-field"><span>Estado</span><select name="contact_status"><option value="initiated">Contacto iniciado</option><option value="confirmed">Contacto confirmado</option><option value="pending_response">Pendiente de respuesta</option><option value="responded">Respondió</option></select></label><label class="gxt-field"><span>Canal</span><select name="channel"><option value="whatsapp">WhatsApp</option><option value="phone">Llamada</option><option value="other">Otro</option></select></label><label class="gxt-field"><span>Mensaje o resumen</span><textarea name="message_text" maxlength="5000"></textarea></label><button class="gxt-btn primary" type="submit">Guardar contacto</button></form>'+
-      '<form id="gxActionPlanForm" class="gxt-followup-workspace-card" data-followup-step="3"><h3>Plan de acción</h3><label class="gxt-field"><span>Título</span><input name="title" maxlength="180" required></label><label class="gxt-field"><span>Objetivo</span><textarea name="objective" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Criterio de éxito</span><textarea name="success_criteria" maxlength="3000"></textarea></label><label class="gxt-field"><span>Fecha objetivo</span><input name="target_date" type="date"></label><button class="gxt-btn primary" type="submit">Crear plan</button></form>'+
-      '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card" data-followup-step="4"><h3>Actualizar plan de trabajo</h3><label class="gxt-field"><span>Plan</span><select id="gxActionPlanSelect" name="plan_id" required><option value="">Primero crea un plan</option></select></label><label class="gxt-field"><span>Avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Actualización / acuerdos nuevos</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><label class="gxt-field"><span>Estado del plan</span><select name="plan_status"><option value="active">Activo</option><option value="paused">Pausado</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></label><button class="gxt-btn primary" type="submit">Guardar actualización</button></form>'+
-      '<form id="gxFollowupReminderForm" class="gxt-followup-workspace-card" data-followup-step="5"><h3>Recordatorio</h3><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="scheduled_at" type="datetime-local" required></label><label class="gxt-field"><span>Nota</span><textarea name="note" maxlength="2000"></textarea></label><button class="gxt-btn primary" type="submit">Programar recordatorio</button></form>'+
-      '</div><div class="gxt-followup-step-actions"><button type="button" class="gxt-btn" data-followup-prev disabled>Anterior</button><span id="gxFollowupStepLabel">Etapa 1 de 6</span><button type="button" class="gxt-btn primary" data-followup-next>Siguiente</button></div><div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';
+      '<form id="gxActionPlanForm" class="gxt-followup-workspace-card is-active" data-followup-step="0"><h3>Plan de trabajo del creador</h3><input type="hidden" name="plan_id"><label class="gxt-field"><span>Nombre del plan</span><input name="title" maxlength="180" required placeholder="Ej. Objetivos de diciembre"></label><label class="gxt-field"><span>Objetivo / acuerdos</span><textarea name="objective" maxlength="5000" required placeholder="Define qué debe lograr el creador durante este periodo."></textarea></label><div class="gxt-followup-date-grid"><label class="gxt-field"><span>Desde</span><input name="start_date" type="date" required></label><label class="gxt-field"><span>Hasta</span><input name="target_date" type="date" required></label></div><h4>Metas del periodo</h4><div class="gxt-followup-target-grid"><label class="gxt-field"><span>Diamantes</span><input name="diamonds" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Horas LIVE</span><input name="live_hours" type="number" min="0" step="0.25" placeholder="Meta"></label><label class="gxt-field"><span>Días válidos</span><input name="valid_days" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Batallas</span><input name="battles" type="number" min="0" step="1" placeholder="Meta"></label><label class="gxt-field"><span>Miembros del club de fans</span><input name="fan_club_members" type="number" min="0" step="1" placeholder="Meta"></label></div><div class="gxt-followup-reminder-inline"><h4>Recordatorio del plan</h4><p class="gxt-muted">Puedes dejarlo programado desde aquí, sin pasar a otra sección.</p><label class="gxt-field"><span>Fecha y hora (Colombia)</span><input name="reminder_at" type="datetime-local"></label><label class="gxt-field"><span>Nota del recordatorio</span><input name="reminder_note" maxlength="2000" placeholder="Ej. Revisar avances a mitad del periodo"></label></div><button class="gxt-btn primary" type="submit">Guardar plan de trabajo</button></form>'+
+      '<form id="gxActionPlanUpdateForm" class="gxt-followup-workspace-card" data-followup-step="1"><h3>Registrar avance del plan</h3><p class="gxt-muted" id="gxFollowupPlanStatus">Primero debes crear un plan para habilitar los avances.</p><input type="hidden" name="plan_id"><div class="gxt-followup-target-grid"><label class="gxt-field"><span>Diamantes alcanzados</span><input name="diamonds" type="number" min="0" step="1"></label><label class="gxt-field"><span>Horas LIVE acumuladas</span><input name="live_hours" type="number" min="0" step="0.25"></label><label class="gxt-field"><span>Días válidos</span><input name="valid_days" type="number" min="0" step="1"></label><label class="gxt-field"><span>Batallas realizadas</span><input name="battles" type="number" min="0" step="1"></label><label class="gxt-field"><span>Miembros del club de fans</span><input name="fan_club_members" type="number" min="0" step="1"></label></div><label class="gxt-field"><span>Resumen del avance</span><textarea name="progress_summary" maxlength="5000" required></textarea></label><label class="gxt-field"><span>Acuerdos o ajustes</span><textarea name="proposed_changes" maxlength="5000"></textarea></label><label class="gxt-field"><span>Estado</span><select name="plan_status"><option value="active">En curso</option><option value="paused">Pausado</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></label><button class="gxt-btn primary" type="submit" disabled>Guardar avance</button></form>'+
+      '<div class="gxt-followup-workspace-card" data-followup-step="2"><h3>Mensaje para el creador</h3><p class="gxt-muted">Mensaje personalizado con las cifras del último reporte de TikTok LIVE cargado.</p><textarea id="gxFollowupContactMessage" rows="12" readonly></textarea><div class="gxt-followup-contact-actions"><button type="button" class="gxt-btn" data-copy-followup-message>Copiar mensaje</button><a class="gxt-btn primary" id="gxFollowupWhatsAppLink" href="#" target="_blank" rel="noopener" aria-disabled="true">Abrir WhatsApp</a></div><p class="gxt-muted" id="gxFollowupContactHint">Revisa el texto antes de enviarlo. El sistema no lo enviará automáticamente.</p></div>'+
+      '</div><div class="gxt-followup-step-actions"><button type="button" class="gxt-btn" data-followup-prev disabled>Anterior</button><span id="gxFollowupStepLabel">Etapa 1 de 3</span><button type="button" class="gxt-btn primary" data-followup-next>Siguiente</button></div><div id="gxFollowupOperations" class="gxt-followup-operations"><div class="gxt-empty">Cargando registros…</div></div></section>';
     loadFollowupHistory();
     loadFollowupWorkspace();
     const fileInput=document.getElementById('gxFollowupFile');
@@ -395,7 +393,7 @@
       const workbook=window.XLSX.read(buffer,{type:'array',cellDates:true});
       const preview=window.GRAYXON_FOLLOWUP_IMPORT.parseWorkbook(workbook);
       const [{data:creatorData,error:creatorError},{data:parameterRows,error:parameterError}]=await Promise.all([
-        sb.from('profiles').select('id,username,full_name,tiktok_username,tiktok_creator_id,manager_id,created_at').eq('role','creator').eq('active',true),
+        sb.from('profiles').select('id,username,full_name,tiktok_username,tiktok_creator_id,manager_id,created_at,active').eq('role','creator'),
         sb.from('gx_creator_followup_parameters').select('version,monthly_live_hours,monthly_valid_days,early_review_min_evaluable_days,high_risk_threshold_pct,observation_threshold_pct,consistency_hours_per_day,consistency_days_per_week,timezone').eq('active',true).order('version',{ascending:false}).limit(1)
       ]);
       if(creatorError)throw new Error('No se pudieron consultar los creadores autorizados: '+creatorError.message);
@@ -421,27 +419,35 @@
         const idMatches=row.creatorId?byCreatorId.get(row.creatorId)||[]:[];
         const usernameMatches=byTikTok.get(row.username.toLowerCase())||[];
         const matches=idMatches.length?idMatches:usernameMatches;
-        const profile=matches.length===1?matches[0]:null;
-        const linkStatus=matches.length>1?'ambiguous':profile?'linked':'unmatched';
-        const evaluation=preview.mixedPeriods
-          ? {status:'needs_daily_data',reason:'El archivo mezcla periodos y debe separarse antes de evaluar.'}
-          : window.GRAYXON_FOLLOWUP_CALCULATIONS?.calculateEvaluation({
-              periodStart:preview.sourcePeriod.start,periodEnd:preview.sourcePeriod.end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
-              granularity:preview.granularity,joinDate:row.joinedAt,
-              validLiveDays:row.validDays,liveSeconds:row.liveHours==null?null:Math.round(row.liveHours*3600),
-              monthlyLiveHours:activeParameters.monthly_live_hours,
-              monthlyValidDays:activeParameters.monthly_valid_days,
-              earlyReviewMinDays:activeParameters.early_review_min_evaluable_days,
-              highRiskThresholdPct:activeParameters.high_risk_threshold_pct,
-              observationThresholdPct:activeParameters.observation_threshold_pct,
-              consistencyHoursPerDay:activeParameters.consistency_hours_per_day,
-              consistencyDaysPerWeek:activeParameters.consistency_days_per_week
-            })||{status:'not_evaluable',reason:'No está disponible el motor de evaluación.'};
+        const matchedProfile=matches.length===1?matches[0]:null;
+        const inactiveProfile=!!matchedProfile&&matchedProfile.active===false;
+        const profile=row.agencyDeparted||inactiveProfile?null:matchedProfile;
+        const linkStatus=row.agencyDeparted?'agency_left':matches.length>1?'ambiguous':inactiveProfile?'portal_inactive':profile?'linked':'not_in_portal';
+        const evaluation=linkStatus!=='linked'
+          ? {status:'not_evaluable',reason:row.agencyDeparted?'El reporte indica que abandonó la agencia.':'No existe una cuenta activa vinculada en el portal.'}
+          : preview.mixedPeriods
+            ? {status:'needs_daily_data',reason:'El archivo mezcla periodos y debe separarse antes de evaluar.'}
+            : window.GRAYXON_FOLLOWUP_CALCULATIONS?.calculateEvaluation({
+                periodStart:preview.sourcePeriod.start,periodEnd:preview.sourcePeriod.end,coverageStart:preview.sourcePeriod.start,coverageEnd:preview.sourcePeriod.end,
+                granularity:preview.granularity,joinDate:row.joinedAt,
+                validLiveDays:row.validDays,liveSeconds:row.liveHours==null?null:Math.round(row.liveHours*3600),
+                monthlyLiveHours:activeParameters.monthly_live_hours,
+                monthlyValidDays:activeParameters.monthly_valid_days,
+                earlyReviewMinDays:activeParameters.early_review_min_evaluable_days,
+                highRiskThresholdPct:activeParameters.high_risk_threshold_pct,
+                observationThresholdPct:activeParameters.observation_threshold_pct,
+                consistencyHoursPerDay:activeParameters.consistency_hours_per_day,
+                consistencyDaysPerWeek:activeParameters.consistency_days_per_week
+              })||{status:'not_evaluable',reason:'No está disponible el motor de evaluación.'};
         return {...row,profile,linkStatus,evaluation};
       });
       preview.summary.matched=preview.rows.filter(row=>row.linkStatus==='linked').length;
       preview.summary.ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous').length;
-      preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='unmatched').length;
+      preview.summary.unmatched=preview.rows.filter(row=>row.linkStatus==='not_in_portal').length;
+      preview.summary.agencyDeparted=preview.rows.filter(row=>row.linkStatus==='agency_left').length;
+      preview.unmatchedRows=preview.rows.filter(row=>row.linkStatus!=='linked');
+      preview.canEvaluate=!preview.mixedPeriods&&preview.rows.length>0&&preview.rows.filter(row=>row.profile).every(row=>row.diamonds!=null&&row.liveHours!=null&&row.validDays!=null);
+
       const linkedProfiles=preview.rows.filter(row=>row.profile).map(row=>row.profile);
       const uniqueProfileIds=[...new Set(linkedProfiles.map(profile=>profile.id))];
       const {data:phoneRows,error:phoneError}=uniqueProfileIds.length
@@ -463,31 +469,27 @@
       window.grayxonFollowupFile=file;
       const workspaceSection=document.getElementById('gxFollowupWorkspaceSection');if(workspaceSection)workspaceSection.hidden=true;
       const period=preview.sourcePeriod||{start:'Varios periodos',end:'Varios periodos'};
-      const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo cubre el periodo detectado en el Excel.':'El archivo no permite completar la evaluación.';
+      const status=preview.mixedPeriods?'El archivo contiene periodos mezclados y no puede evaluarse.':preview.canEvaluate?'El archivo está listo para guardarse en el archivo mensual.':'El archivo no permite completar la evaluación.';
       const warnings=preview.warnings.length?'<ul>'+preview.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'<p>Sin advertencias de formato ni duplicados.</p>';
-      const classLabels={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
-      const classStyles={high_risk:'risk',observation:'observation',on_track:'success',early_review:'early',not_evaluable:'neutral',needs_daily_data:'warning'};
-      const rows=preview.rows.map(row=>{
-        const profile=row.profile;
-        const creatorLabel=profile?(profile.full_name||'@'+profile.username):'Sin vincular';
-        const plan=profile?plansByCreator.get(profile.id):null;
-        const status=row.linkStatus==='ambiguous'?'Coincidencia ambigua':profile?'Cuenta Grayxon vinculada':'Sin vincular';
-        const evaluationKey=row.evaluation.classification||row.evaluation.status;
-        const evaluationLabel=classLabels[evaluationKey]||row.evaluation.status;
-        const planAction=profile?'<button type="button" class="gxt-followup-plan-button '+(plan?'is-view':'is-create')+'" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="'+(plan?'4':'3')+'" data-followup-plan-id="'+(plan?esc(plan.id):'')+'">'+(plan?'Ver':'Gestionar plan')+'</button>':'<span class="gxt-followup-muted">—</span>';
-        return '<tr class="gxt-followup-data-row"><td>@'+esc(row.username)+'</td><td class="gxt-followup-creator-cell">'+(profile?'<button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(profile.id)+'" data-followup-step="0"><strong>'+esc(creatorLabel)+'</strong><small>@'+esc(profile.username)+'</small></button>':'<span class="gxt-followup-unlinked">'+esc(creatorLabel)+'</span>')+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.liveHours==null?'—':row.liveHours.toFixed(2)+' h')+'</td><td>'+(row.validDays==null?'—':row.validDays)+'</td><td><span class="gxt-followup-link-status '+(profile?'is-linked':'is-unlinked')+'">'+esc(status)+'</span></td><td><span class="gxt-followup-status-pill is-'+(classStyles[evaluationKey]||'neutral')+'">'+esc(evaluationLabel)+'</span></td><td>'+planAction+'</td></tr>';
-      }).join('');
-      target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros</small></div><div><strong>'+preview.summary.matched+'</strong><small>Vinculados</small></div><div><strong>'+preview.summary.unmatched+'</strong><small>Sin vincular</small></div></div>'+
-        '<div class="gxt-status-note">'+esc(status)+' Periodo del archivo: '+esc(period.start)+' al '+esc(period.end)+'.</div>'+
-        (missingPhones.length
-          ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-missing-phones><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar datos de contacto</strong><small>'+missingPhones.length+' creadores sin teléfono registrado</small></span><span class="gxt-followup-alert-count">'+missingPhones.length+'</span></button></div>'
-          : '<div class="gxt-status-note">Todos los creadores vinculados tienen teléfono registrado.</div>')+
+      const portalMissing=preview.rows.filter(row=>row.linkStatus==='not_in_portal');
+      const inactivePortal=preview.rows.filter(row=>row.linkStatus==='portal_inactive');
+      const departed=preview.rows.filter(row=>row.linkStatus==='agency_left');
+      const ambiguous=preview.rows.filter(row=>row.linkStatus==='ambiguous');
+      followupPortalMissing=portalMissing.concat(inactivePortal);
+      followupAgencyDeparted=departed;
+      if(departed.length)downloadFollowupDepartedCsv(departed.map(row=>({creator_username_snapshot:row.username,creator_id_snapshot:row.creatorId,source_status:row.agencyStatus||'El creador ha abandonado la agencia'})),String(period.start||'').slice(0,7));
+      const alertCount=missingPhones.length+portalMissing.length+inactivePortal.length+departed.length+ambiguous.length;
+      target.innerHTML='<div class="gxt-followup-summary"><div><strong>'+preview.summary.creators+'</strong><small>Registros del Excel</small></div><div><strong>'+preview.summary.matched+'</strong><small>En el portal</small></div><div><strong>'+portalMissing.length+'</strong><small>Sin acceso al portal</small></div><div><strong>'+departed.length+'</strong><small>Abandonaron la agencia</small></div></div>'+
+        '<div class="gxt-status-note">'+esc(status)+' Periodo del reporte: '+esc(period.start)+' al '+esc(period.end)+'. Este archivo se archivará dentro de ese mes.</div>'+
+        (alertCount
+          ? '<div class="gxt-followup-alert-row"><button type="button" class="gxt-followup-alert-trigger" data-open-followup-alert><span class="gxt-followup-alert-dot">!</span><span><strong>Revisar alertas del reporte</strong><small>'+missingPhones.length+' sin teléfono · '+portalMissing.length+' sin cuenta · '+inactivePortal.length+' cuenta inactiva · '+departed.length+' abandonaron la agencia'+(ambiguous.length?' · '+ambiguous.length+' coincidencias ambiguas':'')+'</small></span><span class="gxt-followup-alert-count">'+alertCount+'</span></button></div>'
+          : '<div class="gxt-status-note">No hay alertas de contacto ni de vinculación.</div>')+
         (preview.restriction?'<div class="gxt-status-note gxt-followup-warning">'+esc(preview.restriction)+'</div>':'')+
-        '<div class="gxt-followup-warnings">'+warnings+'</div><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Creador Grayxon</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th><th>Vinculación</th><th>Evaluación</th><th>Plan de seguimiento</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-        '<div class="gxt-status-note">Esta es una previsualización. Todavía no se han guardado evaluaciones ni se ha modificado ningún perfil.</div>'+
-        (preview.canEvaluate && preview.summary.matched===preview.summary.creators && preview.rows.every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
-          ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar evaluación</button></div>'
-          : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que todos los perfiles estén vinculados y que el reporte permita evaluar exactamente el periodo seleccionado.</div>');
+        '<div class="gxt-followup-warnings">'+warnings+'</div>'+
+        '<div class="gxt-status-note">La lista de creadores y sus planes no se desplegará aquí. Después de guardar, estará organizada dentro del mes correspondiente.</div>'+
+        (preview.canEvaluate && preview.rows.length>0 && preview.rows.filter(row=>row.profile).every(row=>row.evaluation.status==='evaluated'||row.evaluation.status==='not_evaluable')
+          ? '<div class="gxt-actions"><button type="button" class="gxt-btn primary" data-followup-save>Guardar reporte en '+esc(new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(period.start+'T00:00:00Z')) )+'</button></div>'
+          : '<div class="gxt-status-note gxt-followup-warning">No se puede guardar: verifica que haya creadores vinculados con métricas completas y que el reporte cubra un único periodo.</div>');
       followupMissingPhones=missingPhones;
       followupPreviewMarkup=target.innerHTML;
       bindFollowupPreviewActions(target);
@@ -501,16 +503,30 @@
   let followupImportFile=null;
   let followupPreviewMarkup='';
   let followupMissingPhones=[];
+  let followupPortalMissing=[];
+  let followupAgencyDeparted=[];
   function bindFollowupPreviewActions(target){
     if(!target)return;
     target.querySelector('[data-followup-save]')?.addEventListener('click',saveFollowupImport);
-    target.querySelector('[data-open-missing-phones]')?.addEventListener('click',()=>{
-      if(!followupMissingPhones.length)return;
-      const rows=followupMissingPhones.map(profile=>'<div class="gxt-followup-alert-person"><strong>'+esc(profile.full_name||profile.username||'Creador')+'</strong><span>@'+esc(profile.username||'')+'</span><small>ID TikTok: '+esc(profile.tiktok_creator_id||'No registrado')+'</small></div>').join('');
-      const text=followupMissingPhones.map(profile=>'Nombre: '+(profile.full_name||'')+'\\nUsuario Grayxon: @'+(profile.username||'')+'\\nUsuario TikTok: @'+(profile.tiktok_username||profile.username||'')+'\\nID TikTok: '+(profile.tiktok_creator_id||'No registrado')).join('\\n\\n');
-      openModal('Datos de contacto pendientes',followupMissingPhones.length+' creadores vinculados no tienen teléfono registrado. Copia la lista y solicita a administración que actualice sus perfiles.','<div class="gxt-followup-alert-list">'+rows+'</div><div class="gxt-modal-actions"><button type="button" class="gxt-btn primary" data-copy-all-missing-phones>Copiar todos los datos</button></div>',true);
-      modalRoot.querySelector('[data-copy-all-missing-phones]')?.addEventListener('click',async()=>{
-        try{await navigator.clipboard.writeText(text);toast('Todos los datos fueron copiados.');}
+    target.querySelector('[data-open-followup-alert]')?.addEventListener('click',()=>{
+      const phoneNames=followupMissingPhones.map(profile=>(profile.full_name||'').trim()||profile.username||'Creador');
+      const portalNames=followupPortalMissing.filter(row=>row.linkStatus==='not_in_portal').map(row=>row.username);
+      const inactiveNames=followupPortalMissing.filter(row=>row.linkStatus==='portal_inactive').map(row=>row.username);
+      const departedNames=followupAgencyDeparted.map(row=>row.username);
+      const ambiguousNames=(window.grayxonFollowupPreview?.rows||[]).filter(row=>row.linkStatus==='ambiguous').map(row=>row.username);
+      const section=(title,names)=>names.length?'<section class="gxt-followup-alert-group"><strong>'+esc(title)+' ('+names.length+')</strong>'+names.map(name=>'<div class="gxt-followup-alert-person"><span>'+esc(name)+'</span></div>').join('')+'</section>':'';
+      const body=section('Sin teléfono registrado',phoneNames)+section('Sin cuenta en el portal',portalNames)+section('Cuenta del portal inactiva',inactiveNames)+section('El reporte indica que abandonaron la agencia',departedNames)+section('Revisar coincidencia de cuenta',ambiguousNames);
+      const copyText=[
+        phoneNames.length?'Creadores sin teléfono registrado:\n'+phoneNames.map(name=>'• '+name).join('\n'):'',
+        portalNames.length?'Creadores sin acceso al portal:\n'+portalNames.map(name=>'• '+name).join('\n'):''
+      ].filter(Boolean).join('\n\n');
+      openModal('Alertas del reporte','Revisa qué casos requieren acción de administración.', '<div class="gxt-followup-alert-list">'+body+'</div>',true);
+      const copyButton=document.createElement('button');
+      copyButton.type='button';copyButton.className='gxt-btn primary gxt-followup-copy-header';copyButton.textContent='Copiar pendientes';
+      const closeButton=modalRoot.querySelector('[data-close-modal]');
+      closeButton?.parentNode?.insertBefore(copyButton,closeButton);
+      copyButton.addEventListener('click',async()=>{
+        try{await navigator.clipboard.writeText(copyText||'No hay pendientes de teléfono o acceso al portal.');toast('Pendientes copiados.');}
         catch(error){toast('No fue posible copiar automáticamente en este navegador.');}
       });
     });
@@ -526,11 +542,21 @@
     if(select.value!==creatorId)return toast('No se encontró el creador en la lista autorizada.');
     if(typeof select.onchange==='function')await select.onchange();
     if(planId){const planSelect=document.getElementById('gxActionPlanSelect');if(planSelect)planSelect.value=planId;}
-    setFollowupStep(step);
+    const plan=(window.gxFollowupPlans||[]).find(item=>item.id===planId)||(window.gxFollowupPlans||[]).find(item=>item.creator_user_id===creatorId&&item.status!=='completed'&&item.status!=='cancelled')||(window.gxFollowupPlans||[]).find(item=>item.creator_user_id===creatorId);
+    const form=document.getElementById('gxActionPlanForm');
+    if(form&&plan){
+      form.elements.plan_id.value=plan.id;form.elements.title.value=plan.title||'';form.elements.objective.value=plan.objective||'';
+      form.elements.start_date.value=plan.start_date||'';form.elements.target_date.value=plan.target_date||'';
+      const targets=plan.targets||{};['diamonds','live_hours','valid_days','battles','fan_club_members'].forEach(key=>form.elements[key].value=targets[key]??'');
+      form.querySelector('button[type=submit]').textContent='Guardar cambios del plan';
+    }
+    const advance=document.getElementById('gxActionPlanUpdateForm');
+    if(advance){advance.elements.plan_id.value=plan?.id||'';advance.querySelector('button[type=submit]').disabled=!plan;}
+    setFollowupStep(0);
     section.scrollTop=0;
   }
 
-  function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(5,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 6';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===5?'Finalizar':'Siguiente';}
+  function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(2,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 3';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===2?'Finalizar':'Siguiente';}
   async function loadFollowupWorkspace() {
     const select=document.getElementById('gxFollowupCreator');
     const host=document.getElementById('gxFollowupOperations');
@@ -550,6 +576,16 @@
         const {data,error}=await sb.from('profile_details').select('phone').eq('user_id',creator.id).maybeSingle();
         if(error){if(phone)phone.textContent='No se pudo consultar el teléfono.';toast('No se pudo consultar el teléfono: '+error.message);return;}
         if(phone)phone.textContent=data?.phone||'Este creador no tiene un teléfono registrado. Solicita a administración que lo agregue.';
+        const reportRow=window.grayxonFollowupPreview?.rows?.find(row=>row.profile?.id===creator.id);
+        const params=window.grayxonFollowupPreview?.parameters||{};
+        const periodEnd=window.grayxonFollowupPreview?.sourcePeriod?.end||'la fecha de hoy';
+        const periodStart=window.grayxonFollowupPreview?.sourcePeriod?.start||'el periodo actual';
+        const fmt=value=>value==null?'Sin dato':Number(value).toLocaleString('es-CO',{maximumFractionDigits:2});
+        const message='¡Hola! ¿Cómo estás? 😊\n\nQueremos hacer un seguimiento a tu actividad durante el periodo '+periodStart+' al '+periodEnd+'.\n\nAl '+periodEnd+', registramos:\n• Días válidos de LIVE: '+fmt(reportRow?.validDays)+'\n• Horas acumuladas de LIVE: '+fmt(reportRow?.liveHours)+'\n\nRecuerda que la constancia es clave para crecer en TikTok LIVE. Nuestra referencia mensual es de '+(params.monthlyValidDays??22)+' días válidos y '+(params.monthlyLiveHours??90)+' horas LIVE, manteniendo una rutina de al menos '+(params.consistencyDaysPerWeek??6)+' días por semana y '+'1 hora y 15 minutos por día.\n\n¿Cuentas con la disponibilidad para reforzar tu actividad y avanzar hacia estos objetivos durante el mes?\n\nQueremos acompañarte, orientarte y ayudarte a mejorar. ¡Estamos atentos para apoyarte! 💪';
+        const messageBox=document.getElementById('gxFollowupContactMessage');if(messageBox)messageBox.value=message;
+        let phoneDigits=String(data?.phone||'').replace(/\D/g,'');if(phoneDigits.length===10)phoneDigits='57'+phoneDigits;
+        const wa=document.getElementById('gxFollowupWhatsAppLink');if(wa){wa.href=phoneDigits?'https://wa.me/'+phoneDigits+'?text='+encodeURIComponent(message):'#';wa.setAttribute('aria-disabled',phoneDigits?'false':'true');}
+        const contactHint=document.getElementById('gxFollowupContactHint');if(contactHint)contactHint.textContent=phoneDigits?'Se abrirá WhatsApp con el mensaje listo para revisar y enviar.':'No hay teléfono registrado; solicita a administración que lo agregue.';
         if(planSelect){
           const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
           planSelect.innerHTML='<option value="">Selecciona un plan</option>'+eligiblePlans.map(plan=>'<option value="'+esc(plan.id)+'">'+esc(plan.title)+'</option>').join('');
@@ -558,13 +594,26 @@
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').order('created_at',{ascending:false}).limit(30),
-        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,target_date,created_at').order('created_at',{ascending:false}).limit(30),
+        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,start_date,target_date,targets,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_action_plan_updates').select('id,plan_id,progress_summary,proposed_changes,status,created_at,review_note').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_reminders').select('id,creator_user_id,scheduled_at,status,note').order('scheduled_at',{ascending:true}).limit(30)
       ]);
       const failed=[notes,contacts,plans,planUpdates,reminders].find(x=>x.error);
       if(failed)throw failed.error;
       window.gxFollowupPlans=plans.data||[];
+      const selectedCreatorId=select.value;
+      const activePlan=(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId&&plan.status!=='completed'&&plan.status!=='cancelled')||(window.gxFollowupPlans||[]).find(plan=>plan.creator_user_id===selectedCreatorId);
+      state.followupHasPlan=!!activePlan;
+      const planForm=document.getElementById('gxActionPlanForm');
+      if(planForm){
+        planForm.elements.plan_id.value=activePlan?.id||'';planForm.elements.title.value=activePlan?.title||'';planForm.elements.objective.value=activePlan?.objective||'';
+        planForm.elements.start_date.value=activePlan?.start_date||new Date().toLocaleDateString('en-CA');planForm.elements.target_date.value=activePlan?.target_date||'';
+        const targets=activePlan?.targets||{};['diamonds','live_hours','valid_days','battles','fan_club_members'].forEach(key=>planForm.elements[key].value=targets[key]??'');
+        planForm.querySelector('button[type=submit]').textContent=activePlan?'Guardar cambios del plan':'Crear plan de trabajo';
+      }
+      const progressForm=document.getElementById('gxActionPlanUpdateForm');
+      if(progressForm){progressForm.elements.plan_id.value=activePlan?.id||'';progressForm.querySelector('button[type=submit]').disabled=!activePlan;}
+      const statusLabel=document.getElementById('gxFollowupPlanStatus');if(statusLabel)statusLabel.textContent=activePlan?'Plan activo: '+activePlan.title+' · '+activePlan.start_date+' al '+activePlan.target_date:'Primero debes crear un plan para habilitar los avances.';
       const name=id=>{const p=followupCreatorCache.find(x=>x.id===id);return p?'@'+p.username:'Creador';};
       if(planSelect){
         const selectedCreator=select.value;
@@ -599,47 +648,53 @@
   async function submitFollowupRecord(form,event) {
     event.preventDefault();
     const creator=followupCreatorCache.find(x=>x.id===document.getElementById('gxFollowupCreator')?.value);
-    if(!creator)return toast('Selecciona un creador.');
+    if(!creator)return toast('No se encontró el creador seleccionado.');
     const data=new FormData(form);
     const common={creator_user_id:creator.id,manager_id:state.isAdmin?creator.manager_id:state.member.id,created_by:state.session.user.id};
-    let table,payload;
-    if(form.id==='gxFollowupNoteForm'){
-      table='gx_creator_followup_notes';
-      payload={...common,note_type:String(data.get('note_type')),body:String(data.get('body')||'').trim()};
-    }else if(form.id==='gxFollowupContactForm'){
-      table='gx_creator_followup_contacts';
-      const status=String(data.get('contact_status'));
-      payload={...common,contact_status:status,channel:String(data.get('channel')),message_text:String(data.get('message_text')||'').trim()||null,
-        opened_at:status==='initiated'?new Date().toISOString():null,confirmed_at:status==='confirmed'?new Date().toISOString():null,
-        responded_at:status==='responded'?new Date().toISOString():null};
-    }else if(form.id==='gxActionPlanForm'){
-      table='gx_creator_action_plans';
-      payload={...common,title:String(data.get('title')||'').trim(),objective:String(data.get('objective')||'').trim(),
-        success_criteria:String(data.get('success_criteria')||'').trim()||null,target_date:String(data.get('target_date')||'')||null};
-    }else if(form.id==='gxActionPlanUpdateForm'){
-      const selectedPlan=(window.gxFollowupPlans||[]).find(plan=>plan.id===String(data.get('plan_id')||''));
-      if(!selectedPlan||selectedPlan.creator_user_id!==creator.id)return toast('Selecciona un plan que pertenezca al creador elegido.');
+    const metricKeys=['diamonds','live_hours','valid_days','battles','fan_club_members'];
+    const readMetrics=prefix=>Object.fromEntries(metricKeys.map(key=>[key,Number(data.get(key)||0)]));
+    if(form.id==='gxActionPlanForm'){
+      const start=String(data.get('start_date')||''),end=String(data.get('target_date')||'');
+      if(!start||!end||end<start)return toast('Define un rango de fechas válido para el plan.');
+      const targets=readMetrics();
+      const planId=String(data.get('plan_id')||'');
+      const payload={title:String(data.get('title')||'').trim(),objective:String(data.get('objective')||'').trim(),start_date:start,target_date:end,targets,status:'active',updated_at:new Date().toISOString()};
+      let result;
+      if(planId) result=await sb.from('gx_creator_action_plans').update(payload).eq('id',planId).eq('creator_user_id',creator.id).select('id').single();
+      else result=await sb.from('gx_creator_action_plans').insert({...common,...payload}).select('id').single();
+      if(result.error)return toast('No se pudo guardar el plan: '+result.error.message);
+      const reminderLocal=String(data.get('reminder_at')||'');
+      if(reminderLocal){
+        const scheduledAt=window.GRAYXON_FOLLOWUP_CALCULATIONS?.toBogotaISOString(reminderLocal);
+        if(!scheduledAt)return toast('El plan se guardó, pero la fecha del recordatorio no es válida.');
+        const reminder=await sb.from('gx_creator_followup_reminders').insert({...common,action_plan_id:result.data.id,scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('reminder_note')||'').trim()||null});
+        if(reminder.error)return toast('El plan se guardó, pero no se pudo programar el recordatorio: '+reminder.error.message);
+      }
+      form.elements.reminder_at.value='';form.elements.reminder_note.value='';
+      toast(planId?'Plan actualizado.':'Plan creado correctamente.');
+      await loadFollowupWorkspace();setFollowupStep(1);return;
+    }
+    if(form.id==='gxActionPlanUpdateForm'){
+      const planId=String(data.get('plan_id')||'');
+      if(!planId)return toast('Primero crea un plan de trabajo.');
       const progress=String(data.get('progress_summary')||'').trim();
       if(!progress)return toast('Describe el avance del plan.');
-      const {error:updateError}=await sb.rpc('gx_manager_update_creator_action_plan',{
-        p_plan_id:selectedPlan.id,
-        p_progress_summary:progress,
-        p_proposed_changes:String(data.get('proposed_changes')||'').trim()||null,
-        p_new_status:String(data.get('plan_status')||'active')
-      });
-      if(updateError)return toast('No se pudo actualizar el plan ni registrar el avance: '+updateError.message);
-      form.reset();toast('Plan actualizado correctamente.');loadFollowupWorkspace();return;
-    }else if(form.id==='gxFollowupReminderForm'){
-      table='gx_creator_followup_reminders';
-      const local=String(data.get('scheduled_at')||'');
-      if(!local)return toast('Selecciona fecha y hora para el recordatorio.');
-      const scheduledAt=window.GRAYXON_FOLLOWUP_CALCULATIONS?.toBogotaISOString(local);
-      if(!scheduledAt)return toast('La fecha y hora del recordatorio no son válidas.');
-      payload={...common,scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('note')||'').trim()||null};
-    }else return;
-    const {error}=await sb.from(table).insert(payload);
-    if(error)return toast('No se pudo guardar: '+error.message);
-    form.reset();toast('Registro guardado correctamente.');loadFollowupWorkspace();if(state.followupStep<5)setFollowupStep(state.followupStep+1);
+      const metrics=readMetrics();
+      const {error}=await sb.rpc('gx_manager_update_creator_action_plan',{p_plan_id:planId,p_progress_summary:progress,p_proposed_changes:String(data.get('proposed_changes')||'').trim()||null,p_new_status:String(data.get('plan_status')||'active'),p_progress_metrics:metrics});
+      if(error)return toast('No se pudo guardar el avance: '+error.message);
+      form.elements.progress_summary.value='';form.elements.proposed_changes.value='';
+      toast('Avance registrado correctamente.');await loadFollowupWorkspace();return;
+    }
+  }
+  function downloadFollowupDepartedCsv(rows,periodLabel='') {
+    if(!rows?.length)return;
+    const quote=value=>'"'+String(value??'').replace(/"/g,'""')+'"';
+    const lines=[['Usuario TikTok','ID del creador','Estado en el reporte'],...rows.map(row=>[row.creator_username_snapshot||row.username,row.creator_id_snapshot||row.creatorId,row.source_status||'El creador ha abandonado la agencia'])];
+    const csv='\uFEFF'+lines.map(line=>line.map(quote).join(';')).join('\r\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='creadores-que-abandonaron-la-agencia'+(periodLabel?'-'+periodLabel:'')+'.csv';
+    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
   }
 
   async function loadFollowupHistory() {
@@ -647,12 +702,13 @@
     if(!host)return;
     try{
       const {data,error}=await sb.from('gx_creator_followup_imports')
-        .select('id,file_name,selected_start_date,selected_end_date,source_start_date,source_end_date,status,created_at,gx_creator_followup_evaluations(creator_username_snapshot,classification,diamonds,live_seconds,valid_live_days)')
-        .order('created_at',{ascending:false}).limit(100);
+        .select('id,file_name,storage_path,selected_start_date,selected_end_date,source_start_date,source_end_date,status,created_at,gx_creator_followup_evaluations(id,creator_user_id,creator_username_snapshot,classification,diamonds,live_seconds,valid_live_days),gx_creator_followup_import_unmatched_rows(id,creator_username_snapshot,creator_id_snapshot,reason,source_status,raw_metrics)')
+        .order('source_start_date',{ascending:false}).order('created_at',{ascending:false}).limit(200);
       if(error)throw error;
       const groups=new Map();
       (data||[]).forEach(item=>{
-        const key=String(item.created_at||'').slice(0,7)||'Sin fecha';
+        const date=item.source_start_date||item.selected_start_date||item.created_at;
+        const key=String(date||'').slice(0,7)||'Sin fecha';
         const list=groups.get(key)||[];list.push(item);groups.set(key,list);
       });
       const monthLabel=key=>{
@@ -660,22 +716,50 @@
         const [y,m]=key.split('-').map(Number);
         return new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,1)));
       };
-      const blocks=Array.from(groups.entries()).map(([month,items])=>{
-        const rows=items.map(item=>{
-          const results=item.gx_creator_followup_evaluations||[];
-          const classes={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
-          return '<article class="gxt-followup-history-item"><div class="gxt-panel-head"><div><strong>'+esc(item.file_name)+'</strong><small>'+dateTimeLabel(item.created_at)+' · '+esc(item.selected_start_date)+' a '+esc(item.selected_end_date)+'</small></div><span class="gxt-chip">'+esc(item.status)+'</span></div>'+
-            '<div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+
-            results.map(r=>'<tr><td>@'+esc(r.creator_username_snapshot)+'</td><td>'+esc(classes[r.classification]||r.classification)+'</td><td>'+Number(r.diamonds||0).toLocaleString('es-CO')+'</td><td>'+ (r.live_seconds==null?'—':(Number(r.live_seconds)/3600).toFixed(2)+' h')+'</td><td>'+(r.valid_live_days==null?'—':esc(r.valid_live_days))+'</td></tr>').join('')+
-            '</tbody></table></div></article>';
+      const classes={high_risk:'Riesgo alto',observation:'En observación',on_track:'En línea',early_review:'Revisión temprana',not_evaluable:'No evaluable',needs_daily_data:'Requiere datos diarios'};
+      const monthBlocks=Array.from(groups.entries()).map(([month,items])=>{
+        const reports=items.map(item=>{
+          const evaluations=item.gx_creator_followup_evaluations||[];
+          const unmatched=item.gx_creator_followup_import_unmatched_rows||[];
+          const departed=unmatched.filter(row=>row.reason==='agency_left');
+          const noPortal=unmatched.filter(row=>row.reason==='not_in_portal');
+          const ambiguous=unmatched.filter(row=>row.reason==='ambiguous');
+          const creatorRows=evaluations.map(row=>{
+            const tone=row.classification==='on_track'?'success':row.classification==='observation'?'observation':row.classification==='high_risk'?'risk':'neutral';
+            return '<tr><td class="gxt-followup-creator-cell is-'+tone+'"><button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(row.creator_user_id)+'"><strong>@'+esc(row.creator_username_snapshot)+'</strong></button></td><td>'+esc(classes[row.classification]||row.classification)+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.live_seconds==null?'—':(Number(row.live_seconds)/3600).toFixed(2)+' h')+'</td><td>'+(row.valid_live_days==null?'—':esc(row.valid_live_days))+'</td></tr>';
+          }).join('');
+          const unmatchedRows=unmatched.map(row=>{
+            const reason=row.reason==='agency_left'?'Abandonó la agencia':row.reason==='not_in_portal'?'No tiene cuenta en el portal':row.reason==='portal_inactive'?'Cuenta del portal inactiva':'Coincidencia ambigua';
+            return '<tr><td>@'+esc(row.creator_username_snapshot)+'</td><td>'+esc(reason)+'</td><td>'+esc(row.creator_id_snapshot||'—')+'</td></tr>';
+          }).join('');
+          const reportPeriod=String(item.source_start_date||item.selected_start_date||month).slice(0,7);
+          return '<details class="gxt-followup-history-report"><summary><span><strong>'+esc(item.file_name)+'</strong><small>'+esc(item.source_start_date||item.selected_start_date)+' a '+esc(item.source_end_date||item.selected_end_date)+'</small></span><span class="gxt-chip">'+evaluations.length+' creadores · '+unmatched.length+' pendientes</span></summary>'+
+            '<div class="gxt-followup-history-report-actions">'+(state.isAdmin?'<button type="button" class="gxt-btn ghost" data-followup-download-report="'+esc(item.storage_path)+'">Descargar Excel original</button>':'')+
+            (departed.length?'<button type="button" class="gxt-btn ghost" data-download-departed="'+esc(item.id)+'">Descargar abandonos ('+departed.length+')</button>':'')+'</div>'+
+            (evaluations.length?'<h4>Creadores del portal</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Creador</th><th>Evaluación</th><th>Diamantes</th><th>Horas LIVE</th><th>Días válidos</th></tr></thead><tbody>'+creatorRows+'</tbody></table></div>':'<p class="gxt-muted">No hay evaluaciones de creadores vinculados en este reporte.</p>')+
+            (unmatched.length?'<h4>Registros que requieren revisión</h4><div class="gxt-followup-table-wrap"><table class="gxt-followup-table"><thead><tr><th>Usuario TikTok</th><th>Situación</th><th>ID</th></tr></thead><tbody>'+unmatchedRows+'</tbody></table></div>':'')+
+            '</details>';
         }).join('');
-        return '<div class="gxt-followup-history-month"><h3>'+esc(monthLabel(month))+'</h3>'+rows+'</div>';
+        return '<details class="gxt-followup-history-month"><summary><strong>'+esc(monthLabel(month))+'</strong><span class="gxt-chip">'+items.length+' reportes</span></summary><div class="gxt-followup-history-month-content">'+reports+'</div></details>';
       }).join('');
-      host.innerHTML='<div class="gxt-panel-head"><h2>Historial de evaluaciones</h2><span class="gxt-chip">'+(data||[]).length+' importaciones</span></div>'+
-        (blocks||'<div class="gxt-empty">Todavía no hay evaluaciones guardadas.</div>');
+      host.innerHTML='<div class="gxt-panel-head"><h2>Archivo mensual de seguimiento</h2><span class="gxt-chip">'+(data||[]).length+' reportes guardados</span></div>'+
+        (monthBlocks||'<div class="gxt-empty">Todavía no hay reportes guardados. Al importar un Excel, quedará archivado automáticamente en su mes.</div>');
+      host.querySelectorAll('[data-followup-open-creator]').forEach(button=>button.addEventListener('click',()=>openFollowupCreator(button.dataset.followupOpenCreator,0)));
+      host.querySelectorAll('[data-followup-download-report]').forEach(button=>button.addEventListener('click',async()=>{
+        try{
+          const {data:link,error}=await sb.storage.from('gx-creator-followup-reports').createSignedUrl(button.dataset.followupDownloadReport,60);
+          if(error)throw error;
+          const anchor=document.createElement('a');anchor.href=link.signedUrl;anchor.target='_blank';anchor.rel='noopener';anchor.click();
+        }catch(error){toast('No se pudo descargar el Excel original: '+(error.message||''));}
+      }));
+      host.querySelectorAll('[data-download-departed]').forEach(button=>button.addEventListener('click',()=>{
+        const item=(data||[]).find(entry=>entry.id===button.dataset.downloadDeparted);
+        const departed=(item?.gx_creator_followup_import_unmatched_rows||[]).filter(row=>row.reason==='agency_left');
+        downloadFollowupDepartedCsv(departed,String(item?.source_start_date||item?.selected_start_date||'').slice(0,7));
+      }));
     }catch(error){
       console.error('[Gestión · Seguimiento] history',error);
-      host.innerHTML='<div class="gxt-panel-head"><h2>Historial de evaluaciones</h2></div><div class="gxt-status-note gxt-followup-warning">No se pudo cargar el historial: '+esc(error.message||'Error de consulta')+'</div>';
+      host.innerHTML='<div class="gxt-panel-head"><h2>Archivo mensual de seguimiento</h2></div><div class="gxt-status-note gxt-followup-warning">No se pudo cargar el historial: '+esc(error.message||'Error de consulta')+'</div>';
     }
   }
 
@@ -683,8 +767,8 @@
     const preview=window.grayxonFollowupPreview;
     const file=window.grayxonFollowupFile||followupImportFile;
     if(!preview||!file)return toast('Vuelve a analizar el archivo antes de guardarlo.');
-    if(!preview.canEvaluate||preview.summary.matched!==preview.summary.creators||
-      !preview.rows.every(row=>row.profile&&['evaluated','not_evaluable'].includes(row.evaluation.status))) {
+    if(!preview.canEvaluate||preview.rows.length<1||
+      !preview.rows.filter(row=>row.profile).every(row=>['evaluated','not_evaluable'].includes(row.evaluation.status))) {
       return toast('El archivo todavía no cumple las condiciones para guardarse.');
     }
     const button=main.querySelector('[data-followup-save]');
@@ -698,7 +782,7 @@
       objectPath=state.session.user.id+'/'+crypto.randomUUID()+'-'+safeName;
       const {error:uploadError}=await sb.storage.from('gx-creator-followup-reports').upload(objectPath,file,{upsert:false,contentType:file.type||'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
       if(uploadError)throw new Error('No se pudo subir el archivo original: '+uploadError.message);
-      const evaluations=preview.rows.map(row=>({
+      const evaluations=preview.rows.filter(row=>row.profile).map(row=>({
         creator_user_id:row.profile.id,username:row.username,join_date:row.joinedAt||null,
         evaluated_start:row.evaluation.evaluatedStart||null,evaluated_end:row.evaluation.evaluatedEnd||null,
         evaluable_days:row.evaluation.evaluableDays||0,valid_live_days:row.validDays,
@@ -708,11 +792,12 @@
         classification:row.evaluation.classification||'not_evaluable',
         raw_metrics:{source_group:row.group,source_agent:row.agent,days_since_join:row.daysSinceJoin,source_period:row.sourcePeriod}
       }));
-      const {data:importId,error:saveError}=await sb.rpc('gx_save_creator_followup_import',{
+      const unmatchedRows=preview.rows.filter(row=>!row.profile).map(row=>({username:row.username,creator_id:row.creatorId,reason:row.linkStatus==='agency_left'?'agency_left':row.linkStatus==='ambiguous'?'ambiguous':row.linkStatus==='portal_inactive'?'portal_inactive':'not_in_portal',agency_status:row.agencyStatus,raw_metrics:{diamonds:row.diamonds,live_hours:row.liveHours,valid_days:row.validDays,source_group:row.group,source_agent:row.agent}}));
+      const {data:importId,error:saveError}=await sb.rpc('gx_save_creator_followup_import_with_unmatched',{
         p_file_name:file.name,p_storage_path:objectPath,p_file_sha256:hash,
         p_selected_start:preview.selectedPeriod.start,p_selected_end:preview.selectedPeriod.end,
         p_source_start:preview.sourcePeriod.start,p_source_end:preview.sourcePeriod.end,
-        p_granularity:preview.granularity,p_evaluations:evaluations
+        p_granularity:preview.granularity,p_evaluations:evaluations,p_unmatched_rows:unmatchedRows
       });
       if(saveError)throw new Error('El archivo se subió, pero no se pudo registrar la evaluación: '+saveError.message);
       toast('Evaluación guardada correctamente.');
@@ -1340,7 +1425,7 @@
   });
 
   main.addEventListener('submit',event=>{
-    const form=event.target.closest('#gxFollowupNoteForm,#gxFollowupContactForm,#gxActionPlanForm,#gxActionPlanUpdateForm,#gxFollowupReminderForm');
+    const form=event.target.closest('#gxActionPlanForm,#gxActionPlanUpdateForm');
     if(form)submitFollowupRecord(form,event);
   });
 
@@ -1348,8 +1433,10 @@
     if(event.target.closest('[data-followup-close]')){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}
     const openFollowup=event.target.closest('[data-followup-open-creator]');
     if(openFollowup){openFollowupCreator(openFollowup.dataset.followupOpenCreator,Number(openFollowup.dataset.followupStep)||0,openFollowup.dataset.followupPlanId||'');return;}
+    if(event.target.closest('[data-copy-followup-message]')){const message=document.getElementById('gxFollowupContactMessage')?.value||'';if(message)navigator.clipboard.writeText(message).then(()=>toast('Mensaje copiado.')).catch(()=>toast('No fue posible copiar el mensaje.'));return;}
+    if(event.target.closest('[data-followup-next]')&&state.followupStep===0&&!state.followupHasPlan&&!document.querySelector('#gxActionPlanForm [name=plan_id]')?.value)return toast('Primero guarda el plan de trabajo para continuar.');
     if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
-    if(event.target.closest('[data-followup-next]')){if(state.followupStep===5){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
+    if(event.target.closest('[data-followup-next]')){if(state.followupStep===2){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
     const reviewPlan=event.target.closest('[data-review-plan-update]');
     if(reviewPlan)return reviewActionPlanUpdate(reviewPlan.dataset.reviewPlanUpdate,reviewPlan.dataset.reviewDecision);
     const followupPreview=event.target.closest('[data-followup-preview]');
