@@ -539,7 +539,7 @@
     section.scrollTop=0;
   }
 
-  function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(5,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 6';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===5?'Finalizar':'Siguiente';}
+  function setFollowupStep(index){const cards=[...document.querySelectorAll('#gxFollowupWorkspaceSection [data-followup-step]')];if(!cards.length)return;state.followupStep=Math.max(0,Math.min(2,Number(index)||0));cards.forEach(card=>card.classList.toggle('is-active',Number(card.dataset.followupStep)===state.followupStep));document.querySelectorAll('#gxFollowupStepper span').forEach((item,i)=>item.classList.toggle('active',i===state.followupStep));const label=document.getElementById('gxFollowupStepLabel'),prev=document.querySelector('[data-followup-prev]'),next=document.querySelector('[data-followup-next]');if(label)label.textContent='Etapa '+(state.followupStep+1)+' de 3';if(prev)prev.disabled=state.followupStep===0;if(next)next.textContent=state.followupStep===2?'Finalizar':'Siguiente';}
   async function loadFollowupWorkspace() {
     const select=document.getElementById('gxFollowupCreator');
     const host=document.getElementById('gxFollowupOperations');
@@ -567,7 +567,7 @@
       const [notes,contacts,plans,planUpdates,reminders]=await Promise.all([
         sb.from('gx_creator_followup_notes').select('id,creator_user_id,note_type,body,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_contacts').select('id,creator_user_id,contact_status,channel,message_text,created_at').order('created_at',{ascending:false}).limit(30),
-        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,target_date,created_at').order('created_at',{ascending:false}).limit(30),
+        sb.from('gx_creator_action_plans').select('id,creator_user_id,title,objective,status,start_date,target_date,targets,created_at').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_action_plan_updates').select('id,plan_id,progress_summary,proposed_changes,status,created_at,review_note').order('created_at',{ascending:false}).limit(30),
         sb.from('gx_creator_followup_reminders').select('id,creator_user_id,scheduled_at,status,note').order('scheduled_at',{ascending:true}).limit(30)
       ]);
@@ -608,49 +608,43 @@
   async function submitFollowupRecord(form,event) {
     event.preventDefault();
     const creator=followupCreatorCache.find(x=>x.id===document.getElementById('gxFollowupCreator')?.value);
-    if(!creator)return toast('Selecciona un creador.');
+    if(!creator)return toast('No se encontró el creador seleccionado.');
     const data=new FormData(form);
     const common={creator_user_id:creator.id,manager_id:state.isAdmin?creator.manager_id:state.member.id,created_by:state.session.user.id};
-    let table,payload;
-    if(form.id==='gxFollowupNoteForm'){
-      table='gx_creator_followup_notes';
-      payload={...common,note_type:String(data.get('note_type')),body:String(data.get('body')||'').trim()};
-    }else if(form.id==='gxFollowupContactForm'){
-      table='gx_creator_followup_contacts';
-      const status=String(data.get('contact_status'));
-      payload={...common,contact_status:status,channel:String(data.get('channel')),message_text:String(data.get('message_text')||'').trim()||null,
-        opened_at:status==='initiated'?new Date().toISOString():null,confirmed_at:status==='confirmed'?new Date().toISOString():null,
-        responded_at:status==='responded'?new Date().toISOString():null};
-    }else if(form.id==='gxActionPlanForm'){
-      table='gx_creator_action_plans';
-      payload={...common,title:String(data.get('title')||'').trim(),objective:String(data.get('objective')||'').trim(),
-        success_criteria:String(data.get('success_criteria')||'').trim()||null,target_date:String(data.get('target_date')||'')||null};
-    }else if(form.id==='gxActionPlanUpdateForm'){
-      const selectedPlan=(window.gxFollowupPlans||[]).find(plan=>plan.id===String(data.get('plan_id')||''));
-      if(!selectedPlan||selectedPlan.creator_user_id!==creator.id)return toast('Selecciona un plan que pertenezca al creador elegido.');
+    const metricKeys=['diamonds','live_hours','valid_days','battles','fan_club_members'];
+    const readMetrics=prefix=>Object.fromEntries(metricKeys.map(key=>[key,Number(data.get(key)||0)]));
+    if(form.id==='gxActionPlanForm'){
+      const start=String(data.get('start_date')||''),end=String(data.get('target_date')||'');
+      if(!start||!end||end<start)return toast('Define un rango de fechas válido para el plan.');
+      const targets=readMetrics();
+      const planId=String(data.get('plan_id')||'');
+      const payload={title:String(data.get('title')||'').trim(),objective:String(data.get('objective')||'').trim(),start_date:start,target_date:end,targets,status:'active',updated_at:new Date().toISOString()};
+      let result;
+      if(planId) result=await sb.from('gx_creator_action_plans').update(payload).eq('id',planId).eq('creator_user_id',creator.id).select('id').single();
+      else result=await sb.from('gx_creator_action_plans').insert({...common,...payload}).select('id').single();
+      if(result.error)return toast('No se pudo guardar el plan: '+result.error.message);
+      const reminderLocal=String(data.get('reminder_at')||'');
+      if(reminderLocal){
+        const scheduledAt=window.GRAYXON_FOLLOWUP_CALCULATIONS?.toBogotaISOString(reminderLocal);
+        if(!scheduledAt)return toast('El plan se guardó, pero la fecha del recordatorio no es válida.');
+        const reminder=await sb.from('gx_creator_followup_reminders').insert({...common,action_plan_id:result.data.id,scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('reminder_note')||'').trim()||null});
+        if(reminder.error)return toast('El plan se guardó, pero no se pudo programar el recordatorio: '+reminder.error.message);
+      }
+      toast(planId?'Plan actualizado.':'Plan creado correctamente.');
+      await loadFollowupWorkspace();setFollowupStep(1);return;
+    }
+    if(form.id==='gxActionPlanUpdateForm'){
+      const planId=String(data.get('plan_id')||'');
+      if(!planId)return toast('Primero crea un plan de trabajo.');
       const progress=String(data.get('progress_summary')||'').trim();
       if(!progress)return toast('Describe el avance del plan.');
-      const {error:updateError}=await sb.rpc('gx_manager_update_creator_action_plan',{
-        p_plan_id:selectedPlan.id,
-        p_progress_summary:progress,
-        p_proposed_changes:String(data.get('proposed_changes')||'').trim()||null,
-        p_new_status:String(data.get('plan_status')||'active')
-      });
-      if(updateError)return toast('No se pudo actualizar el plan ni registrar el avance: '+updateError.message);
-      form.reset();toast('Plan actualizado correctamente.');loadFollowupWorkspace();return;
-    }else if(form.id==='gxFollowupReminderForm'){
-      table='gx_creator_followup_reminders';
-      const local=String(data.get('scheduled_at')||'');
-      if(!local)return toast('Selecciona fecha y hora para el recordatorio.');
-      const scheduledAt=window.GRAYXON_FOLLOWUP_CALCULATIONS?.toBogotaISOString(local);
-      if(!scheduledAt)return toast('La fecha y hora del recordatorio no son válidas.');
-      payload={...common,scheduled_at:scheduledAt,timezone:'America/Bogota',note:String(data.get('note')||'').trim()||null};
-    }else return;
-    const {error}=await sb.from(table).insert(payload);
-    if(error)return toast('No se pudo guardar: '+error.message);
-    form.reset();toast('Registro guardado correctamente.');loadFollowupWorkspace();if(state.followupStep<5)setFollowupStep(state.followupStep+1);
+      const metrics=readMetrics();
+      const {error}=await sb.rpc('gx_manager_update_creator_action_plan',{p_plan_id:planId,p_progress_summary:progress,p_proposed_changes:String(data.get('proposed_changes')||'').trim()||null,p_new_status:String(data.get('plan_status')||'active'),p_progress_metrics:metrics});
+      if(error)return toast('No se pudo guardar el avance: '+error.message);
+      form.elements.progress_summary.value='';form.elements.proposed_changes.value='';
+      toast('Avance registrado correctamente.');await loadFollowupWorkspace();return;
+    }
   }
-
   async function loadFollowupHistory() {
     const host=document.getElementById('gxFollowupHistory');
     if(!host)return;
@@ -1349,7 +1343,7 @@
   });
 
   main.addEventListener('submit',event=>{
-    const form=event.target.closest('#gxFollowupNoteForm,#gxFollowupContactForm,#gxActionPlanForm,#gxActionPlanUpdateForm,#gxFollowupReminderForm');
+    const form=event.target.closest('#gxActionPlanForm,#gxActionPlanUpdateForm');
     if(form)submitFollowupRecord(form,event);
   });
 
@@ -1358,7 +1352,7 @@
     const openFollowup=event.target.closest('[data-followup-open-creator]');
     if(openFollowup){openFollowupCreator(openFollowup.dataset.followupOpenCreator,Number(openFollowup.dataset.followupStep)||0,openFollowup.dataset.followupPlanId||'');return;}
     if(event.target.closest('[data-followup-prev]'))return setFollowupStep(state.followupStep-1);
-    if(event.target.closest('[data-followup-next]')){if(state.followupStep===5){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
+    if(event.target.closest('[data-followup-next]')){if(state.followupStep===2){const section=document.getElementById('gxFollowupWorkspaceSection');section?.classList.remove('is-open');if(section)section.hidden=true;return;}return setFollowupStep(state.followupStep+1);}
     const reviewPlan=event.target.closest('[data-review-plan-update]');
     if(reviewPlan)return reviewActionPlanUpdate(reviewPlan.dataset.reviewPlanUpdate,reviewPlan.dataset.reviewDecision);
     const followupPreview=event.target.closest('[data-followup-preview]');
