@@ -507,15 +507,6 @@
       const evaluableProfiles=preview.rows.filter(row=>row.profile);
       preview.canEvaluate=!preview.mixedPeriods&&evaluableProfiles.length>0&&evaluableProfiles.every(row=>row.diamonds!=null&&row.liveHours!=null&&row.validDays!=null);
 
-      const linkedProfiles=preview.rows.filter(row=>row.profile).map(row=>row.profile);
-      const uniqueProfileIds=[...new Set(linkedProfiles.map(profile=>profile.id))];
-      const {data:phoneRows,error:phoneError}=uniqueProfileIds.length
-        ? await sb.from('profile_details').select('user_id,phone').in('user_id',uniqueProfileIds)
-        : {data:[],error:null};
-      if(phoneError)throw new Error('No se pudieron verificar los teléfonos de los creadores: '+phoneError.message);
-      const phoneByUser=new Map((phoneRows||[]).map(row=>[row.user_id,String(row.phone||'').trim()]));
-      const missingPhones=linkedProfiles.filter(profile=>!phoneByUser.get(profile.id))
-        .filter((profile,index,all)=>all.findIndex(item=>item.id===profile.id)===index);
       const matchedCreatorIds=preview.rows.map(row=>row.profile?.id).filter(Boolean);
       const {data:existingPlans,error:plansError}=matchedCreatorIds.length
         ? await sb.from('gx_creator_action_plans').select('id,creator_user_id,title,status,created_at').in('creator_user_id',matchedCreatorIds).order('created_at',{ascending:false})
@@ -523,7 +514,6 @@
       if(plansError)throw new Error('No se pudieron consultar los planes de seguimiento: '+plansError.message);
       const plansByCreator=new Map();
       (existingPlans||[]).forEach(plan=>{if(!plansByCreator.has(plan.creator_user_id))plansByCreator.set(plan.creator_user_id,plan);});
-      preview.missingPhones=missingPhones;
       window.grayxonFollowupPreview=preview;
       window.grayxonFollowupFile=file;
       const workspaceSection=document.getElementById('gxFollowupWorkspaceSection');if(workspaceSection)workspaceSection.hidden=true;
@@ -655,13 +645,8 @@
       select.onchange=async()=>{
         const creator=followupCreatorCache.find(p=>p.id===select.value);
         if(creator){document.getElementById('gxFollowupWorkspaceSection')?.classList.add('is-open');setFollowupStep(0);}
-        const phone=document.getElementById('gxFollowupPhoneValue');
-        if(phone)phone.textContent='Consultando…';
-        if(!creator){if(phone)phone.textContent='Selecciona un creador para consultar su teléfono.';return;}
-        const {data,error}=await sb.from('profile_details').select('phone').eq('user_id',creator.id).maybeSingle();
-        if(error){if(phone)phone.textContent='No se pudo consultar el teléfono.';toast('No se pudo consultar el teléfono: '+error.message);return;}
-        window.gxFollowupSelectedPhone=String(data?.phone||'').trim();
-        if(phone)phone.textContent=window.gxFollowupSelectedPhone||'Este creador no tiene un teléfono registrado. Solicita a administración que lo agregue.';
+        window.gxFollowupSelectedPhone='';
+        if(!creator)return;
         const selectedReport=window.gxFollowupSelectedReport||null;
         const reportRow=(selectedReport?.gx_creator_followup_evaluations||[]).find(row=>row.creator_user_id===creator.id)||null;
         const eligiblePlans=(window.gxFollowupPlans||[]).filter(plan=>plan.creator_user_id===creator.id);
@@ -757,9 +742,12 @@
       const targets=readMetrics();
       const planId=String(data.get('plan_id')||'');
       const payload={title:String(data.get('title')||'').trim(),objective:String(data.get('objective')||'').trim(),start_date:start,target_date:end,targets,status:'active',updated_at:new Date().toISOString()};
+      const sourceReport=window.gxFollowupSelectedReport||null;
+      const sourcePeriodStart=sourceReport?.source_start_date||sourceReport?.selected_start_date||start;
+      const sourcePeriodEnd=sourceReport?.source_end_date||sourceReport?.selected_end_date||end;
       let result;
       if(planId) result=await sb.from('gx_creator_action_plans').update(payload).eq('id',planId).eq('creator_user_id',creator.id).select('id').single();
-      else result=await sb.from('gx_creator_action_plans').insert({...common,...payload}).select('id').single();
+      else result=await sb.from('gx_creator_action_plans').insert({...common,...payload,source_import_id:sourceReport?.id||null,source_period_start:sourcePeriodStart,source_period_end:sourcePeriodEnd}).select('id').single();
       if(result.error)return toast('No se pudo guardar el plan: '+result.error.message);
       const reminderLocal=String(data.get('reminder_at')||'');
       const existingReminder=(window.gxFollowupReminders||[]).find(item=>item.action_plan_id===result.data.id&&item.status!=='cancelled');
@@ -795,14 +783,6 @@
         .select('id,file_name,selected_start_date,selected_end_date,source_start_date,source_end_date,status,created_at,gx_creator_followup_evaluations(id,creator_user_id,creator_username_snapshot,classification,diamonds,live_seconds,valid_live_days),gx_creator_followup_import_unmatched_rows(id,creator_username_snapshot,reason)')
         .order('source_start_date',{ascending:false}).order('created_at',{ascending:false}).limit(200);
       if(error)throw error;
-      const allEvaluations=(data||[]).flatMap(item=>item.gx_creator_followup_evaluations||[]);
-      const creatorIds=[...new Set(allEvaluations.map(row=>row.creator_user_id).filter(Boolean))];
-      const phoneByCreator=new Map();
-      if(creatorIds.length){
-        const {data:details,error:phoneError}=await sb.from('profile_details').select('user_id,phone').in('user_id',creatorIds);
-        if(phoneError)throw phoneError;
-        (details||[]).forEach(row=>phoneByCreator.set(row.user_id,String(row.phone||'').trim()));
-      }
       const groups=new Map();
       (data||[]).forEach(item=>{
         const date=item.source_start_date||item.selected_start_date||item.created_at;
@@ -820,14 +800,13 @@
           const evaluations=item.gx_creator_followup_evaluations||[];
           const unmatched=(item.gx_creator_followup_import_unmatched_rows||[]).filter(row=>row.reason!=='agency_left');
           const noPortal=unmatched.filter(row=>row.reason==='not_in_portal'||row.reason==='portal_inactive');
-          const missingPhones=evaluations.filter(row=>!phoneByCreator.get(row.creator_user_id));
-          const alertTotal=noPortal.length+missingPhones.length;
+          const alertTotal=noPortal.length;
           const creatorRows=evaluations.map(row=>{
             const tone=row.classification==='on_track'?'success':row.classification==='observation'?'observation':row.classification==='high_risk'?'risk':'neutral';
             return '<tr><td class="gxt-followup-creator-cell is-'+tone+'"><button type="button" class="gxt-followup-creator-link" data-followup-open-creator="'+esc(row.creator_user_id)+'"><strong>@'+esc(row.creator_username_snapshot)+'</strong></button></td><td>'+esc(classes[row.classification]||row.classification)+'</td><td>'+Number(row.diamonds||0).toLocaleString('es-CO')+'</td><td>'+(row.live_seconds==null?'—':(Number(row.live_seconds)/3600).toFixed(2)+' h')+'</td><td>'+(row.valid_live_days==null?'—':esc(row.valid_live_days))+'</td></tr>';
           }).join('');
           const alertButton=alertTotal
-            ? '<button type="button" class="gxt-followup-month-alert" data-followup-report-alert="'+esc(item.id)+'"><span class="gxt-followup-alert-dot">!</span><span><strong>Alertas</strong><small>'+missingPhones.length+' sin teléfono · '+noPortal.length+' sin acceso</small></span><b>'+alertTotal+'</b></button>'
+            ? '<button type="button" class="gxt-followup-month-alert" data-followup-report-alert="'+esc(item.id)+'"><span class="gxt-followup-alert-dot">!</span><span><strong>Alertas</strong><small>'+noPortal.length+' sin acceso al portal</small></span><b>'+alertTotal+'</b></button>'
             : '<span class="gxt-followup-month-alert is-clear">Sin alertas pendientes</span>';
           return '<details class="gxt-followup-history-report"><summary><span class="gxt-followup-report-title"><strong>'+esc(item.file_name)+'</strong><small>'+esc(item.source_start_date||item.selected_start_date)+' a '+esc(item.source_end_date||item.selected_end_date)+'</small></span><span class="gxt-chip">'+evaluations.length+' creadores</span><span class="gxt-followup-report-alert-slot">'+alertButton+'</span></summary>'+
             '<div class="gxt-followup-history-report-body">'+
@@ -859,10 +838,8 @@
         if(!item)return;
         const evaluations=item.gx_creator_followup_evaluations||[];
         const unmatched=(item.gx_creator_followup_import_unmatched_rows||[]).filter(row=>row.reason==='not_in_portal'||row.reason==='portal_inactive');
-        const noPhone=evaluations.filter(row=>!phoneByCreator.get(row.creator_user_id));
         const group=(label,rows,render)=>rows.length?'<section class="gxt-followup-alert-group"><strong>'+esc(label)+' ('+rows.length+')</strong>'+rows.map(render).join('')+'</section>':'';
-        const body=group('Sin teléfono registrado',noPhone,row=>'<div class="gxt-followup-alert-person">@'+esc(row.creator_username_snapshot)+'</div>')+
-          group('Sin acceso al portal',unmatched,row=>'<div class="gxt-followup-alert-person">@'+esc(row.creator_username_snapshot)+'</div>');
+        const body=group('Sin acceso al portal',unmatched,row=>'<div class="gxt-followup-alert-person">@'+esc(row.creator_username_snapshot)+'</div>');
         openModal('Alertas del reporte','Solo se muestran creadores que requieren acceso al portal o actualizar su teléfono.','<div class="gxt-followup-alert-list">'+body+'</div>',true);
       }));
     }catch(error){
