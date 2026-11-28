@@ -2462,3 +2462,41 @@ body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificatio
   }
 }
 </style>
+
+<!-- Corrección de separación y estabilidad de campana frente al menú lateral. -->
+<style id="gx-creator-header-bell-spacing-v1">
+body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #notificationsBtn{
+  right:66px!important;
+  transform:translateY(-50%)!important;
+  transition:none!important;
+  z-index:3!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #notificationsBtn:hover,
+body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #notificationsBtn:active,
+body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #notificationsBtn:focus{
+  transform:translateY(-50%)!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxHeaderDrawerTrigger{
+  right:12px!important;
+  width:38px!important;
+  min-width:38px!important;
+  height:38px!important;
+  z-index:4!important;
+}
+@media(max-width:650px){
+  body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #notificationsBtn{
+    right:58px!important;
+    width:28px!important;
+    min-width:28px!important;
+    flex-basis:28px!important;
+    height:34px!important;
+    min-height:34px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxHeaderDrawerTrigger{
+    right:10px!important;
+    width:34px!important;
+    min-width:34px!important;
+    height:36px!important;
+  }
+}
+</style>
