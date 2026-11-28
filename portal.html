@@ -862,14 +862,8 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
   const authenticated=document.body.classList.contains('gx-bottom-nav-authenticated');
   const role=window.grayxonDashboardPage;
   const internal=authenticated&&(role==='admin'||role==='manager'||document.body.classList.contains('grayxon-manager-session'));
-  const creator=authenticated&&!internal;
   document.body.classList.toggle('gx-internal-session',internal);
-  document.body.classList.toggle('gx-creator-session',creator);
-  if(creator){
-   const entries=[{icon:'⌂',label:'Inicio',kind:'utility',key:'dashboard'},{icon:'♧',label:'Notificaciones',kind:'utility',key:'notifications'},{icon:'▦',label:'Calendario',kind:'utility',key:'calendar'},{icon:'♙',label:'Perfil',kind:'utility',key:'profile'}];
-   const signature=JSON.stringify(['creator',entries]);
-   if(signature!==internalMenuSignature){items.replaceChildren();entries.forEach(entry=>addItem(entry.icon,entry.label,entry.kind,entry.key));internalMenuSignature=signature;}
-  }else if(!internal){close();document.body.classList.remove('gx-creator-session');}
+  if(!internal)close();
  };
  const goToDashboardThen=(selector)=>{
   if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
@@ -900,7 +894,6 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
   close();
   if(kind==='utility'){
    if(key==='dashboard'&&typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
-   if(key==='notifications')document.getElementById('notificationsBtn')?.click();
    if(key==='calendar'&&typeof window.grayxonOpenCalendar==='function')window.grayxonOpenCalendar();
    if(key==='profile'&&typeof window.grayxonNavigateToProfile==='function')window.grayxonNavigateToProfile();
    else if(key==='profile')document.getElementById('mobileProfile')?.click();
@@ -2017,55 +2010,4 @@ body.gx-internal-session .notification-badge{position:absolute!important;top:-5p
 .gx-internal-back-bar span{font-weight:650}
 .gx-internal-access-source{display:none!important}
 @media(max-width:650px){header.top{min-height:94px!important;padding:11px 14px!important;gap:9px!important}.gx-internal-user-meta strong{max-width:36vw;font-size:12px}.gx-internal-user-meta span{font-size:9px}body.gx-internal-session .header-actions{gap:8px!important}body.gx-internal-session #notificationsBtn{width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important}.gx-internal-back-bar{margin-bottom:13px}}
-</style>
-
-<style id="gx-creator-header-profile-layout">
-/* Encabezado exclusivo de creadores: foto + identidad a la izquierda, notificaciones y menú a la derecha. */
-body.gx-creator-session header.top{
- position:relative!important;min-height:76px!important;height:auto!important;
- display:flex!important;align-items:center!important;justify-content:flex-start!important;
- gap:10px!important;padding:10px 14px!important;box-sizing:border-box!important;
-}
-body.gx-creator-session .gx-header-brand-stack,
-body.gx-creator-session .header-actions{display:contents!important}
-body.gx-creator-session header.top .brand{display:none!important}
-body.gx-creator-session #mobileProfile{display:grid!important;visibility:visible!important;opacity:1!important}
-body.gx-creator-session header.top .profile-menu-wrap{
- order:1!important;display:flex!important;position:relative!important;
- align-items:center!important;justify-content:center!important;flex:0 0 44px!important;
- width:44px!important;height:44px!important;
-}
-body.gx-creator-session header.top #mobileProfile{
- width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
- border-radius:50%!important;overflow:hidden!important;object-fit:cover!important;
-}
-body.gx-creator-session #gxInternalUserMeta{
- order:2!important;display:flex!important;flex:1 1 auto!important;min-width:0!important;
- flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;
- gap:4px!important;text-align:left!important;
-}
-body.gx-creator-session .gx-internal-user-meta strong{max-width:100%!important;font-size:13px!important}
-body.gx-creator-session .gx-internal-user-meta span{font-size:10px!important}
-body.gx-creator-session #notificationsBtn{
- order:3!important;display:grid!important;place-items:center!important;position:relative!important;
- flex:0 0 40px!important;width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;
- margin:0!important;padding:0!important;border:1px solid #36414b!important;border-radius:50%!important;
- background:#11161c!important;color:#f3f6f8!important;
-}
-body.gx-creator-session #gxInternalMenuTrigger{
- order:4!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
- flex:0 0 40px!important;width:40px!important;height:40px!important;margin:0!important;
- border:1px solid #36414b!important;border-radius:50%!important;background:#11161c!important;color:#f3f6f8!important;
-}
-body.gx-creator-session #adminOpen,
-body.gx-creator-session #gxOpenReferrals{display:none!important}
-body.gx-creator-session #notificationsPanel{
- position:fixed!important;top:calc(68px + env(safe-area-inset-top,0px))!important;
- right:14px!important;left:auto!important;z-index:12000!important;max-height:min(72vh,620px)!important;
-}
-body.gx-creator-session .notification-badge{position:absolute!important;top:-4px!important;right:-4px!important}
-@media(min-width:651px){
- body.gx-creator-session header.top{padding-left:22px!important;padding-right:22px!important}
- body.gx-creator-session #gxInternalUserMeta{flex:0 1 260px!important}
-}
 </style>
