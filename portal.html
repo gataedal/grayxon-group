@@ -911,6 +911,28 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
  const wait=setInterval(()=>{syncRole();if(window.grayxonDashboardPage||checks++>50)clearInterval(wait);},200);
 })();
 </script>
+
+<style id="gx-fluid-desktop-layout">
+/* Layout fluido: aprovecha pantallas grandes sin perder adaptación en ventanas divididas. */
+main.wrap,.wrap{width:100%;max-width:1800px!important;margin-left:auto!important;margin-right:auto!important;padding-left:clamp(18px,3vw,54px)!important;padding-right:clamp(18px,3vw,54px)!important}
+.manager-page{width:100%;max-width:1600px!important}
+.gx-referrals-shell{width:100%;max-width:1600px!important}
+.gx-admin-center{width:100%;max-width:1600px!important}
+.admin-dashboard-grid,.manager-dashboard-grid{width:100%;min-width:0}
+@media(min-width:1600px){
+ .manager-dashboard-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .admin-dashboard-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .manager-hero,.admin-dashboard-hero{padding:clamp(26px,2vw,38px)}
+}
+@media(min-width:2100px){
+ main.wrap,.wrap{max-width:2000px!important}
+ .manager-page,.gx-referrals-shell,.gx-admin-center{max-width:1800px!important}
+}
+@media(max-width:900px){
+ main.wrap,.wrap{padding-left:18px!important;padding-right:18px!important}
+}
+</style>
+
 </body>
 
 <style id="grayxon-final-modal-mobile-fix">
