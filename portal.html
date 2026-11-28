@@ -2080,3 +2080,80 @@ body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-acti
   body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions{padding-left:42vw!important}
 }
 </style>
+
+
+<style id="gx-creator-header-identity-polish-v1">
+/* Ajustes exclusivos del encabezado de creadores: identidad más visible y campana sin contenedor. */
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions .profile-menu-wrap{
+  width:60px!important;height:60px!important;left:20px!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #mobileProfile{
+  display:grid!important;width:60px!important;height:60px!important;min-width:60px!important;
+  border-radius:50%!important;overflow:hidden!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #mobileProfile img{
+  display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;border-radius:50%!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta{
+  left:92px!important;max-width:min(28vw,310px)!important;gap:6px!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta strong{
+  font-size:clamp(16px,1.55vw,20px)!important;line-height:1.15!important;font-weight:800!important;
+  max-width:100%!important;color:#f7f8fb!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta span{
+  display:inline-flex!important;align-items:center!important;gap:6px!important;width:max-content!important;
+  padding:5px 11px!important;border:1px solid transparent!important;border-radius:999px!important;
+  background:linear-gradient(#0a0c10,#0a0c10) padding-box,linear-gradient(110deg,#25f4ee,#9b75ff,#fe2c55) border-box!important;
+  color:#f7f8fb!important;font-size:11px!important;font-weight:850!important;letter-spacing:.02em!important;
+  line-height:1.2!important;text-transform:none!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta span:before{
+  content:"♛";font-size:14px;line-height:1;
+  background:linear-gradient(110deg,#25f4ee,#b4a0ff,#fe2c55);color:transparent;
+  background-clip:text;-webkit-background-clip:text;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions{
+  padding-left:clamp(270px,36vw,390px)!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn{
+  position:relative!important;display:grid!important;place-items:center!important;
+  width:30px!important;height:34px!important;min-width:30px!important;min-height:34px!important;
+  flex:0 0 30px!important;margin:0!important;padding:0!important;
+  border:0!important;border-radius:0!important;background:transparent!important;
+  box-shadow:none!important;color:#f3f6f8!important;font-size:23px!important;line-height:1!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn:hover{
+  border:0!important;background:transparent!important;box-shadow:none!important;transform:none!important;opacity:.82;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn .notification-bell{
+  display:block!important;transform:none!important;font-size:23px!important;line-height:1!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn .notification-badge{
+  top:-5px!important;right:-7px!important;
+}
+@media(max-width:650px){
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions .profile-menu-wrap{
+    left:10px!important;width:50px!important;height:50px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #mobileProfile{
+    width:50px!important;height:50px!important;min-width:50px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta{
+    left:68px!important;max-width:calc(38vw - 8px)!important;gap:4px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta strong{
+    font-size:14px!important;max-width:100%!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta span{
+    padding:4px 8px!important;font-size:10px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions{
+    padding-left:48vw!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn{
+    width:26px!important;min-width:26px!important;flex-basis:26px!important;font-size:21px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn .notification-bell{font-size:21px!important}
+}
+</style>
