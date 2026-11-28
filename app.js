@@ -1572,6 +1572,7 @@ function profileTpl(){
   return '<div class="profile-page gx-profile-settings">'+
     (profile.role==='creator' ? '<section class="card creator-profile-manager-card" id="creatorProfileManagerCard"><h2><span style="color:#25F4EE">♙</span> Tu manager</h2><div class="creator-profile-manager-row"><div class="creator-profile-manager-avatar creator-profile-manager-fallback">♙</div><div class="creator-profile-manager-info"><strong>Consultando tu equipo…</strong><small>Un momento</small></div></div></section>' : '')+
     '<section class="gx-profile-settings-heading"><h2>Tu información</h2><p>Administra los datos asociados a tu cuenta.</p></section>'+
+    '<section class="gx-profile-avatar-card" aria-label="Foto de perfil"><div class="gx-profile-avatar-preview">'+(profileDetails?.avatar_url?'<img src="'+esc(profileDetails.avatar_url)+'" alt="Foto de perfil">':'<span>'+esc(profileInitial())+'</span>')+'</div><div class="gx-profile-avatar-copy"><strong>Foto de perfil</strong><small>Agrega o actualiza la imagen que identifica tu cuenta en Grayxon.</small><div id="profileAvatarStatus" aria-live="polite"></div></div><div class="gx-profile-avatar-actions"><button type="button" class="gx-profile-avatar-edit" data-profile-avatar-edit>✎ <span>'+(profileDetails?.avatar_url?'Cambiar foto':'Agregar foto')+'</span></button>'+(profileDetails?.avatar_url?'<button type="button" class="gx-profile-avatar-delete" data-profile-avatar-delete>Eliminar</button>':'')+'</div><input id="profileAvatar" class="hidden" type="file" accept="image/*"></section>'+
     '<div><button type="button" class="gx-profile-setting-row" data-profile-section="personal" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"/></svg></span><span class="gx-profile-setting-copy"><strong>Datos personales</strong><small>Correo, teléfono, fecha de nacimiento y ubicación</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPersonal"></div></div>'+
     '<div><button type="button" class="gx-profile-setting-row" data-profile-section="payments" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="gx-profile-setting-copy"><strong>Información para pagos</strong><small>Cuenta bancaria y método de pago</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPayments"></div></div>'+
     '<div><button type="button" class="gx-profile-setting-row gx-profile-history-row" data-profile-section="history" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="gx-profile-setting-copy"><strong>Mis pagos</strong><small>Historial, liquidaciones y comprobantes</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionHistory"></div></div>'+
@@ -2226,7 +2227,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   if(spaceEl && (!spaceEl.querySelector('.gx-progress-section') || !spaceEl.querySelector('#gxCreatorTrainingHighlight'))){
     spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
       <section class="creator-dashboard-hero creator-profile-hero">
-        <div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${cachedAvatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>
+        <div class="creator-profile-left"><div class="creator-dashboard-avatar">${cachedAvatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>
         <div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div>
       </section>
       <div class="gx-dashboard-featured-stack"><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div></div>
@@ -2306,7 +2307,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const paymentsCard=``;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${creatorDashboardAvatar()}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div class="gx-dashboard-featured-stack"><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div></div>
+    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div class="gx-dashboard-featured-stack"><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div></div>
     ${progressCardStyles}<section class="gx-progress-section" aria-label="Tu progreso"><div class="gx-progress-heading"><span class="gx-progress-heading-icon">▮</span><div><h2>Tu progreso</h2><p>Sigue avanzando y alcanza tu próximo nivel.</p></div></div><div class="gx-progress-grid">${formationCard}${missionsCard}</div></section>
 
     <div class="creator-dashboard-grid">${paymentsCard}</div>${gxCreatorRecentAnnouncementsMarkup()}${profileIncomplete}
@@ -2536,7 +2537,7 @@ function renderCreatorSpaceImmediate(){
   const name=profile?.full_name||profile?.username||'Grayxon';
   const user=profile?.username||'creador';
   const avatar=profileDetails?.avatar_url?`<img src="${esc(profileDetails.avatar_url)}" alt="Foto de perfil">`:`<span>${esc(profileInitial())}</span>`;
-  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar creator-dashboard-avatar-editable">${avatar}<button type="button" class="creator-avatar-edit" id="profilePhotoEdit" aria-label="Cambiar foto" title="Cambiar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><input id="profileAvatar" class="hidden" type="file" accept="image/*"></div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
+  el.innerHTML=`<div class="creator-dashboard creator-dashboard-fast"><section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${avatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(user)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div class="creator-dashboard-grid"><button type="button" class="creator-dashboard-card" data-space-action="training"><span class="creator-dashboard-card-icon">🎓</span><strong>Formación</strong><p>Ver tu formación.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="live-training"><span class="creator-dashboard-card-icon">🎥</span><strong>Entrenamientos</strong><p>Ver tus entrenamientos.</p><span class="creator-dashboard-card-arrow">›</span></button><button type="button" class="creator-dashboard-card" data-space-action="missions"><span class="creator-dashboard-card-icon">🎯</span><strong>Tus misiones</strong><p>Ver tus objetivos.</p><span class="creator-dashboard-card-arrow">›</span></button>${gxAnnouncementDashboardCard(true)}</div></div>`;
   bind();
   gxLoadCreatorRecentAnnouncements().catch(error=>console.warn('Creator recent announcements failed:',error));
   loadCreatorDashboardEventHighlights().catch(error=>console.warn('Creator dashboard highlight failed:',error));
@@ -6850,21 +6851,25 @@ function bind() {
   ensureGrayxonPreferencesStyles();
   $('#installGrayxonDashboard')?.addEventListener('click',installGrayxonApp);
   refreshGrayxonPwaPreferenceUI();
-  const avatarRoot=$('#space');
-  if(avatarRoot && !avatarRoot.dataset.avatarControlsBound){
-    avatarRoot.dataset.avatarControlsBound='true';
-    avatarRoot.addEventListener('click',event=>{
-      const edit=event.target?.closest?.('#profilePhotoEdit');
-      if(!edit)return;
-      event.preventDefault();
-      const input=$('#profileAvatar');
-      if(input) input.click();
+  const profileAvatarRoot=$('#profile');
+  if(profileAvatarRoot && !profileAvatarRoot.dataset.avatarControlsBound){
+    profileAvatarRoot.dataset.avatarControlsBound='true';
+    profileAvatarRoot.addEventListener('click',event=>{
+      if(event.target?.closest?.('[data-profile-avatar-edit]')){
+        event.preventDefault();
+        $('#profileAvatar')?.click();
+        return;
+      }
+      if(event.target?.closest?.('[data-profile-avatar-delete]')){
+        event.preventDefault();
+        if(window.confirm('¿Deseas eliminar tu foto de perfil?')) deleteProfileAvatar();
+      }
     });
-    avatarRoot.addEventListener('change',event=>{
+    profileAvatarRoot.addEventListener('change',event=>{
       if(event.target?.id==='profileAvatar') uploadProfileAvatar();
     });
-    avatarRoot.addEventListener('error',event=>{
-      if(event.target?.matches?.('.creator-dashboard-avatar-editable img')){
+    profileAvatarRoot.addEventListener('error',event=>{
+      if(event.target?.matches?.('.gx-profile-avatar-preview img')){
         const status=$('#profileAvatarStatus');
         if(status)status.textContent='No se pudo cargar la foto guardada. Intenta subirla nuevamente.';
       }
@@ -6976,9 +6981,10 @@ async function uploadProfileAvatar(){
       image.src=url;
       image.alt='Foto de perfil';
     }
-    showStatus('Foto actualizada ✓');
     if(input) input.value='';
     await render();
+    const savedStatus=$('#profileAvatarStatus');
+    if(savedStatus)savedStatus.textContent='Foto actualizada ✓';
   }catch(error){
     showStatus(error?.message||'No se pudo actualizar la foto. Inténtalo de nuevo.');
     if(input) input.value='';
@@ -6995,8 +7001,9 @@ async function deleteProfileAvatar(){
   if(error){ if(status) status.textContent=error.message; return; }
   profileDetails={...(profileDetails||{}),avatar_path:null,avatar_url:null};
   updateProfileBadge();
-  if(status) status.textContent='Foto eliminada ✓';
   await render();
+  const savedStatus=$('#profileAvatarStatus');
+  if(savedStatus)savedStatus.textContent='Foto eliminada ✓';
 }
 
 async function saveProfile(){
