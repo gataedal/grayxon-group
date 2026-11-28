@@ -2463,6 +2463,27 @@ body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificatio
 }
 </style>
 
+<!-- Restaurar la acción de apertura de la campana sin alterar el módulo de notificaciones. -->
+<script id="gx-header-notifications-click-v1">
+(function(){
+  const button=document.getElementById('notificationsBtn');
+  const panel=document.getElementById('notificationsPanel');
+  if(!button||!panel||button.dataset.gxNotificationsClickBound)return;
+  button.dataset.gxNotificationsClickBound='1';
+  button.addEventListener('click',function(event){
+    event.preventDefault();
+    event.stopPropagation();
+    if(typeof window.grayxonToggleNotifications==='function'){
+      window.grayxonToggleNotifications();
+    }else{
+      const willOpen=panel.classList.contains('hidden');
+      panel.classList.toggle('hidden',!willOpen);
+      panel.setAttribute('aria-hidden',String(!willOpen));
+    }
+  });
+})();
+</script>
+
 <!-- Corrección de separación y estabilidad de campana frente al menú lateral. -->
 <style id="gx-creator-header-bell-spacing-v1">
 body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #notificationsBtn{
