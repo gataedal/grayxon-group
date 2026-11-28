@@ -11,6 +11,9 @@
     #training .gx-formation-v3 > .gx-formation-tabs { display:none!important; }
     /* Mantener visible el resumen superior y la barra de progreso (incluido el 100%). */
     #training .gx-formation-v3 > .gx-formation-hero { display:block!important; }
+    /* Ocultar el contenedor superior vacío que solo deja una cápsula sin contenido. */
+    #training .gx-formation-v3 > .gx-formation-hero { display:none!important; }
+
     /* La tarjeta superior concentra los datos; se elimina el bloque inferior duplicado. */
     #training .gx-formation-v3 > .gx-formation-stats { display:none!important; }
     #training .gx-formation-v3 > .gx-formation-hero { position:relative!important; }
