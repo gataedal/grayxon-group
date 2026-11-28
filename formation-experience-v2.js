@@ -63,6 +63,7 @@
     }
     body.gx-internal-session #notificationsPanel,
     body.gx-internal-session .notification-panel { position:absolute!important;top:calc(100% + 10px)!important;right:0!important;left:auto!important; }
+    body.gx-internal-session .gx-bell-anchor #notificationsPanel { position:absolute!important;top:calc(100% + 10px)!important;right:0!important;left:auto!important; }
     .gx-bell-anchor { position:relative!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;flex:0 0 40px!important;width:40px!important;height:40px!important; }
     .gx-bell-anchor #notificationsPanel { position:absolute!important;top:calc(100% + 10px)!important;right:0!important;left:auto!important;z-index:15000!important; }
     #grayxonBottomNav [data-gx-bottom="notifications"],
@@ -237,6 +238,8 @@
       const text = (button.getAttribute('aria-label') || button.textContent || '').toLowerCase();
       if (/notific|campan|bell/.test(text) || button.querySelector('svg[data-icon*="bell"],.fa-bell,.icon-bell')) button.remove();
     });
+    const count = nav.querySelectorAll('button,a,[role="button"]').length;
+    if (count) nav.style.setProperty('grid-template-columns', 'repeat(' + count + ', minmax(0,1fr))', 'important');
   }
 
   function apply() {
