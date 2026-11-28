@@ -2465,7 +2465,8 @@ body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificatio
 
 <!-- Restaurar el panel de notificaciones anclado debajo de la campana. -->
 <style id="gx-notifications-bell-anchor-position-v1">
-.gx-bell-anchor #notificationsPanel.gx-bottom-popover{
+body.gx-bottom-nav-authenticated .gx-bell-anchor #notificationsPanel.gx-bottom-popover,
+body.gx-internal-session .gx-bell-anchor #notificationsPanel.gx-bottom-popover{
   position:absolute!important;
   top:calc(100% + 10px)!important;
   right:0!important;
@@ -2478,7 +2479,8 @@ body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificatio
   z-index:20001!important;
 }
 @media(max-width:650px){
-  .gx-bell-anchor #notificationsPanel.gx-bottom-popover{
+  body.gx-bottom-nav-authenticated .gx-bell-anchor #notificationsPanel.gx-bottom-popover,
+  body.gx-internal-session .gx-bell-anchor #notificationsPanel.gx-bottom-popover{
     right:-8px!important;
     width:min(350px,calc(100vw - 18px))!important;
     max-width:min(350px,calc(100vw - 18px))!important;
