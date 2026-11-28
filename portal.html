@@ -727,7 +727,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
 <link rel="stylesheet" href="livekit-mobile-layout.css?v=14">
-<script src="app.js?v=328"></script>
+<script src="app.js?v=329"></script>
 <script src="formation-navigation.js?v=1"></script>
 <script src="formation-experience-v2.js?v=1"></script>
 <script src="event-battle-scheduler.js?v=6"></script>
@@ -816,7 +816,7 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
   .modern-creator-art>img{height:100%!important;width:100%!important;object-fit:cover!important;object-position:20% center!important;mix-blend-mode:screen!important;mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.35) 12%,#000 30%,#000 100%)!important;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.35) 12%,#000 30%,#000 100%)!important;}
 }
 </style>
-  <script src="gana-mas-referrals.js?v=20"></script>
+  <script src="gana-mas-referrals.js?v=21"></script>
   <script src="grayxon-trabajo-entry.js?v=4"></script>
 
 <script id="gx-internal-premium-navigation-script">
@@ -2010,4 +2010,42 @@ body.gx-internal-session .notification-badge{position:absolute!important;top:-5p
 .gx-internal-back-bar span{font-weight:650}
 .gx-internal-access-source{display:none!important}
 @media(max-width:650px){header.top{min-height:94px!important;padding:11px 14px!important;gap:9px!important}.gx-internal-user-meta strong{max-width:36vw;font-size:12px}.gx-internal-user-meta span{font-size:9px}body.gx-internal-session .header-actions{gap:8px!important}body.gx-internal-session #notificationsBtn{width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important}.gx-internal-back-bar{margin-bottom:13px}}
+/* Ajuste final del encabezado del creador: los accesos siguen disponibles en la navegación inferior. */
+body.gx-creator-session header.top{height:auto!important;min-height:70px!important;padding:10px 18px!important;justify-content:space-between!important;gap:12px!important}
+body.gx-creator-session .gx-header-brand-stack{width:100%!important;min-width:0!important;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:12px!important}
+body.gx-creator-session .gx-internal-menu-trigger{display:inline-flex!important;align-items:center!important;justify-content:center!important}
+body.gx-creator-session .header-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:8px!important}
+body.gx-creator-session .header-actions #adminOpen,body.gx-creator-session .header-actions .profile-menu-wrap{display:none!important}
+body.gx-creator-session .header-actions #notificationsBtn{display:grid!important;}
+@media(max-width:650px){body.gx-creator-session header.top{min-height:64px!important;padding:8px 14px!important}}
+</style>
+
+<style id="gx-creator-home-layout-20261127">
+/* Reorganización visual del inicio del creador; no modifica destinos ni lógica de navegación. */
+body.gx-creator-session header.top .gx-header-brand-stack{width:100%;justify-content:space-between;flex:1 1 auto;}
+body.gx-creator-session header.top .gx-internal-menu-trigger{margin-left:auto;}
+#space .creator-dashboard{width:100%;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:18px;}
+#space .creator-dashboard-hero.creator-profile-hero{min-height:190px;padding:28px 30px!important;border-radius:24px!important;}
+#space .gx-dashboard-featured-stack{gap:12px;margin-top:0;}
+#space .gx-progress-section{margin:0;padding:22px;border:1px solid #29313b;border-radius:20px;background:linear-gradient(145deg,#111923 0%,#0b1017 100%);}
+#space .gx-progress-heading{margin-bottom:16px;}
+#space .gx-progress-grid{gap:14px;}
+#space .gx-progress-card{min-height:112px;justify-content:space-between;padding:16px 18px;border-radius:16px;background:linear-gradient(145deg,#121c28,#0b1119);}
+#space .gx-creator-home-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;}
+#space #gxCreatorHomeActions{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;}
+#space #gxOpenReferrals.gx-creator-home-referral{display:flex!important;align-items:center;justify-content:flex-start;gap:14px;width:100%;min-height:82px;padding:17px 20px;border:1px solid rgba(37,244,238,.28);border-radius:18px;background:linear-gradient(110deg,rgba(37,244,238,.10),rgba(254,44,85,.08) 55%,rgba(17,22,30,.96));color:#f6f8fb;box-shadow:0 12px 30px rgba(0,0,0,.22);font-size:15px;font-weight:800;text-align:left;}
+#space #gxOpenReferrals.gx-creator-home-referral>span:first-child{display:grid;place-items:center;width:44px;height:44px;flex:0 0 44px;border:1px solid rgba(37,244,238,.22);border-radius:13px;background:rgba(37,244,238,.10);font-size:23px;}
+#space #gxOpenReferrals.gx-creator-home-referral>span:last-child{font-size:15px;}
+#space #gxOpenReferrals.gx-creator-home-referral:after{content:'›';margin-left:auto;color:#aebbc8;font-size:28px;font-weight:400;}
+#space .gx-recent-announcements{margin:0;padding:22px;border:1px solid #29313b;border-radius:20px;background:linear-gradient(145deg,#10151d,#0b0f15);}
+#space .gx-recent-announcements-track{gap:14px;}
+@media(max-width:700px){
+ #space .creator-dashboard{gap:14px;}
+ #space .creator-dashboard-hero.creator-profile-hero{min-height:0;padding:20px 16px!important;border-radius:19px!important;}
+ #space .gx-progress-section,#space .gx-recent-announcements{padding:15px;border-radius:17px;}
+ #space .gx-progress-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+ #space .gx-progress-card{min-height:106px;padding:11px 10px;}
+ #space #gxOpenReferrals.gx-creator-home-referral{min-height:72px;padding:13px 14px;}
+ #space .gx-recent-announcements-track{grid-template-columns:1fr;gap:10px;}
+}
 </style>
