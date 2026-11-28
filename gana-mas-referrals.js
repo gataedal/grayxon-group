@@ -56,15 +56,7 @@
       host.insertBefore(button,host.firstChild);
     }
     const loggedIn=!!userId() && !!currentProfile()?.active;
-    const creatorHomeSlot=document.querySelector('#space:not(.hidden) #gxCreatorHomeActions');
-    if(creatorHomeSlot && currentProfile()?.role==='creator'){
-      if(button.parentElement!==creatorHomeSlot) creatorHomeSlot.appendChild(button);
-      button.classList.add('gx-creator-home-referral');
-    }else{
-      if(button.parentElement!==host) host.insertBefore(button,host.firstChild);
-      button.classList.remove('gx-creator-home-referral');
-    }
-    // Los accesos internos se muestran dentro del menú expandible; el acceso del creador conserva su acción original.
+    // Los accesos internos se muestran dentro del menú expandible; los creadores conservan su botón habitual.
     button.classList.toggle('gx-referral-hidden',!loggedIn || isAdmin() || currentProfile()?.role==='manager');
     ensureAdminProgramCard();
     ensureManagerReferralMenuItem();
@@ -539,19 +531,12 @@
     await loadData();render();
   }
   function watchAuth(){
-    // Keep this optional module isolated: never observe the entire document.
-    // Only react to changes inside the creator workspace and perform a light
-    // fallback check for auth/profile readiness and admin/manager entry points.
     ensureButton();
-    const space=$('space');
-    if(space){
-      const spaceObserver=new MutationObserver(()=>ensureButton());
-      spaceObserver.observe(space,{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
-    }
-    const refresh=()=>{if(!document.hidden)ensureButton();};
-    window.addEventListener('pageshow',refresh);
-    document.addEventListener('visibilitychange',refresh);
-    setInterval(()=>{if(!document.hidden)ensureButton();},5000);
+    const observer=new MutationObserver(()=>{ensureButton();ensureAdminProgramCard();});
+    observer.observe(document.body,{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
+    const main=document.querySelector('main.wrap');
+    if(main)new MutationObserver(()=>{ensureButton();if(isOpen&&$('gxReferralsPage')?.classList.contains('hidden')){isOpen=false;}}).observe(main,{childList:true,subtree:false});
+    setInterval(()=>{ensureButton();},1800);
   }
   function boot(){
     ensurePage();ensureButton();watchAuth();
