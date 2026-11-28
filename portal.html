@@ -2011,3 +2011,72 @@ body.gx-internal-session .notification-badge{position:absolute!important;top:-5p
 .gx-internal-access-source{display:none!important}
 @media(max-width:650px){header.top{min-height:94px!important;padding:11px 14px!important;gap:9px!important}.gx-internal-user-meta strong{max-width:36vw;font-size:12px}.gx-internal-user-meta span{font-size:9px}body.gx-internal-session .header-actions{gap:8px!important}body.gx-internal-session #notificationsBtn{width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important}.gx-internal-back-bar{margin-bottom:13px}}
 </style>
+
+<style id="gx-creator-header-left-centered-brand-v1">
+/* Solo creadores: identidad a la izquierda y marca centrada; se conserva el nodo clicable #homeBrand. */
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top{
+  position:sticky!important;
+  justify-content:flex-end!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .gx-header-brand-stack{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:max-content!important;
+  max-width:30vw!important;
+  z-index:1!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #homeBrand{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  cursor:pointer!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions .profile-menu-wrap{
+  position:absolute!important;
+  left:20px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  z-index:2!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta{
+  position:absolute!important;
+  left:70px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  text-align:left!important;
+  gap:3px!important;
+  width:max-content!important;
+  max-width:min(22vw,220px)!important;
+  min-width:0!important;
+  z-index:2!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta strong{
+  max-width:100%!important;
+  text-align:left!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions{
+  position:static!important;
+  width:100%!important;
+  justify-content:flex-end!important;
+  padding-left:clamp(210px,30vw,300px)!important;
+}
+@media(max-width:650px){
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions .profile-menu-wrap{left:10px!important}
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta{left:56px!important;max-width:calc(34vw - 56px)!important}
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .gx-header-brand-stack{max-width:24vw!important}
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions{padding-left:42vw!important}
+}
+</style>
