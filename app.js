@@ -7347,7 +7347,7 @@ async function init() {
     // evita que una petición lenta impida llegar al nav() que muestra el portal.
     await Promise.all([
       loadProfileDetails(),
-      grayxonWithTimeout(loadNotifications(),4000,undefined,'notifications')
+      loadNotifications()
     ]);
     updateGrayxonPresence();
   } else updateNotificationsUI();
