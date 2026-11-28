@@ -56,7 +56,15 @@
       host.insertBefore(button,host.firstChild);
     }
     const loggedIn=!!userId() && !!currentProfile()?.active;
-    // Los accesos internos se muestran dentro del menú expandible; los creadores conservan su botón habitual.
+    const creatorHomeSlot=document.querySelector('#space:not(.hidden) #gxCreatorHomeActions');
+    if(creatorHomeSlot && currentProfile()?.role==='creator'){
+      if(button.parentElement!==creatorHomeSlot) creatorHomeSlot.appendChild(button);
+      button.classList.add('gx-creator-home-referral');
+    }else{
+      if(button.parentElement!==host) host.insertBefore(button,host.firstChild);
+      button.classList.remove('gx-creator-home-referral');
+    }
+    // Los accesos internos se muestran dentro del menú expandible; el acceso del creador conserva su acción original.
     button.classList.toggle('gx-referral-hidden',!loggedIn || isAdmin() || currentProfile()?.role==='manager');
     ensureAdminProgramCard();
     ensureManagerReferralMenuItem();
