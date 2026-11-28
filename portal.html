@@ -865,12 +865,21 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
  };
  const goToDashboardThen=(selector)=>{
   if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
-  let attempts=0;
-  const waitForTarget=window.setInterval(()=>{
+  let finished=false;
+  let observer=null;
+  const finish=()=>{
+   if(finished)return;
    const target=document.querySelector(selector);
-   if(target){window.clearInterval(waitForTarget);target.click();return;}
-   if(++attempts>=50)window.clearInterval(waitForTarget);
-  },40);
+   if(!target||!target.getClientRects().length)return;
+   finished=true;
+   observer?.disconnect();
+   clearTimeout(fallback);
+   target.click();
+  };
+  observer=new MutationObserver(finish);
+  observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden','style']});
+  const fallback=setTimeout(()=>{observer?.disconnect();finish();},2500);
+  finish();
  };
  trigger.addEventListener('click',()=>overlay.classList.contains('is-open')?close():open());
  closeBtn?.addEventListener('click',close);
