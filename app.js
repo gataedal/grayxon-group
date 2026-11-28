@@ -2227,7 +2227,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   if(spaceEl && (!spaceEl.querySelector('.gx-progress-section') || !spaceEl.querySelector('#gxCreatorTrainingHighlight'))){
     spaceEl.innerHTML=`<div class="creator-dashboard creator-dashboard-fast">
       <section class="creator-dashboard-hero creator-profile-hero">
-        <div class="creator-profile-left"><div class="creator-dashboard-avatar">${cachedAvatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div>
+        <div class="creator-profile-left"><div class="creator-dashboard-avatar">${cachedAvatar}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(cachedUser)}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div>
         <div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div>
       </section>
       <div class="gx-dashboard-featured-stack"><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div></div>
@@ -2307,7 +2307,7 @@ async function creatorDashboardTpl(expectedNav = navGeneration){
   const paymentsCard=``;
 
   $('#space').innerHTML=`<div class="creator-dashboard">
-    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span><div id="profileAvatarStatus" aria-live="polite"></div></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div class="gx-dashboard-featured-stack"><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div></div>
+    <section class="creator-dashboard-hero creator-profile-hero"><div class="creator-profile-left"><div class="creator-dashboard-avatar">${creatorDashboardAvatar()}</div><div class="creator-dashboard-identity"><span class="creator-profile-greeting">¡Hola,</span><h1>@${esc(profile?.username||'creador')}</h1><span class="creator-username">Nos alegra tenerte aquí 🚀</span></div></div><div class="creator-dashboard-role" aria-label="Rol del usuario"><span class="role-pill">Creador</span></div></section><div class="gx-dashboard-featured-stack"><div id="gxCreatorEventHighlights" class="gx-creator-event-highlights" hidden></div><div id="gxCreatorTrainingHighlight" hidden></div></div>
     ${progressCardStyles}<section class="gx-progress-section" aria-label="Tu progreso"><div class="gx-progress-heading"><span class="gx-progress-heading-icon">▮</span><div><h2>Tu progreso</h2><p>Sigue avanzando y alcanza tu próximo nivel.</p></div></div><div class="gx-progress-grid">${formationCard}${missionsCard}</div></section>
 
     <div class="creator-dashboard-grid">${paymentsCard}</div>${gxCreatorRecentAnnouncementsMarkup()}${profileIncomplete}
