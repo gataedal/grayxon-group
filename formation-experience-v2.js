@@ -116,19 +116,14 @@
     root.dataset.gxFormationPrepared = '1';
     root.querySelectorAll('.gx-formation-header .library-eyebrow').forEach(el => el.remove());
     root.querySelectorAll('.gx-formation-header .library-subtitle').forEach(el => el.remove());
-    root.querySelectorAll('.gx-formation-section-intro .library-eyebrow').forEach(el => { el.textContent = 'RUTA DE APRENDIZAJE'; });
-    root.querySelectorAll('.gx-formation-section-intro h2').forEach(el => { el.textContent = 'Tu ruta de aprendizaje'; });
-    root.querySelectorAll('.gx-formation-section-intro p').forEach(el => el.remove());
+    // Quitar únicamente el bloque vacío superior y el encabezado duplicado de la ruta.
+    root.querySelectorAll('.gx-formation-hero, .gx-formation-section-intro').forEach(el => el.remove());
     // Ocultar solo el mensaje de cierre; conservar hero, resumen y barra de progreso.
     root.querySelectorAll('*').forEach(el => {
       if (el.children.length === 0 && /has completado toda tu formación/i.test(el.textContent || '')) {
         el.hidden = true;
         el.setAttribute('aria-hidden', 'true');
       }
-    });
-    const hero = root.querySelector('.gx-formation-hero');
-    if (hero) hero.querySelectorAll('*').forEach(el => {
-      if (el.children.length === 0 && /^100%$/.test((el.textContent || '').trim())) el.classList.add('gx-formation-percent-subtle');
     });
     root.querySelectorAll('.library-module-card').forEach(card => {
       const toggle = card.querySelector('[data-library-toggle]');
