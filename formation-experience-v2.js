@@ -7,10 +7,11 @@
   style.id = 'gx-formation-experience-v2-style';
   style.textContent = `
     #training .gx-formation-v3 > .gx-formation-header,
-    #training .gx-formation-v3 > .gx-formation-hero,
-    #training .gx-formation-v3 > .gx-formation-stats,
     #training .gx-formation-v3 > .gx-formation-next,
     #training .gx-formation-v3 > .gx-formation-tabs { display:none!important; }
+    /* Mantener visible el resumen superior y la barra de progreso (incluido el 100%). */
+    #training .gx-formation-v3 > .gx-formation-hero,
+    #training .gx-formation-v3 > .gx-formation-stats { display:block!important; }
     #training .gx-formation-v3 .formation-groups { margin-top:0!important; }
     #training .gx-formation-v3 .gx-formation-section-intro { margin:0 0 18px!important; }
     #training .gx-formation-v3 .gx-formation-section-intro .library-eyebrow { font-size:10px!important; }
@@ -24,7 +25,9 @@
     #training .gx-formation-v3 .library-module-card .library-module-body { padding:16px!important; }
     #training .gx-formation-v3 .library-module-card .library-module-body h3 { font-size:16px!important; }
     #training .gx-formation-v3 .library-module-card .library-module-body p { min-height:0!important;font-size:11px!important; }
-    #training .gx-formation-v3 .library-module-card .library-toggle { justify-content:center!important;gap:8px!important;padding:11px!important;border:1px solid rgba(255,255,255,.1)!important;border-radius:10px!important;background:rgba(255,255,255,.035)!important;color:#eafafa!important;cursor:pointer!important; }
+    #training .gx-formation-v3 .library-module-card .library-toggle { justify-content:center!important;gap:8px!important;padding:11px!important;border:1.5px solid #25f4ee!important;border-radius:10px!important;background:linear-gradient(135deg,rgba(37,244,238,.12),rgba(37,244,238,.035))!important;color:#f4ffff!important;box-shadow:inset 0 0 0 1px rgba(37,244,238,.12),0 0 14px rgba(37,244,238,.12)!important;font-weight:800!important;cursor:pointer!important;transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease!important; }
+    #training .gx-formation-v3 .library-module-card .library-toggle:hover { border-color:#8afffb!important;background:rgba(37,244,238,.18)!important;box-shadow:0 0 0 2px rgba(37,244,238,.16),0 0 22px rgba(37,244,238,.2)!important;transform:translateY(-1px); }
+    #training .gx-formation-v3 .library-module-card .library-toggle:focus-visible { outline:3px solid #25f4ee!important;outline-offset:3px!important; }
     #training .gx-formation-v3 .library-module-card .library-toggle b { display:none!important; }
     #training .gx-formation-v3 .library-module-card .library-module-lessons { display:none!important; }
     #training .gx-formation-module-page .library-module-lessons.gx-formation-module-lessons-active { display:grid!important; }
@@ -32,7 +35,7 @@
     #training .gx-formation-v3 .library-module-card:has(.cover-1) { border-color:rgba(178,194,214,.42)!important; }
     #training .gx-formation-v3 .library-module-card:has(.cover-2) { border-color:rgba(157,123,255,.48)!important; }
     #training .gx-formation-v3 .library-module-card:has(.cover-3) { border-color:rgba(254,91,128,.42)!important; }
-    #training .gx-formation-module-page { display:grid;gap:18px; }
+    #training .gx-formation-module-page { position:fixed!important;inset:0!important;z-index:30000!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-height:100dvh!important;overflow-y:auto!important;overscroll-behavior:contain!important;box-sizing:border-box!important;padding:clamp(18px,3vw,36px)!important;padding-bottom:calc(clamp(18px,3vw,36px) + env(safe-area-inset-bottom))!important;background:radial-gradient(ellipse at 12% 0%,rgba(37,244,238,.09),transparent 38%),linear-gradient(145deg,#0b1015,#080b0f 72%)!important;display:grid;align-content:start;gap:22px; }
     #training .gx-formation-module-top { display:flex;align-items:center;gap:14px; }
     #training .gx-formation-back { display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:42px;border:1px solid #35414b;border-radius:12px;background:#12181e;color:#eef5f8;font-size:20px;cursor:pointer; }
     #training .gx-formation-module-heading { display:grid;gap:5px;min-width:0; }
@@ -54,6 +57,7 @@
     #training .gx-formation-content-body a { color:#78e8e3; }
     #training .gx-formation-content-page .lesson-header { align-items:flex-start; }
     @media(max-width:600px){
+      #training .gx-formation-module-page { padding:16px!important;padding-top:calc(16px + env(safe-area-inset-top))!important; }
       #training .gx-formation-v3 .library-module-grid { grid-template-columns:minmax(0,1fr)!important; }
       #training .gx-formation-v3 .library-module-card { display:grid!important;grid-template-columns:108px minmax(0,1fr)!important; }
       #training .gx-formation-v3 .library-module-card .library-module-cover { grid-column:1;grid-row:1;min-height:100%!important; }
@@ -90,6 +94,13 @@
     root.querySelectorAll('.gx-formation-section-intro .library-eyebrow').forEach(el => { el.textContent = 'RUTA DE APRENDIZAJE'; });
     root.querySelectorAll('.gx-formation-section-intro h2').forEach(el => { el.textContent = 'Tu ruta de aprendizaje'; });
     root.querySelectorAll('.gx-formation-section-intro p').forEach(el => el.remove());
+    // Ocultar solo el mensaje de cierre; conservar hero, resumen y barra de progreso.
+    root.querySelectorAll('*').forEach(el => {
+      if (el.children.length === 0 && /has completado toda tu formación/i.test(el.textContent || '')) {
+        el.hidden = true;
+        el.setAttribute('aria-hidden', 'true');
+      }
+    });
     root.querySelectorAll('.library-module-card').forEach(card => {
       const toggle = card.querySelector('[data-library-toggle]');
       const lessons = card.querySelector('.library-module-lessons');
@@ -142,10 +153,11 @@
     lessonList.style.display = 'grid';
     lessonList.classList.add('gx-formation-module-lessons-active');
     groups.hidden = true;
-    groups.after(activeModulePage);
+    root.appendChild(activeModulePage);
     activeModulePage.querySelector('.gx-formation-back').addEventListener('click', closeModule);
-    root.querySelectorAll(':scope > .gx-formation-header,:scope > .gx-formation-hero,:scope > .gx-formation-stats,:scope > .gx-formation-next').forEach(el => el.hidden = true);
-    window.scrollTo({top:0,behavior:'smooth'});
+    document.body.classList.add('gx-formation-fullscreen-open');
+    document.documentElement.style.overflow = 'hidden';
+    window.scrollTo({top:0,behavior:'instant'});
   }
 
   function closeModule() {
@@ -158,7 +170,8 @@
     activeModulePage = null;
     activeModule = null;
     if (groups) groups.hidden = false;
-    document.querySelectorAll('#training .gx-formation-v3 > .gx-formation-header,#training .gx-formation-v3 > .gx-formation-hero,#training .gx-formation-v3 > .gx-formation-stats,#training .gx-formation-v3 > .gx-formation-next').forEach(el => el.hidden = false);
+    document.body.classList.remove('gx-formation-fullscreen-open');
+    document.documentElement.style.overflow = '';
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
