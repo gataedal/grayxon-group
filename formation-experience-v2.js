@@ -206,11 +206,11 @@
     if (!lesson) return false;
     const returnModule = activeModule;
     if (typeof window.openLesson !== 'function') return false;
+    await window.openLesson(id);
     const view = document.querySelector('#training #lessonView');
     if (!view) return false;
     lessonViewOriginalParent = view.parentNode;
     lessonViewOriginalNext = view.nextSibling;
-    await window.openLesson(id);
     view.classList.remove('hidden');
     view.classList.add('gx-formation-content-page');
     const header = view.querySelector('.lesson-header');
