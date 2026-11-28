@@ -255,11 +255,10 @@
     const items = state.isAdmin
       ? [
           ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
-          ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad'],['calendar','▦','Calendario']
+          ['team','♙','Equipo'],['departments','▦','Áreas y cargos'],['activity','◷','Actividad']
         ]
       : [
-          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes'],
-          ['calendar','▦','Calendario']
+          ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes']
         ];
     nav.innerHTML = items.map(([key,icon,label]) =>
       '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span>'+label+'</button>'
@@ -305,7 +304,7 @@
     const metrics = state.isAdmin
       ? [['Tareas activas',active,'Pendientes o en ejecución'],['Por revisar',review,'Entregas del equipo'],['Completadas',completed,'Aprobadas por administración'],['Solicitudes',pendingRequests,'Esperando decisión']]
       : [['Mis tareas',tasks.length,'Asignadas a tu usuario'],['En progreso',active,'Pendientes o en ejecución'],['Por revisar',review,'Entregadas a administración'],['Completadas',completed,'Aprobadas por administración']];
-    const metricHtml = metrics.map(m=>'<div class="gxt-metric"><small>'+m[0]+'</small><strong>'+m[1]+'</strong><span>'+m[2]+'</span></div>').join('');
+    const metricHtml = metrics.map((m,i)=>'<article class="gxt-dashboard-stat"><span class="gxt-dashboard-stat-label">'+m[0]+'</span><strong>'+m[1]+'</strong><small>'+m[2]+'</small></article>').join('');
     const taskList = tasks.slice(0,6).map(taskCard).join('') || '<div class="gxt-empty">Todavía no hay tareas registradas.</div>';
     const activeRequests = requests.filter(r=>r.status!=='converted');
     const requestList = state.isAdmin
@@ -318,11 +317,14 @@
     const actions = state.isAdmin
       ? '<button class="gxt-btn primary" data-action="new-task">＋ Crear tarea</button><button class="gxt-btn" data-action="new-request">Nueva solicitud</button>'
       : '<button class="gxt-btn primary" data-action="new-request">＋ Nueva solicitud</button>';
-    main.innerHTML = pageHead(title,description,actions)+
-      '<div class="gxt-metrics">'+metricHtml+'</div>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+(state.isAdmin?'Tareas recientes':'Mis tareas')+'</h2><button class="gxt-btn ghost" data-tab="tasks">Ver todas</button></div><div class="gxt-list">'+taskList+'</div></section>'+
-      '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+(state.isAdmin?'Solicitudes pendientes':'Mis solicitudes recientes')+'</h2><button class="gxt-btn ghost" data-tab="requests">Ver solicitudes</button></div><div class="gxt-list">'+requestList+'</div></section>'+
-      '<div class="gxt-status-note">Las tareas solo se consideran completadas cuando administración aprueba la entrega. Las solicitudes se convierten en tareas cuando administración asigna responsable y confirma su creación.</div>';
+    const today = new Intl.DateTimeFormat('es-CO',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
+    main.innerHTML = '<section class="gxt-dashboard">'+
+      '<header class="gxt-dashboard-heading"><div><span class="gxt-dashboard-eyebrow">GRAYXON GROUP · GESTIÓN</span><h1>'+title+'</h1><p>'+today+'</p><div class="gxt-dashboard-intro">'+description+'</div></div><div class="gxt-dashboard-actions">'+actions+'</div></header>'+
+      '<div class="gxt-dashboard-stats">'+metricHtml+'</div>'+
+      '<div class="gxt-dashboard-content"><section class="gxt-panel gxt-dashboard-panel"><div class="gxt-panel-head"><div><span class="gxt-dashboard-section-label">OPERACIÓN</span><h2>'+(state.isAdmin?'Tareas recientes':'Mis tareas')+'</h2></div><button class="gxt-btn ghost" data-tab="tasks">Ver todas <span aria-hidden="true">›</span></button></div><div class="gxt-list">'+taskList+'</div></section>'+
+      '<section class="gxt-panel gxt-dashboard-panel"><div class="gxt-panel-head"><div><span class="gxt-dashboard-section-label">COMUNICACIÓN</span><h2>'+(state.isAdmin?'Solicitudes pendientes':'Mis solicitudes recientes')+'</h2></div><button class="gxt-btn ghost" data-tab="requests">Ver solicitudes <span aria-hidden="true">›</span></button></div><div class="gxt-list">'+requestList+'</div></section></div>'+
+      '<div class="gxt-dashboard-footnote">Las tareas se consideran completadas cuando administración aprueba la entrega. Las solicitudes se convierten en tareas cuando administración asigna responsable y confirma su creación.</div>'+
+      '</section>';
   }
 
   function renderTasksPage() {
@@ -363,10 +365,6 @@
       '<section class="gxt-panel"><div class="gxt-panel-head"><h2>'+state.departments.length+' áreas</h2></div><div class="gxt-table-wrap"><table class="gxt-table"><thead><tr><th>Área</th><th>Identificador</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
   }
 
-  function renderCalendarLinkPage() {
-    main.innerHTML = pageHead('Calendario de Grayxon','Usa el calendario compartido del portal. Las tareas internas se muestran allí junto a eventos, batallas, entrenamientos y cumpleaños.','<button class="gxt-btn primary" data-action="open-calendar">Abrir calendario</button>')+
-      '<section class="gxt-panel"><div class="gxt-status-note">Este acceso abre el calendario existente de Grayxon; no crea un calendario paralelo. La visibilidad de las tareas se controla desde Supabase según tu membresía y asignaciones.</div><a class="gxt-backlink" href="portal.html?openCalendar=1">Abrir el calendario compartido ↗</a></section>';
-  }
 
   function renderActivityPage() {
     const rows = state.activity.map(a => {
@@ -972,7 +970,6 @@
     if (state.tab === 'team' && state.isAdmin) return renderTeamPage();
     if (state.tab === 'departments' && state.isAdmin) return renderDepartmentsPage();
     if (state.tab === 'activity' && state.isAdmin) return renderActivityPage();
-    if (state.tab === 'calendar') return renderCalendarLinkPage();
     if (state.tab === 'followup') return renderFollowupPage();
     if (state.tab === 'reports') return renderReportsPage();
     renderDashboard();
@@ -1598,7 +1595,6 @@
       if(action.dataset.action==='new-task')return openNewTask();
       if(action.dataset.action==='new-request')return openNewRequest();
       if(action.dataset.action==='new-department')return openNewDepartment();
-      if(action.dataset.action==='open-calendar'){window.location.href='./portal.html?openCalendar=1';return;}
     }
     const tab=event.target.closest('[data-tab]');
     if(tab){state.tab=tab.dataset.tab;renderPage();return}
