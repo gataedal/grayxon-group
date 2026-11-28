@@ -539,6 +539,21 @@ body.gx-bottom-nav-authenticated #notificationsPanel .notification-empty span{fo
  body.gx-bottom-nav-authenticated #notificationsPanel.gx-bottom-popover{width:calc(100vw - 20px)!important;max-height:min(70dvh,620px)!important;bottom:calc(86px + env(safe-area-inset-bottom,0px))!important;padding:12px!important}
 }
 </style>
+<style id="gx-unified-navigation-v1">
+/* La barra inferior se conserva oculta como fuente de rutas para el menú existente. */
+#grayxonBottomNav,
+body.gx-bottom-nav-authenticated #grayxonBottomNav,
+body.gx-internal-session #grayxonBottomNav{
+ display:none!important;visibility:hidden!important;pointer-events:none!important;
+}
+body.gx-bottom-nav-authenticated{padding-bottom:0!important}
+body.gx-bottom-nav-authenticated .wrap{padding-bottom:20px!important}
+.gx-header-drawer-separator{height:1px;margin:7px 3px;background:#ffffff20}
+.gx-header-drawer-logout{color:#ff9aaa!important;border-color:#5a303b!important;background:linear-gradient(145deg,#24151b,#151015)!important}
+.gx-header-drawer-logout .gx-nav-icon{color:#ff8fa5!important;border-color:#673744!important;background:#28151d!important}
+.gx-internal-menu-item[data-gx-menu-key="logout"]{margin-top:8px;border-top:1px solid #57323b;border-radius:0 0 13px 13px;color:#ff9aaa}
+.gx-internal-menu-item[data-gx-menu-key="logout"] .gx-internal-menu-item-icon{color:#ff8fa5;border-color:#673744;background:#28151d}
+</style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
 <header class="top"><div class="gx-header-brand-stack"><div class="brand" id="homeBrand" role="img" aria-label="Grayxon Group"><img class="logo" src="assets/grayxon-logo.png" alt=""><b>GRAYXON</b><span class="brand-live">LIVE</span></div><button type="button" class="gx-internal-menu-trigger" id="gxInternalMenuTrigger" aria-label="Abrir menú principal" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div><div class="header-actions"><div class="gx-internal-user-meta" id="gxInternalUserMeta"><strong id="gxInternalUserName"></strong><span id="gxInternalUserRole"></span></div><button id="notificationsBtn" class="notifications-btn" aria-label="Notificaciones"><span class="notification-bell">🔔</span><span id="notificationsBadge" class="notification-badge hidden">0</span></button><button type="button" id="gxHeaderDrawerTrigger" class="gx-header-drawer-trigger" aria-label="Abrir menú de navegación" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir perfil">G</button><div id="profileMenu" class="profile-menu hidden" aria-hidden="true"></div></div><div id="notificationsPanel" class="notification-panel hidden"></div></div></header>
@@ -593,6 +608,19 @@ body.gx-bottom-nav-authenticated #notificationsPanel .notification-empty span{fo
    });
    items.appendChild(clone);
   });
+  const addMenuAction=(icon,label,action,extraClass='')=>{
+   const button=document.createElement('button');
+   button.type='button';
+   button.className='gx-header-drawer-item'+(extraClass?' '+extraClass:'');
+   button.innerHTML='<span class="gx-nav-icon" aria-hidden="true">'+icon+'</span><span>'+label+'</span>';
+   button.addEventListener('click',()=>{closeDrawer();action();});
+   items.appendChild(button);
+  };
+  addMenuAction('▣','Entrenamientos',()=>{if(typeof window.nav==='function')window.nav('training');});
+  const separator=document.createElement('div');
+  separator.className='gx-header-drawer-separator';
+  items.appendChild(separator);
+  addMenuAction('↪','Cerrar sesión',()=>{if(typeof window.grayxonLogout==='function')window.grayxonLogout();},'gx-header-drawer-logout');
  }
  function openDrawer(){
   if(!document.body.classList.contains('gx-bottom-nav-authenticated')||document.body.classList.contains('gx-internal-session'))return;
@@ -974,7 +1002,7 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
    const label=node.querySelector('.admin-dashboard-card-copy strong,.manager-dashboard-card-copy strong,.gx-trabajo-card-copy strong')?.textContent?.trim()||node.dataset.gxMenuLabel||node.textContent.trim();
    if(label)entries.push({icon,label,kind,key});
   });
-  entries.push({icon:'▦',label:'Calendario',kind:'utility',key:'calendar'},{icon:'♙',label:'Perfil',kind:'utility',key:'profile'});
+  entries.push({icon:'▣',label:'Entrenamientos',kind:'utility',key:'training'},{icon:'▦',label:'Calendario',kind:'utility',key:'calendar'},{icon:'♙',label:'Perfil',kind:'utility',key:'profile'},{icon:'↪',label:'Cerrar sesión',kind:'utility',key:'logout'});
   const signature=JSON.stringify([role,entries]);
   // Evita reemplazar botones idénticos: el observador del dashboard detecta
   // mutaciones del DOM y antes esto generaba un ciclo de renderizado infinito.
@@ -1019,9 +1047,11 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
   close();
   if(kind==='utility'){
    if(key==='dashboard'&&typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
+   if(key==='training'&&typeof window.nav==='function')window.nav('training');
    if(key==='calendar'&&typeof window.grayxonOpenCalendar==='function')window.grayxonOpenCalendar();
    if(key==='profile'&&typeof window.grayxonNavigateToProfile==='function')window.grayxonNavigateToProfile();
    else if(key==='profile')document.getElementById('mobileProfile')?.click();
+   if(key==='logout'&&typeof window.grayxonLogout==='function')window.grayxonLogout();
    return;
   }
   if(kind==='referrals'){if(typeof window.grayxonOpenReferrals==='function')window.grayxonOpenReferrals();return;}

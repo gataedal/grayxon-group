@@ -1609,7 +1609,7 @@ function profileTpl(){
     '<div><button type="button" class="gx-profile-setting-row" data-profile-section="payments" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="gx-profile-setting-copy"><strong>Información para pagos</strong><small>Cuenta bancaria y método de pago</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionPayments"></div></div>'+
     '<div><button type="button" class="gx-profile-setting-row gx-profile-history-row" data-profile-section="history" aria-expanded="false"><span class="gx-profile-setting-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="gx-profile-setting-copy"><strong>Mis pagos</strong><small>Historial, liquidaciones y comprobantes</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionHistory"></div></div>'+
     '<div><button type="button" class="gx-profile-setting-row" data-profile-section="security" aria-expanded="false"><span class="gx-profile-setting-icon security"><svg viewBox="0 0 24 24"><path d="M12 3 19 6v5c0 5-3.2 8.2-7 10-3.8-1.8-7-5-7-10V6Z"/><rect x="9" y="10" width="6" height="5" rx="1"/><path d="M10 10V8a2 2 0 0 1 4 0v2"/></svg></span><span class="gx-profile-setting-copy"><strong>Seguridad</strong><small>Acceso y contraseña</small></span><span class="gx-profile-setting-chevron">›</span></button><div id="gxProfileSectionSecurity"></div></div>'+
-    '<div class="gx-profile-actions-row" id="gxProfileActions">'+(profile.role==='creator'?'<button type="button" id="grayxonMenuPush" class="gx-profile-action-btn gx-profile-notifications-btn">🔔 Activar notificaciones</button>':'')+'<button type="button" id="profileLogout" class="gx-profile-action-btn gx-profile-logout"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg><span>Cerrar sesión</span></button></div></div>';
+    '<div class="gx-profile-actions-row" id="gxProfileActions">'+(profile.role==='creator'?'<button type="button" id="grayxonMenuPush" class="gx-profile-action-btn gx-profile-notifications-btn">🔔 Activar notificaciones</button>':'')</div></div>';
 }
 function closeProfileSection(section){
   const target=document.getElementById('gxProfileSection'+section[0].toUpperCase()+section.slice(1));
@@ -7259,6 +7259,7 @@ async function logout() {
   // Al cerrar sesión, volver a la nueva portada pública oficial.
   window.location.replace('./index.html?v=20261019');
 }
+window.grayxonLogout = logout;
 
 async function saveHome() {
   const value = { eyebrow: $('#hEy').value, title: $('#hTitle').value, intro: $('#hIntro').value, about: $('#hAbout').value, badge: $('#hBadge').value, cta: $('#hCta').value, trust: ['Formación', 'Acompañamiento', 'Comunidad'] };
