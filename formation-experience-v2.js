@@ -118,13 +118,8 @@
     root.querySelectorAll('.gx-formation-header .library-subtitle').forEach(el => el.remove());
     // Quitar únicamente el encabezado duplicado de la ruta; conservar la tarjeta superior y sus datos.
     root.querySelectorAll('.gx-formation-section-intro').forEach(el => el.remove());
-    // Ocultar solo el mensaje de cierre; conservar hero, resumen y barra de progreso.
-    root.querySelectorAll('*').forEach(el => {
-      if (el.children.length === 0 && /has completado toda tu formación/i.test(el.textContent || '')) {
-        el.hidden = true;
-        el.setAttribute('aria-hidden', 'true');
-      }
-    });
+    // Retirar únicamente la tarjeta de finalización que queda vacía al ocultar su mensaje.
+    root.querySelectorAll('.library-all-done').forEach(el => el.remove());
     root.querySelectorAll('.library-module-card').forEach(card => {
       const toggle = card.querySelector('[data-library-toggle]');
       const lessons = card.querySelector('.library-module-lessons');
