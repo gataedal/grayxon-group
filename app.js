@@ -7355,6 +7355,8 @@ async function init() {
     updateGrayxonPresence();
   } else updateNotificationsUI();
   updateHeaderAccessUI();
+  // Aplicar inmediatamente al encabezado el avatar ya cargado desde profile_details.
+  updateProfileBadge();
 
   // The push service sends page/target in the query string. Restore the intended
   // route before normal hash routing, without changing ordinary non-push URLs.
