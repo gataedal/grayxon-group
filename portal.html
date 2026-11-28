@@ -871,7 +871,7 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
   const finish=()=>{
    if(finished)return;
    const target=document.querySelector(selector);
-   if(!target||!target.getClientRects().length)return;
+   if(!target)return;
    finished=true;
    observer?.disconnect();
    if(fallback)clearTimeout(fallback);
