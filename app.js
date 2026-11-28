@@ -7261,7 +7261,7 @@ async function logout() {
 }
 window.grayxonLogout = logout;
 
-async function saveHome {
+async function saveHome() {
   const value = { eyebrow: $('#hEy').value, title: $('#hTitle').value, intro: $('#hIntro').value, about: $('#hAbout').value, badge: $('#hBadge').value, cta: $('#hCta').value, trust: ['Formación', 'Acompañamiento', 'Comunidad'] };
   const { error } = await sb.from('site_content').upsert({ id: 'home', content: value, updated_at: new Date().toISOString() });
   if (error) toast(error.message); else toast('Inicio guardado ✓');
