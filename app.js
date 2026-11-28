@@ -4374,6 +4374,72 @@ function ensureFormationRedesignStyles(){
     #training .library-module-lessons button.is-locked{opacity:.4;cursor:not-allowed}
     #training .library-all-done{margin:0 0 25px;padding:17px;border:1px solid rgba(78,196,121,.18);border-radius:15px;background:rgba(78,196,121,.045)}
     #training .library-all-done p{margin:5px 0 0;color:#9ca3af;font-size:11px}
+    /* Grayxon Formation experience v3 — visual layer only */
+    #training .gx-formation-v3{color:#f4f6f8}
+    #training .gx-formation-header{display:flex!important;align-items:center;justify-content:space-between;gap:18px;margin:0 0 18px}
+    #training .gx-formation-header h1{margin:5px 0 0;font-size:clamp(26px,3vw,36px);font-weight:850;letter-spacing:-.055em}
+    #training .gx-formation-header .library-subtitle{font-size:12px}
+    #training .gx-formation-back{flex-shrink:0}
+    #training .gx-formation-hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 150px;align-items:center;gap:20px;min-height:190px;margin:0 0 14px;padding:25px 27px;overflow:hidden;border:1px solid rgba(37,244,238,.2);border-radius:20px;background:radial-gradient(ellipse at 10% 0%,rgba(37,244,238,.13),transparent 48%),radial-gradient(ellipse at 90% 100%,rgba(126,87,255,.13),transparent 40%),linear-gradient(115deg,#151b20,#0b0e12 72%)}
+    #training .gx-formation-hero:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 55%,rgba(255,255,255,.018));pointer-events:none}
+    #training .gx-formation-hero-art{position:absolute;right:155px;top:50%;width:170px;height:170px;transform:translateY(-50%);opacity:.55}
+    #training .gx-formation-orbit{position:absolute;inset:10px;border:1px solid rgba(37,244,238,.23);border-radius:50%;transform:scaleX(1.35) rotate(-25deg)}
+    #training .gx-orbit-two{inset:27px;border-color:rgba(255,255,255,.12);transform:scaleX(1.35) rotate(35deg)}
+    #training .gx-formation-monogram{position:absolute;inset:0;display:grid;place-items:center;color:rgba(217,255,253,.14);font-size:100px;font-weight:950;font-style:italic;text-shadow:0 0 45px rgba(37,244,238,.2)}
+    #training .gx-formation-live-dot{position:absolute;right:20px;top:30px;width:8px;height:8px;border-radius:50%;background:#25f4ee;box-shadow:0 0 16px #25f4ee}
+    #training .gx-formation-hero-copy{position:relative;z-index:1;max-width:580px}
+    #training .gx-formation-kicker{color:#79e8e3;font-size:9px;font-weight:900;letter-spacing:.19em}
+    #training .gx-formation-hero-copy h2{margin:9px 0 7px;font-size:clamp(20px,2.5vw,29px);font-weight:850;letter-spacing:-.045em}
+    #training .gx-formation-hero-copy p{max-width:430px;margin:0;color:#a2abb5;font-size:11px;line-height:1.65}
+    #training .gx-formation-hero-meta{display:flex;align-items:center;gap:12px;margin-top:17px;color:#9ba6b0;font-size:10px}
+    #training .gx-formation-hero-meta b{color:#eafcfc}
+    #training .gx-formation-hero-meta i{width:3px;height:3px;border-radius:50%;background:#5c6872}
+    #training .gx-formation-hero-progress{position:relative;z-index:1;display:grid;justify-items:center;gap:6px;padding:15px 10px;border:1px solid rgba(255,255,255,.09);border-radius:15px;background:rgba(5,9,12,.48);backdrop-filter:blur(8px)}
+    #training .gx-formation-hero-progress strong{font-size:34px;line-height:1;letter-spacing:-.06em}
+    #training .gx-formation-hero-progress strong small{color:#78e7e2;font-size:16px}
+    #training .gx-formation-hero-progress>span{color:#929eaa;font-size:8px;font-weight:850;letter-spacing:.14em}
+    #training .gx-formation-progress-track{width:100%;height:4px;margin-top:4px;overflow:hidden;border-radius:9px;background:rgba(255,255,255,.1)}
+    #training .gx-formation-progress-track i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#25f4ee,#9b8cff)}
+    #training .gx-formation-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 22px}
+    #training .gx-formation-stats article{display:flex;align-items:center;gap:11px;min-width:0;padding:13px 15px;border:1px solid rgba(255,255,255,.075);border-radius:13px;background:linear-gradient(120deg,#14171c,#0e1014)}
+    #training .gx-stat-icon{display:grid;place-items:center;width:32px;height:32px;flex-shrink:0;border:1px solid rgba(37,244,238,.18);border-radius:10px;background:rgba(37,244,238,.07);color:#8af5f0;font-size:15px}
+    #training .gx-formation-stats article strong{display:block;font-size:18px;line-height:1.1}
+    #training .gx-formation-stats article small{display:block;margin-top:4px;color:#929ba6;font-size:9px}
+    #training .gx-formation-next{min-height:145px;margin-bottom:25px}
+    #training .gx-formation-next .library-continue-art{display:grid;align-content:center;justify-items:center;gap:7px}
+    #training .gx-formation-next .library-continue-art small{color:#83e9e5;font-size:8px;font-weight:900;letter-spacing:.14em}
+    #training .gx-formation-tabs{display:flex;gap:22px;margin:0 0 20px;border-bottom:1px solid rgba(255,255,255,.09)}
+    #training .gx-formation-tabs a{position:relative;padding:0 0 11px;color:#8e98a3;font-size:11px;font-weight:750;text-decoration:none}
+    #training .gx-formation-tabs a.is-active{color:#e8ffff}
+    #training .gx-formation-tabs a.is-active:after{content:'';position:absolute;right:0;bottom:-1px;left:0;height:2px;border-radius:2px;background:#25f4ee;box-shadow:0 0 10px rgba(37,244,238,.5)}
+    #training .gx-formation-section-intro{margin:0 0 14px}
+    #training .gx-formation-section-intro h2{margin:5px 0;font-size:19px;letter-spacing:-.035em}
+    #training .gx-formation-section-intro p{margin:0;color:#929ba6;font-size:10px}
+    #training .library-page-heading,#training .library-progress-summary{display:none!important}
+    #training .formation-module-status{display:inline-flex;align-items:center;position:absolute;z-index:2;top:10px;right:10px;padding:5px 7px;border:1px solid rgba(37,244,238,.2);border-radius:20px;background:rgba(5,12,14,.72);color:#9bf5f0;font-size:7px;font-weight:900;letter-spacing:.09em}
+    #training .library-module-card{position:relative}
+    #training .library-section-heading{margin-bottom:4px}
+    #training .library-section-heading h2{font-size:14px}
+    @media(max-width:650px){
+      #training .gx-formation-header{align-items:flex-start}
+      #training .gx-formation-header h1{font-size:27px}
+      #training .gx-formation-hero{grid-template-columns:minmax(0,1fr) 94px;gap:8px;min-height:174px;padding:17px 14px}
+      #training .gx-formation-hero-art{right:65px;width:120px;height:120px}
+      #training .gx-formation-monogram{font-size:75px}
+      #training .gx-formation-hero-copy h2{font-size:19px}
+      #training .gx-formation-hero-copy p{font-size:10px}
+      #training .gx-formation-hero-meta{gap:7px;font-size:9px}
+      #training .gx-formation-hero-progress{padding:12px 7px}
+      #training .gx-formation-hero-progress strong{font-size:27px}
+      #training .gx-formation-stats{gap:6px}
+      #training .gx-formation-stats article{gap:7px;padding:10px 8px}
+      #training .gx-stat-icon{width:27px;height:27px;font-size:12px}
+      #training .gx-formation-stats article strong{font-size:15px}
+      #training .gx-formation-stats article small{font-size:8px}
+      #training .gx-formation-tabs{gap:17px}
+      #training .gx-formation-section-intro h2{font-size:17px}
+    }
+    @media(max-width:380px){#training .gx-formation-hero{grid-template-columns:minmax(0,1fr) 78px;padding:14px 11px}#training .gx-formation-hero-copy h2{font-size:17px}#training .gx-formation-hero-meta{flex-wrap:wrap}}
     @media(min-width:1000px){#training .library-module-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     @media(max-width:520px){#training .library-module-grid{grid-template-columns:minmax(0,1fr)}#training .library-module-card{display:grid;grid-template-columns:100px minmax(0,1fr)}#training .library-module-cover{grid-column:1;grid-row:1;min-height:100%}#training .library-module-cover:after{width:85px;height:85px}#training .library-module-body{grid-column:2;grid-row:1;padding:10px}#training .library-module-body h3{font-size:12px}#training .library-module-body p{min-height:0;font-size:10px;margin-bottom:8px}#training .library-module-meta{font-size:8px}#training .library-module-lessons{grid-column:1/-1;padding:0 10px 9px}#training .library-continue{grid-template-columns:94px minmax(0,1fr);min-height:150px}#training .library-continue-copy{padding:13px 11px}#training .library-continue-copy h2{font-size:16px}#training .library-continue-copy p{font-size:10px}}
   `;
@@ -4426,7 +4492,8 @@ async function trainingTpl(options = {}) {
   const moduleCard = (x) => {
     const {m, mi, ml, md, complete, pct} = x;
     const isNext = ml.some(l => l.id === nextPending?.id);
-    return `<article class="library-module-card ${complete ? 'is-complete' : ''} ${isNext ? 'is-next-module' : ''}" data-formation-module-card="${m.id}">
+    return `<article class="library-module-card formation-module-card ${complete ? 'is-complete' : ''} ${isNext ? 'is-next-module' : ''}" data-formation-module-card="${m.id}">
+      <span class="formation-module-status">${complete ? '✓ Completado' : isNext ? 'SIGUIENTE' : 'PENDIENTE'}</span>
       <div class="library-module-cover cover-${mi % 4}"><span class="library-cover-number">${String(mi+1).padStart(2,'0')}</span><span class="library-cover-symbol">${complete ? '✓' : isNext ? '▶' : '◈'}</span><span class="library-cover-tag">${complete ? 'COMPLETADO' : isNext ? 'EN CURSO' : 'MÓDULO'}</span></div>
       <div class="library-module-body"><div class="library-module-meta"><span>${ml.length} ${ml.length===1?'contenido':'contenidos'}</span><span>${md}/${ml.length}</span></div><h3>${esc(m.title)}</h3><p>${esc(m.description || 'Explora los contenidos de este módulo.')}</p><div class="library-progress-track"><span style="width:${pct}%"></span></div><button type="button" class="library-toggle" data-library-toggle="${m.id}" aria-expanded="true"><span>Ver contenidos</span><b>⌄</b></button></div>
       <div class="library-module-lessons" data-library-lessons="${m.id}">${ml.map((l, li) => `<div class="lesson ${done.has(l.id) ? 'lesson-done' : ''} ${nextPending?.id===l.id?'lesson-next':''}"><button type="button" data-lesson="${l.id}" ${!done.has(l.id)&&nextPending?.id!==l.id?'disabled aria-disabled="true" class="is-locked"':''}><span class="lesson-index">${done.has(l.id)?'✓':li+1}</span><span class="lesson-text"><strong>${esc(l.title)}</strong><small>${l.type==='video'?'Video':l.type==='resource'?'Recurso':'Contenido'}${done.has(l.id)?' · Completado':''}</small></span><span class="formation-lesson-action">${done.has(l.id)?'Ver de nuevo ›':nextPending?.id===l.id?'Continuar ›':'Bloqueada 🔒'}</span></button></div>`).join('') || '<div class="library-empty-group">Sin contenidos todavía.</div>'}</div>
@@ -4435,19 +4502,19 @@ async function trainingTpl(options = {}) {
 
   const sectionHtml = (title, items, emptyText, sectionKey) => (sectionKey === 'pending' && !items.length) ? '' : `<section class="formation-section library-section" data-formation-section="${sectionKey}"><div class="library-section-heading">${sectionKey === 'completed' ? `<button type="button" class="library-completed-toggle" data-library-completed-toggle aria-expanded="true"><h2>${title}</h2><b>⌄</b></button>` : `<h2>${title}</h2>`}<span>${items.length} ${items.length===1?'módulo':'módulos'}</span></div><div class="formation-group-list library-module-grid" data-library-completed-content>${items.map(moduleCard).join('')}</div></section>`;
 
-  $('#training').innerHTML = `<div class="formation-page library-page">
-    <div class="library-page-heading">
-      <div><span class="library-eyebrow">TU ESPACIO DE APRENDIZAJE</span><h1>Biblioteca</h1><p class="library-subtitle">Todo lo que necesitas para seguir creciendo, en un solo lugar.</p></div>
-      ${profile?.role==='creator' ? '' : '<button class="secondary" data-space-action="space">← Mi espacio</button>'}
-    </div>
-    <div class="library-progress-summary"><div><span>TU PROGRESO</span><strong>${totalPct}%</strong><small>${totalDone} de ${totalLessons} contenidos completados</small></div><div class="library-progress-track"><span style="width:${totalPct}%"></span></div></div>
-    ${nextPending ? `<section class="library-continue"><div class="library-continue-art"><span>▶</span></div><div class="library-continue-copy"><span class="library-eyebrow">CONTINÚA APRENDIENDO</span><h2>${esc(nextPending.title)}</h2><p>${esc(nextPending.description || (modules || []).find(m => m.id === nextPending.module_id)?.title || 'Tu siguiente contenido')}</p><button type="button" class="library-continue-button" data-lesson="${nextPending.id}">Continuar <b>→</b></button></div></section>` : `<section class="library-all-done"><strong>¡Has completado tu biblioteca!</strong><p>Terminaste todos los contenidos disponibles.</p></section>`}
-    <div class="library-collections">
-      ${sectionHtml('Explora los módulos',pendingModules,'No tienes contenidos pendientes.','pending')}
-      ${completedModules.length ? sectionHtml('Tu biblioteca completada',completedModules,'','completed') : ''}
-    </div>
-    <div class="lesson-view hidden" id="lessonView"></div>
-  </div>`;
+  $('#training').innerHTML = \`<div class="formation-page library-page gx-formation-v3">
+    <header class="gx-formation-header"><div><span class="library-eyebrow">GRAYXON ACADEMY · TU ESPACIO DE APRENDIZAJE</span><h1>Formación</h1><p class="library-subtitle">Aprende, evoluciona y lleva tu contenido al siguiente nivel.</p></div>
+      \${profile?.role==='creator' ? '' : '<button class="secondary gx-formation-back" data-space-action="space">← Mi espacio</button>'}</header>
+    <section class="gx-formation-hero"><div class="gx-formation-hero-art" aria-hidden="true"><span class="gx-formation-orbit"></span><span class="gx-formation-orbit gx-orbit-two"></span><span class="gx-formation-monogram">G</span><span class="gx-formation-live-dot"></span></div>
+      <div class="gx-formation-hero-copy"><span class="gx-formation-kicker">FORMACIÓN GRAYXON</span><h2>Tu crecimiento comienza aquí.</h2><p>Desarrolla tus habilidades con una ruta de aprendizaje diseñada para impulsar tu evolución.</p><div class="gx-formation-hero-meta"><span><b>\${totalLessons}</b> contenidos</span><i></i><span><b>\${totalDone}</b> completados</span></div></div>
+      <div class="gx-formation-hero-progress"><strong>\${totalPct}<small>%</small></strong><span>PROGRESO TOTAL</span><div class="gx-formation-progress-track"><i style="width:\${totalPct}%"></i></div></div></section>
+    <section class="gx-formation-stats"><article><span class="gx-stat-icon">✓</span><div><strong>\${totalDone}</strong><small>Completados</small></div></article><article><span class="gx-stat-icon">◷</span><div><strong>\${Math.max(0,totalLessons-totalDone)}</strong><small>Pendientes</small></div></article><article><span class="gx-stat-icon">▦</span><div><strong>\${(modules||[]).length}</strong><small>Módulos disponibles</small></div></article></section>
+    \${nextPending ? \`<section class="library-continue gx-formation-next"><div class="library-continue-art"><span>▶</span><small>CONTINÚA</small></div><div class="library-continue-copy"><span class="library-eyebrow">TU SIGUIENTE PASO</span><h2>\${esc(nextPending.title)}</h2><p>\${esc(nextPending.description || (modules || []).find(m => m.id === nextPending.module_id)?.title || 'Continúa tu ruta de aprendizaje')}</p><button type="button" class="library-continue-button" data-lesson="\${nextPending.id}">Continuar formación <b>→</b></button></div></section>\` : \`<section class="library-all-done"><strong>¡Has completado toda tu formación!</strong><p>Terminaste todos los contenidos disponibles. Puedes volver a consultarlos cuando quieras.</p></section>\`}
+    <nav class="gx-formation-tabs" aria-label="Secciones de formación"><a class="is-active" href="#gx-formation-route">Ruta de aprendizaje</a><a href="#gx-formation-modules">Mis módulos</a></nav>
+    <div class="library-collections formation-groups" id="gx-formation-route"><div class="gx-formation-section-intro" id="gx-formation-modules"><span class="library-eyebrow">TU RUTA</span><h2>Avanza a tu ritmo, paso a paso.</h2><p>Completa cada contenido para desbloquear el siguiente.</p></div>
+      \${sectionHtml('Módulos por completar',pendingModules,'No tienes contenidos pendientes.','pending')}
+      \${completedModules.length ? sectionHtml('Módulos completados',completedModules,'','completed') : ''}
+    </div><div class="lesson-view hidden" id="lessonView"></div></div>\`;
   window._lessons = orderedLessons;
   window._modules = modules || [];
   window._done = done;
