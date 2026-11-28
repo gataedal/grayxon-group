@@ -68,6 +68,10 @@
     .gx-formation-content-page .video-wrap { width:100%!important;max-width:1100px!important;margin:0 auto!important; }
     .gx-formation-content-page video,.gx-formation-content-page iframe { max-width:100%!important; }
     #training .gx-formation-content-body a { color:#78e8e3; }
+    .gx-formation-redirect-state { min-height:calc(100dvh - 72px);display:grid;place-content:center;justify-items:center;gap:12px;text-align:center;padding:24px;color:#edf6f7; }
+    .gx-formation-redirect-state .redirect-check { width:48px;height:48px;display:grid;place-items:center;border:1px solid rgba(37,244,238,.35);border-radius:50%;color:#25f4ee;font-size:24px; }
+    .gx-formation-redirect-state h2 { margin:4px 0 0;font-size:clamp(21px,4vw,28px); }
+    .gx-formation-redirect-state p { margin:0;color:#a7b4bd;font-size:13px; }
     #training .gx-formation-content-page .lesson-header { align-items:flex-start; }
     @media(max-width:600px){
       #training .gx-formation-module-page { padding:16px!important;padding-top:calc(16px + env(safe-area-inset-top))!important; }
@@ -97,6 +101,7 @@
   let lessonPageReturn = null;
   let lessonViewOriginalParent = null;
   let lessonViewOriginalNext = null;
+  let completionRedirectTimer = null;
 
   function lessonsFor(moduleId) {
     return (window._lessons || []).filter(item => item.module_id === moduleId)
@@ -295,7 +300,29 @@
     if (count) nav.style.setProperty('grid-template-columns', 'repeat(' + count + ', minmax(0,1fr))', 'important');
   }
 
+  function handleFormationCompletion() {
+    const view = document.querySelector('#lessonView .formation-complete-state');
+    if (!view || view.dataset.gxRedirecting === '1') return;
+    view.dataset.gxRedirecting = '1';
+    const host = document.getElementById('lessonView');
+    if (!host) return;
+    host.innerHTML = '<div class="gx-formation-redirect-state"><span class="redirect-check">✓</span><h2>¡Formación completada!</h2><p>Redirigiendo a Formación…</p></div>';
+    if (completionRedirectTimer) clearTimeout(completionRedirectTimer);
+    completionRedirectTimer = setTimeout(async () => {
+      completionRedirectTimer = null;
+      if (activeModulePage) closeModule();
+      closeLessonView();
+      if (typeof window.nav === 'function') {
+        window.nav('training');
+      } else if (typeof window.trainingTpl === 'function') {
+        await window.trainingTpl();
+      }
+      window.scrollTo({top:0,behavior:'instant'});
+    }, 1800);
+  }
+
   function apply() {
+    handleFormationCompletion();
     const root = document.querySelector('#training .gx-formation-v3');
     if (root) prepare(root);
     anchorNotificationPanel();
