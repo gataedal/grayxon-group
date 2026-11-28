@@ -27,6 +27,7 @@
     #training .gx-formation-v3 .library-module-card .library-toggle { justify-content:center!important;gap:8px!important;padding:11px!important;border:1px solid rgba(255,255,255,.1)!important;border-radius:10px!important;background:rgba(255,255,255,.035)!important;color:#eafafa!important;cursor:pointer!important; }
     #training .gx-formation-v3 .library-module-card .library-toggle b { display:none!important; }
     #training .gx-formation-v3 .library-module-card .library-module-lessons { display:none!important; }
+    #training .gx-formation-module-page .library-module-lessons.gx-formation-module-lessons-active { display:grid!important; }
     #training .gx-formation-v3 .library-module-card.cover-0 { border-color:rgba(37,244,238,.42)!important; }
     #training .gx-formation-v3 .library-module-card:has(.cover-1) { border-color:rgba(178,194,214,.42)!important; }
     #training .gx-formation-v3 .library-module-card:has(.cover-2) { border-color:rgba(157,123,255,.48)!important; }
