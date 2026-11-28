@@ -2625,3 +2625,25 @@ body.gx-internal-session header.top #gxInternalMenuTrigger span{
   }
 }
 </style>
+
+
+<style id="gx-menu-role-specific-layout-v2">
+@media(max-width:650px){
+  body.gx-internal-session header.top #gxInternalMenuTrigger{
+    display:inline-flex!important;box-sizing:border-box!important;
+    width:38px!important;min-width:38px!important;max-width:38px!important;
+    flex:0 0 38px!important;height:36px!important;min-height:36px!important;padding:0!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxHeaderDrawerTrigger{
+    width:92px!important;min-width:92px!important;max-width:92px!important;
+    flex:0 0 92px!important;height:40px!important;min-height:40px!important;padding:0 17px!important;
+    right:10px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top .header-actions > #notificationsBtn{
+    position:absolute!important;top:50%!important;right:136px!important;left:auto!important;
+    transform:translateY(-50%)!important;width:28px!important;min-width:28px!important;max-width:28px!important;
+    flex:0 0 28px!important;height:34px!important;min-height:34px!important;margin:0!important;padding:0!important;
+    border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;z-index:3!important;
+  }
+}
+</style>
