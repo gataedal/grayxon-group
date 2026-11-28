@@ -867,18 +867,19 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
   if(typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
   let finished=false;
   let observer=null;
+  let fallback=null;
   const finish=()=>{
    if(finished)return;
    const target=document.querySelector(selector);
    if(!target||!target.getClientRects().length)return;
    finished=true;
    observer?.disconnect();
-   clearTimeout(fallback);
+   if(fallback)clearTimeout(fallback);
    target.click();
   };
   observer=new MutationObserver(finish);
   observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden','style']});
-  const fallback=setTimeout(()=>{observer?.disconnect();finish();},2500);
+  fallback=setTimeout(()=>{observer?.disconnect();finish();},2500);
   finish();
  };
  trigger.addEventListener('click',()=>overlay.classList.contains('is-open')?close():open());
