@@ -616,7 +616,8 @@ body.gx-bottom-nav-authenticated .wrap{padding-bottom:20px!important}
    button.addEventListener('click',()=>{closeDrawer();action();});
    items.appendChild(button);
   };
-  addMenuAction('▣','Entrenamientos',()=>{if(typeof window.nav==='function')window.nav('training');});
+  addMenuAction('▣','Formación',()=>{if(typeof window.nav==='function')window.nav('training');});
+  addMenuAction('◉','Entrenamientos en vivo',()=>{if(typeof window.nav==='function')window.nav('live-training');});
   const separator=document.createElement('div');
   separator.className='gx-header-drawer-separator';
   items.appendChild(separator);
@@ -1002,7 +1003,7 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
    const label=node.querySelector('.admin-dashboard-card-copy strong,.manager-dashboard-card-copy strong,.gx-trabajo-card-copy strong')?.textContent?.trim()||node.dataset.gxMenuLabel||node.textContent.trim();
    if(label)entries.push({icon,label,kind,key});
   });
-  entries.push({icon:'▣',label:'Entrenamientos',kind:'utility',key:'training'},{icon:'▦',label:'Calendario',kind:'utility',key:'calendar'},{icon:'♙',label:'Perfil',kind:'utility',key:'profile'},{icon:'↪',label:'Cerrar sesión',kind:'utility',key:'logout'});
+  entries.push({icon:'▣',label:'Formación',kind:'utility',key:'training'},{icon:'◉',label:'Entrenamientos en vivo',kind:'utility',key:'live-training'},{icon:'▦',label:'Calendario',kind:'utility',key:'calendar'},{icon:'♙',label:'Perfil',kind:'utility',key:'profile'},{icon:'↪',label:'Cerrar sesión',kind:'utility',key:'logout'});
   const signature=JSON.stringify([role,entries]);
   // Evita reemplazar botones idénticos: el observador del dashboard detecta
   // mutaciones del DOM y antes esto generaba un ciclo de renderizado infinito.
@@ -1048,6 +1049,7 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
   if(kind==='utility'){
    if(key==='dashboard'&&typeof window.grayxonNavigateToDashboard==='function')window.grayxonNavigateToDashboard();
    if(key==='training'&&typeof window.nav==='function')window.nav('training');
+   if(key==='live-training'&&typeof window.nav==='function')window.nav('live-training');
    if(key==='calendar'&&typeof window.grayxonOpenCalendar==='function')window.grayxonOpenCalendar();
    if(key==='profile'&&typeof window.grayxonNavigateToProfile==='function')window.grayxonNavigateToProfile();
    else if(key==='profile')document.getElementById('mobileProfile')?.click();
