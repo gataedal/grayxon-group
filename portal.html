@@ -476,6 +476,16 @@ body.gx-internal-session .manager-dashboard-grid{gap:14px;margin-top:4px}
 body.gx-internal-session .manager-subpage-header{border-color:#35404a;border-radius:17px;background:linear-gradient(120deg,#171c22,#101419)}
 @media(max-width:600px){body.gx-internal-session .admin-dashboard-hero{padding:21px 19px;border-radius:18px}body.gx-internal-session .admin-dashboard-card,body.gx-internal-session .manager-dashboard-card{min-height:108px;padding:15px;border-radius:15px}}
 </style>
+<style id="gx-creator-home-only-chrome-v1">
+/* El branding grande pertenece únicamente al inicio del creador. Se conserva el acceso al menú. */
+body.grayxon-creator-session.gx-bottom-nav-authenticated:has(main.wrap > .page:not(#home):not(.hidden)) header.top #homeBrand{
+  display:none!important;
+}
+/* Accesos temporales ocultos sin eliminar sus módulos ni sus funciones. */
+header.top .header-actions #gxOpenReferrals.gx-referral-hidden{
+  display:none!important;
+}
+</style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
 <header class="top"><div class="gx-header-brand-stack"><div class="brand" id="homeBrand" role="img" aria-label="Grayxon Group"><img class="logo" src="assets/grayxon-logo.png" alt=""><b>GRAYXON</b><span class="brand-live">LIVE</span></div><button type="button" class="gx-internal-menu-trigger" id="gxInternalMenuTrigger" aria-label="Abrir menú principal" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div><div class="header-actions"><div class="gx-internal-user-meta" id="gxInternalUserMeta"><strong id="gxInternalUserName"></strong><span id="gxInternalUserRole"></span></div><button id="notificationsBtn" class="notifications-btn" aria-label="Notificaciones"><span class="notification-bell">🔔</span><span id="notificationsBadge" class="notification-badge hidden">0</span></button><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir perfil">G</button><div id="profileMenu" class="profile-menu hidden" aria-hidden="true"></div></div><div id="notificationsPanel" class="notification-panel hidden"></div></div></header>
