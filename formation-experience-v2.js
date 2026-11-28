@@ -10,8 +10,11 @@
     #training .gx-formation-v3 > .gx-formation-next,
     #training .gx-formation-v3 > .gx-formation-tabs { display:none!important; }
     /* Mantener visible el resumen superior y la barra de progreso (incluido el 100%). */
-    #training .gx-formation-v3 > .gx-formation-hero,
-    #training .gx-formation-v3 > .gx-formation-stats { display:block!important; }
+    #training .gx-formation-v3 > .gx-formation-hero { display:block!important; }
+    /* La tarjeta superior concentra los datos; se elimina el bloque inferior duplicado. */
+    #training .gx-formation-v3 > .gx-formation-stats { display:none!important; }
+    #training .gx-formation-v3 > .gx-formation-hero { position:relative!important; }
+    #training .gx-formation-v3 .gx-formation-percent-subtle { position:absolute!important;top:16px!important;right:18px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:#a9bac4!important;font-size:clamp(17px,2vw,22px)!important;font-weight:750!important;line-height:1!important; }
     #training .gx-formation-v3 .formation-groups { margin-top:0!important; }
     #training .gx-formation-v3 .gx-formation-section-intro { margin:0 0 18px!important; }
     #training .gx-formation-v3 .gx-formation-section-intro .library-eyebrow { font-size:10px!important; }
@@ -52,8 +55,18 @@
     #training .gx-formation-module-lessons .lesson button:disabled { opacity:.42; }
     #training .gx-formation-module-lessons .lesson-done { border-color:rgba(91,202,133,.28); }
     #training .gx-formation-module-lessons .lesson-next { border-color:rgba(37,244,238,.4); }
-    #training .gx-formation-content-page { display:grid;gap:16px; }
-    #training .gx-formation-content-body { padding:20px;border:1px solid #303943;border-radius:16px;background:linear-gradient(145deg,#151a20,#0d1115);color:#e8edf2;font-size:14px;line-height:1.8;overflow-wrap:anywhere; }
+    /* La lección (video o contenido) es una vista independiente, fuera del layout de Formación. */
+    .gx-formation-content-page { position:fixed!important;inset:0!important;z-index:31000!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-height:100dvh!important;overflow-y:auto!important;overscroll-behavior:contain!important;box-sizing:border-box!important;padding:clamp(18px,3vw,36px)!important;padding-top:calc(clamp(18px,3vw,36px) + env(safe-area-inset-top))!important;padding-bottom:calc(clamp(18px,3vw,36px) + env(safe-area-inset-bottom))!important;background:radial-gradient(ellipse at 12% 0%,rgba(37,244,238,.08),transparent 38%),linear-gradient(145deg,#0b1015,#080b0f 72%)!important;color:#e8edf2!important;display:grid!important;align-content:start!important;gap:16px!important; }
+    .gx-formation-content-page .lesson-header { display:flex!important;align-items:flex-start!important;gap:14px!important;margin:0!important;padding:0 0 12px!important;border:0!important;background:transparent!important; }
+    .gx-formation-content-page .gx-formation-module-top { display:flex;align-items:center;gap:14px; }
+    .gx-formation-content-page .gx-formation-module-heading { display:grid;gap:5px;min-width:0; }
+    .gx-formation-content-page .gx-formation-module-heading small { color:#8edfdc;font-size:9px;font-weight:850;letter-spacing:.15em;text-transform:uppercase; }
+    .gx-formation-content-page .gx-formation-module-heading h2 { margin:0;font-size:clamp(22px,3vw,30px);letter-spacing:-.04em; }
+    .gx-formation-content-page .gx-formation-module-heading p { margin:0;color:#9ba6b2;font-size:12px;line-height:1.6; }
+    .gx-formation-content-page .gx-formation-back { display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:42px;border:1px solid #35414b;border-radius:12px;background:#12181e;color:#eef5f8;font-size:20px;cursor:pointer; }
+    .gx-formation-content-body { min-width:0;padding:20px;border:1px solid #303943;border-radius:16px;background:linear-gradient(145deg,#151a20,#0d1115);color:#e8edf2;font-size:14px;line-height:1.8;overflow-wrap:anywhere; }
+    .gx-formation-content-page .video-wrap { width:100%!important;max-width:1100px!important;margin:0 auto!important; }
+    .gx-formation-content-page video,.gx-formation-content-page iframe { max-width:100%!important; }
     #training .gx-formation-content-body a { color:#78e8e3; }
     #training .gx-formation-content-page .lesson-header { align-items:flex-start; }
     @media(max-width:600px){
@@ -64,7 +77,9 @@
       #training .gx-formation-v3 .library-module-card .library-module-body { grid-column:2;grid-row:1;padding:12px!important; }
       #training .gx-formation-module-lessons .lesson button { grid-template-columns:32px minmax(0,1fr)!important; }
       #training .gx-formation-module-lessons .formation-lesson-action { grid-column:2;justify-self:start;margin-top:5px; }
-      #training .gx-formation-content-body { padding:16px;font-size:13px; }
+      .gx-formation-content-page { padding:14px!important;padding-top:calc(14px + env(safe-area-inset-top))!important;padding-bottom:calc(14px + env(safe-area-inset-bottom))!important; }
+      .gx-formation-content-body { padding:16px;font-size:13px; }
+      .gx-formation-content-page .lesson-header { gap:10px!important; }
     }
     body.gx-internal-session #notificationsPanel,
     body.gx-internal-session .notification-panel { position:absolute!important;top:calc(100% + 10px)!important;right:0!important;left:auto!important; }
@@ -80,6 +95,8 @@
   let activeModule = null;
   let activeModulePage = null;
   let lessonPageReturn = null;
+  let lessonViewOriginalParent = null;
+  let lessonViewOriginalNext = null;
 
   function lessonsFor(moduleId) {
     return (window._lessons || []).filter(item => item.module_id === moduleId)
@@ -100,6 +117,10 @@
         el.hidden = true;
         el.setAttribute('aria-hidden', 'true');
       }
+    });
+    const hero = root.querySelector('.gx-formation-hero');
+    if (hero) hero.querySelectorAll('*').forEach(el => {
+      if (el.children.length === 0 && /^100%$/.test((el.textContent || '').trim())) el.classList.add('gx-formation-percent-subtle');
     });
     root.querySelectorAll('.library-module-card').forEach(card => {
       const toggle = card.querySelector('[data-library-toggle]');
@@ -182,50 +203,68 @@
   async function openSupplementary(button) {
     const id = button.dataset.lesson;
     const lesson = (window._lessons || []).find(item => item.id === id);
-    if (!lesson || lesson.type === 'video') return false;
+    if (!lesson) return false;
     const returnModule = activeModule;
     if (typeof window.openLesson !== 'function') return false;
     await window.openLesson(id);
     const view = document.querySelector('#training #lessonView');
-    if (!view) return true;
+    if (!view) return false;
+    lessonViewOriginalParent = view.parentNode;
+    lessonViewOriginalNext = view.nextSibling;
     view.classList.remove('hidden');
     view.classList.add('gx-formation-content-page');
     const header = view.querySelector('.lesson-header');
     const eyebrow = view.querySelector('.eyebrow');
-    if (eyebrow) eyebrow.textContent = 'CONTENIDO DEL MÓDULO';
+    if (eyebrow) eyebrow.textContent = lesson.type === 'video' ? 'VIDEO DEL MÓDULO' : 'CONTENIDO DEL MÓDULO';
     if (header) {
       const title = header.querySelector('h2');
       const desc = header.querySelector('p');
       const top = document.createElement('div');
       top.className = 'gx-formation-module-top';
-      top.innerHTML = '<button type="button" class="gx-formation-back" aria-label="Volver al módulo">‹</button><div class="gx-formation-module-heading"><small>RECURSO DE APRENDIZAJE</small></div>';
+      top.innerHTML = '<button type="button" class="gx-formation-back" aria-label="Volver al módulo">‹</button><div class="gx-formation-module-heading"><small>' + (lesson.type === 'video' ? 'VIDEO DE APRENDIZAJE' : 'RECURSO DE APRENDIZAJE') + '</small></div>';
       if (title) top.querySelector('.gx-formation-module-heading').appendChild(title);
       if (desc) top.querySelector('.gx-formation-module-heading').appendChild(desc);
       header.replaceWith(top);
-      top.querySelector('button').addEventListener('click', async () => {
-        view.classList.remove('gx-formation-content-page');
-        view.classList.add('hidden');
-        if (returnModule) {
-          await trainingTpl({skipAutoOpen:true});
-          const card = document.querySelector('#training [data-formation-module-card="' + CSS.escape(returnModule) + '"]');
-          if (card) openModule(card);
-        }
-      });
+      top.querySelector('button').addEventListener('click', closeLessonView);
     }
     const content = view.querySelector('.section');
     if (content) content.classList.add('gx-formation-content-body');
     const media = view.querySelector('.video-wrap');
     if (media) media.classList.add('gx-formation-content-body');
     lessonPageReturn = returnModule;
-    window.scrollTo({top:0,behavior:'smooth'});
+    // Sácala del contenedor de Formación para evitar que herede su layout y sus tarjetas.
+    document.body.appendChild(view);
+    document.body.classList.add('gx-formation-fullscreen-open');
+    document.documentElement.style.overflow = 'hidden';
+    window.scrollTo({top:0,behavior:'instant'});
     return true;
+  }
+
+  function closeLessonView() {
+    const view = document.querySelector('#lessonView.gx-formation-content-page');
+    if (!view) return;
+    view.classList.remove('gx-formation-content-page');
+    view.classList.add('hidden');
+    if (lessonViewOriginalParent) {
+      if (lessonViewOriginalNext && lessonViewOriginalNext.parentNode === lessonViewOriginalParent) {
+        lessonViewOriginalParent.insertBefore(view, lessonViewOriginalNext);
+      } else {
+        lessonViewOriginalParent.appendChild(view);
+      }
+    }
+    document.body.classList.remove('gx-formation-fullscreen-open');
+    document.documentElement.style.overflow = '';
+    lessonViewOriginalParent = null;
+    lessonViewOriginalNext = null;
+    lessonPageReturn = null;
+    window.scrollTo({top:0,behavior:'instant'});
   }
 
   document.addEventListener('click', async event => {
     const lessonButton = event.target.closest('#training .gx-formation-module-lessons [data-lesson]');
     if (!lessonButton) return;
     const lesson = (window._lessons || []).find(item => item.id === lessonButton.dataset.lesson);
-    if (!lesson || lesson.type === 'video') return;
+    if (!lesson) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     await openSupplementary(lessonButton);
