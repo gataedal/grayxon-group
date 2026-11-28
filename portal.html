@@ -2463,6 +2463,29 @@ body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificatio
 }
 </style>
 
+<!-- Restaurar el panel de notificaciones anclado debajo de la campana. -->
+<style id="gx-notifications-bell-anchor-position-v1">
+.gx-bell-anchor #notificationsPanel.gx-bottom-popover{
+  position:absolute!important;
+  top:calc(100% + 10px)!important;
+  right:0!important;
+  bottom:auto!important;
+  left:auto!important;
+  width:min(370px,calc(100vw - 24px))!important;
+  max-width:min(370px,calc(100vw - 24px))!important;
+  max-height:min(72dvh,560px)!important;
+  transform:none!important;
+  z-index:20001!important;
+}
+@media(max-width:650px){
+  .gx-bell-anchor #notificationsPanel.gx-bottom-popover{
+    right:-8px!important;
+    width:min(350px,calc(100vw - 18px))!important;
+    max-width:min(350px,calc(100vw - 18px))!important;
+  }
+}
+</style>
+
 <!-- Restaurar la acción de apertura de la campana cuando el DOM ya contiene el encabezado. -->
 <script id="gx-header-notifications-click-v2">
 (function(){
@@ -2473,13 +2496,13 @@ body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificatio
     button.dataset.gxNotificationsClickBound='1';
     button.addEventListener('click',function(event){
       event.preventDefault();
-      event.stopPropagation();
       if(typeof window.grayxonToggleNotifications==='function'){
         window.grayxonToggleNotifications();
       }else{
         const willOpen=panel.classList.contains('hidden');
         panel.classList.toggle('hidden',!willOpen);
         panel.setAttribute('aria-hidden',String(!willOpen));
+        button.setAttribute('aria-expanded',String(willOpen));
       }
     });
   }
