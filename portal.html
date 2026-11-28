@@ -2589,3 +2589,31 @@ body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-sessio
   }
 }
 </style>
+
+<style id="gx-menu-button-width-final-v2">
+/* Última regla deliberada: prevalece sobre los antiguos tamaños fijos móviles. */
+body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxHeaderDrawerTrigger,
+body.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxHeaderDrawerTrigger,
+body.gx-internal-session header.top #gxInternalMenuTrigger{
+  display:inline-flex!important;
+  box-sizing:border-box!important;
+  width:92px!important;
+  min-width:92px!important;
+  max-width:92px!important;
+  flex:0 0 92px!important;
+  height:40px!important;
+  min-height:40px!important;
+  padding:0 17px!important;
+  justify-content:center!important;
+  align-items:center!important;
+  white-space:nowrap!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxHeaderDrawerTrigger span,
+body.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxHeaderDrawerTrigger span,
+body.gx-internal-session header.top #gxInternalMenuTrigger span{
+  display:block!important;
+  white-space:nowrap!important;
+  line-height:1!important;
+}
+</style>
+
