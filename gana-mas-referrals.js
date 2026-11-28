@@ -539,12 +539,19 @@
     await loadData();render();
   }
   function watchAuth(){
+    // Keep this optional module isolated: never observe the entire document.
+    // Only react to changes inside the creator workspace and perform a light
+    // fallback check for auth/profile readiness and admin/manager entry points.
     ensureButton();
-    const observer=new MutationObserver(()=>{ensureButton();ensureAdminProgramCard();});
-    observer.observe(document.body,{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
-    const main=document.querySelector('main.wrap');
-    if(main)new MutationObserver(()=>{ensureButton();if(isOpen&&$('gxReferralsPage')?.classList.contains('hidden')){isOpen=false;}}).observe(main,{childList:true,subtree:false});
-    setInterval(()=>{ensureButton();},1800);
+    const space=$('space');
+    if(space){
+      const spaceObserver=new MutationObserver(()=>ensureButton());
+      spaceObserver.observe(space,{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
+    }
+    const refresh=()=>{if(!document.hidden)ensureButton();};
+    window.addEventListener('pageshow',refresh);
+    document.addEventListener('visibilitychange',refresh);
+    setInterval(()=>{if(!document.hidden)ensureButton();},5000);
   }
   function boot(){
     ensurePage();ensureButton();watchAuth();
