@@ -260,8 +260,8 @@
       : [
           ['home','⌂','Resumen'],['tasks','▤','Tareas'],['requests','↗','Solicitudes'],['followup','◎','Seguimiento'],['reports','▥','Reportes']
         ];
-    nav.innerHTML = items.map(([key,icon,label]) =>
-      '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span>'+label+'</button>'
+    nav.innerHTML = '<button type="button" class="gxt-nav-toggle" data-nav-toggle aria-label="Contraer o expandir menú"><span class="gxt-nav-ico">☰</span><span class="gxt-nav-label">Contraer menú</span></button>' + items.map(([key,icon,label]) =>
+      '<button type="button" data-tab="'+key+'" class="'+(state.tab===key?'active':'')+'"><span class="gxt-nav-ico">'+icon+'</span><span class="gxt-nav-label">'+label+'</span></button>'
     ).join('');
   }
 
@@ -1555,6 +1555,13 @@
   }
 
   nav.addEventListener('click',event=>{
+    if(event.target.closest('[data-nav-toggle]')){
+      const shell=document.getElementById('gxApp');
+      const collapsed=shell.classList.toggle('is-nav-collapsed');
+      const toggle=nav.querySelector('[data-nav-toggle]');
+      if(toggle){toggle.setAttribute('aria-label',collapsed?'Expandir menú':'Contraer menú');const label=toggle.querySelector('.gxt-nav-label');if(label)label.textContent=collapsed?'Expandir menú':'Contraer menú';}
+      return;
+    }
     const button=event.target.closest('[data-tab]');
     if(!button)return;
     state.tab=button.dataset.tab;
