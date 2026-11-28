@@ -11,7 +11,8 @@
     if(document.getElementById('gxCreatorDeliveriesStyles'))return;
     const style=document.createElement('style');style.id='gxCreatorDeliveriesStyles';
     style.textContent=`
-      #gxCreatorDeliveriesScreen{position:fixed;inset:0 0 calc(84px + env(safe-area-inset-bottom,0px));z-index:9000;overflow:auto;background:radial-gradient(ellipse at 12% 0%,#17212a 0%,#080a0d 42%,#070809 100%);color:#f4f6f8;padding:calc(env(safe-area-inset-top,0px) + 15px) 16px calc(env(safe-area-inset-bottom,0px) + 28px);box-sizing:border-box}
+      body.gx-creator-deliveries-active main.wrap>.page{display:none!important}
+      #gxCreatorDeliveriesScreen{position:fixed;inset:var(--gx-creator-deliveries-top,70px) 0 0;z-index:40;overflow:auto;background:radial-gradient(ellipse at 12% 0%,#17212a 0%,#080a0d 42%,#070809 100%);color:#f4f6f8;padding:calc(env(safe-area-inset-top,0px) + 15px) 16px calc(env(safe-area-inset-bottom,0px) + 28px);box-sizing:border-box}
       #gxCreatorDeliveriesScreen[hidden]{display:none!important}
       .gx-delivery-shell{width:min(900px,100%);margin:0 auto}
       .gx-delivery-head{display:flex;align-items:center;gap:13px;padding:4px 0 18px;border-bottom:1px solid #29323c}
@@ -177,6 +178,10 @@
   function openScreen(deliveryId){
     ensureScreen();
     previousOverflow=document.body.style.overflow;
+    const globalHeader=document.querySelector('header.top');
+    const headerBottom=globalHeader?Math.max(0,globalHeader.getBoundingClientRect().bottom):70;
+    screen.style.setProperty('--gx-creator-deliveries-top',headerBottom+'px');
+    document.body.classList.add('gx-creator-deliveries-active');
     document.body.style.overflow='hidden';
     screen.hidden=false;
     loadDeliveries().then(()=>{if(deliveryId)openDelivery(deliveryId)});
@@ -184,6 +189,7 @@
   function closeScreen(){
     if(!screen)return;
     screen.hidden=true;closeDetail();
+    document.body.classList.remove('gx-creator-deliveries-active');
     document.body.style.overflow=previousOverflow;
   }
   function closeDetail(){if(detailRoot){detailRoot.hidden=true;detailRoot.classList.remove('is-plan')}document.getElementById('gxCreatorDeliveryPreview')?.remove()}
