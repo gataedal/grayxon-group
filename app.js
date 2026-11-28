@@ -553,6 +553,12 @@ function ensureHeaderNotificationsLayout(){
     #notificationsPanel .notification-empty span{font-size:11px}
     @media(max-width:800px){#notificationsPanel{width:min(420px,calc(100vw - 24px))!important;max-height:min(68dvh,560px)!important;padding:12px!important}#notificationsPanel .notification-item{padding:12px 1px!important}#notificationsPanel .notification-copy strong{font-size:13px!important}#notificationsPanel .notification-copy>span{font-size:12px!important}}
     @media(max-width:360px){#notificationsPanel{padding:10px!important}#notificationsPanel .notification-icon{width:36px;height:36px}#notificationsPanel .notification-item{grid-template-columns:36px minmax(0,1fr) 6px;gap:9px}#notificationsPanel .notification-tab{font-size:11px;padding-inline:8px}}
+    /* Único ajuste para creadores: avatar e identidad visibles en el encabezado. */
+    body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions .profile-menu-wrap{display:flex!important;order:0!important;flex:0 0 40px!important;width:40px!important;height:40px!important}
+    body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #mobileProfile{display:grid!important;visibility:visible!important;opacity:1!important}
+    body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta{display:flex!important;order:1!important;flex:1 1 auto!important;min-width:0!important;align-items:flex-start!important;text-align:left!important}
+    body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn{order:2!important}
+    body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions{gap:8px!important}
     /* Header: campana independiente, al lado del avatar y nunca superpuesta. */
     .header-actions #adminOpen.grayxon-manager-header-hidden,
     body.grayxon-manager-session .header-actions #adminOpen{display:none!important}
@@ -6772,8 +6778,8 @@ function updateHeaderAccessUI(){
   document.body.classList.toggle('grayxon-manager-session',isManagerSession);
   const userName=document.getElementById('gxInternalUserName'),userRole=document.getElementById('gxInternalUserRole'),userMeta=document.getElementById('gxInternalUserMeta');
   if(userName)userName.textContent=profile?.full_name||profile?.username||'';
-  if(userRole)userRole.textContent=profile?.role==='admin'?'Administrador':profile?.role==='manager'?'Manager':'';
-  if(userMeta)userMeta.hidden=!isInternalSession;
+  if(userRole)userRole.textContent=profile?.role==='admin'?'Administrador':profile?.role==='manager'?'Manager':profile?.role==='creator'?'Creador':'';
+  if(userMeta)userMeta.hidden=!(isInternalSession||(session&&profile?.role==='creator'));
   const backBar=document.getElementById('gxInternalBackBar'),backButton=document.getElementById('gxInternalBackButton'),backTitle=document.getElementById('gxInternalBackTitle');
   const isDashboard=profile?.role==='admin'?(current==='admin'&&adminView==='dashboard'):profile?.role==='manager'?(current==='manager'&&managerView==='dashboard'):true;
   if(backBar)backBar.hidden=!isInternalSession||isDashboard;
