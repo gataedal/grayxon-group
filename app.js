@@ -505,11 +505,14 @@ async function loadNotifications() {
   if (!session?.user?.id) { notifications = []; updateNotificationsUI(); return; }
   // Mostrar todo lo de los últimos 7 días y conservar también pendientes más antiguas.
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await sb.from('notifications')
-    .select('id,type,title,message,link_page,link_target,related_week_start,related_week_end,read_at,created_at')
-    .eq('user_id', session.user.id)
-    .or(`created_at.gte.${sevenDaysAgo},read_at.is.null`)
-    .order('created_at', { ascending: false });
+  const { data, error } = await grayxonWithTimeout(
+    sb.from('notifications')
+      .select('id,type,title,message,link_page,link_target,related_week_start,related_week_end,read_at,created_at')
+      .eq('user_id', session.user.id)
+      .or(`created_at.gte.${sevenDaysAgo},read_at.is.null`)
+      .order('created_at', { ascending: false }),
+    4000,{data:null,error:new Error('timeout')},'notifications'
+  );
   if (error) { notifications = []; updateNotificationsUI(); return; }
   notifications = data || [];
   updateNotificationsUI();
@@ -1536,14 +1539,37 @@ function profileInitial(p = profile){
   const n = (p?.full_name || p?.username || 'G').trim();
   return (n.charAt(0) || 'G').toUpperCase();
 }
+// Las consultas secundarias nunca deben dejar el arranque del portal esperando indefinidamente.
+function grayxonWithTimeout(promise, timeoutMs, fallback, label){
+  let timer=null;
+  return Promise.race([
+    Promise.resolve(promise).catch(error=>{
+      console.warn('Grayxon: consulta opcional falló ('+label+'):',error);
+      return fallback;
+    }),
+    new Promise(resolve=>{
+      timer=setTimeout(()=>{
+        console.warn('Grayxon: tiempo de espera agotado ('+label+'). Se continúa con datos disponibles.');
+        resolve(fallback);
+      },timeoutMs);
+    })
+  ]).finally(()=>{if(timer!==null)clearTimeout(timer);});
+}
+
 async function loadProfileDetails(){
   if (!session?.user?.id) return { details:null, payment:null };
   const uid=session.user.id;
   const [dRes, pRes] = await Promise.all([
-    sb.from('profile_details').select('*').eq('user_id', uid).maybeSingle(),
+    grayxonWithTimeout(
+      sb.from('profile_details').select('*').eq('user_id', uid).maybeSingle(),
+      4000,{data:null,error:new Error('timeout')},'profile_details'
+    ),
     // Do not use maybeSingle() here: older data can contain more than one payment row.
     // We keep the newest primary row without allowing a duplicate to break the profile.
-    sb.from('payment_methods').select('*').eq('user_id', uid).order('is_primary',{ascending:false}).order('updated_at',{ascending:false}).limit(1)
+    grayxonWithTimeout(
+      sb.from('payment_methods').select('*').eq('user_id', uid).order('is_primary',{ascending:false}).order('updated_at',{ascending:false}).limit(1),
+      4000,{data:[],error:new Error('timeout')},'payment_methods'
+    )
   ]);
   const paymentRows=Array.isArray(pRes?.data) ? pRes.data : [];
   // Payment data is optional. A read-policy error must not poison the entire profile UI.
@@ -7313,8 +7339,18 @@ async function init() {
 
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (session) { profile = await getProfile(); document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator'); document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager'); await loadProfileDetails(); await loadNotifications(); updateGrayxonPresence(); }
-  else updateNotificationsUI();
+  if (session) {
+    profile = await getProfile();
+    document.body.classList.toggle('grayxon-creator-session', profile?.role==='creator');
+    document.body.classList.toggle('grayxon-manager-session', profile?.role === 'manager');
+    // Detalles y notificaciones son secundarios: cargarlos en paralelo y con límite
+    // evita que una petición lenta impida llegar al nav() que muestra el portal.
+    await Promise.all([
+      loadProfileDetails(),
+      loadNotifications()
+    ]);
+    updateGrayxonPresence();
+  } else updateNotificationsUI();
   updateHeaderAccessUI();
 
   // The push service sends page/target in the query string. Restore the intended
