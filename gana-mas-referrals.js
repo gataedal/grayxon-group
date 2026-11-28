@@ -57,7 +57,7 @@
     }
     const loggedIn=!!userId() && !!currentProfile()?.active;
     // Los accesos internos se muestran dentro del menú expandible; los creadores conservan su botón habitual.
-    button.classList.toggle('gx-referral-hidden',!loggedIn || isAdmin() || currentProfile()?.role==='manager');
+    button.classList.toggle('gx-referral-hidden',!loggedIn || isAdmin() || currentProfile()?.role==='manager' || document.body.classList.contains('grayxon-creator-session'));
     ensureAdminProgramCard();
     ensureManagerReferralMenuItem();
   }

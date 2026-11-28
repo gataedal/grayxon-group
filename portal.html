@@ -476,6 +476,16 @@ body.gx-internal-session .manager-dashboard-grid{gap:14px;margin-top:4px}
 body.gx-internal-session .manager-subpage-header{border-color:#35404a;border-radius:17px;background:linear-gradient(120deg,#171c22,#101419)}
 @media(max-width:600px){body.gx-internal-session .admin-dashboard-hero{padding:21px 19px;border-radius:18px}body.gx-internal-session .admin-dashboard-card,body.gx-internal-session .manager-dashboard-card{min-height:108px;padding:15px;border-radius:15px}}
 </style>
+<style id="gx-creator-home-only-chrome-v1">
+/* El branding grande pertenece únicamente al inicio del creador. Se conserva el acceso al menú. */
+body.grayxon-creator-session.gx-bottom-nav-authenticated:has(main.wrap > .page:not(#home):not(.hidden)) header.top #homeBrand{
+  display:none!important;
+}
+/* Accesos temporales ocultos sin eliminar sus módulos ni sus funciones. */
+header.top .header-actions #gxOpenReferrals.gx-referral-hidden{
+  display:none!important;
+}
+</style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
 <header class="top"><div class="gx-header-brand-stack"><div class="brand" id="homeBrand" role="img" aria-label="Grayxon Group"><img class="logo" src="assets/grayxon-logo.png" alt=""><b>GRAYXON</b><span class="brand-live">LIVE</span></div><button type="button" class="gx-internal-menu-trigger" id="gxInternalMenuTrigger" aria-label="Abrir menú principal" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div><div class="header-actions"><div class="gx-internal-user-meta" id="gxInternalUserMeta"><strong id="gxInternalUserName"></strong><span id="gxInternalUserRole"></span></div><button id="notificationsBtn" class="notifications-btn" aria-label="Notificaciones"><span class="notification-bell">🔔</span><span id="notificationsBadge" class="notification-badge hidden">0</span></button><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir perfil">G</button><div id="profileMenu" class="profile-menu hidden" aria-hidden="true"></div></div><div id="notificationsPanel" class="notification-panel hidden"></div></div></header>
@@ -2202,5 +2212,138 @@ body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificatio
     width:26px!important;min-width:26px!important;flex-basis:26px!important;font-size:21px!important;
   }
   body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn .notification-bell{font-size:21px!important}
+}
+</style>
+
+<!-- Ajuste final del encabezado móvil de creadores: identidad compacta, sin marca redundante. -->
+<style id="gx-creator-header-compact-v2">
+/* El encabezado de creadores usa el espacio para la identidad, no para el logo de marca. */
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top{
+  height:76px!important;
+  min-height:76px!important;
+  padding:8px 16px!important;
+  gap:0!important;
+  justify-content:flex-start!important;
+  overflow:visible!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .gx-header-brand-stack{
+  position:static!important;
+  left:auto!important;
+  top:auto!important;
+  transform:none!important;
+  display:flex!important;
+  width:auto!important;
+  max-width:none!important;
+  min-width:0!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #homeBrand{
+  display:none!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions{
+  position:static!important;
+  display:flex!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  padding:0!important;
+  margin:0!important;
+  justify-content:flex-end!important;
+  align-items:center!important;
+  gap:0!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions .profile-menu-wrap{
+  position:absolute!important;
+  left:14px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  width:44px!important;
+  height:44px!important;
+  z-index:3!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #mobileProfile{
+  display:grid!important;
+  width:44px!important;
+  height:44px!important;
+  min-width:44px!important;
+  border-radius:50%!important;
+  overflow:hidden!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #mobileProfile img{
+  width:100%!important;height:100%!important;object-fit:cover!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta{
+  position:absolute!important;
+  left:70px!important;
+  right:66px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  gap:4px!important;
+  width:auto!important;
+  max-width:none!important;
+  min-width:0!important;
+  text-align:left!important;
+  z-index:2!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta strong{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+  font-size:15px!important;
+  line-height:1.15!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta span{
+  display:inline-flex!important;
+  width:max-content!important;
+  max-width:100%!important;
+  padding:3px 9px!important;
+  font-size:10px!important;
+  line-height:1.15!important;
+  white-space:nowrap!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn{
+  position:absolute!important;
+  right:14px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  width:34px!important;
+  height:38px!important;
+  min-width:34px!important;
+  min-height:38px!important;
+  z-index:3!important;
+}
+@media(max-width:650px){
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top{
+    height:68px!important;
+    min-height:68px!important;
+    padding:6px 12px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .header-actions .profile-menu-wrap{
+    left:12px!important;width:42px!important;height:42px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #mobileProfile{
+    width:42px!important;height:42px!important;min-width:42px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta{
+    left:64px!important;right:54px!important;gap:3px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta strong{
+    font-size:14px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta span{
+    padding:3px 8px!important;font-size:9px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #notificationsBtn{
+    right:10px!important;width:28px!important;min-width:28px!important;
+    flex-basis:28px!important;height:34px!important;min-height:34px!important;
+  }
 }
 </style>
