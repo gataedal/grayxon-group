@@ -2488,33 +2488,7 @@ body.gx-internal-session .gx-bell-anchor #notificationsPanel.gx-bottom-popover{
 }
 </style>
 
-<!-- Restaurar la acción de apertura de la campana cuando el DOM ya contiene el encabezado. -->
-<script id="gx-header-notifications-click-v2">
-(function(){
-  function bind(){
-    const button=document.getElementById('notificationsBtn');
-    const panel=document.getElementById('notificationsPanel');
-    if(!button||!panel||button.dataset.gxNotificationsClickBound)return;
-    button.dataset.gxNotificationsClickBound='1';
-    button.addEventListener('click',function(event){
-      event.preventDefault();
-      if(typeof window.grayxonToggleNotifications==='function'){
-        window.grayxonToggleNotifications();
-      }else{
-        const willOpen=panel.classList.contains('hidden');
-        panel.classList.toggle('hidden',!willOpen);
-        panel.setAttribute('aria-hidden',String(!willOpen));
-        button.setAttribute('aria-expanded',String(willOpen));
-      }
-    });
-  }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',bind,{once:true});
-  }else{
-    bind();
-  }
-})();
-</script>
+
 
 <!-- Corrección de separación y estabilidad de campana frente al menú lateral. -->
 <style id="gx-creator-header-bell-spacing-v1">
