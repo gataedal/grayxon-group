@@ -486,9 +486,62 @@ header.top .header-actions #gxOpenReferrals.gx-referral-hidden{
   display:none!important;
 }
 </style>
+<style id="gx-header-drawer-and-notifications-v1">
+/* Menú lateral derecho para reutilizar los accesos de la navegación inferior. */
+.gx-header-drawer-trigger{display:none;align-items:center;justify-content:center;width:36px;height:38px;min-width:36px;border:1px solid #343b44;border-radius:12px;background:linear-gradient(145deg,#171c22,#0d1014);color:#e8edf3;box-shadow:0 5px 16px #0005;padding:0}
+.gx-header-drawer-trigger svg{width:21px;height:21px}
+body.gx-bottom-nav-authenticated:not(.gx-internal-session) .gx-header-drawer-trigger{display:inline-flex!important}
+.gx-header-drawer-overlay{position:fixed;inset:0;z-index:30000;background:rgba(2,4,7,.68);backdrop-filter:blur(5px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .24s ease,visibility .24s ease}
+.gx-header-drawer-overlay.is-open{opacity:1;visibility:visible;pointer-events:auto}
+.gx-header-drawer{position:absolute;inset:0 0 0 auto;width:min(340px,88vw);padding:calc(20px + env(safe-area-inset-top,0px)) 18px calc(22px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:20px;overflow-y:auto;background:linear-gradient(165deg,#151a20 0%,#0b0e12 56%,#090b0e 100%);border-left:1px solid #39414b;box-shadow:-22px 0 65px #0009;transform:translateX(102%);transition:transform .28s cubic-bezier(.2,.75,.2,1)}
+.gx-header-drawer-overlay.is-open .gx-header-drawer{transform:translateX(0)}
+.gx-header-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:3px 2px 17px;border-bottom:1px solid #ffffff14}
+.gx-header-drawer-head strong{display:block;color:#f1f3f6;font-size:15px;letter-spacing:.17em}
+.gx-header-drawer-head span{display:block;margin-top:4px;color:#8994a2;font-size:10px;letter-spacing:.13em;text-transform:uppercase}
+.gx-header-drawer-head button{width:38px;height:38px;border:1px solid #343b44;border-radius:11px;background:#ffffff08;color:#f1f3f6;font-size:25px;line-height:1}
+.gx-header-drawer-items{display:grid;gap:8px}
+.gx-header-drawer-item{width:100%;min-height:58px;padding:10px 13px;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:14px;border:1px solid #303943;border-radius:14px;background:linear-gradient(145deg,#151b21,#0e1217);color:#e2e7ed;font-size:14px;font-weight:650;text-align:left}
+.gx-header-drawer-item:hover{border-color:#53616e;background:linear-gradient(145deg,#1b232b,#11171d)}
+.gx-header-drawer-item .gx-nav-icon{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border:1px solid #3a4651;border-radius:10px;background:linear-gradient(145deg,#202a33,#141a20);color:#70dce6}
+.gx-header-drawer-item .gx-nav-icon svg{width:20px;height:20px}
+.gx-header-drawer-item>span:nth-child(2){flex:1;min-height:0;max-height:none;width:auto;text-align:left;white-space:normal;overflow:visible;font-size:14px;line-height:1.3;letter-spacing:0}
+.gx-header-drawer-item .gx-nav-badge{position:static;min-width:20px;height:20px}
+.gx-header-drawer-item[hidden]{display:none!important}
+/* En creadores, el botón nuevo queda inmediatamente a la derecha de la campana. */
+body.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #notificationsBtn{right:54px!important}
+body.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxHeaderDrawerTrigger{position:absolute!important;right:10px!important;top:50%!important;transform:translateY(-50%)!important;z-index:4!important}
+body.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxInternalUserMeta{right:100px!important}
+@media(max-width:650px){
+ body.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #notificationsBtn{right:52px!important}
+ body.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxHeaderDrawerTrigger{right:8px!important;width:34px;height:36px;min-width:34px}
+ body.gx-bottom-nav-authenticated:not(.gx-internal-session) header.top #gxInternalUserMeta{right:94px!important}
+}
+/* Panel de notificaciones legible y amplio, sin cambiar su contenido ni su lógica. */
+body.gx-bottom-nav-authenticated #notificationsPanel.gx-bottom-popover{
+ position:fixed!important;top:auto!important;left:50%!important;right:auto!important;
+ bottom:calc(90px + env(safe-area-inset-bottom,0px))!important;
+ width:min(520px,calc(100vw - 24px))!important;max-width:520px!important;
+ max-height:min(72dvh,680px)!important;overflow:auto!important;
+ transform:translateX(-50%)!important;padding:14px!important;z-index:20001!important;
+}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-panel-head{padding:10px 10px 14px}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-panel-head strong{font-size:16px}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-panel-head span{font-size:12px}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-panel-head button{font-size:12px}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-item{grid-template-columns:40px minmax(0,1fr) 9px;gap:12px;padding:13px}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-icon{width:40px;height:40px;font-size:18px}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-copy strong{font-size:14px;line-height:1.35}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-copy>span{font-size:13px;line-height:1.55}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-copy small{font-size:11px}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-empty{font-size:14px}
+body.gx-bottom-nav-authenticated #notificationsPanel .notification-empty span{font-size:13px}
+@media(max-width:650px){
+ body.gx-bottom-nav-authenticated #notificationsPanel.gx-bottom-popover{width:calc(100vw - 20px)!important;max-height:min(70dvh,620px)!important;bottom:calc(86px + env(safe-area-inset-bottom,0px))!important;padding:12px!important}
+}
+</style>
 </head>
 <body style="margin:0;min-height:100vh;background:#08090b;">
-<header class="top"><div class="gx-header-brand-stack"><div class="brand" id="homeBrand" role="img" aria-label="Grayxon Group"><img class="logo" src="assets/grayxon-logo.png" alt=""><b>GRAYXON</b><span class="brand-live">LIVE</span></div><button type="button" class="gx-internal-menu-trigger" id="gxInternalMenuTrigger" aria-label="Abrir menú principal" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div><div class="header-actions"><div class="gx-internal-user-meta" id="gxInternalUserMeta"><strong id="gxInternalUserName"></strong><span id="gxInternalUserRole"></span></div><button id="notificationsBtn" class="notifications-btn" aria-label="Notificaciones"><span class="notification-bell">🔔</span><span id="notificationsBadge" class="notification-badge hidden">0</span></button><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir perfil">G</button><div id="profileMenu" class="profile-menu hidden" aria-hidden="true"></div></div><div id="notificationsPanel" class="notification-panel hidden"></div></div></header>
+<header class="top"><div class="gx-header-brand-stack"><div class="brand" id="homeBrand" role="img" aria-label="Grayxon Group"><img class="logo" src="assets/grayxon-logo.png" alt=""><b>GRAYXON</b><span class="brand-live">LIVE</span></div><button type="button" class="gx-internal-menu-trigger" id="gxInternalMenuTrigger" aria-label="Abrir menú principal" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div><div class="header-actions"><div class="gx-internal-user-meta" id="gxInternalUserMeta"><strong id="gxInternalUserName"></strong><span id="gxInternalUserRole"></span></div><button id="notificationsBtn" class="notifications-btn" aria-label="Notificaciones"><span class="notification-bell">🔔</span><span id="notificationsBadge" class="notification-badge hidden">0</span></button><button type="button" id="gxHeaderDrawerTrigger" class="gx-header-drawer-trigger" aria-label="Abrir menú de navegación" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><button id="adminOpen" class="admin-btn">⚙ Admin</button><div class="profile-menu-wrap"><button id="mobileProfile" class="mobile-profile" aria-label="Abrir perfil">G</button><div id="profileMenu" class="profile-menu hidden" aria-hidden="true"></div></div><div id="notificationsPanel" class="notification-panel hidden"></div></div></header>
 <main class="wrap"><div id="gxInternalBackBar" class="gx-internal-back-bar" hidden><button type="button" id="gxInternalBackButton" aria-label="Volver"><span aria-hidden="true">←</span></button><span id="gxInternalBackTitle"></span></div><section id="home" class="page"></section><section id="benefits" class="page hidden"></section><section id="auth" class="page hidden"></section><section id="space" class="page hidden"></section><section id="manager" class="page hidden"></section><section id="training" class="page hidden"></section><section id="missions" class="page hidden"></section><section id="profile" class="page hidden"></section><section id="admin" class="page hidden"></section><section id="announcements" class="page hidden"></section><section id="force-password" class="page hidden"></section></main>
 <div class="gx-internal-menu-overlay" id="gxInternalMenuOverlay" aria-hidden="true">
  <aside class="gx-internal-menu-panel" role="dialog" aria-modal="true" aria-label="Menú principal">
@@ -506,6 +559,68 @@ header.top .header-actions #gxOpenReferrals.gx-referral-hidden{
 <button type="button" data-gx-bottom="calendar" aria-label="Calendario"><span class="gx-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg></span><span>Calendario</span></button>
 <button type="button" data-gx-bottom="deliveries" aria-label="Mis entregas" hidden><span class="gx-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5V17l9 4 9-4V7.5M12 12v9"/><path d="m8.5 10.2 7-3.5"/></svg></span><span>Mis entregas</span></button><button type="button" data-gx-bottom="profile" aria-label="Perfil"><span class="gx-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span>Perfil</span></button>
 </nav>
+<div id="gxHeaderDrawerOverlay" class="gx-header-drawer-overlay" aria-hidden="true">
+ <aside id="gxHeaderDrawer" class="gx-header-drawer" role="dialog" aria-modal="true" aria-label="Menú de navegación">
+  <div class="gx-header-drawer-head"><div><strong>GRAYXON</strong><span>Accesos rápidos</span></div><button type="button" id="gxHeaderDrawerClose" aria-label="Cerrar menú">×</button></div>
+  <nav id="gxHeaderDrawerItems" class="gx-header-drawer-items" aria-label="Opciones principales"></nav>
+ </aside>
+</div>
+<script>
+(function(){
+ const trigger=document.getElementById('gxHeaderDrawerTrigger');
+ const overlay=document.getElementById('gxHeaderDrawerOverlay');
+ const panel=document.getElementById('gxHeaderDrawer');
+ const closeButton=document.getElementById('gxHeaderDrawerClose');
+ const items=document.getElementById('gxHeaderDrawerItems');
+ const sourceNav=document.getElementById('grayxonBottomNav');
+ if(!trigger||!overlay||!panel||!items||!sourceNav||trigger.dataset.bound)return;
+ trigger.dataset.bound='1';
+ let previousOverflow='';
+ function renderItems(){
+  items.replaceChildren();
+  sourceNav.querySelectorAll('button[data-gx-bottom]').forEach(source=>{
+   if(source.hidden||source.getAttribute('aria-hidden')==='true')return;
+   const clone=source.cloneNode(true);
+   clone.removeAttribute('id');
+   clone.removeAttribute('data-gx-bottom');
+   clone.removeAttribute('style');
+   clone.classList.remove('active');
+   clone.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+   clone.classList.add('gx-header-drawer-item');
+   clone.addEventListener('click',()=>{
+    closeDrawer();
+    source.click();
+   });
+   items.appendChild(clone);
+  });
+ }
+ function openDrawer(){
+  if(!document.body.classList.contains('gx-bottom-nav-authenticated')||document.body.classList.contains('gx-internal-session'))return;
+  renderItems();
+  previousOverflow=document.body.style.overflow;
+  document.body.style.overflow='hidden';
+  overlay.classList.add('is-open');
+  overlay.setAttribute('aria-hidden','false');
+  trigger.setAttribute('aria-expanded','true');
+  requestAnimationFrame(()=>closeButton?.focus());
+ }
+ function closeDrawer(){
+  overlay.classList.remove('is-open');
+  overlay.setAttribute('aria-hidden','true');
+  trigger.setAttribute('aria-expanded','false');
+  document.body.style.overflow=previousOverflow;
+  trigger.focus({preventScroll:true});
+ }
+ trigger.addEventListener('click',openDrawer);
+ closeButton?.addEventListener('click',closeDrawer);
+ overlay.addEventListener('click',event=>{if(event.target===overlay)closeDrawer()});
+ panel.addEventListener('click',event=>event.stopPropagation());
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&overlay.classList.contains('is-open'))closeDrawer()});
+ const navObserver=new MutationObserver(()=>{if(overlay.classList.contains('is-open'))renderItems()});
+ navObserver.observe(sourceNav,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','aria-hidden']});
+ window.gxCloseHeaderDrawer=closeDrawer;
+})();
+</script>
 <script>
 (function(){
 const nav=document.getElementById('grayxonBottomNav');if(!nav||nav.dataset.bound)return;nav.dataset.bound='1';
