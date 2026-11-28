@@ -938,6 +938,45 @@ main.wrap,.wrap{width:100%;max-width:1800px!important;margin-left:auto!important
 
 
 
+
+<style id="gx-creator-logo-only-name-wrap-v1">
+/* Ajuste exclusivo del encabezado de creadores: solo el isotipo centrado y nombre sin elipsis. */
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .gx-header-brand-stack{
+  left:50%!important;right:auto!important;max-width:none!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #homeBrand{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #homeBrand .logo{
+  display:block!important;width:clamp(76px,8vw,104px)!important;height:auto!important;
+  max-width:none!important;max-height:64px!important;object-fit:contain!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #homeBrand b,
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #homeBrand .brand-live{
+  display:none!important;
+}
+body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta strong{
+  white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
+  overflow-wrap:anywhere!important;word-break:normal!important;
+}
+@media(max-width:650px){
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top .gx-header-brand-stack{
+    max-width:none!important;width:auto!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #homeBrand .logo{
+    width:58px!important;max-height:48px!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta{
+    width:calc(50vw - 104px)!important;max-width:calc(50vw - 104px)!important;
+    min-width:0!important;
+  }
+  body.grayxon-creator-session.gx-bottom-nav-authenticated header.top #gxInternalUserMeta strong{
+    max-width:100%!important;white-space:normal!important;overflow-wrap:anywhere!important;
+    display:block!important;line-height:1.15!important;
+  }
+}
+</style>
+
 </body>
 
 <style id="grayxon-final-modal-mobile-fix">
