@@ -830,22 +830,31 @@ body.gx-bottom-nav-authenticated #grayxonBottomNav button.active::after {display
  const open=()=>{overlay.classList.add('is-open');overlay.setAttribute('aria-hidden','false');trigger.setAttribute('aria-expanded','true');closeBtn?.focus();};
  const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const addItem=(icon,label,kind,key)=>{const b=document.createElement('button');b.type='button';b.className='gx-internal-menu-item';b.dataset.gxMenuKind=kind;b.dataset.gxMenuKey=key||'';b.innerHTML='<span class="gx-internal-menu-item-icon">'+esc(icon||'•')+'</span><span class="gx-internal-menu-item-label">'+esc(label)+'</span><span class="gx-internal-menu-item-arrow">›</span>';items.appendChild(b);};
+ let internalMenuSignature='';
  window.grayxonSyncInternalMenu=function(role){
   if(!items)return;
-  if(role!=='admin'&&role!=='manager'){items.replaceChildren();return;}
+  if(role!=='admin'&&role!=='manager'){
+   if(internalMenuSignature!=='guest'){items.replaceChildren();internalMenuSignature='guest';}
+   return;
+  }
   const source=role==='admin'?document.querySelectorAll('#admin .gx-internal-access-source [data-admin],#admin .gx-internal-access-source [data-page],#admin .gx-internal-access-source [data-gx-referrals-access],#admin .gx-internal-access-source [data-gx-trabajo-access]'):document.querySelectorAll('#manager .gx-internal-access-source [data-manager-view],#manager .gx-internal-access-source [data-page],#manager .gx-internal-access-source [data-gx-referrals-access],#manager .gx-internal-access-source [data-gx-trabajo-access]');
   if(!source.length)return;
-  items.replaceChildren();
-  addItem('⌂','Inicio','utility','dashboard');
+  const entries=[{icon:'⌂',label:'Inicio',kind:'utility',key:'dashboard'}];
   source.forEach(node=>{
    const key=node.dataset.admin||node.dataset.managerView||node.dataset.page||node.dataset.gxMenuKey||'';
    const kind=node.hasAttribute('data-gx-referrals-access')?'referrals':node.hasAttribute('data-gx-trabajo-access')?'link':node.dataset.admin?'admin':node.dataset.managerView?'manager':'page';
    const icon=node.querySelector('.admin-dashboard-card-icon,.manager-dashboard-card-icon,.gx-trabajo-card-icon')?.textContent?.trim()||node.dataset.gxMenuIcon||'•';
    const label=node.querySelector('.admin-dashboard-card-copy strong,.manager-dashboard-card-copy strong,.gx-trabajo-card-copy strong')?.textContent?.trim()||node.dataset.gxMenuLabel||node.textContent.trim();
-   if(label)addItem(icon,label,kind,key);
+   if(label)entries.push({icon,label,kind,key});
   });
-  addItem('▦','Calendario','utility','calendar');
-  addItem('♙','Perfil','utility','profile');
+  entries.push({icon:'▦',label:'Calendario',kind:'utility',key:'calendar'},{icon:'♙',label:'Perfil',kind:'utility',key:'profile'});
+  const signature=JSON.stringify([role,entries]);
+  // Evita reemplazar botones idénticos: el observador del dashboard detecta
+  // mutaciones del DOM y antes esto generaba un ciclo de renderizado infinito.
+  if(signature===internalMenuSignature)return;
+  items.replaceChildren();
+  entries.forEach(entry=>addItem(entry.icon,entry.label,entry.kind,entry.key));
+  internalMenuSignature=signature;
  };
  const syncRole=()=>{
   const authenticated=document.body.classList.contains('gx-bottom-nav-authenticated');
