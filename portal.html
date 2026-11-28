@@ -727,7 +727,7 @@ setTimeout(()=>{updateBadge();syncActive()},250);
 <div id="toast" class="toast hidden"></div>
 <script src="config.js"></script>
 <link rel="stylesheet" href="livekit-mobile-layout.css?v=14">
-<script src="app.js?v=324"></script>
+<script src="app.js?v=325"></script>
 <script src="event-battle-scheduler.js?v=6"></script>
 <script src="event-battle-manual.js?v=3"></script>
 <script src="event-compliance-admin.js?v=7"></script>
@@ -1193,6 +1193,21 @@ body main.wrap{
   main.wrap,body main.wrap{padding-left:18px!important;padding-right:18px!important}
   #home .home-modern,.manager-page,.space-page,.missions-page,.profile-page,.gx-referrals-shell,.gx-admin-center{max-width:100%!important}
 }
+</style>
+
+<style id="gx-profile-avatar-management">
+.gx-profile-avatar-card{display:grid;grid-template-columns:88px minmax(0,1fr) auto;align-items:center;gap:16px;margin:16px 0 20px;padding:18px;border:1px solid #303640;border-radius:17px;background:linear-gradient(145deg,#14191f,#0c1015);box-shadow:0 10px 28px #0003}
+.gx-profile-avatar-preview{width:78px;height:78px;display:grid;place-items:center;overflow:hidden;border:1px solid #3a4652;border-radius:50%;background:#1a222b;color:#25f4ee;font-size:25px;font-weight:850}
+.gx-profile-avatar-preview img{width:100%;height:100%;object-fit:cover}
+.gx-profile-avatar-copy{display:grid;gap:5px;min-width:0}
+.gx-profile-avatar-copy strong{color:#f4f6f8;font-size:14px}
+.gx-profile-avatar-copy small{color:#9ba6b3;font-size:11px;line-height:1.5}
+.gx-profile-avatar-copy #profileAvatarStatus{min-height:15px;color:#8fe9e5;font-size:10px}
+.gx-profile-avatar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.gx-profile-avatar-actions button{min-height:40px;padding:9px 13px;border:1px solid #3b4a55;border-radius:11px;background:#172129;color:#e8f2f4;font-size:11px;font-weight:800;cursor:pointer}
+.gx-profile-avatar-actions .gx-profile-avatar-edit{border-color:#287d80;background:linear-gradient(120deg,#12383a,#17242b);color:#9ff8f1}
+.gx-profile-avatar-actions .gx-profile-avatar-delete{border-color:#593640;background:#21151a;color:#ffabb8}
+@media(max-width:600px){.gx-profile-avatar-card{grid-template-columns:62px minmax(0,1fr);gap:12px;padding:14px}.gx-profile-avatar-preview{width:60px;height:60px;font-size:20px}.gx-profile-avatar-actions{grid-column:1/-1;justify-content:stretch}.gx-profile-avatar-actions button{flex:1}}
 </style>
 </html>
 <style>
